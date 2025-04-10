@@ -96,32 +96,30 @@ The content of the attribute pages are controlled by the respective `*.md` files
 
 Each of these content files begins with a metadata header, which contains toml entries, and is followed by the page's content. Shortcodes are used to render page elements based on the toml entries. See the Shortcodes section at the end of this document for more information about using shortcodes. 
 
-## Adding New Elements to the Resources Page
+## Adding New Elements to Resources pages
 
-To add new resources to the resources page, you will need to add entries to the metadata in the `content/resources.md` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources. 
+To add new resources to the resources pages, you will need to add entries to `data/artifacts.toml` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources.
 
-In any case, you'll need to add information about your new resource to the metadata of the `content/resources.md` file. 
-Each resource is represented by an element of a toml list.
-There are both mandatory and optional fields. 
+In any case, you'll need to add information about your new resource to `data/artifacts.toml`.
+Each resource is represented as a TOML table, with a unique 'slug' for a name.
+There are both mandatory and optional fields.
 The mandatory fields are:
 - a `title` field with the title of the resource
 - a `authors` field with the author(s) of the resource
 - a `venue` field with where the resource originally appeared
 - a `date` field with some information about when the resource was created
 - a `description` field with some information about what the resource is
+- a `type` field listing any types of artifact this resource contains, out of:
+  - "paper"
+  - "presentation"
+  - "video"
+  - "code"
+  - "misc"
 The optional fields are:
 - a `url` field with a link that will be attached to the title of the resource when rendered
 - a `slides` field with a link to a slide deck relevant to this resource. If this resource is included, the word "Slides" will appear within brackets following the name of the resource and will link to the provided URL. It can be an absolute link leading to an external website or a relative path to a file internal to the website.
 - a `video` field with a link to a video relevant to this resource. Like the `slides` field, this will cause the word "Video" to appear within brackets following the name of the resource.
-- a pair of fields, `extraLink` and `extraLinkText`, which contain a link and a name for that link to be rendered like the "Slides" and "Video" links. This is useful when you have an external resource that is neither a slide deck nor a video, or when you have multiple decks or videos. For example, you might specify `extraLinkText="Demo"` and set `extraLink` to a link to an interactive demo for the resource.
-
-If you want to add a new category of resource, you will need to define a new toml list, then use the `publication-list` shortcode within the body. For example, if you wanted to add a new section called "Chapel for Climate", you would need to add the following somewhere within the body of the resources file,
-```
-## Chapel for Climate
-
-{{<publication-list "chapelForClimate">}}
-```
-and add an entry or entries in the metadata with the name `chapelForClimate`. 
+- a pair of fields, `extraLink` and `extraLinkText`, which contain a link and a name for that link to be rendered like the "Slides" and "Video" links. This is useful when you have an external resource that is neither a slide deck nor a video, or when you have multiple decks or videos. For example, you might specify `extraLinkText = "Demo"` and set `extraLink` to a link to an interactive demo for the resource.
 
 ## Shortcodes
 
