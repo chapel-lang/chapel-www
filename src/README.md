@@ -98,9 +98,9 @@ Each of these content files begins with a metadata header, which contains toml e
 
 ## Adding New Elements to Resources pages
 
-To add new resources to the resources pages, you will need to add entries to `data/artifacts.toml` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources.
+To add new resources to the resources pages, you will need to add entries to `data/publications.toml` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources.
 
-In any case, you'll need to add information about your new resource to `data/artifacts.toml`.
+In any case, you'll need to add information about your new resource to `data/publications.toml`.
 Each resource is represented as a TOML table, with a unique 'slug' for a name.
 There are both mandatory and optional fields.
 The mandatory fields are:
