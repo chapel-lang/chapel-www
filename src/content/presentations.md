@@ -7,7 +7,7 @@ keywords = ["TODO"]
 
 {{<publication-list "featuredPresentations" "Featured Presentations">}}
   {{<artifact-listing "linuxcon23">}}
-  {{<artifact-listing "hpeDevMeetup24">}}
+  {{<artifact-listing "hpeDevMeetup23">}}
   {{<artifact-listing "pnw-plse24">}}
   {{<artifact-listing "openSourceConnector24">}}
 {{</publication-list>}}
