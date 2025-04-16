@@ -2,6 +2,7 @@
 
 import argparse
 import tomllib
+import sys
 
 
 # This script is used to lint the artifacts list in the `data/publications.toml`
@@ -86,11 +87,7 @@ def lint_artifacts_list(data):
 
     print()
     print(f"Validated {len(data)} slugs.")
-    if (errored_slugs):
-        print(f"Errors found in {len(errored_slugs)} slugs:")
-        for slug, error_msg in errored_slugs.items():
-            print(f"  {slug}: {error_msg}")
-
+    return errored_slugs
 
 
 def main():
@@ -101,9 +98,17 @@ def main():
     filename = args.filename
     print("Linting artifacts list at", filename)
     print()
+
     with open(filename, "rb") as file:
         data = tomllib.load(file)
-        lint_artifacts_list(data)
+        errored_slugs = lint_artifacts_list(data)
+        if (errored_slugs):
+            print(f"Issues found in {len(errored_slugs)} slugs:")
+            for slug, error_msg in errored_slugs.items():
+                print(f"  {slug}: {error_msg}")
+            sys.exit(1)
+        else:
+            print("No errors found in artifacts list.")
 
 
 if __name__ == "__main__":
