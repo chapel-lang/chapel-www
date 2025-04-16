@@ -32,8 +32,19 @@ optional_fields = {
                         # nor a video, or when you have multiple decks or videos
     "extraLinkText",    # a name for the extra link
 }
+valid_types = {
+    "paper",
+    "presentation",
+    "poster",
+    "video",
+    "code",
+    "misc"
+}
+
+
+# BEGIN SCRIPT BODY
+
 valid_fields = required_fields | optional_fields
-valid_types = {"paper", "presentation", "poster", "video", "code", "misc"}
 
 def validate_artifact(artifact: dict):
     for field, value in artifact.items():
@@ -47,11 +58,12 @@ def validate_artifact(artifact: dict):
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
 
-    fields_encountered = set(artifact.keys())
-    required_fields_encountered = keys_encountered & required_fields
-    if "extraLinkText" in fields_encountered and "extraLink" not in fields_encountered:
+    fields = set(artifact.keys())
+
+    if "extraLinkText" in fields and "extraLink" not in fields:
         raise ValueError("Specified extraLinkText without extraLink")
 
+    required_fields_encountered = fields & required_fields
     if len(required_fields_encountered) != len(required_fields):
         missing_keys = set(required_fields) - required_fields_encountered
         raise ValueError(f"Missing required keys: {missing_keys}")
@@ -78,6 +90,7 @@ def lint_artifacts_list(data):
         print(f"Errors found in {len(errored_slugs)} slugs:")
         for slug, error_msg in errored_slugs.items():
             print(f"  {slug}: {error_msg}")
+
 
 
 def main():
