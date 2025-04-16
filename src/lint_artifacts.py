@@ -70,7 +70,8 @@ def lint_artifacts_list(data):
             print(error_msg)
             continue
 
-    print(f"Validated {len(data)} slugs")
+    print()
+    print(f"Validated {len(data)} slugs.")
     if (errored_slugs):
         print(f"Errors found in {len(errored_slugs)} slugs:")
         for slug, error_msg in errored_slugs.items():
@@ -84,6 +85,7 @@ def main():
 
     filename = args.filename
     print("Linting artifacts list at", filename)
+    print()
     with open(filename, "rb") as file:
         data = tomllib.load(file)
         lint_artifacts_list(data)
