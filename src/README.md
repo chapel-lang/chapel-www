@@ -98,28 +98,8 @@ Each of these content files begins with a metadata header, which contains toml e
 
 ## Adding New Elements to Resources pages
 
-To add new resources to the resources pages, you will need to add entries to `data/publications.toml` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources.
-
-In any case, you'll need to add information about your new resource to `data/publications.toml`.
-Each resource is represented as a TOML table, with a unique 'slug' for a name.
-There are both mandatory and optional fields.
-The mandatory fields are:
-- a `title` field with the title of the resource
-- a `authors` field with the author(s) of the resource
-- a `venue` field with where the resource originally appeared
-- a `date` field with some information about when the resource was created
-- a `description` field with some information about what the resource is
-- a `type` field listing any types of artifact this resource contains, out of:
-  - "paper"
-  - "presentation"
-  - "video"
-  - "code"
-  - "misc"
-The optional fields are:
-- a `url` field with a link that will be attached to the title of the resource when rendered
-- a `slides` field with a link to a slide deck relevant to this resource. If this resource is included, the word "Slides" will appear within brackets following the name of the resource and will link to the provided URL. It can be an absolute link leading to an external website or a relative path to a file internal to the website.
-- a `video` field with a link to a video relevant to this resource. Like the `slides` field, this will cause the word "Video" to appear within brackets following the name of the resource.
-- a pair of fields, `extraLink` and `extraLinkText`, which contain a link and a name for that link to be rendered like the "Slides" and "Video" links. This is useful when you have an external resource that is neither a slide deck nor a video, or when you have multiple decks or videos. For example, you might specify `extraLinkText = "Demo"` and set `extraLink` to a link to an interactive demo for the resource.
+To add new resources to the resources pages, you will need to add entries to `data/publications.toml` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources. In any case, you'll need to add information about your new resource to `data/publications.toml`.
+See comments in the `lint_artifacts.py` script for how this information should be formatted.
 
 ## Shortcodes
 
