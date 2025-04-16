@@ -56,14 +56,11 @@ def validate_artifact(artifact: dict):
 
 
 def lint_artifacts_list(data):
-    encountered_slugs = set()
     errored_slugs = {}
+
     for slug in data:
         print(f"Checking slug '{slug}'")
         try:
-            if slug in encountered_slugs:
-                raise ValueError(f"Duplicate slug")
-            encountered_slugs.add(slug)
             if not isinstance(slug, str):
                 raise ValueError(f"Non-string slug")
             validate_artifact(data[slug])
@@ -72,7 +69,8 @@ def lint_artifacts_list(data):
             errored_slugs[slug] = error_msg
             print(error_msg)
             continue
-    print(f"Checked {len(data)} slugs")
+
+    print(f"Validated {len(data)} slugs")
     if (errored_slugs):
         print(f"Errors found in {len(errored_slugs)} slugs:")
         for slug, error_msg in errored_slugs.items():
