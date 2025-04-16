@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arrays &mdash; Chapel Documentation 2.0</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Slices" href="slices.html" />
+    <link rel="prev" title="Domains" href="domains.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.0
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.0";
+$pagename = "primers/arrays";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Primers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#iterators">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#locality">Locality</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#data-parallelism">Data Parallelism</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="ranges.html">Ranges</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">Domains</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Arrays</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#declaring-arrays">Declaring Arrays</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#basic-array-indexing-and-slicing">Basic Array Indexing and Slicing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#multidimensional-arrays">Multidimensional Arrays</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#loops-over-arrays">Loops over Arrays</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#domains-and-domain-queries">Domains and Domain Queries</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#whole-array-assignment">Whole-Array Assignment</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#more-on-slicing">More on Slicing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#resizing-arrays">Resizing Arrays</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#array-fields-storing-arrays-in-objects">Array Fields / Storing Arrays in Objects</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#arrays-of-arrays">Arrays of Arrays</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="slices.html">Slices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="distributions.html">Distributions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="forallLoops.html">Forall Loops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sparse.html">Sparse Domains and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="associative.html">Associative Domains and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reductions.html">Reductions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="replicated.html">Replicated Distribution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#library-utilities">Library Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#numerical-libraries">Numerical Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tools">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-overview">Language Overview</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Primers</a></li>
+      <li class="breadcrumb-item active">Arrays</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/primers/arrays.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="arrays">
+<span id="primers-arrays"></span><h1>Arrays<a class="headerlink" href="#arrays" title="Permalink to this heading">¶</a></h1>
+<p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/release/examples/primers/arrays.chpl">View arrays.chpl on GitHub</a></p>
+<p>This primer is a tutorial on Chapel’s rectangular arrays and
+domains.  Other primers cover Chapel’s <a class="reference internal" href="associative.html#primers-associative"><span class="std std-ref">associative</span></a> and <a class="reference internal" href="sparse.html#primers-sparse"><span class="std std-ref">sparse</span></a> arrays,
+building on concepts introduced here.</p>
+<p>Arrays in Chapel are specified using a square-bracketed expression
+that specifies the array’s index set or <em>domain</em>, followed by the
+array’s element type.  Rectangular arrays are those whose indices
+are integers or tuples of integers, bounded by a range in each
+dimension, supporting multidimensional, rectilinear index sets.</p>
+<section id="declaring-arrays">
+<h2>Declaring Arrays<a class="headerlink" href="#declaring-arrays" title="Permalink to this heading">¶</a></h2>
+<p>Let’s start by declaring an <code class="docutils literal notranslate"><span class="pre">n</span></code>-element array of 64-bit <code class="docutils literal notranslate"><span class="pre">real</span></code>
+values (where <code class="docutils literal notranslate"><span class="pre">n</span></code> defaults to 5):</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Like other variable types in Chapel, arrays are initialized so that
+each element stores its default value.  So our array of <code class="docutils literal notranslate"><span class="pre">real</span></code> values
+above will default to an array whose elements each store the value
+0.0.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Initially, A is: &quot;</span><span class="p">,</span> <span class="nx">A</span><span class="p">);</span>  <span class="c1">// prints 0.0 for each array element</span>
+</pre></div>
+</div>
+<p>Arrays can also be declared using array literals.  These are
+specified by enclosing a comma-separated list of expressions in
+square brackets.  Unless otherwise specified, the domain of the new
+array variable will be 0-based, and the type of its elements will
+be that of the expressions if they all have the same type.  If they
+do not, the array’s element type will be a type that can hold all
+of the values, if the compiler can determine that one exists.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A2</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.1</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.3</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.4</span><span class="p">,</span> <span class="o">-</span><span class="mf">5.5</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Initially, A2 is: &quot;</span><span class="p">,</span> <span class="nx">A2</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="basic-array-indexing-and-slicing">
+<h2>Basic Array Indexing and Slicing<a class="headerlink" href="#basic-array-indexing-and-slicing" title="Permalink to this heading">¶</a></h2>
+<p>Arrays can be accessed using scalar index values of the appropriate
+type, using either parentheses or square brackets:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">A</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.1</span><span class="p">;</span>
+<span class="nx">A</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="mf">2.2</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning two elements, A is: &quot;</span><span class="p">,</span> <span class="nx">A</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Arrays can also be accessed using ranges to refer to subsets of
+array elements, or <em>sub-arrays</em>, using a technique called <em>slicing</em>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">A</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mf">3.3</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning its interior values, A is: &quot;</span><span class="p">,</span> <span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>As with array indexing, either square brackets or parentheses can
+be used for array slicing:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;A(2..4) is: &quot;</span><span class="p">,</span> <span class="nx">A</span><span class="p">(</span><span class="mi">2</span><span class="o">..</span><span class="mi">4</span><span class="p">),</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Further information on slicing can be found in the <a class="reference internal" href="slices.html#primers-slices"><span class="std std-ref">Slices
+Primer</span></a></p>
+</section>
+<section id="multidimensional-arrays">
+<h2>Multidimensional Arrays<a class="headerlink" href="#multidimensional-arrays" title="Permalink to this heading">¶</a></h2>
+<p>Arrays can be multidimensional as well.  For example, the following
+declaration creates a 2D <code class="docutils literal notranslate"><span class="pre">n</span></code> x <code class="docutils literal notranslate"><span class="pre">n</span></code> array of <code class="docutils literal notranslate"><span class="pre">real</span></code>
+values.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">B</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">}</span> <span class="k">do</span>
+  <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span> <span class="o">+</span> <span class="nx">j</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Initially, B is:\n&quot;</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="loops-over-arrays">
+<h2>Loops over Arrays<a class="headerlink" href="#loops-over-arrays" title="Permalink to this heading">¶</a></h2>
+<p>An array’s elements can be iterated over using Chapel’s standard
+loop forms like <code class="docutils literal notranslate"><span class="pre">for</span></code>, <code class="docutils literal notranslate"><span class="pre">foreach</span></code>, or <code class="docutils literal notranslate"><span class="pre">forall</span></code> (see the
+<a class="reference internal" href="loops.html#primers-loops"><span class="std std-ref">Loops Primer</span></a> for details).  These cause the
+index variable to refer to an array element in each iteration.  For
+example, the following loop increments each of <code class="docutils literal notranslate"><span class="pre">B</span></code>’s elements by
+1, in parallel:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">b</span> <span class="kd">in</span> <span class="nx">B</span> <span class="k">do</span>
+  <span class="nx">b</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After incrementing B&#39;s elements, B is:\n&quot;</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="domains-and-domain-queries">
+<h2>Domains and Domain Queries<a class="headerlink" href="#domains-and-domain-queries" title="Permalink to this heading">¶</a></h2>
+<p>An array’s index set is referred to as a domain — a first-class
+language concept that stores the set of indices used to access the
+array.  The arrays <code class="docutils literal notranslate"><span class="pre">A</span></code> and <code class="docutils literal notranslate"><span class="pre">B</span></code> above are respectively declared
+over the anonymous domains <code class="docutils literal notranslate"><span class="pre">{1..n}</span></code> and <code class="docutils literal notranslate"><span class="pre">{1..n,</span> <span class="pre">1..n}</span></code>, created
+from the ranges specified within the array type’s square brackets.
+Array <code class="docutils literal notranslate"><span class="pre">A2</span></code> above will have the implicit domain <code class="docutils literal notranslate"><span class="pre">{0..4}</span></code> to
+represent the five values in its initializing expression.</p>
+<p>An array’s domain can be queried using the <code class="docutils literal notranslate"><span class="pre">.domain</span></code> method,
+which returns a <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> to the domain in question.  For
+example, here’s a loop that iterates over B’s indices in parallel
+by querying its domain:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="nx">B</span><span class="p">.</span><span class="k">domain</span> <span class="k">do</span>
+  <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After decrementing B&#39;s elements, B is:\n&quot;</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Domains can also be queried when arrays are passed to routines, as
+a means of associating a new <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> identifier with the
+domain for the routine’s duration.  For example, the following
+procedure queries the domain of its array argument <code class="docutils literal notranslate"><span class="pre">X</span></code>, naming it
+<code class="docutils literal notranslate"><span class="pre">D</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">negateAndPrintArr</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">X</span><span class="p">:</span> <span class="p">[?</span><span class="nx">D</span><span class="p">]</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;within negateAndPrintArr, D is: &quot;</span><span class="p">,</span> <span class="nx">D</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+  <span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="nx">D</span> <span class="k">do</span>
+    <span class="nx">X</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="nx">X</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">];</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;after negating X within negateAndPrintArr, X is:\n&quot;</span><span class="p">,</span> <span class="nx">X</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">negateAndPrintArr</span><span class="p">(</span><span class="nx">B</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Arrays are passed to routines by constant (<code class="docutils literal notranslate"><span class="pre">const</span></code>) by
+default, which does not allow them to be modified within the routine.
+The above procedure <code class="docutils literal notranslate"><span class="pre">negateAndPrintArr()</span></code> must use a non-constant
+reference intent (<code class="docutils literal notranslate"><span class="pre">ref</span></code>) explicitly, so that its modifications of <code class="docutils literal notranslate"><span class="pre">X</span></code>
+are both allowed and reflected in the actual argument <code class="docutils literal notranslate"><span class="pre">B</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After calling negateAndPrintArr, B is:\n&quot;</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Domains can also be declared and named.  This has several
+advantages, including:</p>
+<ul class="simple">
+<li><p>allowing multiple arrays to share a single domain</p></li>
+<li><p>associating a logical name with an index set</p></li>
+<li><p>amortizing overheads when storing multiple distributed arrays with the same indices</p></li>
+<li><p>enabling compiler optimizations.</p></li>
+</ul>
+<p>The following domain declaration defines a 2D rectangular domain
+called <code class="docutils literal notranslate"><span class="pre">ProbSpace</span></code>, which has the same size, shape, and index set
+as <code class="docutils literal notranslate"><span class="pre">B</span></code> above.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">ProbSpace</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span>
+</pre></div>
+</div>
+<p>Note that we declare the domain as being <code class="docutils literal notranslate"><span class="pre">const</span></code>, indicating that
+we will never change the set of indices it represents.  Besides
+indicating the programmer’s intent, this can enable key compiler
+optimizations, and is therefore recommended whenever a domain’s
+index set is known to be invariant.</p>
+<p>We can then use that domain to declare some arrays…</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">C</span><span class="p">,</span> <span class="nx">D</span><span class="p">,</span> <span class="nx">E</span><span class="p">:</span> <span class="p">[</span><span class="nx">ProbSpace</span><span class="p">]</span> <span class="kt">bool</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>…and to iterate over their shared index set…</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="nx">ProbSpace</span> <span class="k">do</span>
+  <span class="nx">C</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="nx">i</span><span class="o">+</span><span class="nx">j</span><span class="p">)</span> <span class="o">%</span> <span class="mi">3</span> <span class="o">==</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning C, its value is:\n&quot;</span><span class="p">,</span> <span class="nx">C</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>An array need not be accessed using indices from the domain that
+was used to declare it.  For example, the following loop indexes
+into <code class="docutils literal notranslate"><span class="pre">B</span></code> using indices from <code class="docutils literal notranslate"><span class="pre">ProbSpace</span></code> even though there is no
+direct relationship between <code class="docutils literal notranslate"><span class="pre">B</span></code> and <code class="docutils literal notranslate"><span class="pre">ProbSpace</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="nx">ProbSpace</span> <span class="k">do</span>
+  <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span> <span class="o">+</span> <span class="nx">j</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;B has been re-assigned to:\n&quot;</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>When iterating over a multidimensional domain, the indices can be
+expressed using a single tuple variable rather than destructuring
+the tuple into its integer components.  Similarly, multidimensional
+array accesses can be written using tuple indices rather than
+multiple integer arguments.  In the following example, the index
+variable <code class="docutils literal notranslate"><span class="pre">ij</span></code> stores a 2-tuple of integers (<code class="docutils literal notranslate"><span class="pre">2*int</span></code> or <code class="docutils literal notranslate"><span class="pre">(int,</span>
+<span class="pre">int)</span></code>).  Note the use of tuple indexing to access the individual
+components of the 2-tuple <code class="docutils literal notranslate"><span class="pre">ij</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="nx">ij</span> <span class="kd">in</span> <span class="nx">ProbSpace</span> <span class="k">do</span>
+  <span class="nx">D</span><span class="p">[</span><span class="nx">ij</span><span class="p">]</span> <span class="o">=</span> <span class="nx">ij</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="nx">ij</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning D, its value is:\n&quot;</span><span class="p">,</span> <span class="nx">D</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>For further information on domains, see the <a class="reference internal" href="domains.html#primers-domains"><span class="std std-ref">Domain Primer</span></a>.</p>
+</section>
+<section id="whole-array-assignment">
+<h2>Whole-Array Assignment<a class="headerlink" href="#whole-array-assignment" title="Permalink to this heading">¶</a></h2>
+<p>Arrays of similar size and shape support whole-array assignment.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">E</span> <span class="o">=</span> <span class="nx">C</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning C to E, E&#39;s value is:\n&quot;</span><span class="p">,</span> <span class="nx">E</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Whole-array assignment also permits a scalar value that is
+compatible with the array’s element type to be assigned to each
+element of the array:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">E</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After being assigned &#39;true&#39;, E is:\n&quot;</span><span class="p">,</span> <span class="nx">E</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Whole-array assignment can also be used for arrays or sub-arrays
+whose index sets differ as long as they have the same number of
+dimensions and the same shape (number of elements per dimension).</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">F</span><span class="p">,</span> <span class="nx">G</span><span class="p">:</span> <span class="p">[</span><span class="nx">ProbSpace</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="nx">F</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nx">B</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="o">..</span><span class="nx">n</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning a slice of B to a slice of F, F&#39;s value is:\n&quot;</span><span class="p">,</span> <span class="nx">F</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="more-on-slicing">
+<h2>More on Slicing<a class="headerlink" href="#more-on-slicing" title="Permalink to this heading">¶</a></h2>
+<p>Arrays can also be sliced using unbounded ranges in which either
+the low and/or high bounds are omitted.  In this case, the missing
+bounds are defined by the array’s bounds.  For example, the
+following statement assigns all rows of <code class="docutils literal notranslate"><span class="pre">G</span></code> starting from row 2
+using all rows of <code class="docutils literal notranslate"><span class="pre">B</span></code> up to number <code class="docutils literal notranslate"><span class="pre">n-1</span></code>.  It assigns all columns
+since no bounds are provided in the second dimension.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">G</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="p">,</span> <span class="o">..</span><span class="p">]</span> <span class="o">=</span> <span class="nx">B</span><span class="p">[</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">..</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After assigning a slice of B to G, G&#39;s value is:\n&quot;</span><span class="p">,</span> <span class="nx">G</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Array slicing supports rank-change semantics when sliced using a
+scalar value rather than a range.  In the following assignment,
+recall that <code class="docutils literal notranslate"><span class="pre">A</span></code> was our initial 1-dimensional array.  The slice
+of <code class="docutils literal notranslate"><span class="pre">B</span></code> takes all columns of row <code class="docutils literal notranslate"><span class="pre">n/2</span></code>, treating it as a 1D array.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">A</span> <span class="o">=</span> <span class="nx">B</span><span class="p">[</span><span class="nx">n</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="o">..</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After being assigned a slice of B, A is:\n&quot;</span><span class="p">,</span> <span class="nx">A</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Domains can also be sliced.  However, rather than having indexing
+semantics, domain slicing computes the intersection between the
+domain’s index set and the specified slice.  Like array indexing
+and slicing, domain slicing can be written with either square
+brackets or parentheses.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;ProbSpace[1..n-2, 3..] is: &quot;</span><span class="p">,</span> <span class="nx">ProbSpace</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="o">..</span><span class="p">],</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Domain variables and expressions can also be used to specify an
+array slice rather than using lists of ranges.  For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">ProbSpaceSlice</span> <span class="o">=</span> <span class="nx">ProbSpace</span><span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="nx">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="o">..</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;B[ProbSpaceSlice] is:\n&quot;</span><span class="p">,</span> <span class="nx">B</span><span class="p">[</span><span class="nx">ProbSpaceSlice</span><span class="p">],</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="resizing-arrays">
+<h2>Resizing Arrays<a class="headerlink" href="#resizing-arrays" title="Permalink to this heading">¶</a></h2>
+<p>Another advantage to declaring named domain variables is that their
+index sets can be reassigned.  This results in a logical
+re-allocation of all arrays declared over that domain, preserving
+the array values for any indices that are preserved by the new
+domain’s value:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">VarDom</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span>
+
+<span class="kd">var</span> <span class="nx">VarArr</span><span class="p">:</span> <span class="p">[</span><span class="nx">VarDom</span><span class="p">]</span> <span class="kt">real</span> <span class="o">=</span> <span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="nx">VarDom</span><span class="p">]</span> <span class="nx">i</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Initially, VarArr = &quot;</span><span class="p">,</span> <span class="nx">VarArr</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Now, if we reassign <code class="docutils literal notranslate"><span class="pre">VarDom</span></code>, <code class="docutils literal notranslate"><span class="pre">VarArr</span></code> will be reallocated with the
+old values preserved and the new values initialized to the element
+type’s default value.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">VarDom</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">2</span><span class="o">*</span><span class="nx">n</span><span class="p">};</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After doubling VarDom, VarArr = &quot;</span><span class="p">,</span> <span class="nx">VarArr</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>As mentioned, this reallocation preserves values according
+to index, so if we extend the lower bound of the domain, the
+non-zero values will still logically be associated with indices
+<code class="docutils literal notranslate"><span class="pre">1..n</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">VarDom</span> <span class="o">=</span> <span class="p">{</span><span class="o">-</span><span class="nx">n</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="mi">2</span><span class="o">*</span><span class="nx">n</span><span class="p">};</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After lowering VarDom&#39;s lower bound, VarArr = &quot;</span><span class="p">,</span> <span class="nx">VarArr</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>If the domain shrinks, values will be thrown away</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">VarDom</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span><span class="p">};</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After shrinking VarDom, VarArr = &quot;</span><span class="p">,</span> <span class="nx">VarArr</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>One trick to reallocate an array without preserving any values is
+to assign its domain variable a degenerate domain (e.g. <code class="docutils literal notranslate"><span class="pre">{1..0}</span></code>)
+and then assign it the new value:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">VarDom</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">0</span><span class="p">};</span>  <span class="c1">// empty the array such that no values need to be preserved</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;VarArr is now empty: &quot;</span><span class="p">,</span> <span class="nx">VarArr</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+
+<span class="nx">VarDom</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span>  <span class="c1">// re-assign the domain to establish the new indices</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;VarArr should now be reset: &quot;</span><span class="p">,</span> <span class="nx">VarArr</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Note that querying an array’s domain via the <code class="docutils literal notranslate"><span class="pre">.domain</span></code> method or
+the function argument query syntax does not result in a domain that
+can be reassigned since those forms return a <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code>.  In
+particular, we cannot do:</p>
+<p><code class="docutils literal notranslate"><span class="pre">B.domain</span> <span class="pre">=</span> <span class="pre">{1..2*n,</span> <span class="pre">1..2*n};</span></code></p>
+<p>nor:</p>
+<p><code class="docutils literal notranslate"><span class="pre">proc</span> <span class="pre">foo(X:</span> <span class="pre">[?D])</span> <span class="pre">{</span>&#160; <span class="pre">D</span> <span class="pre">=</span> <span class="pre">{1..2*n};</span>&#160; <span class="pre">}</span></code></p>
+<p>Instead, to resize such arrays, their domains would need to be
+named variables, and would need to be passed by <code class="docutils literal notranslate"><span class="pre">ref</span></code> to any
+subroutines wanting to resize the arrays.</p>
+<p>An implication of this is that arrays declared using an anonymous
+domain cannot be reallocated.  So for our original array
+declarations <code class="docutils literal notranslate"><span class="pre">A</span></code> and <code class="docutils literal notranslate"><span class="pre">B</span></code>, we have no way of reallocating them.
+Arrays with constant domains provide the compiler with optimization
+benefits, so this design supports a common case efficiently.</p>
+</section>
+<section id="array-fields-storing-arrays-in-objects">
+<h2>Array Fields / Storing Arrays in Objects<a class="headerlink" href="#array-fields-storing-arrays-in-objects" title="Permalink to this heading">¶</a></h2>
+<p>A record with an array field whose size is not known until
+initialization time can be declared as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">wrapFixedArr</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">Arr</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">size</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">RSmall</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">wrapFixedArr</span><span class="p">(</span><span class="nx">size</span><span class="o">=</span><span class="mi">10</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">RLarge</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">wrapFixedArr</span><span class="p">(</span><span class="nx">size</span><span class="o">=</span><span class="mi">1000</span><span class="p">);</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Size of RSmall&#39;s FieldArr: &quot;</span><span class="p">,</span> <span class="nx">RSmall</span><span class="p">.</span><span class="nx">Arr</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Size of RLarge&#39;s FieldArr: &quot;</span><span class="p">,</span> <span class="nx">RLarge</span><span class="p">.</span><span class="nx">Arr</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Note that such a record does not support resizing the array since
+its domain is not a named variable.  However, we could create such
+a record as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">wrapDynArr</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">Inds</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">0</span><span class="p">};</span>
+  <span class="kd">var</span> <span class="nx">Arr</span><span class="p">:</span> <span class="p">[</span><span class="nx">Inds</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">r</span><span class="p">:</span> <span class="nx">wrapDynArr</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Initial size of r: &quot;</span><span class="p">,</span> <span class="nx">r</span><span class="p">.</span><span class="nx">Arr</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span>
+
+<span class="nx">r</span><span class="p">.</span><span class="nx">Inds</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="p">};</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;New size of r: &quot;</span><span class="p">,</span> <span class="nx">r</span><span class="p">.</span><span class="nx">Arr</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Either of these approaches can be used to create records (or
+classes) with array fields where each instance of the type has a
+different array size.</p>
+<p>Further information on records can be found in the <a class="reference internal" href="records.html#primers-records"><span class="std std-ref">Records
+Primer</span></a></p>
+</section>
+<section id="arrays-of-arrays">
+<h2>Arrays of Arrays<a class="headerlink" href="#arrays-of-arrays" title="Permalink to this heading">¶</a></h2>
+<p>Arrays in Chapel can have arbitrary element types, such as numeric
+values, classes, or records.  Arrays can also have array elements,
+and initial support for this is implemented in our compiler.  For
+example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">Y</span><span class="p">:</span> <span class="p">[</span><span class="nx">ProbSpace</span><span class="p">]</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="nx">ProbSpace</span> <span class="k">do</span>
+  <span class="k">for</span> <span class="nx">k</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">3</span> <span class="k">do</span>
+    <span class="nx">Y</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">][</span><span class="nx">k</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="nx">j</span> <span class="o">+</span> <span class="nx">k</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Y is:\n&quot;</span><span class="p">,</span> <span class="nx">Y</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>In such array-of-array cases, our current implementation requires
+that the array elements all have the same index set.  In the
+future, we expect to support skyline/jagged arrays, in which the
+inner array sizes can be a function of their indices.  In
+particular, it is our intention to support arrays like these:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">Triangle</span><span class="p">:</span> <span class="p">[</span><span class="nx">row</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">row</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">HierArr</span><span class="p">:</span> <span class="p">[</span><span class="nx">lvl</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">2</span><span class="o">**</span><span class="nx">lvl</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span><span class="o">**</span><span class="nx">lvl</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>For the time being, such cases must be implemented by wrapping the
+array elements in records, as shown above.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="domains.html" class="btn btn-neutral float-left" title="Domains" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="slices.html" class="btn btn-neutral float-right" title="Slices" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

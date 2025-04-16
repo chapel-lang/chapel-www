@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compiler Driver Mode &mdash; Chapel Documentation 2.4</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=4d935f96"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="LLVM Support" href="llvm.html" />
+    <link rel="prev" title="Checking Variable Lifetimes" href="lifetimeChecking.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.4
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.4";
+$pagename = "technotes/driver";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#io">IO</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="nilChecking.html">Checking for Nil Dereferences</a></li>
+<li class="toctree-l3"><a class="reference internal" href="overloadSets.html">Checking Overload Sets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lifetimeChecking.html">Checking Variable Lifetimes</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Compiler Driver Mode</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#motivation-for-driver">Motivation for Driver</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#driver-control-flags">Driver Control Flags</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#development-history">Development History</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l3"><a class="reference internal" href="globalvars.html">Variables to Detect Compilation Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Technical Notes</a></li>
+      <li class="breadcrumb-item active">Compiler Driver Mode</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/driver.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="compiler-driver-mode">
+<span id="readme-driver"></span><h1>Compiler Driver Mode<a class="headerlink" href="#compiler-driver-mode" title="Link to this heading">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The compiler driver mode is relatively new. If you use it and encounter a bug
+or limitation not yet documented as a
+<a class="reference external" href="https://github.com/chapel-lang/chapel/issues">Github issue</a>, consider
+filing an issue as described in <a class="reference internal" href="../usingchapel/bugs.html#readme-bugs"><span class="std std-ref">Reporting Chapel Issues</span></a>. Driver mode can be
+disabled with the <code class="docutils literal notranslate"><span class="pre">--no-compiler-driver</span></code> compiler flag, to determine if the
+problem is specific to driver mode or as a temporary workaround before it is
+fixed. This flag will be removed at some point in the future when driver mode
+becomes the only option.</p>
+</div>
+<p>The Chapel compiler <code class="docutils literal notranslate"><span class="pre">chpl</span></code> previously ran as a single executable responsible
+for all steps of compilation, with some components done in
+subprocesses depending on which backend is used. By contrast, many compiler
+executables (including <code class="docutils literal notranslate"><span class="pre">gcc</span></code> and <code class="docutils literal notranslate"><span class="pre">clang</span></code>) are actually <cite>compiler drivers</cite>.
+A compiler driver is a smaller program responsible for processing arguments and
+invoking separate processes for the different stages of compilation required. As
+of release 2.0, <code class="docutils literal notranslate"><span class="pre">chpl</span></code> runs as a compiler driver by default, with the
+following phases run as separate subprocesses:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">compilation</span></code>: Everything through code generation (C code or LLVM bitcode).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">makeBinary</span></code>: Compiling C or LLVM code to an executable.</p></li>
+</ul>
+<p>Driver mode can be opted-out of with <code class="docutils literal notranslate"><span class="pre">--no-compiler-driver</span></code>. This flag will be
+removed at some point in the future when driver mode becomes the only option.</p>
+<section id="motivation-for-driver">
+<h2>Motivation for Driver<a class="headerlink" href="#motivation-for-driver" title="Link to this heading">¶</a></h2>
+<p>There are a few potential advantages provided by the compiler driver approach,
+which are not necessarily accomplished by the present implementation yet.</p>
+<ul class="simple">
+<li><p>Reduced memory pressure. Different driver phases phases are separate
+subprocesses, and the memory used by each can be completely reclaimed after
+it is done.</p></li>
+<li><p>Ability to perform some parts of compilation but not others, to avoid
+unnecessary work. For example, some compilers provide ways to check if code
+is valid without generating a binary, supporting a faster edit-recompile
+cycle; the driver provides one way of accomplishing this effect.</p></li>
+<li><p>Better debuggability. A developer could debug just the phase(s) of the driver
+relevant to what they’re investigating, simplifying and saving time.</p></li>
+<li><p>Better compiler code organization via looser coupling between components.</p></li>
+</ul>
+</section>
+<section id="driver-control-flags">
+<h2>Driver Control Flags<a class="headerlink" href="#driver-control-flags" title="Link to this heading">¶</a></h2>
+<p>Several flags are available to control the actions performed by the driver. Some
+are intended for the user, and others are considered internal and likely only
+to be useful to compiler developers. Both are documented here.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--compiler-driver</span></code>: Enable compiler driver mode. This flag mut be present
+to set any other driver flags. Without this flag, the compiler will run
+monolithically as usual.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--driver-debug-phase</span></code>: Set which phase of compilation to run in the
+debugger: ‘compilation’, ‘makeBinary’, or ‘all’. If debugging just
+compilation, makeBinary will be skipped entirely as it is unlikely to be
+useful.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--driver-compilation-phase</span></code>: Internal flag. The driver re-invokes itself
+with this flag to to trigger execution of the compilation phase.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--driver-makebinary-phase</span></code>: Internal flag. The driver re-invokes itself
+with this flag to to trigger execution of the makeBinary phase.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--driver-tmp-dir</span></code>: Internal flag, specifying where the current phase will
+look for temporary files that must be carried between phases. The driver sets
+this flag during re-invocations for the different phases, and will provide the
+same value to all phases.</p></li>
+</ul>
+</section>
+<section id="development-history">
+<h2>Development History<a class="headerlink" href="#development-history" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>With release 1.32, the Chapel compiler provides an opt-in compiler driver mode
+that can be used via the <code class="docutils literal notranslate"><span class="pre">--compiler-driver</span></code> flag. This mode will become the
+default at some point in the future. The driver currently splits work into two
+phases: <cite>compilation</cite>, which is responsible for everything through code
+generation (C code or LLVM bitcode), and <cite>makeBinary</cite>, which is responsible
+for binary generation (including linking).</p></li>
+<li><p>In release 2.0, the driver mode is on by default, and the
+<code class="docutils literal notranslate"><span class="pre">--compiler-driver</span></code> flag is unstable. The new unstable
+<code class="docutils literal notranslate"><span class="pre">--no-compiler-driver</span></code> flag allows opting out of the driver mode and will
+cause the compiler to run monolithically as before. Both flags will be removed
+in the future when support for monolithic mode is dropped and driver mode is
+the only option.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="lifetimeChecking.html" class="btn btn-neutral float-left" title="Checking Variable Lifetimes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="llvm.html" class="btn btn-neutral float-right" title="LLVM Support" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

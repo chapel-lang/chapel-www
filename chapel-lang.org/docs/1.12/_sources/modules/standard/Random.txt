@@ -1,0 +1,211 @@
+.. default-domain:: chpl
+
+.. module:: Random
+   :synopsis: Support for pseudorandom number generation
+
+Module: Random
+==============
+
+Support for pseudorandom number generation
+
+This module defines an abstraction for a stream of pseudorandom
+numbers, :class:`RandomStream`, supporting methods to get the next
+random number in the stream (:proc:`.getNext`), to fast-forward to
+a specific value in the stream (:proc:`.skipToNth` and
+:proc:`.getNth`), or to fill an array with random numbers in
+parallel (:proc:`~Random.RandomStream.fillRandom`).  The module
+also provides a standalone convenience function, :proc:`fillRandom`
+that can be used to fill an array with random numbers in parallel
+without manually creating a :class:`RandomStream` object.
+
+The current pseudorandom number generator (PRNG) implemented by
+this module uses the algorithm from the NAS Parallel Benchmarks
+(NPB, available at: http://www.nas.nasa.gov/publications/npb.html),
+which can be used to generate random values of type `real(64)`,
+`imag(64)`, and `complex(128)`.  The longer-term intention is to
+add knobs to select between a menu of additional PRNG algorithms
+(such as the Mersenne twister) and element types (such as integer
+types and other floating point widths).
+
+Paraphrasing the comments from the NPB reference implementation:
+
+  This generator returns uniform pseudorandom real values in the
+  range (0, 1) by using the linear congruential generator
+
+    `x_{k+1} = a x_k  (mod 2**46)`
+
+  where 0 < x_k < 2**46 and 0 < a < 2**46.  This scheme
+  generates 2**44 numbers before repeating.  The generated values
+  are normalized to be between 0 and 1, i.e., 2**(-46) * x_k.
+
+  This generator should produce the same results on any computer
+  with at least 48 mantissa bits for `real(64)` data.
+
+
+Here is a list of currently open issues (TODOs) for this module:
+
+1. This module is currently restricted to generating `real(64)`,
+`imag(64)`, and `complex(128)` complex values using a single PRNG
+algorithm.  As noted above, we would like to extend this support to
+include other algorithms and primitive types over time.
+
+2. We plan to support general serial and parallel iterator methods
+on :class:`RandomStream`; however, providing the full suite of
+iterators is not possible with our current parallel iterator
+framework.  Specifically, if :class:`RandomStream` is a follower in
+a zippered iteration context, there is no way for it to update the
+total number of random numbers generated in a safe/sane/coordinated
+way.  We are exploring a revised leader-follower iterator framework
+that would support this idiom (and other cursor-based ones).  With
+Chapel's recent support for standalone parallel iterators, one
+could define a standalone parallel iterator for
+:class:`RandomStream`, but this effort has not yet been taken on.
+
+3. If no seed is provided by the user, one is chosen based on the
+current time in microseconds, allowing for some degree of
+pseudorandomness in seed selection.  The intent of
+:record:`SeedGenerators` is to provide a menu of other options
+for initializing the random stream seed, but only one option is
+implemented at present.
+
+
+.. data:: const SeedGenerator: SeedGenerators
+
+   
+   An instance of :record:`SeedGenerators` that provides a
+   convenient means of generating seeds when the user does not wish to
+   specify one manually.
+
+.. record:: SeedGenerators
+
+   
+   Provides methods to help generate seeds when the user doesn't want
+   to create one.  It currently only supports one such method, but the
+   intention is to add more over time.
+   
+   .. note::
+           Once Chapel supports static class methods,
+           :const:`SeedGenerator` and :record:`SeedGenerators` should
+           be combined into a single record type with static methods).
+   
+
+
+   .. method:: proc currentTime: int(64)
+
+      
+      Generate a seed based on the current time in microseconds as
+      reported by :proc:`Time.getCurrentTime`, ensuring that it
+      meets the PRNG's requirements.
+      
+
+.. function:: proc fillRandom(arr: [], seed: int(64) = SeedGenerator.currentTime)
+
+   
+   Fill an array of `real(64)`, `imag(64)`, or `complex(128)` elements
+   with pseudorandom values in parallel using a new
+   :class:`RandomStream` created specifically for this call.  The
+   first `arr.size` values from the stream will be assigned to the
+   array's elements in row-major order for `real` and `imag` elements.
+   For `complex` elements, consecutive pairs of random numbers are
+   assigned to the real and imaginary components, respectively.  The
+   parallelization strategy is determined by the array.
+   
+   :arg arr: The array to be filled, where T is `real(64)`, `imag(64)`, or `complex(128)`.
+   :type arr: [] T
+   
+   :arg seed: The seed to use for the PRNG.  Defaults to :proc:`SeedGenerator.currentTime <SeedGenerators.currentTime>`.
+   :type seed: int(64)
+
+.. class:: RandomStream
+
+   
+   Models a stream of pseudorandom numbers.  See the module-level
+   notes for :mod:`Random` for details on the PRNG used.
+
+
+   .. attribute:: type eltType = real(64)
+
+      
+      Specifies the type of value generated by the RandomStream.
+      Currently, only `real(64)`, `imag(64)`, and `complex(128)` are
+      supported.
+      
+
+   .. attribute:: param parSafe: bool = true
+
+      
+      Indicates whether or not the RandomStream needs to be
+      parallel-safe by default.  If multiple tasks interact with it in
+      an uncoordinated fashion, this must be set to `true`.  If it will
+      only be called from a single task, or if only one task will call
+      into it at a time, setting to `false` will reduce overhead related
+      to ensuring mutual exclusion.
+      
+
+   .. attribute:: const seed: int(64)
+
+      
+      The seed value for the PRNG.  It must be an odd integer in the
+      range (1, 2**46).
+      
+
+   .. method:: proc RandomStream(seed: int(64) = SeedGenerator.currentTime, param parSafe: bool = true, type eltType = real(64))
+
+      
+      Constructs a new stream of random numbers using the specified seed
+      and parallel safety.  Ensures that the seed value meets the PRNG's
+      constraints.
+      
+      :arg seed: The seed to use for the PRNG.  Defaults to :proc:`SeedGenerator.currentTime <SeedGenerators.currentTime>`..
+      :type seed: int(64)
+      
+      :arg parSafe: The parallel safety setting.  Defaults to `true`.
+      :type parSafe: bool
+      
+      :arg eltType: The element type to be generated.  Defaults to `real(64)`.
+      :type eltType: type
+      
+
+   .. method:: proc getNext(): eltType
+
+      
+      Returns the next value in the random stream.
+      
+      :returns: The next value in the random stream as type :type:`eltType`.
+      
+
+   .. method:: proc skipToNth(n: integral)
+
+      
+      Advances/rewinds the stream to the `n`-th value in the sequence.
+      
+      :arg n: The position in the stream to skip to.  Must be non-negative.
+      :type n: integral
+      
+
+   .. method:: proc getNth(n: integral): eltType
+
+      
+      Advance/rewind the stream to the `n`-th value and return it
+      (advancing the stream by one).  This is equivalent to
+      :proc:`skipToNth()` followed by :proc:`getNext()`.
+      
+      :arg n: The position in the stream to skip to.  Must be non-negative.
+      :type n: integral
+      
+      :returns: The `n`-th value in the random stream as type :type:`eltType`.
+      
+
+   .. method:: proc fillRandom(arr: [] eltType)
+
+      
+      Fill the argument array with pseudorandom values.  This method is
+      identical to the standalone :proc:`fillRandom` procedure,
+      except that it consumes random values from the
+      :class:`RandomStream` object on which it's invoked rather
+      than creating a new stream for the purpose of the call.
+      
+      :arg arr: The array to be filled
+      :type arr: [] :type:`eltType`
+      
+

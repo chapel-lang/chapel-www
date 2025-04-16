@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How To Generate Warnings And Error Messages &mdash; Chapel Documentation 2.4</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=4d935f96"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="The Chapel Runtime Library" href="RuntimeLibrary.html" />
+    <link rel="prev" title="Examining/Debugging Compiler IR" href="CompilerIRTricks.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.4
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.4";
+$pagename = "developer/bestPractices/ErrorWarningMessaging";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Best Practices for Contributors</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ContributorInfo.html">Contributor Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="DCO.html">Getting started with Chapel and the Developer Certificate of Origin (DCO)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerDebugging.html">Tips On Debugging The Compiler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerIRTricks.html">Examining/Debugging Compiler IR</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">How To Generate Warnings And Error Messages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#print-callstack-on-error">–print-callstack-on-error</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#in-chapel-code">In Chapel code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#in-the-runtime-library">In the runtime library</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#in-the-compiler">In the compiler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="RuntimeLibrary.html">The Chapel Runtime Library</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GeneratedCode.html">All About Compiler-Generated Code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GASNetOnDesktops.html">Running Chapel Programs with GASNet on your Desktop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="git.html">Git tips for Chapel developers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CHPL_DEVELOPER.html">The CHPL_DEVELOPER environment variable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestSystem.html">Chapel Testing System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="SpellChecking.html">chplspell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Valgrind.html">Valgrind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Sanitizers.html">Sanitizers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Deprecation.html">Chapel’s Deprecation Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Unstable.html">Unstable Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="NightlyTesting.html">Nightly Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="StandardModuleStyle.html">Standard Module Style</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestAnnotationsLocally.html">How to test ANNOTATIONS.yaml changes locally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildingdocs.html">Building Chapel Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Potpourri.html">Miscellaneous Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../compiler-internals/index.html">Frontend Library API Docs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Docs for Contributors</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Best Practices for Contributors</a></li>
+      <li class="breadcrumb-item active">How To Generate Warnings And Error Messages</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/bestPractices/ErrorWarningMessaging.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="how-to-generate-warnings-and-error-messages">
+<span id="best-practices-error-warning-messaging"></span><h1>How To Generate Warnings And Error Messages<a class="headerlink" href="#how-to-generate-warnings-and-error-messages" title="Link to this heading">¶</a></h1>
+<section id="print-callstack-on-error">
+<h2>–print-callstack-on-error<a class="headerlink" href="#print-callstack-on-error" title="Link to this heading">¶</a></h2>
+<p>The option <code class="docutils literal notranslate"><span class="pre">--print-callstack-on-error</span></code> makes the compiler print the
+complete (compile-time) call chain at the point an error or warning is
+issued. This may be useful because the cause of the issue may not be
+at the location reported in the warning/error.</p>
+</section>
+<section id="in-chapel-code">
+<h2>In Chapel code<a class="headerlink" href="#in-chapel-code" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p><strong>compile-time</strong> - use these functions:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">compilerWarning()</span></code> - reports a “warning”</p>
+<p><code class="docutils literal notranslate"><span class="pre">compilerError()</span></code>   - reports an “error” and halts compilation</p>
+</div></blockquote>
+<ul>
+<li><p>Arguments: any number of strings known at compile time(e.g. literals or params).</p></li>
+<li><p>Compile-time-known control flow (e.g. ‘if’ on a param boolean expression) can be used to guard when they are issued.</p></li>
+<li><p>Advanced: if the last argument is an int, it is the <cite>errorDepth</cite>: the error is reported as if it is in the function that deep in the Chapel call stack (not counting those in internal modules or generated by the compiler). 0 is for the location of the call to compilerWarning/Error itself. The default is 1.</p>
+<p>(Note: as of this writing, this will not necessarily work. Use <code class="docutils literal notranslate"><span class="pre">--print-callstack-on-error</span></code> if needed.)</p>
+</li>
+<li><p>These are defined in <code class="docutils literal notranslate"><span class="pre">modules/internal/ChapelBase.chpl</span></code> and also presented in the language spec.</p></li>
+</ul>
+</li>
+<li><p><strong>run-time</strong> - use these functions:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">halt()</span></code>       - unconditional error</p>
+<p><code class="docutils literal notranslate"><span class="pre">assert(test)</span></code> - assertion</p>
+</div></blockquote>
+<ul>
+<li><p>Both functions accept an arbitrary number of additional arguments,
+which are printed as part of the error message.</p>
+<p><code class="docutils literal notranslate"><span class="pre">(modules/standard/ChapelIO.chpl)</span></code></p>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="in-the-runtime-library">
+<h2>In the runtime library<a class="headerlink" href="#in-the-runtime-library" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>Respond to the user’s erroneous actions:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chpl_warning</span><span class="p">(</span><span class="n">const</span> <span class="n">char</span><span class="o">*</span> <span class="n">message</span><span class="p">,</span> <span class="n">int32_t</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">chpl_string</span> <span class="n">filename</span><span class="p">)</span>
+
+<span class="n">chpl_error</span><span class="p">(</span><span class="n">const</span> <span class="n">char</span><span class="o">*</span> <span class="n">message</span><span class="p">,</span> <span class="n">int32_t</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">chpl_string</span> <span class="n">filename</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Indicate an issue with the library code itself:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chpl_internal_error</span><span class="p">(</span><span class="n">const</span> <span class="n">char</span><span class="o">*</span> <span class="n">message</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>(See <code class="docutils literal notranslate"><span class="pre">runtime/src/error.c</span></code>.)</p></li>
+</ul>
+</section>
+<section id="in-the-compiler">
+<h2>In the compiler<a class="headerlink" href="#in-the-compiler" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>Respond to the user’s actions/errors:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">USR_PRINT</span></code> - information message</p>
+<p><code class="docutils literal notranslate"><span class="pre">USR_WARN</span></code>  - warning</p>
+<p><code class="docutils literal notranslate"><span class="pre">USR_FATAL</span></code> - error, abort compilation</p>
+<p><code class="docutils literal notranslate"><span class="pre">USR_FATAL_CONT</span></code>  - error, abort compilation at the end of the current pass (or upon a call to <code class="docutils literal notranslate"><span class="pre">USR_STOP</span></code>)</p>
+</div></blockquote>
+</li>
+<li><p>Issues with the compiler code itself (internal errors):</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">INT_FATAL</span></code> - error, abort compilation</p>
+<p><code class="docutils literal notranslate"><span class="pre">INT_ASSERT</span></code> - an assertion</p>
+</div></blockquote>
+<p>Between these two, <code class="docutils literal notranslate"><span class="pre">INT_FATAL</span></code> is unconditional whereas <code class="docutils literal notranslate"><span class="pre">INT_ASSERT</span></code> fires only if its sole argument is false.</p>
+<p>Also, <code class="docutils literal notranslate"><span class="pre">INT_ASSERT</span></code> is intended to become a no-op in production builds of the compiler, whereas <code class="docutils literal notranslate"><span class="pre">INT_FATAL</span></code> will be in effect in any build.</p>
+</li>
+<li><p>Each of the above macros (except <code class="docutils literal notranslate"><span class="pre">USR_FATAL_CONT</span></code> and <code class="docutils literal notranslate"><span class="pre">INT_ASSERT</span></code>) takes a format string and optional arguments, which are all passed to printf or similar.</p>
+<p>If the format string is preceded by an AST node (<code class="docutils literal notranslate"><span class="pre">BaseAST*</span></code>), then that node’s file and line number are printed before the error message.</p>
+<p>(See <code class="docutils literal notranslate"><span class="pre">compiler/include/misc.h</span></code>.)</p>
+</li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="CompilerIRTricks.html" class="btn btn-neutral float-left" title="Examining/Debugging Compiler IR" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="RuntimeLibrary.html" class="btn btn-neutral float-right" title="The Chapel Runtime Library" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

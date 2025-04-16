@@ -1,0 +1,455 @@
+.. default-domain:: chpl
+
+.. module:: PrecisionSerializer
+   :synopsis: Support for controlling I/O precision and padding.
+
+PrecisionSerializer
+===================
+**Usage**
+
+.. code-block:: chapel
+
+   use PrecisionSerializer;
+
+
+or
+
+.. code-block:: chapel
+
+   import PrecisionSerializer;
+
+
+Support for controlling I/O precision and padding.
+
+Provides the ``precisionSerializer`` type, whose formatting is identical to
+the :record:`~IO.defaultSerializer`, except numbers are printed with the
+specified precision and padding.
+
+.. record:: precisionSerializer
+
+   .. warning::
+
+      'precisionSerializer' is an experimental feature. Its behavior and/or API may change in future releases.
+
+   
+   A variation of the :record:`~IO.defaultSerializer` that provides
+   finer control over formatting of numerical values.
+   
+   For example, the following code snippet:
+   
+   .. code-block:: chapel
+   
+     use PrecisionSerializer;
+     var x = [i in 1..5] i + 0.123456789;
+     stdout.withSerializer(new precisionSerializer(precision=7, padding=12)).write(x);
+   
+   would produce the output:
+   
+   .. code-block:: text
+   
+     1.1234568    2.1234568    3.1234568    4.1234568    5.1234568
+   
+   whereas the default serializer would output:
+   
+   .. code-block:: text
+   
+     1.12346 2.12346 3.12346 4.12346 5.12346
+   
+   See :ref:`the serializers technote<ioSerializers>` for a general overview
+   of Serializers and their usage.
+   
+
+   .. method:: proc init()
+
+      
+      Create a default ``precisionSerializer`` with a precision of ``15`` and no
+      padding.
+      
+
+   .. method:: proc init(precision: int, padding: int = 0)
+
+      
+      Create a ``precisionSerializer`` with particular precision and padding
+      settings for formatting numeric values.
+      
+      :arg precision: The number of digits to display after the decimal point
+                      when serializing real values.
+      :arg padding: The number of columns to left-pad the number with when
+                    serializing real values, or the minimum column width when
+                    serializing integral values (left padding used). If zero,
+                    no padding/width is enforced.
+      
+
+   .. method:: proc ref serializeValue(writer: fileWriter, const val: ?t): void throws
+
+      
+      Serialize ``val`` with ``writer``.
+      
+      Real values are serialized with either ``%*.*dr`` or ``%.*dr`` depending on
+      whether a non-zero padding was specified. Left padding is used if specified.
+      
+      Integral values are serialized with either ``%*i`` or ``%i`` depending on
+      whether a non-zero padding was specified. Left padding is used if specified.
+      
+      Complex numbers are serialized as ``%z``.
+      
+      Booleans are serialized as the literal strings ``true`` or ``false``.
+      
+      ``string`` values are serialized using the same format as ``%s`` — that is,
+      literally and without quotes. ``bytes`` values are also serialized
+      literally without extra formatting.
+      
+      Enums are serialized using the name of the corresponding value. For example
+      with an enum like ``enum colors {red, green blue}``, the value ``red``
+      would simply be serialized as ``red``.
+      
+      The ``nil`` value and nilable class variables storing ``nil`` will be
+      serialized as the text ``nil``.
+      
+      Classes and records will have their ``serialize`` method invoked, passing
+      in ``writer`` and this Serializer as arguments. Please see the
+      :ref:`serializers technote<ioSerializers>` for more information.
+      
+      Classes and records are expected to implement the ``writeSerializable``
+      or ``serializable`` interface.
+      
+      :arg writer: The :record:`~IO.fileWriter` used to write serialized output.
+      :arg val: The value to be serialized.
+      
+
+   .. method:: proc startClass(writer: fileWriter, name: string, size: int) throws
+
+      
+      Start serializing a class by writing the character ``{``.
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing.
+      :arg name: The name of the class type.
+      :arg size: The number of fields in the class.
+      
+      :returns: A new :record:`~PrecisionSerializer.precisionSerializer.AggregateSerializer`
+      
+
+   .. method:: proc startRecord(writer: fileWriter, name: string, size: int) throws
+
+      
+      Start serializing a record by writing the character ``(``.
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing.
+      :arg name: The name of the record type.
+      :arg size: The number of fields in the record.
+      
+      :returns: A new :record:`AggregateSerializer`
+      
+
+   .. record:: AggregateSerializer
+
+      
+      Returned by :proc:`~PrecisionSerializer.precisionSerializer.startClass`
+      or :proc:`~PrecisionSerializer.precisionSerializer.startRecord` to provide
+      the API for serializing classes or records.
+      
+      A ``class`` with integer fields 'x' and 'y' with values '0' and '5' would
+      be serialized as:
+      
+      .. code-block:: text
+      
+        {x = 0, y = 5}
+      
+      A ``record`` with matching fields would be serialized in the same way, but
+      would use ``(`` and ``)`` instead of ``{`` and ``}``.
+      
+
+      .. method:: proc ref writeField(name: string, const field: ?) throws
+
+      
+      Serialize ``field`` named ``name``.
+      
+      Serializes fields in the form '<name> = <field>'. Adds a comma before the
+      name if this is not the first field.
+      
+
+      .. method:: proc ref startClass(writer: fileWriter, name: string, size: int) throws
+
+      
+      Start serializing a nested class inside the current class. In this format
+      inheritance is not represented and parent fields are printed before child
+      fields. For example, the following classes with values
+      ``x=5`` and ``y=2.0``:
+      
+      .. code-block:: chapel
+      
+        class Parent {
+          var x : int;
+        }
+      
+        class Child: Parent {
+          var y : real;
+        }
+      
+      would be serialized as:
+      
+      .. code-block:: text
+      
+        {x = 5, y = 2.000000000000000}
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing. Must match
+                  the writer used to create the current ``AggregateSerializer``.
+      :arg name: The name of the class type.
+      :arg size: The number of fields in the class.
+      
+      :returns: A new :record:`~PrecisionSerializer.precisionSerializer.AggregateSerializer`
+      
+
+      .. method:: proc endClass() throws
+
+      
+      Ends serialization of the current class by writing the character ``}``
+      
+      .. note:: It is an error to call methods on an AggregateSerializer after
+                invoking 'endClass'.
+      
+
+      .. method:: proc endRecord() throws
+
+      
+      Ends serialization of the current record by writing the character ``)``
+      
+      .. note:: It is an error to call methods on an ``AggregateSerializer`` after
+                invoking ``endRecord``.
+      
+
+   .. method:: proc startTuple(writer: fileWriter, size: int) throws
+
+      
+      Start serializing a tuple by writing the character ``(``.
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing.
+      :arg size: The number of elements in the tuple.
+      
+      :returns: A new :record:`TupleSerializer`
+      
+
+   .. record:: TupleSerializer
+
+      
+      Returned by :proc:`~PrecisionSerializer.precisionSerializer.startTuple`
+      to provide the API for serializing tuples.
+      
+      A tuple will be serialized as a comma-separated list between two
+      parentheses. For example, the tuple literal ``(1, 2, 3)`` would be
+      serialized as:
+      
+      .. code-block::
+      
+        (1, 2, 3)
+      
+      A 1-tuple will be serialized with a trailing comma. For example, the literal
+      ``(4,)`` would be serialized as ``(4,)``.
+      
+      
+
+      .. method:: proc ref writeElement(const element: ?) throws
+
+      
+      Serialize ``element``.
+      
+      Writes a leading comma before serializing the element if this is not the
+      first element in the tuple.
+      
+
+      .. method:: proc endTuple() throws
+
+      
+      Ends serialization of the current tuple by writing the character ``)``.
+      
+      Adds a comma between the last value and ``)`` if there was only one
+      element.
+      
+      .. note:: It is an error to call methods on an ``TupleSerializer`` after
+                invoking ``endTuple``.
+      
+
+   .. method:: proc startList(writer: fileWriter, size: int) throws
+
+      
+      Start serializing a list by writing the character ``[``.
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing.
+      :arg size: The number of elements in the list.
+      
+      :returns: A new :record:`ListSerializer`
+      
+
+   .. record:: ListSerializer
+
+      
+      Returned by :proc:`PrecisionSerializer.precisionSerializer.startList`
+      to provide the API for serializing lists.
+      
+      A list will be serialized as a comma-separated series of serialized
+      elements between two square brackets. For example, serializing a list
+      with elements ``1``, ``2``, and ``3`` will produce the text:
+      
+      .. code-block:: text
+      
+        [1, 2, 3]
+      
+      Empty lists will be serialized as ``[]``.
+      
+
+      .. method:: proc ref writeElement(const element: ?) throws
+
+      
+      Serialize ``element``.
+      
+      Writes a leading comma before serializing the element if this is not the
+      first element in the list.
+      
+
+      .. method:: proc endList() throws
+
+      
+      Ends serialization of the current list by writing the character ``]``.
+      
+      .. note:: It is an error to call methods on an ``ListSerializer`` after
+                invoking ``endList``.
+      
+
+   .. method:: proc startArray(writer: fileWriter, size: int) throws
+
+      
+      Start serializing an array.
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing.
+      :arg size: The number of elements in the array.
+      
+      :returns: A new :record:`ArraySerializer`
+      
+
+   .. record:: ArraySerializer
+
+      
+      Returned by :proc:`~PrecisionSerializer.precisionSerializer.startArray`
+      to provide the API for serializing arrays.
+      
+      In the default format, an array will be serialized as a
+      whitespace-separated series of serialized elements. This serializer can
+      add additional whitespace between elements if padding is specified.
+      
+      A 1D array is serialized simply using spaces plus any additional padding:
+      
+      ::
+      
+        1.123   2.123   3.123   4.123
+      
+      A 2D array is serialized using spaces between elements in a row, and
+      prints newlines for new rows:
+      
+      ::
+      
+        1.123   2.123   3.123
+        4.123   5.123   6.123
+        7.123   8.123   9.123
+      
+      Arrays with three or more dimensions will be serialized as a series of
+      2D "panes", with multiple newlines separating new dimensions:
+      
+      ::
+      
+        1.123   2.123   3.123
+        4.123   5.123   6.123
+        7.123   8.123   9.123
+      
+        10.12   11.12   12.12
+        13.12   14.12   15.12
+        16.12   17.12   18.12
+      
+        19.12   20.12   21.12
+        22.12   23.12   24.12
+        25.12   26.12   27.12
+      
+      Empty arrays result in no output to the :record:`~IO.fileWriter`.
+      
+
+      .. method:: proc ref startDim(size: int) throws
+
+      
+      Inform the :record:`~PrecisionSerializer.precisionSerializer.ArraySerializer`
+      to start serializing a new dimension of size ``size``.
+      
+
+      .. method:: proc ref endDim() throws
+
+      
+      End the current dimension.
+      
+
+      .. method:: proc ref writeElement(const element: ?) throws
+
+      
+      Serialize ``element``.
+      
+      Adds a space if this is not the first element in the row.
+      
+
+      .. method:: proc endArray() throws
+
+      
+      Ends serialization of the current array.
+      
+      .. note:: It is an error to call methods on an ``ArraySerializer`` after
+                invoking ``endArray``.
+      
+
+   .. method:: proc startMap(writer: fileWriter, size: int) throws
+
+      
+      Start serializing a map by writing the character ``{``.
+      
+      :arg writer: The :record:`~IO.fileWriter` to be used when serializing.
+      :arg size: The number of entries in the map.
+      
+      :returns: A new :record:`MapSerializer`
+      
+
+   .. record:: MapSerializer
+
+      
+      Returned by :proc:`~PrecisionSerializer.precisionSerializer.startMap`
+      to provide the API for serializing maps.
+      
+      Maps are serialized as a comma-separated series of pairs between curly
+      braces. Pairs are serialized with a ``:`` separating the key and value. For
+      example, the keys ``1``, ``2``, and ``3`` with values corresponding to
+      their squares would be serialized as:
+      
+      ::
+      
+        {1: 1, 2: 4, 3: 9}
+      
+      Empty maps will be serialized as ``{}``.
+      
+
+      .. method:: proc ref writeKey(const key: ?) throws
+
+      
+      Serialize ``key``.
+      
+      Adds a leading comma if this is not the first pair in the map.
+      
+
+      .. method:: proc writeValue(const val: ?) throws
+
+      
+      Serialize ``val``, preceded by the character ``:``.
+      
+
+      .. method:: proc endMap() throws
+
+      
+      Ends serialization of the current map by writing the character ``}``
+      
+      .. note:: It is an error to call methods on an ``MapSerializer`` after
+                invoking ``endMap``.
+      
+

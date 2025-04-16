@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Function-Static Variables &mdash; Chapel Documentation 2.2</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=b21de401"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Remote Variable Declarations" href="remote.html" />
+    <link rel="prev" title="Interfaces in the Chapel Standard Library" href="interfaces.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.2
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.2";
+$pagename = "technotes/static";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="noinit.html">Avoiding Array Element Initialization with noinit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="errorHandling.html">Error Handling Modes and Prototype Modules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="firstClassProcedures.html">First-class Procedures in Chapel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="module_include.html">Including Sub-Modules from Separate Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="main.html">main() Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l3"><a class="reference internal" href="operatorMethods.html">Operator Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="manage.html">The 'manage' Statement</a></li>
+<li class="toctree-l3"><a class="reference internal" href="attributes.html">Attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="interfaces.html">Interfaces</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Function-static Variables</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#generic-functions">Generic Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#synchronization">Synchronization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sharing-kinds">Sharing Kinds</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#implementation-details">Implementation Details</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#limitations">Limitations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#future-work">Future Work</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="remote.html">Remote Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#io">IO</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Technical Notes</a></li>
+      <li class="breadcrumb-item active">Function-Static Variables</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/static.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="function-static-variables">
+<span id="readme-static"></span><h1><a class="toc-backref" href="#id1" role="doc-backlink">Function-Static Variables</a><a class="headerlink" href="#function-static-variables" title="Link to this heading">¶</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This work is under active development. As such, the interface is unstable and
+expected to change.</p>
+<p>It is likely the final version of this feature will not be implemented
+using an attribute.</p>
+</div>
+<nav class="contents" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#function-static-variables" id="id1">Function-Static Variables</a></p>
+<ul>
+<li><p><a class="reference internal" href="#overview" id="id2">Overview</a></p></li>
+<li><p><a class="reference internal" href="#generic-functions" id="id3">Generic Functions</a></p></li>
+<li><p><a class="reference internal" href="#synchronization" id="id4">Synchronization</a></p></li>
+<li><p><a class="reference internal" href="#sharing-kinds" id="id5">Sharing Kinds</a></p></li>
+<li><p><a class="reference internal" href="#implementation-details" id="id6">Implementation Details</a></p></li>
+<li><p><a class="reference internal" href="#limitations" id="id7">Limitations</a></p></li>
+<li><p><a class="reference internal" href="#future-work" id="id8">Future Work</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+<section id="overview">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Overview</a><a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Chapel has limited support for marking variables as ‘function static’. Doing
+so causes them to have similar semantics to
+<a class="reference external" href="https://en.cppreference.com/w/cpp/language/storage_duration#Static_local_variables">C++ block-static variables</a>.
+In other words, a variable declared as ‘function static’ will be initialized once
+when the function is first executed; subsequent calls to the function will
+re-use the existing value of the variable. This can be useful for re-using
+results of computations that do not change between function invocations. For
+instance, one might compute a lookup table on the first invocation of a function,
+and simply access that lookup table in subsequent runs. The following program
+demonstrates this, pre-computing the Fibonacci numbers:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">CTypes</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">Time</span><span class="p">;</span>
+
+<span class="kd">config</span> <span class="kd">param</span> <span class="nx">tableSize</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">computeExpensiveTable</span><span class="p">(</span><span class="nx">seed1</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">seed2</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Computing an expensive table&quot;</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">toReturn</span><span class="p">:</span> <span class="nx">c_array</span><span class="p">(</span><span class="kt">real</span><span class="p">,</span> <span class="nx">tableSize</span><span class="p">);</span>
+
+    <span class="nx">toReturn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nx">seed1</span><span class="p">;</span>
+    <span class="nx">toReturn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nx">seed2</span><span class="p">;</span>
+    <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">2</span><span class="o">..&lt;</span><span class="nx">tableSize</span> <span class="p">{</span>
+        <span class="nx">toReturn</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">toReturn</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">toReturn</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">2</span><span class="p">];</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="nx">toReturn</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">getNthElement</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">):</span> <span class="kt">real</span> <span class="p">{</span>
+    <span class="k">@</span><span class="nd">functionStatic</span>
+    <span class="kd">ref</span> <span class="nx">table</span> <span class="o">=</span> <span class="nx">computeExpensiveTable</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="k">return</span> <span class="nx">table</span><span class="p">[</span><span class="nx">x</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Element 0: &quot;</span><span class="p">,</span> <span class="nx">getNthElement</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Element 1: &quot;</span><span class="p">,</span> <span class="nx">getNthElement</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Element 100: &quot;</span><span class="p">,</span> <span class="nx">getNthElement</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>The output of the above program is as follows:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Computing an expensive table
+Element 0: 1
+Element 1: 1
+Element 100: 5.73148e+20
+</pre></div>
+</div>
+<p>Importantly, the ‘computing’ line is only printed once, despite the three
+invocation of <code class="docutils literal notranslate"><span class="pre">getNthElement</span></code>. The static variable in the above snippet is
+<code class="docutils literal notranslate"><span class="pre">table</span></code>. It’s marked static using the <code class="docutils literal notranslate"><span class="pre">&#64;functionStatic</span></code> annotation.
+Because of this annotation, the initialization expression of <code class="docutils literal notranslate"><span class="pre">table</span></code>
+is only executed during the first call to <code class="docutils literal notranslate"><span class="pre">getNthElement</span></code>.</p>
+<p>One important aspect of the snippet above is that the variable was declared
+using the <code class="docutils literal notranslate"><span class="pre">ref</span></code> intent. The reason for this is that <code class="docutils literal notranslate"><span class="pre">table</span></code> is
+assigned from the (stored) cached result. Thus, if the <code class="docutils literal notranslate"><span class="pre">var</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span></code>
+intents were used, each invocation of the function would result in copying
+the table from the memoized result to the local variable. If the table
+is large enough to warrant memoization, the copy could be expensive.</p>
+</section>
+<section id="generic-functions">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink">Generic Functions</a><a class="headerlink" href="#generic-functions" title="Link to this heading">¶</a></h2>
+<p>In generic functions with static variables, one instance of the static
+variable is created for each instantiation. Consider the following example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">defaultValueForType</span><span class="p">(</span><span class="kd">type</span> <span class="nx">x</span><span class="p">:</span> <span class="nx">numeric</span><span class="p">):</span> <span class="nx">x</span> <span class="k">do</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">proc</span> <span class="nf">defaultValueForType</span><span class="p">(</span><span class="kd">type</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">string</span><span class="p">):</span> <span class="nx">x</span> <span class="k">do</span> <span class="k">return</span> <span class="s">&quot;&quot;</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">genericFunction</span><span class="p">(</span><span class="nx">arg</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">@</span><span class="nd">functionStatic</span>
+    <span class="kd">ref</span> <span class="nx">acc</span> <span class="o">=</span> <span class="nx">defaultValueForType</span><span class="p">(</span><span class="nx">arg</span><span class="p">.</span><span class="kd">type</span><span class="p">);</span>
+
+    <span class="nx">acc</span> <span class="o">+=</span> <span class="nx">arg</span><span class="p">;</span>
+    <span class="k">return</span> <span class="nx">acc</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">genericFunction</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">genericFunction</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">genericFunction</span><span class="p">(</span><span class="mf">0.5</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">genericFunction</span><span class="p">(</span><span class="mf">0.25</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">genericFunction</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">genericFunction</span><span class="p">(</span><span class="s">&quot; world&quot;</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>In this example, one copy of the accumulator is created for each of the
+functions instantiations (<code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">real</span></code> and <code class="docutils literal notranslate"><span class="pre">string</span></code>). As a result,
+the output of the program is as follows:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>1
+3
+0.5
+0.75
+hello
+hello world
+</pre></div>
+</div>
+</section>
+<section id="synchronization">
+<h2><a class="toc-backref" href="#id4" role="doc-backlink">Synchronization</a><a class="headerlink" href="#synchronization" title="Link to this heading">¶</a></h2>
+<p>The initialization of function-static variables is implicitly synchronized
+using Chapel’s <code class="docutils literal notranslate"><span class="pre">atomic</span></code> types. As a consequence, it’s safe to call a
+function with static variables from multiple concurrent threads, as well as
+from multiple locales. In the latter case, the variable is stored on the first
+locale to initialize it; support for alternative ways of sharing the data
+(e.g., replicating the precomputed data to all locales) is considered future
+work.</p>
+</section>
+<section id="sharing-kinds">
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Sharing Kinds</a><a class="headerlink" href="#sharing-kinds" title="Link to this heading">¶</a></h2>
+<p>Currently, Chapel’s static variables support two sharing kinds: “compute-or-retrieve”
+and “compute-per-locale”. The former is the default; under this mode,
+the first locale to reach a function-static variable computes the variable’s initial
+value, and the variable is stored on that locale. Other locales that subsequently
+call the function access the variable remotely. For example, the following
+program:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">computeInitialValue</span><span class="p">()</span> <span class="k">do</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">getAndIncrement</span><span class="p">():</span> <span class="kt">real</span> <span class="p">{</span>
+    <span class="k">@</span><span class="nd">functionStatic</span>
+    <span class="kd">ref</span> <span class="nx">myVar</span> <span class="o">=</span> <span class="nx">computeInitialValue</span><span class="p">();</span>
+    <span class="nx">myVar</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;I&#39;m on locale &quot;</span><span class="p">,</span> <span class="nx">here</span><span class="p">,</span> <span class="s">&quot;, the variable is on locale &quot;</span><span class="p">,</span> <span class="nx">myVar</span><span class="p">.</span><span class="kt">locale</span><span class="p">);</span>
+    <span class="k">return</span> <span class="nx">myVar</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">for</span> <span class="nx">loc</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="k">do</span> <span class="k">on</span> <span class="nx">loc</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="nx">getAndIncrement</span><span class="p">());</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="nx">getAndIncrement</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Produces the following output when executed using 4 locales:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>I&#39;m on locale LOCALE0, the variable is on locale LOCALE0
+1.0
+I&#39;m on locale LOCALE0, the variable is on locale LOCALE0
+2.0
+I&#39;m on locale LOCALE1, the variable is on locale LOCALE0
+3.0
+I&#39;m on locale LOCALE1, the variable is on locale LOCALE0
+4.0
+I&#39;m on locale LOCALE2, the variable is on locale LOCALE0
+5.0
+I&#39;m on locale LOCALE2, the variable is on locale LOCALE0
+6.0
+I&#39;m on locale LOCALE3, the variable is on locale LOCALE0
+7.0
+I&#39;m on locale LOCALE3, the variable is on locale LOCALE0
+8.0
+</pre></div>
+</div>
+<p>The variable <code class="docutils literal notranslate"><span class="pre">myVar</span></code> is shared across all locales, and each locale sees
+the effect of incrementing it. On the other hand, because the first
+locale is the one to call <code class="docutils literal notranslate"><span class="pre">getAndIncrement</span></code>, the variable is stored
+there.</p>
+<p>The code would behave the same way if the <code class="docutils literal notranslate"><span class="pre">computeOrRetrieve</span></code> sharing kind
+were explicitly specified.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">@</span><span class="nd">functionStatic</span><span class="p">(</span><span class="nx">sharingKind</span><span class="p">.</span><span class="nx">computeOrRetrieve</span><span class="p">)</span>
+<span class="kd">ref</span> <span class="nx">myVar</span> <span class="o">=</span> <span class="nx">computeInitialValue</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>The other supported sharing kind is “compute-per-locale”. When using this
+sharing kind, each locale gets its own copy of the static variable. When a
+locale reaches the variable’s declaration, it independently computes the
+initial value. Subsequent changes to the static variable are only visible to
+the locale. The purpose for this approach is to support the pre-computation of
+values “near” where the computation takes place. This way, each locale can
+reference its own copy of the pre-computed data, without the need for
+any communication. By changing the sharing kind to <code class="docutils literal notranslate"><span class="pre">comutePerLocale</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">@</span><span class="nd">functionStatic</span><span class="p">(</span><span class="nx">sharingKind</span><span class="p">.</span><span class="nx">computePerLocale</span><span class="p">)</span>
+<span class="kd">ref</span> <span class="nx">myVar</span> <span class="o">=</span> <span class="nx">computeInitialValue</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>The output of the whole program changes to the following:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>I&#39;m on locale LOCALE0, the variable is on locale LOCALE0
+1.0
+I&#39;m on locale LOCALE0, the variable is on locale LOCALE0
+2.0
+I&#39;m on locale LOCALE1, the variable is on locale LOCALE1
+1.0
+I&#39;m on locale LOCALE1, the variable is on locale LOCALE1
+2.0
+I&#39;m on locale LOCALE2, the variable is on locale LOCALE2
+1.0
+I&#39;m on locale LOCALE2, the variable is on locale LOCALE2
+2.0
+I&#39;m on locale LOCALE3, the variable is on locale LOCALE3
+1.0
+I&#39;m on locale LOCALE3, the variable is on locale LOCALE3
+2.0
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">computePerLocale</span></code> sharing kind currently suffers from a memory leak.
+The copies of static variables that are not on the initial locale
+are not destroyed when the program exists. As a result, the memory associated
+with them is leaked, and their destructors are not invoked. This
+is considered a bug and will be fixed in a future release.</p>
+</div>
+</section>
+<section id="implementation-details">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">Implementation Details</a><a class="headerlink" href="#implementation-details" title="Link to this heading">¶</a></h2>
+<p>A variable with the <code class="docutils literal notranslate"><span class="pre">&#64;functionStatic</span></code> annotation is effectively hoisted
+to the module that contains its parent function. During the function’s
+invocation, the code initializing the variable is replaced with a conditional
+that checks if the variable has been initialized. This check includes
+synchronization with other threads and/or locales. If the variable has not
+been initialized, and the current thread is the first to perform the check,
+the initialization expression is executed and the result is stored in
+the hoisted variable. As an example, the above <code class="docutils literal notranslate"><span class="pre">getNthElement</span></code> function
+is transformed into something like the following:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">precomputed</span><span class="p">:</span> <span class="nx">_staticWrapper</span><span class="p">(</span><span class="nx">c_array</span><span class="p">(</span><span class="kt">real</span><span class="p">,</span> <span class="nx">tableSize</span><span class="p">));</span>
+<span class="k">proc</span> <span class="nf">getNthElement</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">):</span> <span class="kt">real</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">precomputed</span><span class="p">.</span><span class="nx">callerShouldComputeValue</span><span class="p">()</span> <span class="p">{</span>
+      <span class="nx">precomputed</span><span class="p">.</span><span class="nx">setValue</span><span class="p">(</span><span class="nx">computeExpensiveTable</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+    <span class="p">}</span>
+    <span class="kd">ref</span> <span class="nx">table</span> <span class="o">=</span> <span class="nx">precomputed</span><span class="p">.</span><span class="nx">getValue</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nx">table</span><span class="p">[</span><span class="nx">x</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The above snippet highlights the importance of the <code class="docutils literal notranslate"><span class="pre">ref</span></code> intent:
+in the transformed code, the <code class="docutils literal notranslate"><span class="pre">table</span></code> variable is assigned to the result
+of calling <code class="docutils literal notranslate"><span class="pre">precomputed.getValue()</span></code>. This result is returned by reference,
+but if <code class="docutils literal notranslate"><span class="pre">table</span></code> were a value, it would be copied.</p>
+<p>Presently, the value is stored in a heap-allocated container class. Thus, by
+default, <code class="docutils literal notranslate"><span class="pre">_staticWrapper</span></code> stores <code class="docutils literal notranslate"><span class="pre">nil</span></code>; when the value is set using
+<code class="docutils literal notranslate"><span class="pre">setValue</span></code>, a new instance of the container class is allocated and stored
+within <code class="docutils literal notranslate"><span class="pre">_staticWrapper</span></code>.</p>
+</section>
+<section id="limitations">
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">Limitations</a><a class="headerlink" href="#limitations" title="Link to this heading">¶</a></h2>
+<p>The current implementation has the following limitations:</p>
+<ul class="simple">
+<li><p>Variables whose types have a runtime component (arrays and domains)
+cannot be stored in function-static variables. This is because the type
+of the initialization expression can only be fully determined at runtime,
+which makes it impossible to hoist the variable to the module level as
+described in <a class="reference internal" href="#implementation-details">Implementation Details</a>.</p></li>
+<li><p>There is limited support for alternative ways of sharing the data between
+locales. The current implementation supports storing data on a single
+locale, or re-computing it on all locales. Alternative sharing
+modes (e.g., computing the value once and replicating it to all locales)
+are desirable.</p></li>
+<li><p>Split-initialization of static variables is not supported.</p></li>
+</ul>
+</section>
+<section id="future-work">
+<h2><a class="toc-backref" href="#id8" role="doc-backlink">Future Work</a><a class="headerlink" href="#future-work" title="Link to this heading">¶</a></h2>
+<p>As noted at the beginning of this page, the current implementation is
+a work in progress. The following items are considered future work:</p>
+<ul class="simple">
+<li><p>Proper language-level support that doesn’t simply use an attribute. This
+might include a keyword or some kind of type.</p></li>
+<li><p>Better ergonomics for the user. Using <code class="docutils literal notranslate"><span class="pre">ref</span></code> does not seem like the ideal
+long-term solution.</p></li>
+<li><p>Investigation of how to support types with runtime components.</p></li>
+<li><p>Support for alternative ways of sharing static variables between locales.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="interfaces.html" class="btn btn-neutral float-left" title="Interfaces in the Chapel Standard Library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="remote.html" class="btn btn-neutral float-right" title="Remote Variable Declarations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forall Loops &mdash; Chapel Documentation 1.28</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Interoperability with C" href="interopWithC.html" />
+    <link rel="prev" title="Replicated Distribution" href="replicated.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.28
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.28";
+$pagename = "primers/forallLoops";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Primers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#iterators">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#locality">Locality</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#data-parallelism">Data Parallelism</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="ranges.html">Ranges</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">Domains</a></li>
+<li class="toctree-l3"><a class="reference internal" href="arrays.html">Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="slices.html">Slices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sparse.html">Sparse Domains and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="associative.html">Associative Domains and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reductions.html">Reductions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="distributions.html">Distributions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="replicated.html">Replicated Distribution</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Forall Loops</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#must-parallel-forall-statement">“Must-parallel” forall statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#must-parallel-forall-expression">“Must-parallel” forall expression</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zippered-must-parallel-forall-statement">Zippered “must-parallel” forall statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#may-parallel-forall-statement">“May-parallel” forall statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#may-parallel-forall-expression">“May-parallel” forall expression</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#task-intents-and-shadow-variables">Task Intents and Shadow Variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#task-private-variables">Task-Private Variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#task-intents-inside-record-methods">Task Intents Inside Record Methods</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#library-utilities">Library Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#numerical-libraries">Numerical Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tools">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-overview">Language Overview</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages (WIP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Primers</a> &raquo;</li>
+      <li>Forall Loops</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/primers/forallLoops.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="forall-loops">
+<span id="primers-forallloops"></span><h1>Forall Loops<a class="headerlink" href="#forall-loops" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/release/examples/primers/forallLoops.chpl">View forallLoops.chpl on GitHub</a></p>
+<p>This primer illustrates forall loops, which are a way to leverage
+data parallelism or engage <a class="reference internal" href="parIters.html#primers-pariters"><span class="std std-ref">user-defined parallel iterators</span></a>.</p>
+<p>Like serial for-loops, forall loops can iterate over a data structure,
+an iterator, or a zippered combination of these. Unlike for-loops,
+multiple iterations of a forall loop can potentially execute in parallel.
+Parallelism is determined by the data structure or iterator being iterated
+over, also known as the “iterable”.</p>
+<p>Chapel has forall statements and forall expressions. Each form has
+two varieties: “must-parallel” and “may-parallel”.</p>
+<ul class="simple">
+<li><p>The must-parallel forms are written using the <code class="docutils literal notranslate"><span class="pre">forall</span></code> keyword.
+They require that the iterable provide a parallel iterator.
+Note that there are no requirements on the behavior of the parallel
+iterator. For example, it can execute serially, in which case
+the “must-parallel” loop that invokes it also executes serially.</p></li>
+<li><p>The may-parallel forms are written using brackets <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">]</span></code>
+(<a class="reference internal" href="#primers-forallloops-may-parallel"><span class="std std-ref">“May-parallel” forall statement</span></a>).
+They invoke the parallel iterator if the iterable provides it,
+and otherwise fall back on the serial iterator.</p></li>
+</ul>
+<p>As with for-loops, the body of a forall statement is a statement
+or a block statement, whereas the body of a forall expression is
+an expression. Both kinds are shown in the following sections.</p>
+<div class="section" id="must-parallel-forall-statement">
+<h2>“Must-parallel” forall statement<a class="headerlink" href="#must-parallel-forall-statement" title="Permalink to this headline">¶</a></h2>
+<p>In the following example, the forall loop iterates over the array indices
+in parallel:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After setting up, A is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">A</span></code> were a distributed array (<a class="reference internal" href="distributions.html#primers-distributions"><span class="std std-ref">Distributions</span></a>),
+each loop iteration would typically be executed on the locale where
+the corresponding array element resides.</p>
+</div>
+<div class="section" id="must-parallel-forall-expression">
+<h2>“Must-parallel” forall expression<a class="headerlink" href="#must-parallel-forall-expression" title="Permalink to this headline">¶</a></h2>
+<p>The following forall expression produces new values in parallel.
+We store these values in a new array.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">B</span> <span class="o">=</span> <span class="k">forall</span> <span class="nx">a</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">do</span> <span class="nx">a</span> <span class="o">*</span> <span class="mi">3</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After initialization, B is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">B</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="zippered-must-parallel-forall-statement">
+<span id="primers-forallloops-must-parallel-zippered"></span><h2>Zippered “must-parallel” forall statement<a class="headerlink" href="#zippered-must-parallel-forall-statement" title="Permalink to this headline">¶</a></h2>
+<p>Forall loops support zippered iteration over multiple iterables
+similarly to serial for-loops. For a zippered forall loop, parallelism
+is determined by the “leader” iterable, which is the first data structure
+or iterator in the zippered list.</p>
+<p>A zippered “must-parallel” forall loop requires that the leader iterable
+provide a “leader” iterator and all iterables provide “follower” iterators.
+These are described in the <a class="reference internal" href="parIters.html#primers-pariters-leader-follower"><span class="std std-ref">parallel iterators primer</span></a>.</p>
+<p>Here we illustrate zippering arrays and domains:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">C</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="k">forall</span> <span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="nx">C</span><span class="p">.</span><span class="k">domain</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">C</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">a</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="nx">b</span> <span class="o">/</span> <span class="mi">10</span> <span class="o">+</span> <span class="nx">i</span> <span class="o">*</span> <span class="mf">0.001</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After a zippered loop, C is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">C</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>The leader iterable in this example is <code class="docutils literal notranslate"><span class="pre">A</span></code>. Since this array is not
+distributed, all loop iterations will be executed on the current locale.</p>
+</div>
+<div class="section" id="may-parallel-forall-statement">
+<span id="primers-forallloops-may-parallel"></span><h2>“May-parallel” forall statement<a class="headerlink" href="#may-parallel-forall-statement" title="Permalink to this headline">¶</a></h2>
+<p>The iterator <code class="docutils literal notranslate"><span class="pre">onlySerial</span></code> defined below does not have any parallel
+forms. Since <code class="docutils literal notranslate"><span class="pre">[i</span> <span class="pre">in</span> <span class="pre">onlySerial(n)]</span></code> is a may-parallel loop, it
+will accept the iterator, executing its iterations serially:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">iter</span> <span class="nf">onlySerial</span><span class="p">(</span><span class="nx">m</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="nx">j</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">m</span> <span class="k">do</span>
+    <span class="k">yield</span> <span class="nx">j</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="nx">onlySerial</span><span class="p">(</span><span class="nx">n</span><span class="p">)]</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;in onlySerial iteration #&quot;</span><span class="p">,</span> <span class="nx">i</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>If the user had supplied a parallel overload of the onlySerial() iterator,
+the above loop would invoke it instead.</p>
+<p>Using the following must-parallel loop would cause an error
+if onlySerial() does not have any parallel overloads:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">onlySerial</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// error: a parallel iterator is not found</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;in iteration #&quot;</span><span class="p">,</span> <span class="nx">i</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="may-parallel-forall-expression">
+<h2>“May-parallel” forall expression<a class="headerlink" href="#may-parallel-forall-expression" title="Permalink to this headline">¶</a></h2>
+<p>Given that these are default rectangular arrays and therefore
+provide parallel iterators, the following may-parallel expression
+will be computed in parallel:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">D</span> <span class="o">=</span> <span class="p">[(</span><span class="nx">a</span><span class="p">,</span><span class="nx">b</span><span class="p">,</span><span class="nx">c</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span><span class="nx">B</span><span class="p">,</span><span class="nx">C</span><span class="p">)]</span> <span class="nx">a</span> <span class="o">+</span> <span class="nx">c</span> <span class="o">-</span> <span class="nx">b</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;The result of may-parallel expression, D is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">D</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>As with must-parallel zippered loops, here A is the leader iterable
+(<a class="reference internal" href="#primers-forallloops-must-parallel-zippered"><span class="std std-ref">Zippered “must-parallel” forall statement</span></a>).
+Its parallel iterator will determine how this loop is parallelized.
+if A were a distributed array, its parallel iterator would also
+determine iteration locality.</p>
+<p>Domains declared without a <code class="docutils literal notranslate"><span class="pre">dmapped</span></code> clause, including
+default rectangular and default associative domains, as well as
+arrays over such domains, provide both serial and parallel
+iterators. So do domains distributed over standard distributions,
+such as Block and Cyclic (<a class="reference internal" href="distributions.html#primers-distributions"><span class="std std-ref">Distributions</span></a>), and
+arrays over such domains. The parallel iterators provided
+by standard distributions place each loop iteration on the
+locale where the corresponding index or array element is placed.</p>
+</div>
+<div class="section" id="task-intents-and-shadow-variables">
+<h2>Task Intents and Shadow Variables<a class="headerlink" href="#task-intents-and-shadow-variables" title="Permalink to this headline">¶</a></h2>
+<p>A forall loop may refer to some variables declared outside the loop,
+known as “outer variables”. When it does, “shadow variables” are
+introduced. Each task created by the parallel iterator gets its own set
+of shadow variables, one per outer variable.</p>
+<ul class="simple">
+<li><p>Each shadow variable behaves as if it were a formal argument
+of a function that implements the task’s work. (These “task
+functions” are described in <a class="reference internal" href="../language/spec/task-parallelism-and-synchronization.html#chapter-task-parallelism-and-synchronization"><span class="std std-ref">the language spec</span></a>).
+The outer variable is passed to this formal argument according to
+the <a class="reference internal" href="../language/spec/procedures.html#argument-intents"><span class="std std-ref">argument intent</span></a> associated with
+the shadow variable, which is called a “task intent”.</p></li>
+<li><p>References within a task that seem to refer to an outer variable
+will actually be referring to the corresponding shadow variable
+owned by the task. If the parallel iterator causes multiple
+iterations of the loop to be executed by the same task, these
+iterations refer to the same set of shadow variables.</p></li>
+<li><p>Each shadow variable is deallocated at the end of its task.</p></li>
+</ul>
+<p>The default argument intent (<a class="reference internal" href="../language/spec/procedures.html#the-default-intent"><span class="std std-ref">The Default Intent</span></a>) is used by default.
+For numeric types, this implies capturing the value of the outer
+variable by the time the task starts executing. Arrays are passed by
+reference, as are sync, single, and atomic variables
+(<a class="reference internal" href="syncsingle.html#primers-syncsingle"><span class="std std-ref">Sync / Singles</span></a>, <a class="reference internal" href="atomics.html#primers-atomics"><span class="std std-ref">Atomics</span></a>).</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">outerIntVariable</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">proc</span> <span class="nf">updateOuterVariable</span><span class="p">()</span> <span class="p">{</span>
+  <span class="nx">outerIntVariable</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>  <span class="c1">// always refers to the outer variable</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">outerAtomicVariable</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="p">;</span>
+
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span>
+
+  <span class="nx">D</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">0.5</span><span class="p">;</span> <span class="c1">// if multiple iterations of the loop update the same</span>
+               <span class="c1">// array element, it could lead to a data race</span>
+
+  <span class="nx">outerAtomicVariable</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>  <span class="c1">// ok: concurrent updates are atomic</span>
+
+  <span class="k">if</span> <span class="nx">i</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">then</span>           <span class="c1">// ensure only one task updates outerIntVariable</span>
+    <span class="nx">updateOuterVariable</span><span class="p">();</span> <span class="c1">// to avoid the risk of a data race</span>
+
+  <span class="c1">// the shadow variable always contains the value as of loop start</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;shadow outerIntVariable is: &quot;</span><span class="p">,</span> <span class="nx">outerIntVariable</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">();</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After a loop with default intents, D is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">D</span><span class="p">);</span>
+ <span class="c1">// This variable is updated exactly once, so its value is 1.</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerIntVariable is: &quot;</span><span class="p">,</span> <span class="nx">outerIntVariable</span><span class="p">);</span>
+ <span class="c1">// This variable is incremented atomically n times, so its value is n.</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerAtomicVariable is: &quot;</span><span class="p">,</span> <span class="nx">outerAtomicVariable</span><span class="p">.</span><span class="nx">read</span><span class="p">());</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>The task intents <code class="docutils literal notranslate"><span class="pre">in</span></code>, <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">in</span></code>, <code class="docutils literal notranslate"><span class="pre">ref</span></code>, <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">reduce</span></code> can be specified explicitly using a <code class="docutils literal notranslate"><span class="pre">with</span></code> clause.</p>
+<p>An <code class="docutils literal notranslate"><span class="pre">in</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">in</span></code> intent creates a copy of the outer variable
+for each task. A <code class="docutils literal notranslate"><span class="pre">ref</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> makes the
+shadow variable an alias for the outer variable. Updates to a <code class="docutils literal notranslate"><span class="pre">ref</span></code>
+shadow variable are reflected in the corresponding outer variable.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">outerRealVariable</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">with</span> <span class="p">(</span><span class="kd">in</span> <span class="nx">outerIntVariable</span><span class="p">,</span>
+                       <span class="kd">ref</span> <span class="nx">outerRealVariable</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">outerIntVariable</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>    <span class="c1">// a per-task copy, never accessed concurrently</span>
+
+  <span class="k">if</span> <span class="nx">i</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">then</span>            <span class="c1">// ensure only one task accesses outerIntVariable</span>
+    <span class="nx">outerRealVariable</span> <span class="o">*=</span> <span class="mi">2</span><span class="p">;</span> <span class="c1">// to avoid the risk of a data race</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After a loop with explicit intents:&quot;</span><span class="p">);</span>
+ <span class="c1">// This outer variable&#39;s value is unaffected by the loop</span>
+ <span class="c1">// because its shadow variables have the &#39;in&#39; intent.</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerIntVariable is: &quot;</span><span class="p">,</span> <span class="nx">outerIntVariable</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerRealVariable is: &quot;</span><span class="p">,</span> <span class="nx">outerRealVariable</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>A reduce intent can be used to compute reductions.
+The value of each reduce-intent shadow variable at the end of its task
+is combined into its outer variable according to the specified reduction
+operation. Within the loop body, the shadow variable represents the
+accumulation state produced by this task so far, starting from
+the reduction identity value at task startup. Values can be
+combined onto this accumulation state using the reduction-specific
+operation or the <code class="docutils literal notranslate"><span class="pre">reduce=</span></code> operator.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span> <span class="c1">// The values of the outer variables before the loop will be included</span>
+ <span class="c1">// in the reduction result.</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerIntVariable before the loop is: &quot;</span><span class="p">,</span> <span class="nx">outerIntVariable</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">outerMaxVariable</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">with</span> <span class="p">(</span><span class="o">+</span> <span class="k">reduce</span> <span class="nx">outerIntVariable</span><span class="p">,</span>
+                       <span class="nx">max</span> <span class="k">reduce</span> <span class="nx">outerMaxVariable</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">outerIntVariable</span> <span class="o">+=</span> <span class="nx">i</span><span class="p">;</span>
+  <span class="k">if</span> <span class="nx">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">then</span>
+    <span class="nx">outerMaxVariable</span> <span class="k">reduce</span><span class="o">=</span> <span class="nx">i</span><span class="p">;</span>
+
+  <span class="c1">// The loop body can contain other code</span>
+  <span class="c1">// regardless of reduce-related operations.</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After a loop with reduce intents:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerIntVariable = &quot;</span><span class="p">,</span> <span class="nx">outerIntVariable</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerMaxVariable = &quot;</span><span class="p">,</span> <span class="nx">outerMaxVariable</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>A with-clause can be used in a similar fashion with any flavor
+of forall loop.</p>
+</div>
+<div class="section" id="task-private-variables">
+<h2>Task-Private Variables<a class="headerlink" href="#task-private-variables" title="Permalink to this headline">¶</a></h2>
+<p>A task-private variable is similar to an in-intent or ref-intent
+shadow variable in that it is initialized at the beginning of its
+task and deallocated at the end of the task. However, a task-private
+variable is initialized without regard to any outer variable.</p>
+<p>A task-private variable is introduced using a with-clause
+in a way similar to a regular <code class="docutils literal notranslate"><span class="pre">var</span></code>, <code class="docutils literal notranslate"><span class="pre">const</span></code>, <code class="docutils literal notranslate"><span class="pre">ref</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> variable. A <code class="docutils literal notranslate"><span class="pre">var</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span></code> variable
+must provide either its type or initializing expression, or both.
+As with a regular variable, it will be initialized
+to the default value of its type if the initializing expression
+is not given. A <code class="docutils literal notranslate"><span class="pre">ref</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> variable must
+have the initializing expression and cannot declare its type.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">var</span></code> task-private variable could be used, for example,
+as a per-task scratch space that is never accessed concurrently.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">with</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">myReal</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span>  <span class="c1">// starts at 0 for each task</span>
+                       <span class="kd">ref</span> <span class="nx">outerIntVariable</span><span class="p">,</span> <span class="c1">// a shadow variable</span>
+                       <span class="kd">ref</span> <span class="nx">myRef</span> <span class="o">=</span> <span class="nx">outerIntVariable</span><span class="p">)</span> <span class="p">{</span>
+
+  <span class="nx">myReal</span> <span class="o">+=</span> <span class="mf">0.1</span><span class="p">;</span>   <span class="c1">// ok: never accessed concurrently</span>
+
+  <span class="k">if</span> <span class="nx">i</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">then</span>   <span class="c1">// ensure only one task accesses outerIntVariable</span>
+    <span class="nx">myRef</span> <span class="o">*=</span> <span class="mi">3</span><span class="p">;</span>    <span class="c1">// to avoid the risk of a data race</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After a loop with task-private variables:&quot;</span><span class="p">);</span>
+ <span class="c1">// outerIntVariable was updated through the task-private reference &#39;myRef&#39;</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outerIntVariable is: &quot;</span><span class="p">,</span> <span class="nx">outerIntVariable</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="task-intents-inside-record-methods">
+<h2>Task Intents Inside Record Methods<a class="headerlink" href="#task-intents-inside-record-methods" title="Permalink to this headline">¶</a></h2>
+<p>When the forall loop occurs inside a method on a record,
+the fields of the receiver record are represented in the loop body
+with shadow variables as if they were outer variables.
+This, for example, allows the forall loop body to update
+record fields of array types.</p>
+<p>At present, the record fields, as well as the method receiver <code class="docutils literal notranslate"><span class="pre">this</span></code>,
+are always passed by default intent and cannot be listed in a with-clause.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">MyRecord</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">arrField</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">intField</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">MyRecord.myMethod</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span>
+    <span class="nx">arrField</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span> <span class="o">*</span> <span class="mi">2</span><span class="p">;</span>  <span class="c1">// beware of potential for data races</span>
+    <span class="c1">// intField += 1;     // would cause &quot;illegal assignment&quot; error</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">myR</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MyRecord</span><span class="p">();</span>
+<span class="nx">myR</span><span class="p">.</span><span class="nx">myMethod</span><span class="p">();</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After MyRecord.myMethod, myR is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">myR</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="replicated.html" class="btn btn-neutral float-left" title="Replicated Distribution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="interopWithC.html" class="btn btn-neutral float-right" title="Interoperability with C" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

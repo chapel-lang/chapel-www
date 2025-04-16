@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Distributions &mdash; Chapel Documentation 1.32</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Forall Loops" href="forallLoops.html" />
+    <link rel="prev" title="Slices" href="slices.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.32
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.32";
+$pagename = "primers/distributions";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Primers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#iterators">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#locality">Locality</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#data-parallelism">Data Parallelism</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="ranges.html">Ranges</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">Domains</a></li>
+<li class="toctree-l3"><a class="reference internal" href="arrays.html">Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="slices.html">Slices</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Distributions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#local-vs-distributed-domains-and-arrays">Local vs. Distributed Domains and Arrays</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-of-typical-distributions">Properties of Typical Distributions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#getting-started-with-block-and-cyclic-distributions">Getting Started with Block and Cyclic Distributions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-block-distribution">The Block Distribution</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#reasoning-about-ownership">Reasoning About Ownership</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#creating-an-aligned-domain">Creating an Aligned Domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#specifying-target-locales">Specifying Target Locales</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-cyclic-distribution">The Cyclic Distribution</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="forallLoops.html">Forall Loops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sparse.html">Sparse Domains and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="associative.html">Associative Domains and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reductions.html">Reductions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="replicated.html">Replicated Distribution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#library-utilities">Library Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#numerical-libraries">Numerical Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tools">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-overview">Language Overview</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Primers</a> &raquo;</li>
+      <li>Distributions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/primers/distributions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="distributions">
+<span id="primers-distributions"></span><h1>Distributions<a class="headerlink" href="#distributions" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/release/examples/primers/distributions.chpl">View distributions.chpl on GitHub</a></p>
+<p>This primer introduces Chapel’s features for distributed domains and
+arrays, illustrating them using a few of Chapel’s standard
+distributions.</p>
+<div class="section" id="local-vs-distributed-domains-and-arrays">
+<h2>Local vs. Distributed Domains and Arrays<a class="headerlink" href="#local-vs-distributed-domains-and-arrays" title="Permalink to this headline">¶</a></h2>
+<p>In Chapel, <em>distributions</em> are recipes for implementing arrays and
+their index sets (<em>domains</em>).  Each distribution indicates how a
+domain’s indices should be mapped to locales.  It also specifies how
+arrays declared over such distributed domains should be stored in
+each locale’s memory, accessed, iterated over, etc.  This primer
+will assume you already have some familiarity with Chapel’s concepts
+of <a class="reference internal" href="arrays.html#primers-arrays"><span class="std std-ref">arrays</span></a>, <a class="reference internal" href="domains.html#primers-domains"><span class="std std-ref">domains</span></a>,
+and <a class="reference internal" href="locales.html#primers-locales"><span class="std std-ref">locales</span></a>; if not, refer to their
+respective primers for more information.</p>
+<p>By default, when a domain is declared, all of its indices are owned
+by the locale on which the current task is running.  Similarly, an
+array declared over such a domain will store all of its elements in
+the current locale’s memory.  For this reason, we say that Chapel
+domains and arrays are <em>local</em> by default, since they only use a
+single locale’s resources for their implementation.  However, as
+this primer will demonstrate, domains and arrays can also be
+declared in terms of a distribution as a means of leveraging
+multiple locales, their memory, and processors.</p>
+<p>Crucially, the operations supported by domains and arrays in Chapel
+are independent of whether they are stored on a single locale or
+distributed across multiple.  The only difference is how and where
+the operations are implemented, which can have impacts on
+performance and scalability—positive or negative.  This property
+makes it easy to implement and debug an algorithm on a single node,
+and then deploy it on a large-scale supercomputer.  It also permits
+you to change the distributions used by a program to alter its
+implementation.</p>
+</div>
+<div class="section" id="properties-of-typical-distributions">
+<h2>Properties of Typical Distributions<a class="headerlink" href="#properties-of-typical-distributions" title="Permalink to this headline">¶</a></h2>
+<p>Distributions for rectangular arrays can be thought of as
+distributing a <em>d</em>-dimensional space of possible indices over a
+<em>d</em>-dimensional array of locales.  Most distribution types are
+characterized by this <em>rank</em>, <em>d</em>, as well as the index type
+(<em>idxType</em>) used to represent indices in each dimension.  For
+example, a 3D distribution might map <code class="docutils literal notranslate"><span class="pre">(int,</span> <span class="pre">int,</span> <span class="pre">int)</span></code> indices to
+a 3D array of locales, defining which one owns any given index <code class="docutils literal notranslate"><span class="pre">(i,</span>
+<span class="pre">j,</span> <span class="pre">k)</span></code>.  It would also specify how the array elements corresponding
+a locale’s local indices are stored in memory.</p>
+<p>Typical Chapel distributions use an “owner computes” model in which
+each locale owns a subset of a domain’s indices as well as the array
+elements corresponding to those indices.  When <code class="docutils literal notranslate"><span class="pre">forall</span></code> loops or
+other data-parallel operations are executed across such distributed
+domains and arrays, each locale executes the iterations
+corresponding to its indices and array elements in parallel, using
+its locally available processor cores.</p>
+<p>Multiple domains may share a single distribution, even if their
+index sets are different.  For typical distributions, this ensures
+that a given index <code class="docutils literal notranslate"><span class="pre">(i,</span> <span class="pre">j,</span> <span class="pre">k)</span></code> is owned by the same locale for all
+of the domains, implying that computations on matching indices will
+not require communication.  Domains with this property are said to
+be <em>aligned</em>.  When multiple arrays are declared in terms of a
+single distributed domain, they are guaranteed to be aligned, since
+they all share the same distribution.</p>
+</div>
+<div class="section" id="getting-started-with-block-and-cyclic-distributions">
+<h2>Getting Started with Block and Cyclic Distributions<a class="headerlink" href="#getting-started-with-block-and-cyclic-distributions" title="Permalink to this headline">¶</a></h2>
+<p>In this primer, we’ll introduce two common distributions: the first
+maps indices to locales using contiguous rectilinear blocks; the
+other deals indices out to locales in a round-robin fashion.  To use
+these distributions in a Chapel program, their respective modules
+must be used or imported:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">BlockDist</span><span class="p">,</span> <span class="nx">CyclicDist</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>A third and somewhat atypical distribution, <code class="docutils literal notranslate"><span class="pre">replicatedDist</span></code>, is
+covered in <a class="reference internal" href="replicated.html#primers-replicated"><span class="std std-ref">its own primer</span></a>.  It does not
+adhere to some of the characterizations described as “typical”
+above.</p>
+<p>For each distribution in this primer, we’ll create a distributed
+domain and array using that distribution.  Then we’ll initialize
+the array using the IDs of the locales owning the elements to
+illustrate how indices are mapped to locales.  Running this example
+on 6 locales does a nice job of illustrating the distribution’s
+characteristics.</p>
+<p>By default, these distributions will target the entire array of
+<code class="docutils literal notranslate"><span class="pre">Locales</span></code> on which the program is running, heuristically
+reshaping them into a <em>d</em>-dimensional grid whenever <em>d</em> is greater
+than 1.  When a user wants to exert more control over how the
+locales are targeted—for example to specify the number of locales
+in each dimension, or to target just a subset of the locales—they
+may create their own array of locales and pass that in as an
+argument, as we’ll see below.</p>
+<p>First, we’ll declare the problem size to use for our 2D domains
+and arrays, configurable from the command-line:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="mi">8</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Next, we’ll declare a 2-dimensional domain <code class="docutils literal notranslate"><span class="pre">Space</span></code>, which will
+form the basis of our distributed domains.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">Space</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-block-distribution">
+<h2>The Block Distribution<a class="headerlink" href="#the-block-distribution" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">blockDist</span></code> distribution partitions a <em>d</em>-dimensional
+bounding box across the <em>d</em>-dimensional target locale array.  The
+bounding box is divided into roughly equal-size block sections,
+where each locale owns one of them.</p>
+<p>In this example, we declare a 2-dimensional block distribution
+whose bounding box is defined by <code class="docutils literal notranslate"><span class="pre">Space</span></code>.  We then use that
+distribution instance to create a distributed domain and an array
+over the domain:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">BlkDist</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">blockDist</span><span class="p">(</span><span class="nx">boundingBox</span><span class="o">=</span><span class="nx">Space</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">BlockSpace</span> <span class="o">=</span> <span class="nx">BlkDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">(</span><span class="nx">Space</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">BA</span><span class="p">:</span> <span class="p">[</span><span class="nx">BlockSpace</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Since the code above only uses a single domain and array, it could
+also be written in one of the following ways for convenience:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// create the domain using an anonymous distribution</span>
+<span class="kd">const</span> <span class="nx">BlockSpace</span> <span class="o">=</span> <span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">});</span>
+<span class="kd">const</span> <span class="nx">BA</span><span class="p">:</span> <span class="p">[</span><span class="nx">BlockSpace</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// create the array using an anonymous distribution and domain</span>
+<span class="kd">const</span> <span class="nx">BA</span> <span class="o">=</span> <span class="nx">blockDist</span><span class="p">.</span><span class="nx">createArray</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">},</span> <span class="kt">int</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Or, in both versions, <cite>Space</cite> could be substituted for the domain
+literal, if preferred.</p>
+<p>One motivation for declaring explicit distribution and domain
+variables as we’ve done here is to support the creation of aligned
+domains and arrays.  Another is to amortize the overheads incurred
+by such types, since creating any distributed object requires
+communication and memory.</p>
+</div>
+<div class="section" id="reasoning-about-ownership">
+<h2>Reasoning About Ownership<a class="headerlink" href="#reasoning-about-ownership" title="Permalink to this headline">¶</a></h2>
+<p>To illustrate how our block-distributed domain and array are mapped
+to locales, let’s use a forall loop that assigns each array element
+the locale ID that stores that index/element/iteration.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">ba</span> <span class="kd">in</span> <span class="nx">BA</span> <span class="k">do</span>
+  <span class="nx">ba</span> <span class="o">=</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This loop relies on Chapel’s owner-computes model by querying the
+locale on which a given iteration is running using <code class="docutils literal notranslate"><span class="pre">here.id</span></code>.  As
+mentioned above, the forall loop will be executed such that each
+locale will use its local processor cores to execute the iterations
+that were mapped to it.  As a result, each value of <code class="docutils literal notranslate"><span class="pre">BA</span></code> will end
+up storing the ID of the locale that owns it.  We can see this
+ownership map by printing the array out:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Block Array Ownership Map&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">BA</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>We can also determine which indices a given locale owns using the
+<code class="docutils literal notranslate"><span class="pre">.localSubdomain()</span></code> query.  This method returns a non-distributed
+domain representing the indices that are local to the current
+locale.  As an example, the following line prints the indices that
+locale 0 owns, since that is where the current task is running:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Locale 0 owns the following indices of BA: &quot;</span><span class="p">,</span> <span class="nx">BA</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">());</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>As another example, the following code iterates over all the
+locales, querying the local indices and checking that the
+corresponding array elements have the expected value:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">coforall</span> <span class="nx">L</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="p">{</span>
+  <span class="k">on</span> <span class="nx">L</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">myIndices</span> <span class="o">=</span> <span class="nx">BA</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">();</span>
+    <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">myIndices</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="nx">BA</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">!=</span> <span class="nx">L</span><span class="p">.</span><span class="nx">id</span> <span class="k">then</span>
+        <span class="nx">halt</span><span class="p">(</span><span class="s">&quot;Error: incorrect locale id&quot;</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="creating-an-aligned-domain">
+<h2>Creating an Aligned Domain<a class="headerlink" href="#creating-an-aligned-domain" title="Permalink to this headline">¶</a></h2>
+<p>Domains declared in terms of a <code class="docutils literal notranslate"><span class="pre">blockDist</span></code> distribution can also
+include indices outside of the bounding box. That is, the bounding
+box is only used to compute a partitioning of the complete
+<em>d</em>-dimensional space of indices and does not impose a constraint
+on legal domain indices.  Any indices located outside the bounding
+box will be mapped to the locale that owns the nearest index within
+it.  For example, we can declare a larger domain than
+<code class="docutils literal notranslate"><span class="pre">BlockSpace</span></code> as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">BigBlockSpace</span> <span class="o">=</span> <span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..</span><span class="nx">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="o">..</span><span class="nx">n</span><span class="o">+</span><span class="mi">1</span><span class="p">});</span>
+</pre></div>
+</div>
+<p>In this case, the rows and columns numbered <code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">n+1</span></code> fall
+outside of the bounding box.  As a result, indices like <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">i)</span></code>
+will be owned by the same locale that owns <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">i)</span></code> within the
+box.  Similarly, index <code class="docutils literal notranslate"><span class="pre">(n+1,</span> <span class="pre">0)</span></code> will be owned by the locale
+that owns <code class="docutils literal notranslate"><span class="pre">(n,</span> <span class="pre">1)</span></code>. Because <code class="docutils literal notranslate"><span class="pre">BigBlockSpace</span></code> shares its
+distribution with <code class="docutils literal notranslate"><span class="pre">BlockSpace</span></code>, we know that any indices common to
+both domains will be owned by the same locale, and that the domains
+are <em>aligned</em>.</p>
+</div>
+<div class="section" id="specifying-target-locales">
+<h2>Specifying Target Locales<a class="headerlink" href="#specifying-target-locales" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned above, most Chapel distributions support an optional
+<code class="docutils literal notranslate"><span class="pre">targetLocales</span></code> argument that permits you to specify your own
+array of locales to be targeted.  In general, the <em>targetLocales</em>
+argument will match the rank of the distribution.  For example, to
+block-distribute a domain such that each locale owns a block of
+rows but all of the columns, we can create a <code class="docutils literal notranslate"><span class="pre">numLocales</span> <span class="pre">x</span> <span class="pre">1</span></code>
+view of the locale set as follows:</p>
+<p>We start by creating our own <code class="docutils literal notranslate"><span class="pre">MyLocales</span></code> array of locale values.
+Here, we use the standard array <code class="docutils literal notranslate"><span class="pre">reshape()</span></code> procedure for
+convenience.  More generally, this array can be declared and
+created like any other.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">MyLocales</span> <span class="o">=</span> <span class="nx">reshape</span><span class="p">(</span><span class="nx">Locales</span><span class="p">,</span> <span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numLocales</span><span class="p">,</span> <span class="mi">0</span><span class="o">..</span><span class="mi">0</span><span class="p">});</span>
+</pre></div>
+</div>
+<p>Then we declare a new distribution, domain, and array that makes
+use of this arrangement of the locales:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">BlkDist2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">blockDist</span><span class="p">(</span><span class="nx">boundingBox</span><span class="o">=</span><span class="nx">Space</span><span class="p">,</span> <span class="nx">targetLocales</span><span class="o">=</span><span class="nx">MyLocales</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">BlockSpace2</span> <span class="o">=</span> <span class="nx">BlkDist2</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">(</span><span class="nx">Space</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">BA2</span><span class="p">:</span> <span class="p">[</span><span class="nx">BlockSpace2</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Now we can do a similar computation as before to see where each
+domain index/array element ended up:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">ba2</span> <span class="kd">in</span> <span class="nx">BA2</span> <span class="k">do</span>
+  <span class="nx">ba2</span> <span class="o">=</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Block Array Ownership Map&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">BA2</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>We can also use the <code class="docutils literal notranslate"><span class="pre">targetLocales()</span></code> on any array to query the
+locales array to which it’s mapped:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">l</span><span class="p">,</span> <span class="nx">ml</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">BA2</span><span class="p">.</span><span class="nx">targetLocales</span><span class="p">(),</span> <span class="nx">MyLocales</span><span class="p">)</span> <span class="k">do</span>
+  <span class="k">if</span> <span class="nx">l</span> <span class="o">!=</span> <span class="nx">ml</span> <span class="k">then</span>
+    <span class="nx">halt</span><span class="p">(</span><span class="s">&quot;Error: BA2.targetLocales() should equal MyLocales&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-cyclic-distribution">
+<h2>The Cyclic Distribution<a class="headerlink" href="#the-cyclic-distribution" title="Permalink to this headline">¶</a></h2>
+<p>Next, we’ll run through a similar example for the <code class="docutils literal notranslate"><span class="pre">cyclicDist</span></code>
+distribution.  This distribution also maps indices of
+<em>d</em>-dimensional space out to a set of target locales arranged in a
+conceptual <em>d</em>-dimensional grid.  However, where <code class="docutils literal notranslate"><span class="pre">blockDist</span></code>
+distributes contiguous blocks of indices, <code class="docutils literal notranslate"><span class="pre">cyclicDist</span></code> deals
+indices to locales in a round-robin fashion.  A designated
+<code class="docutils literal notranslate"><span class="pre">startIdx</span></code> is given to the initial locale, and others are dealt
+out cyclically in each dimension from there.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">CycDist</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">cyclicDist</span><span class="p">(</span><span class="nx">startIdx</span><span class="o">=</span><span class="nx">Space</span><span class="p">.</span><span class="nx">low</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">CyclicSpace</span> <span class="o">=</span> <span class="nx">CycDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">(</span><span class="nx">Space</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">CA</span><span class="p">:</span> <span class="p">[</span><span class="nx">CyclicSpace</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>As with <code class="docutils literal notranslate"><span class="pre">blockDist</span></code>, these declarations could be shortened to one of
+the following expressions for convenience:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">CyclicSpace</span> <span class="o">=</span> <span class="nx">cyclicDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">});</span>
+<span class="kd">const</span> <span class="nx">CA</span><span class="p">:</span> <span class="p">[</span><span class="nx">CyclicSpace</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">CA</span> <span class="o">=</span> <span class="nx">cyclicDist</span><span class="p">.</span><span class="nx">createArray</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">},</span> <span class="kt">int</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>We can then compute which locale owns each index as before:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">ca</span> <span class="kd">in</span> <span class="nx">CA</span> <span class="k">do</span>
+  <span class="nx">ca</span> <span class="o">=</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Cyclic Array Ownership Map&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">CA</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>And query the indices owned by a given locale.  Note that when
+using the <code class="docutils literal notranslate"><span class="pre">localSubdomain()</span></code> query with <code class="docutils literal notranslate"><span class="pre">cyclicDist</span></code>, the
+result will be a strided set of indices for any dimension that has
+more than one target locale due to the round-robin nature.  For
+example, locale 0’s ownership of CA is:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Locale 0 owns the following indices of CA: &quot;</span><span class="p">,</span> <span class="nx">CA</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">());</span>
+</pre></div>
+</div>
+<p>However, despite the fact that the logical indices owned by a
+locale are strided, the array elements will still be stored
+compactly in a dense block of memory.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>That wraps up this brief introduction to distributions in Chapel
+and their use in declaring distributed domains and arrays.  Keep in
+mind that while we demonstrated only very trivial computations in
+this example, all of Chapel’s rich set of domain and array
+operations are available whether they are local or distributed.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="slices.html" class="btn btn-neutral float-left" title="Slices" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="forallLoops.html" class="btn btn-neutral float-right" title="Forall Loops" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

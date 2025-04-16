@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Consistency Model &mdash; Chapel Documentation 1.31</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Interoperability" href="interoperability.html" />
+    <link rel="prev" title="Domain Maps" href="domain-maps.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.31
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.31";
+$pagename = "language/spec/memory-consistency-model";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Specification</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#introductory-material">Introductory Material</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#code-structures">Code Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#composite-types">Composite Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#generic-programming">Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-programming">Parallel Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#distributed-programming">Distributed Programming</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#additional-topics">Additional Topics</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Memory Consistency Model</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sequential-consistency-for-data-race-free-programs">Sequential Consistency for Data-Race-Free Programs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#non-sequentially-consistent-atomic-operations">Non-Sequentially Consistent Atomic Operations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#unordered-memory-operations">Unordered Memory Operations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="interoperability.html">Interoperability</a></li>
+<li class="toctree-l3"><a class="reference internal" href="user-defined-reductions-and-scans.html">User-Defined Reductions and Scans</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#appendices">Appendices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Chapel Language Specification</a> &raquo;</li>
+      <li>Memory Consistency Model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/language/spec/memory-consistency-model.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="memory-consistency-model">
+<span id="chapter-memory-consistency-model"></span><h1>Memory Consistency Model<a class="headerlink" href="#memory-consistency-model" title="Permalink to this headline">¶</a></h1>
+<p>In this section, we describe Chapel’s memory consistency model. The
+model is based on <em>sequential consistency for data-race-free</em> programs
+as adopted by C11, C++11, Java, UPC, and Fortran 2008.</p>
+<p>Sequential consistency (SC) means that all Chapel tasks agree on the
+interleaving of memory operations and this interleaving results in an
+order is consistent with the order of operations in the program source
+code. <em>Conflicting memory operations</em>, i.e., operations to the same
+variable, or memory location, and one of which is a write, form a data
+race if they are from different Chapel tasks and can be executed
+concurrently. Accesses to the same variable from different tasks can
+result from the tasks referencing the same variable directly – or
+indirectly via aliases. Aliases arise, for example, when using <code class="docutils literal notranslate"><span class="pre">ref</span></code>
+variables, argument intents, return intents, task intents and forall
+intents.</p>
+<p>Any Chapel program with a data race is not a valid program, and an
+implementation cannot be relied upon to produce consistent behavior.
+Valid Chapel programs will use synchronization constructs such as
+<em>sync</em>, <em>single</em>, or <em>atomic</em> variables or higher-level constructs based
+on these to enforce ordering for conflicting memory operations.</p>
+<p>The following design principles were used in developing Chapel’s memory
+consistency model:</p>
+<ol class="arabic simple">
+<li><p>Sequential programs have program order semantics. Programs that are
+completely sequential cannot have data races and should appear to
+execute as though each statement was executed one at a time and in
+the expected order.</p></li>
+<li><p>Chapel’s fork-join constructs introduce additional order
+dependencies. Operations within a task cannot behave as though they
+started before the task started. Similarly, all operations in a task
+must appear to be completed to a parent task when the parent task
+joins with that task.</p></li>
+<li><p>Multi-locale programs have the same memory consistency model as
+single-locale programs. The Chapel language seeks to allow a single
+description of an algorithm to work with different data
+distributions. A result of this property is that an expression of a
+program must be correct whether it is working on local or distributed
+data.</p></li>
+<li><p>Chapel’s memory model should be as relaxed as possible while still
+consistent with these design principles. In particular, making all
+operations sequentially consistent is not likely to enable good
+performance. At the same time, sequential consistency should be
+available to programmers when requested.</p></li>
+</ol>
+<p>See <em>A Primer on Memory Consistency and Cache Coherence</em> by Sorin,
+<em>et al.</em> for more background information on memory consistency models.
+This chapter will proceed in a manner inspired by the <span class="math notranslate nohighlight">\(XC\)</span> memory
+model described there.</p>
+<div class="section" id="sequential-consistency-for-data-race-free-programs">
+<span id="sc-for-drf"></span><h2>Sequential Consistency for Data-Race-Free Programs<a class="headerlink" href="#sequential-consistency-for-data-race-free-programs" title="Permalink to this headline">¶</a></h2>
+<p>Sequential consistency for data-race-free programs is described in terms
+of two orders: <em>program order</em> and <em>memory order</em>. The <em>program order</em>
+<span class="math notranslate nohighlight">\(&lt;_p\)</span> is a partial order describing serial or fork-join
+parallelism dependencies between variable reads and writes. The <em>memory
+order</em> <span class="math notranslate nohighlight">\(&lt;_m\)</span> is a total order that describes the semantics of
+synchronizing memory operations (via <code class="docutils literal notranslate"><span class="pre">atomic</span></code>, <code class="docutils literal notranslate"><span class="pre">sync</span></code> or <code class="docutils literal notranslate"><span class="pre">single</span></code>
+variables) with sequential consistency. Non-SC atomic operations
+(described in <a class="reference internal" href="#non-sc-atomics"><span class="std std-ref">Non-Sequentially Consistent Atomic Operations</span></a>) do not create this
+total order.</p>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">sync/single</span></code> variables have memory consistency behavior
+equivalent to a sequence of SC operations on <code class="docutils literal notranslate"><span class="pre">atomic</span></code> variables. Thus
+for the remainder of the chapter, we will primarily focus on operations
+on <code class="docutils literal notranslate"><span class="pre">atomic</span></code> variables.</p>
+<p>We will use the following notation:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(L(a)\)</span> indicates a <em>load</em> from a variable at address <span class="math notranslate nohighlight">\(a\)</span>.
+<span class="math notranslate nohighlight">\(a\)</span> could refer to local or remote memory.</p></li>
+<li><p><span class="math notranslate nohighlight">\(S(a)\)</span> indicates a <em>store</em> to a variable at address <span class="math notranslate nohighlight">\(a\)</span>.
+<span class="math notranslate nohighlight">\(a\)</span> could refer to local or remote memory.</p></li>
+<li><p><span class="math notranslate nohighlight">\(A_{sc}(a)\)</span> indicates an <em>atomic operation</em> on a variable at
+address <span class="math notranslate nohighlight">\(a\)</span> with sequential consistency. The variable at
+address <span class="math notranslate nohighlight">\(a\)</span> could refer to local or remote memory. Atomic
+operations must be completed as a single operation (i.e. atomically),
+and so it is not possible to observe an intermediate state from an
+atomic operation under any circumstances.</p></li>
+<li><p><span class="math notranslate nohighlight">\(A_r(a,o)\)</span> indicates an <em>atomic operation</em> on a variable at
+address <span class="math notranslate nohighlight">\(a\)</span> with ordering constraint <span class="math notranslate nohighlight">\(o\)</span>, where <span class="math notranslate nohighlight">\(o\)</span>
+can be one of <em>relaxed</em>, <em>acquire</em>, or <em>release</em> (see
+<a class="reference internal" href="#non-sc-atomics"><span class="std std-ref">Non-Sequentially Consistent Atomic Operations</span></a>). As with <span class="math notranslate nohighlight">\(A_{sc}(a)\)</span>,
+relaxed atomic operations must be completed as a single operation.</p></li>
+<li><p><span class="math notranslate nohighlight">\(L(a)\)</span>, <span class="math notranslate nohighlight">\(S(a)\)</span>, <span class="math notranslate nohighlight">\(A_{sc}(a)\)</span>, and <span class="math notranslate nohighlight">\(A_r(a,o)\)</span>
+are also called <em>memory operations</em></p></li>
+<li><p><span class="math notranslate nohighlight">\(X &lt;_p Y\)</span> indicates that <span class="math notranslate nohighlight">\(X\)</span> precedes <span class="math notranslate nohighlight">\(Y\)</span> in
+program order</p></li>
+<li><p><span class="math notranslate nohighlight">\(X &lt;_m Y\)</span> indicates that <span class="math notranslate nohighlight">\(X\)</span> precedes <span class="math notranslate nohighlight">\(Y\)</span> in memory
+order</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">=</span> <span class="pre">begin{X}</span></code> starts a new task named <span class="math notranslate nohighlight">\(t\)</span> to execute
+<span class="math notranslate nohighlight">\(X\)</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">waitFor($t_1$..$t_n$)</span></code> waits for tasks <span class="math notranslate nohighlight">\(t_1..t_n\)</span> to
+complete</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">on(L)</span></code> migrates the running task to locale <span class="math notranslate nohighlight">\(L\)</span>. Note that
+while the <code class="docutils literal notranslate"><span class="pre">on</span></code> statement may change the locale on which the current
+task is running, it has no impact on the memory consistency
+requirements.</p></li>
+</ul>
+<p>For the purposes of describing this memory model, it is assumed that
+Chapel programs will be translated into sequences of <em>memory
+operations</em>, <code class="docutils literal notranslate"><span class="pre">begin</span></code> statements, and <code class="docutils literal notranslate"><span class="pre">waitFor</span></code> statements. The
+translation of a Chapel program into a sequence of <em>memory operations</em>
+must preserve sequential program semantics. That is, if we have a
+snippet of a Chapel program without task operations, such as <code class="docutils literal notranslate"><span class="pre">X;</span> <span class="pre">Y;</span></code>,
+the statements <span class="math notranslate nohighlight">\(X\)</span> and <span class="math notranslate nohighlight">\(Y\)</span> will be converted into a sequence
+of <em>load</em>, <em>store</em>, and <em>atomic operations</em> in a manner that preserves
+the behavior of this serial portion of the program. That is,
+<span class="math notranslate nohighlight">\(X=x_1,x_2,...\)</span> and <span class="math notranslate nohighlight">\(Y=y_1,y_2,...\)</span> where <span class="math notranslate nohighlight">\(x_i\)</span> and
+<span class="math notranslate nohighlight">\(y_j\)</span> are each a sequence of <em>load</em>, <em>store</em>, or <em>atomic
+operations</em> and we have <span class="math notranslate nohighlight">\(x_i &lt;_p y_j\)</span>.</p>
+<p>Likewise, for the purposes of this memory model, Chapel’s parallelism
+keywords are viewed as a sequence of operations including the primitives
+of starting a task (<code class="docutils literal notranslate"><span class="pre">begin</span></code>) and waiting for some number of tasks
+(<code class="docutils literal notranslate"><span class="pre">waitFor($t_1$..$t_n$)</span></code>). In particular:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">forall</span></code> (including promotion) creates some number of tasks
+<span class="math notranslate nohighlight">\(m\)</span> to execute the <span class="math notranslate nohighlight">\(n\)</span> iterations of the loop</p>
+<p>(<code class="docutils literal notranslate"><span class="pre">$t_i$</span> <span class="pre">=</span> <span class="pre">begin{some-loop-bodies}</span></code> for each task
+<span class="math notranslate nohighlight">\(i=1\)</span>..<span class="math notranslate nohighlight">\(m\)</span>) and waits for them to complete
+(<code class="docutils literal notranslate"><span class="pre">waitFor(t_1..t_m)</span></code>). The number of tasks <span class="math notranslate nohighlight">\(m\)</span> is defined
+by the implementation of the parallel iterator (See
+<a class="reference internal" href="iterators.html#chapter-iterators"><span class="std std-ref">Iterators</span></a> for details on iterators).</p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">coforall</span></code> creates one task per loop iteration
+(<code class="docutils literal notranslate"><span class="pre">t_i</span> <span class="pre">=</span> <span class="pre">begin{loop-body}</span></code> for all loop iterations
+<span class="math notranslate nohighlight">\(i=1..n\)</span>) and then waits for them all to complete
+(<code class="docutils literal notranslate"><span class="pre">waitFor(t_1..t_n)</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cobegin</span></code> creates one task per enclosed statement
+(<code class="docutils literal notranslate"><span class="pre">t_i</span> <span class="pre">=</span> <span class="pre">begin{X_i}</span></code> for statements
+<span class="math notranslate nohighlight">\(X_1\)</span>..<span class="math notranslate nohighlight">\(X_n\)</span>) and then waits for them all to complete
+(<code class="docutils literal notranslate"><span class="pre">waitFor(t_1..t_n)</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">begin</span></code> creates a task to execute the enclosed statement
+(<code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">=</span> <span class="pre">begin{X}</span></code>). The <code class="docutils literal notranslate"><span class="pre">sync</span></code> statement waits for all tasks
+<span class="math notranslate nohighlight">\(t_i\)</span> created by a <code class="docutils literal notranslate"><span class="pre">begin</span></code> statement in the dynamic scope of
+the <code class="docutils literal notranslate"><span class="pre">sync</span></code> statement that are not within other, nested <code class="docutils literal notranslate"><span class="pre">sync</span></code>
+statements (<code class="docutils literal notranslate"><span class="pre">waitFor(t_1..t_n)</span></code> for all <span class="math notranslate nohighlight">\(n\)</span> such tasks).</p></li>
+</ul>
+<div class="section" id="program-order">
+<span id="id1"></span><h3>Program Order<a class="headerlink" href="#program-order" title="Permalink to this headline">¶</a></h3>
+<p>Task creation and task waiting create a conceptual tree of program
+statements. The task bodies, task creation, and task wait operations
+create a partial order <span class="math notranslate nohighlight">\(&lt;_p\)</span> of program statements. For the
+purposes of this section, the statements in the body of each Chapel task
+will be implemented in terms of <em>load</em>, <em>store</em>, and <em>atomic
+operations</em>.</p>
+<ul class="simple">
+<li><p>If we have a program snippet without tasks, such as <code class="docutils literal notranslate"><span class="pre">X;</span> <span class="pre">Y;</span></code>, where
+<span class="math notranslate nohighlight">\(X\)</span> and <span class="math notranslate nohighlight">\(Y\)</span> are memory operations, then <span class="math notranslate nohighlight">\(X &lt;_p Y\)</span>.</p></li>
+<li><p>The program <code class="docutils literal notranslate"><span class="pre">X;</span> <span class="pre">begin{Y};</span> <span class="pre">Z;</span></code> implies <span class="math notranslate nohighlight">\(X\)</span> <span class="math notranslate nohighlight">\(&lt;_p\)</span>
+<span class="math notranslate nohighlight">\(Y\)</span>. However, there is no particular relationship between
+<span class="math notranslate nohighlight">\(Y\)</span> and <span class="math notranslate nohighlight">\(Z\)</span> in program order.</p></li>
+<li><p>The program <code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">=</span> <span class="pre">begin{Y};</span> <span class="pre">waitFor(t);</span> <span class="pre">Z;</span></code> implies <span class="math notranslate nohighlight">\(Y\)</span>
+<span class="math notranslate nohighlight">\(&lt;_p\)</span> <span class="math notranslate nohighlight">\(Z\)</span>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(X\)</span> <span class="math notranslate nohighlight">\(&lt;_p\)</span> <span class="math notranslate nohighlight">\(Y\)</span> and <span class="math notranslate nohighlight">\(Y\)</span> <span class="math notranslate nohighlight">\(&lt;_p\)</span> <span class="math notranslate nohighlight">\(Z\)</span>
+imply <span class="math notranslate nohighlight">\(X\)</span> <span class="math notranslate nohighlight">\(&lt;_p\)</span> <span class="math notranslate nohighlight">\(Z\)</span>.</p></li>
+</ul>
+</div>
+<div class="section" id="memory-order">
+<span id="id2"></span><h3>Memory Order<a class="headerlink" href="#memory-order" title="Permalink to this headline">¶</a></h3>
+<p>The memory order <span class="math notranslate nohighlight">\(&lt;_m\)</span> of SC atomic operations in a given task
+respects program order as follows:</p>
+<ul class="simple">
+<li><p>If <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_pA_{sc}(b)\)</span> then <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_mA_{sc}(b)\)</span></p></li>
+</ul>
+<p>Every SC atomic operation gets its value from the last SC atomic
+operation before it to the same address in the total order <span class="math notranslate nohighlight">\(&lt;_m\)</span>:</p>
+<ul class="simple">
+<li><p>Value of <span class="math notranslate nohighlight">\(A_{sc}(a)\)</span> = Value of
+<span class="math notranslate nohighlight">\(max_{&lt;_m} ( A_{sc}'(a)|A_{sc}'(a) &lt;_m A_{sc}(a) )\)</span></p></li>
+</ul>
+<p>For data-race-free programs, every load gets its value from the last
+store before it to the same address in the total order <span class="math notranslate nohighlight">\(&lt;_m\)</span>:</p>
+<ul class="simple">
+<li><p>Value of <span class="math notranslate nohighlight">\(L(a)\)</span> = Value of <span class="math notranslate nohighlight">\(max_{&lt;_m}\)</span>
+<span class="math notranslate nohighlight">\(( S(a)|S(a)\)</span> <span class="math notranslate nohighlight">\(&lt;_m\)</span> <span class="math notranslate nohighlight">\(L(a)\)</span> or <span class="math notranslate nohighlight">\(S(a)\)</span>
+<span class="math notranslate nohighlight">\(&lt;_p\)</span> <span class="math notranslate nohighlight">\(L(a) )\)</span></p></li>
+</ul>
+<p>For data-race-free programs, loads and stores are ordered with SC
+atomics. That is, loads and stores for a given task are in total order
+<span class="math notranslate nohighlight">\(&lt;_m\)</span> respecting the following rules which preserve the order of
+loads and stores relative to SC atomic operations:</p>
+<ul class="simple">
+<li><p>If <span class="math notranslate nohighlight">\(L(a)&lt;_pA_{sc}(b)\)</span> then <span class="math notranslate nohighlight">\(L(a)&lt;_mA_{sc}(b)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(S(a)&lt;_pA_{sc}(b)\)</span> then <span class="math notranslate nohighlight">\(S(a)&lt;_mA_{sc}(b)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_pL(b)\)</span> then <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_mL(b)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_pS(b)\)</span> then <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_mS(b)\)</span></p></li>
+</ul>
+<p>For data-race-free programs, loads and stores preserve sequential
+program behavior. That is, loads and stores to the same address in a
+given task are in the order <span class="math notranslate nohighlight">\(&lt;_m\)</span> respecting the following rules
+which preserve sequential program behavior:</p>
+<ul class="simple">
+<li><p>If <span class="math notranslate nohighlight">\(L(a) &lt;_p L'(a)\)</span> then <span class="math notranslate nohighlight">\(L(a) &lt;_m L'(a)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(L(a) &lt;_p S(a)\)</span> then <span class="math notranslate nohighlight">\(L(a) &lt;_m S(a)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(S(a) &lt;_p S'(a)\)</span> then <span class="math notranslate nohighlight">\(S(a) &lt;_m S'(a)\)</span></p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="non-sequentially-consistent-atomic-operations">
+<span id="non-sc-atomics"></span><h2>Non-Sequentially Consistent Atomic Operations<a class="headerlink" href="#non-sequentially-consistent-atomic-operations" title="Permalink to this headline">¶</a></h2>
+<p>Sequential consistency for atomic operations can be a performance
+bottleneck under some circumstances. Chapel provides non-SC atomic
+operations to help alleviate such situations. Such uses of atomic
+operations must be done with care and should generally not be used to
+synchronize tasks.</p>
+<p>Non-SC atomic operations are specified by providing a <em>memory order</em>
+argument to the atomic operations. See the
+<a class="reference internal" href="task-parallelism-and-synchronization.html#functions-on-atomic-variables"><span class="std std-ref">Atomic Variables</span></a> section for more information on the
+memory order types.</p>
+<blockquote>
+<div><p><em>Open issue</em>.</p>
+<p>This section describes <code class="docutils literal notranslate"><span class="pre">memoryOrder.relaxed</span></code> but does not yet
+describe <code class="docutils literal notranslate"><span class="pre">memoryOrder.acquire</span></code>, <code class="docutils literal notranslate"><span class="pre">memoryOrder.release</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">memoryOrder.acqRel</span></code> orderings. The intention is that the behavior
+of these orderings match the C and C++ definitions.</p>
+</div></blockquote>
+<div class="section" id="relaxed-atomic-operations">
+<span id="relaxed-atomics"></span><h3>Relaxed Atomic Operations<a class="headerlink" href="#relaxed-atomic-operations" title="Permalink to this headline">¶</a></h3>
+<p>Although Chapel’s relaxed atomic operations (<code class="docutils literal notranslate"><span class="pre">memoryOrder.relaxed</span></code>)
+do not complete in a total order by themselves and might contribute to
+non-deterministic programs, relaxed atomic operations cannot contribute
+to a data race that would prevent sequential consistency.</p>
+<p>When relaxed atomics are used only for atomicity and not as part of
+synchronizing tasks, their effect can be understood in the memory
+consistency model described in <a class="reference internal" href="#sc-for-drf"><span class="std std-ref">Sequential Consistency for Data-Race-Free Programs</span></a> by treating them
+as ordinary loads or stores with two exceptions:</p>
+<ul class="simple">
+<li><p>Atomic operations (including relaxed atomic operations) cannot create
+data races.</p></li>
+<li><p>All atomic operations (including relaxed atomic operations) will
+eventually be visible to all other threads. This property is not true
+for normal loads and stores.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="unordered-memory-operations">
+<span id="unordered-operations"></span><h2>Unordered Memory Operations<a class="headerlink" href="#unordered-memory-operations" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p><em>Open issue</em>.</p>
+<p>Syntax for <em>unordered</em> operations has not yet been finalized.</p>
+</div></blockquote>
+<blockquote>
+<div><p><em>Open issue</em>.</p>
+<p>Should Chapel provide a memory fence that only completes unordered
+operations started by the current task?</p>
+<p><em>Open issue</em>.</p>
+<p>Should unordered operations on a particular memory address always
+wait for the address to be computed?</p>
+</div></blockquote>
+<blockquote>
+<div><p><em>Open issue</em>.</p>
+<p>Does starting a task or joining with a task necessarily wait for
+unordered operations to complete?</p>
+</div></blockquote>
+<p>Rather than issuing normal loads and stores to read or write local or
+remote memory, a Chapel program can use <em>unordered</em> loads and stores
+when preserving sequential program behavior is not important. The
+following notation for unordered memory operations will be used in this
+section:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(UL(a)\)</span> indicates an <em>unordered</em> <em>load</em> from a variable at
+address <span class="math notranslate nohighlight">\(a\)</span>. <span class="math notranslate nohighlight">\(a\)</span> could point to local or remote memory.</p></li>
+<li><p><span class="math notranslate nohighlight">\(US(a)\)</span> indicates an <em>unordered</em> <em>store</em> to a variable at
+address <span class="math notranslate nohighlight">\(a\)</span>. Again, <span class="math notranslate nohighlight">\(a\)</span> could point to local or remote
+memory.</p></li>
+</ul>
+<p>The <em>unordered</em> loads and stores <span class="math notranslate nohighlight">\(UL(a)\)</span> and <span class="math notranslate nohighlight">\(US(a)\)</span> respect
+fences but not program order. As in Section <a class="reference internal" href="#memory-order"><span class="std std-ref">Memory Order</span></a>,
+unordered loads and stores are
+ordered with SC atomics. That is, unordered loads and stores for a given
+task are in total order <span class="math notranslate nohighlight">\(&lt;_m\)</span> respecting the following rules which
+preserve the order of unordered loads and stores relative to SC atomic
+operations:</p>
+<ul class="simple">
+<li><p>If <span class="math notranslate nohighlight">\(UL(a)&lt;_pA_{sc}(b)\)</span> then <span class="math notranslate nohighlight">\(UL(a)&lt;_mA_{sc}(b)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(US(a)&lt;_pA_{sc}(b)\)</span> then <span class="math notranslate nohighlight">\(US(a)&lt;_mA_{sc}(b)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_pUL(b)\)</span> then <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_mUL(b)\)</span></p></li>
+<li><p>If <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_pUS(b)\)</span> then <span class="math notranslate nohighlight">\(A_{sc}(a)&lt;_mUS(b)\)</span></p></li>
+</ul>
+<p>Unordered loads and stores do not preserve sequential program behavior.</p>
+<div class="section" id="unordered-memory-operations-examples">
+<h3>Unordered Memory Operations Examples<a class="headerlink" href="#unordered-memory-operations-examples" title="Permalink to this headline">¶</a></h3>
+<p>Unordered operations should be thought of as happening in a way that
+overlaps with the program task. Unordered operations started in
+different program statements can happen in any order unless an SC atomic
+operation orders them.</p>
+<p>Since unordered operations started by a single task can happen in any
+order, totally sequential programs can have a data race when using
+unordered operations. This follows from our original definition of data
+race.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="nx">unordered_store</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="mi">10</span><span class="p">);</span>
+<span class="nx">unordered_store</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="mi">20</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The value of <em>x</em> at the end of this program could be 0, 10, or 20. As a
+result, programs using unordered loads and stores are not sequentially
+consistent unless the program can guarantee that unordered operations
+can never operate on the same memory at the same time when one of them
+is a store. In particular, the following are safe:</p>
+<ul class="simple">
+<li><p>Unordered stores to disjoint regions of memory.</p></li>
+<li><p>Unordered loads from potentially overlapping regions of memory when
+no store could overlap with the loads.</p></li>
+<li><p>Unordered loads and stores to the same memory location when these are
+always separated by an SC atomic operation.</p></li>
+</ul>
+<p>Unordered loads and stores are available as a performance optimization.
+For example, a program computing a permutation on an array might want to
+move data between two arrays without requiring any ordering:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+<span class="c1">// P is a permutation on 1..n, in this case reversing its input</span>
+<span class="kd">var</span> <span class="nx">P</span> <span class="o">=</span> <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">by</span> <span class="o">-</span><span class="mi">1</span> <span class="k">do</span> <span class="nx">i</span><span class="p">;</span>
+<span class="c1">// A is an array to permute</span>
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">do</span> <span class="nx">i</span><span class="p">;</span>
+<span class="c1">// Compute, in B, the permutation applied to A</span>
+<span class="kd">var</span> <span class="nx">B</span><span class="p">:[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+
+<span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span>
+  <span class="nx">unordered_store</span><span class="p">(</span><span class="nx">B</span><span class="p">[</span><span class="nx">P</span><span class="p">[</span><span class="nx">i</span><span class="p">]],</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<span id="mcm-examples"></span><h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p><em>Example</em>.</p>
+<p>In this example, a synchronization variable is used to (a) ensure
+that all writes to an array of unsynchronized variables are complete,
+(b) signal that fact to a second task, and (c) pass along the number
+of values that are valid for reading.</p>
+<p>The program</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">done$</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">int</span><span class="p">;</span>           <span class="c1">// initially empty</span>
+<span class="k">cobegin</span> <span class="p">{</span>
+  <span class="p">{</span> <span class="c1">// Reader task</span>
+    <span class="kd">const</span> <span class="nx">numToRead</span> <span class="o">=</span> <span class="nx">done$</span><span class="p">;</span>   <span class="c1">// block until writes are complete</span>
+    <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">numToRead</span> <span class="k">do</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;A[&quot;</span><span class="p">,</span> <span class="nx">i</span><span class="p">,</span> <span class="s">&quot;] = &quot;</span><span class="p">,</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]);</span>
+  <span class="p">}</span>
+  <span class="p">{</span>  <span class="c1">// Writer task</span>
+    <span class="kd">const</span> <span class="nx">numToWrite</span> <span class="o">=</span> <span class="mi">14</span><span class="p">;</span>     <span class="c1">// an arbitrary number</span>
+    <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">numToWrite</span> <span class="k">do</span>
+      <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+    <span class="nx">done$</span> <span class="o">=</span> <span class="nx">numToWrite</span><span class="p">;</span>        <span class="c1">// fence writes to A and signal done</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>produces the output</p>
+<div class="highlight-printoutput notranslate"><div class="highlight"><pre><span></span>A[1] = 0.1
+A[2] = 0.2
+A[3] = 0.3
+A[4] = 0.4
+A[5] = 0.5
+A[6] = 0.6
+A[7] = 0.7
+A[8] = 0.8
+A[9] = 0.9
+A[10] = 1.0
+A[11] = 1.1
+A[12] = 1.2
+A[13] = 1.3
+A[14] = 1.4
+</pre></div>
+</div>
+</div></blockquote>
+<blockquote>
+<div><p><em>Example (syncSpinWait.chpl)</em>.</p>
+<p>One consequence of Chapel’s memory consistency model is that a task
+cannot spin-wait on a normal variable waiting for another task to
+write to that variable. The behavior of the following code is
+undefined:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">cobegin</span> <span class="k">with</span> <span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">while</span> <span class="nx">x</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">do</span> <span class="p">;</span>  <span class="c1">// INCORRECT spin wait</span>
+  <span class="nx">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In contrast, spinning on a synchronization variable has well-defined
+behavior:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x$</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">cobegin</span> <span class="p">{</span>
+  <span class="k">while</span> <span class="nx">x$</span><span class="p">.</span><span class="nx">readXX</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">do</span> <span class="p">;</span>  <span class="c1">// spin wait</span>
+  <span class="nx">x$</span><span class="p">.</span><span class="nx">writeXF</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this code, the first statement in the cobegin statement executes a
+loop until the variable is set to one. The second statement in the
+cobegin statement sets the variable to one. Neither of these
+statements block.</p>
+<p><em>Example (atomicSpinWait.chpl)</em>.</p>
+<p>Atomic variables provide an alternative means to spin-wait. For
+example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">cobegin</span> <span class="p">{</span>
+  <span class="k">while</span> <span class="nx">x</span><span class="p">.</span><span class="nx">read</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">do</span> <span class="p">;</span>  <span class="c1">// spin wait - monopolizes processor</span>
+  <span class="nx">x</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<blockquote>
+<div><p><em>Example (atomicWaitFor.chpl)</em>.</p>
+<p>The main drawback of the above example is that it prevents the thread
+executing the spin wait from doing other useful work. Atomic
+variables include a waitFor method that will block the calling thread
+until a read of the atomic value matches a particular value. In
+contrast to the spin wait loop above, waitFor will allow other tasks
+to be scheduled. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">cobegin</span> <span class="p">{</span>
+  <span class="nx">x</span><span class="p">.</span><span class="nx">waitFor</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="nx">x</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="domain-maps.html" class="btn btn-neutral float-left" title="Domain Maps" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="interoperability.html" class="btn btn-neutral float-right" title="Interoperability" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sanitizers &mdash; Chapel Documentation 2.3</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=c3c8ae58"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Chapel’s Deprecation Policy" href="Deprecation.html" />
+    <link rel="prev" title="Valgrind" href="Valgrind.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.3
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.3";
+$pagename = "developer/bestPractices/Sanitizers";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Best Practices for Contributors</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ContributorInfo.html">Contributor Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="DCO.html">Getting started with Chapel and the Developer Certificate of Origin (DCO)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerDebugging.html">Tips On Debugging The Compiler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerIRTricks.html">Examining/Debugging Compiler IR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ErrorWarningMessaging.html">How To Generate Warnings And Error Messages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="RuntimeLibrary.html">The Chapel Runtime Library</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GeneratedCode.html">All About Compiler-Generated Code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GASNetOnDesktops.html">Running Chapel Programs with GASNet on your Desktop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="git.html">Git tips for Chapel developers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CHPL_DEVELOPER.html">The CHPL_DEVELOPER environment variable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestSystem.html">Chapel Testing System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="SpellChecking.html">chplspell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Valgrind.html">Valgrind</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Sanitizers</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#how-to">How-to</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#limitations">Limitations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration-limitations">Configuration Limitations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#other-sanitizers">Other Sanitizers</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="Deprecation.html">Chapel’s Deprecation Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Unstable.html">Unstable Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="NightlyTesting.html">Nightly Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="StandardModuleStyle.html">Standard Module Style</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestAnnotationsLocally.html">How to test ANNOTATIONS.yaml changes locally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildingdocs.html">Building Chapel Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Potpourri.html">Miscellaneous Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../compiler-internals/index.html">Frontend Library API Docs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Docs for Contributors</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Best Practices for Contributors</a></li>
+      <li class="breadcrumb-item active">Sanitizers</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/bestPractices/Sanitizers.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sanitizers">
+<span id="best-practices-sanitizers"></span><h1>Sanitizers<a class="headerlink" href="#sanitizers" title="Link to this heading">¶</a></h1>
+<p>Sanitizers are a compiler feature that support instrumenting programs to do
+dynamic analysis to catch many classes of bugs at runtime.</p>
+<p>AddressSanitizer (ASan) is a fast memory error detector. It consists of a
+compiler instrumentation module and a run-time library. ASan is similar
+to valgrind (<a class="reference internal" href="Valgrind.html#best-practices-valgrind"><span class="std std-ref">Valgrind</span></a>) in that it can help
+identify memory errors. ASan is much faster than valgrind, but does
+require recompilation. Note that only GCC and Clang support sanitizers.</p>
+<section id="how-to">
+<h2>How-to<a class="headerlink" href="#how-to" title="Link to this heading">¶</a></h2>
+<p>To use AddressSanitizer with Chapel-generated executables only:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_MEM</span><span class="o">=</span>cstdlib
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_TASKS</span><span class="o">=</span>fifo
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LLVM</span><span class="o">=</span>none<span class="w">   </span><span class="c1"># or set CHPL_TARGET_COMPILER to gnu, clang, etc.</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_SANITIZE_EXE</span><span class="o">=</span>address
+<span class="nb">export</span><span class="w"> </span><span class="nv">ASAN_OPTIONS</span><span class="o">=</span><span class="s2">&quot;use_sigaltstack=0,detect_leaks=0&quot;</span>
+
+<span class="nb">cd</span><span class="w"> </span><span class="nv">$CHPL_HOME</span>
+make
+chpl<span class="w"> </span>&lt;program.chpl&gt;
+./&lt;program&gt;
+</pre></div>
+</div>
+<p>To use it with both the Chapel compiler and its generated executables:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_MEM</span><span class="o">=</span>cstdlib
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_TASKS</span><span class="o">=</span>fifo
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LLVM</span><span class="o">=</span>none
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_HOST_MEM</span><span class="o">=</span>cstdlib
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_SANITIZE</span><span class="o">=</span>address
+<span class="nb">export</span><span class="w"> </span><span class="nv">ASAN_OPTIONS</span><span class="o">=</span><span class="s2">&quot;use_sigaltstack=0,detect_leaks=0&quot;</span>
+
+<span class="nb">cd</span><span class="w"> </span><span class="nv">$CHPL_HOME</span>
+make
+chpl<span class="w"> </span>&lt;program.chpl&gt;
+./&lt;program&gt;
+</pre></div>
+</div>
+<p>To get better stack traces when optimizations are enabled:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">DEBUG</span><span class="o">=</span><span class="m">1</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Non-chplenv environment variables aren’t propagated by paratest. So,
+to turn off leak checking, it is necessary to either pass
+<code class="docutils literal notranslate"><span class="pre">-env</span> <span class="pre">ASAN_OPTIONS=&quot;use_sigaltstack=0,detect_leaks=0&quot;</span></code> or to include
+<code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">ASAN_OPTIONS=&quot;use_sigaltstack=0,detect_leaks=0&quot;</span></code> in .bashrc or
+the equivalent.</p>
+</div>
+</section>
+<section id="limitations">
+<h2>Limitations<a class="headerlink" href="#limitations" title="Link to this heading">¶</a></h2>
+<p>AddressSanitizer should be able to detect almost all memory errors for single
+locale configurations using <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=none</span></code>. However, ASan cannot detect all
+classes of memory errors in multilocale configurations and the extent of the
+support depends on the <code class="docutils literal notranslate"><span class="pre">CHPL_COMM</span></code> setting. As a specific example some
+configurations will not be able to detect invalid remote reads/writes since
+ASan only knows about local memory. In the following program the invalid write
+to the array may not be detected for configurations that use RDMA to perform
+writes.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">on</span> <span class="nx">Locales</span><span class="p">[</span><span class="nx">numLocales</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="p">{</span>
+  <span class="nx">A</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span> <span class="o">=</span> <span class="mi">11</span><span class="p">;</span> <span class="c1">// Out of bounds write</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This particular example would be caught by Chapel bounds checking, which are
+enabled by default but disabled with <code class="docutils literal notranslate"><span class="pre">--fast</span></code>. To get bounds checking and
+optimizations you can use <code class="docutils literal notranslate"><span class="pre">--fast</span> <span class="pre">--bounds-checks</span></code> or <code class="docutils literal notranslate"><span class="pre">--fast</span> <span class="pre">--checks</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM_SUBSTRATE=udp</span></code> should be able to detect
+most memory errors since remote reads/writes are performed with active messages
+instead of RDMA.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CHPL_COMM=ugni</span></code> without hugepages can detect some, but not all invalid
+remote reads/writes, but comes with a large performance cost. Hugepages can be
+unloaded with <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">unload</span> <span class="pre">$(module</span> <span class="pre">-t</span> <span class="pre">list</span> <span class="pre">2&gt;&amp;1</span> <span class="pre">|</span> <span class="pre">grep</span> <span class="pre">craype-hugepages)</span></code></p>
+</section>
+<section id="configuration-limitations">
+<h2>Configuration Limitations<a class="headerlink" href="#configuration-limitations" title="Link to this heading">¶</a></h2>
+<p>The above options are needed because not all third-party libraries support
+sanitizers. In particular:</p>
+<ul class="simple">
+<li><p>Sanitizer instrumentation is added by the C compiler, so LLVM
+compilations don’t currently work</p></li>
+<li><p>Sanitizers hook into the system allocator, so using <code class="docutils literal notranslate"><span class="pre">jemalloc</span></code> is not
+supported</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">qthreads</span></code> performs task-switching in user-space, which throws off
+stack frame tracking. We expect to be able to resolve this in the
+future.</p></li>
+<li><p>By default the gcc address sanitizer will enable leak checking, but
+Chapel intentionally leaks some memory in the runtime, so we disable
+that tracking for now. See <a class="reference internal" href="../../usingchapel/debugging.html#readme-debugging"><span class="std std-ref">Debugging Chapel Programs</span></a> for more info about
+debugging memory leaks in Chapel.</p></li>
+<li><p>An upstream <a class="reference external" href="https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101476">bug</a> can result in false-positives for some gcc versions.
+<code class="docutils literal notranslate"><span class="pre">use_sigaltstack=0</span></code> works around this.</p>
+</li>
+</ul>
+</section>
+<section id="other-sanitizers">
+<h2>Other Sanitizers<a class="headerlink" href="#other-sanitizers" title="Link to this heading">¶</a></h2>
+<p>Currently, only AddressSanitizer has been tested, but the options passed to
+<code class="docutils literal notranslate"><span class="pre">CHPL_SANITIZE</span></code> are passed directly to the backend compiler’s <code class="docutils literal notranslate"><span class="pre">-fsanitize=</span></code>
+option, so other sanitizers can be enabled. e.g. to use memory sanitizer and
+address sanitizer set <code class="docutils literal notranslate"><span class="pre">CHPL_SANITIZE=address,memory</span></code></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Valgrind.html" class="btn btn-neutral float-left" title="Valgrind" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Deprecation.html" class="btn btn-neutral float-right" title="Chapel’s Deprecation Policy" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

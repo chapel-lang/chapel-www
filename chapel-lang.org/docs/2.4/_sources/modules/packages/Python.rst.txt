@@ -1,0 +1,1110 @@
+.. default-domain:: chpl
+
+.. module:: Python
+   :synopsis: Library for interfacing with Python from Chapel code.
+
+Python
+======
+**Usage**
+
+.. code-block:: chapel
+
+   use Python;
+
+
+or
+
+.. code-block:: chapel
+
+   import Python;
+
+.. warning::
+
+   The Python module's interface is under active development and may change
+
+Library for interfacing with Python from Chapel code.
+
+This module provides a Chapel interface to a Python interpreter.
+It allows manipulating native Python objects and libraries with minimal
+wrapper code required.
+
+.. note::
+
+   This module is implemented using the Python C API, and as such, it is not
+   compatible with PyPy or other alternative Python implementations.
+
+Compiling Chapel code
+---------------------
+
+Compiling Chapel code that uses this module needs the ``Python.h`` header file
+and requires linking with the Python library. If ``python3`` is installed,
+this can be achieved with the following commands:
+
+.. code-block:: bash
+
+   PYTHON_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_paths()['include'])")
+   PYTHON_LIB_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+   PYTHON_LDVERSION=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LDVERSION'))")
+
+   chpl --ccflags -isystem$PYTHON_INCLUDE_DIR \
+        -L$PYTHON_LIB_DIR --ldflags -Wl,-rpath,$PYTHON_LIB_DIR \
+        -lpython$PYTHON_LDVERSION ...Chapel source files...
+
+.. warning::
+
+  Chapel programs compiled in this way are compiled for a specific Python
+  version. Attempting to run the compiled program with a different Python
+  version may have unexpected results.
+
+Parallel Execution
+------------------
+
+Running any Python code in parallel from Chapel will likely be no faster than
+serial execution due to the Global Interpreter Lock (GIL) in the Python
+interpreter. This module automatically handles the GIL in the public API.
+
+.. note::
+
+   Newer Python versions offer a free-threading mode that allows multiple
+   threads concurrently. This currently requires a custom build of Python. If
+   you are using a Python interpreter like this, the GIL handling code in this
+   module will become a no-op.
+
+The following demonstrates executing multiple Chapel tasks using a `coforall`
+and a single Python interpreter:
+
+..
+   START_TEST
+   FILENAME: CoforallTest.chpl
+   START_GOOD
+   1 4 9 16 25 36 49 64 81 100
+   END_GOOD
+
+.. code-block:: chapel
+
+   use Python;
+
+   var Arr: [1..10] int = 1..10;
+
+   var interp = new Interpreter();
+   var func = interp.compileLambda("lambda x,: x * x");
+
+   coforall tid in 1..10 {
+     // the call to 'func' automatically acquires and releases the GIL
+     Arr[tid] = func(int, tid);
+   }
+   writeln(Arr);
+
+..
+   END_TEST
+
+The code works similarly with a data-parallel ``forall`` loop:
+
+..
+   START_TEST
+   FILENAME: ForallTest.chpl
+   START_GOOD
+   1 4 9 16 25 36 49 64 81 100
+   END_GOOD
+
+.. code-block:: chapel
+
+   use Python;
+
+   var Arr: [1..10] int = 1..10;
+
+   var interp = new Interpreter();
+   var func = interp.compileLambda("lambda x,: x * x");
+
+   forall tid in 1..10 {
+     // the call to 'func' automatically acquires and releases the GIL
+     Arr[tid] = func(int, tid);
+   }
+   writeln(Arr);
+
+..
+   END_TEST
+
+Although these examples use Chapel's task parallelism constructs,
+they will be no faster than running the tasks serially due to the GIL.
+
+Using Python Modules With Distributed Code
+-------------------------------------------
+
+Python has no built-in support for distributed memory, so each locale must
+create its own interpreter (and subsequent Python objects).
+
+The following example demonstrates how to create a Python interpreter and run
+a Python function on each locale:
+
+..
+   START_TEST
+   FILENAME: DistributedTest.chpl
+   EXECOPTS: --n=10
+   START_GOOD
+   2 3 4 5 6 7 8 9 10 11
+   END_GOOD
+
+.. code-block:: chapel
+
+    use Python, BlockDist;
+
+    config const n = 100;
+    var Arr = blockDist.createArray({1..n}, int);
+    Arr = 1..n;
+
+    coforall l in Arr.targetLocales() {
+      on l {
+        // each locale has its own interpreter
+        const interp = new Interpreter();
+        const func = interp.compileLambda("lambda x,: x + 1");
+
+        forall i in Arr.localSubdomain() with (var gil = new GIL()) {
+          Arr[i] = func(Arr.eltType, Arr[i]);
+        }
+      }
+    }
+    writeln(Arr);
+
+..
+   END_TEST
+
+In this example, ``interp`` and ``func`` only exist for the body of the
+``on`` block, Python objects can be made to persist beyond the scope of a
+given ``on`` block by creating a distributed array of Python objects.
+
+Defining Custom Types
+---------------------
+
+To translate custom Chapel types to Python objects, users should define and
+register custom :type:`TypeConverter` classes.
+
+Notes on Python + Chapel I/O
+----------------------------
+
+When interspersing Python and Chapel I/O, it is important to flush the output
+buffers to ensure that the output is displayed in the correct order. This is
+needed at the point where the output changes from Python to Chapel or
+vice-versa. For example:
+
+..
+   START_TEST
+   FILENAME: Printing.chpl
+   START_GOOD
+   Hello from Chapel
+   Let's call some Python!
+   Hello, World!
+   Goodbye, World!
+   Back to Chapel
+   END_GOOD
+
+.. code-block:: chapel
+
+   use Python, IO;
+
+   var interp = new Interpreter();
+   var func = interp.compileLambda("lambda x,: print(x)");
+
+   writeln("Hello from Chapel");
+   writeln("Let's call some Python!");
+   IO.stdout.flush(); // flush the Chapel output buffer before calling Python
+
+   func("Hello, World!");
+   func("Goodbye, World!");
+   interp.flush(); // flush the Python output buffer before calling Chapel again
+
+   writeln("Back to Chapel");
+
+..
+   END_TEST
+
+
+More Examples:
+--------------
+
+For more examples of using the Python module, see the test cases in
+`$CHPL_HOME/test/library/packages/Python/examples <https://github.com/chapel-lang/chapel/tree/main/test/library/packages/Python/examples>`_.
+
+
+.. data:: config const pyMemLeaks = false
+
+   
+   Use 'objgraph' to detect memory leaks in the Python code. Care should be
+   taken when interpreting the output of this flag, not all memory leaks are
+   under Chapel's control. For example, printing a Python list leaks memory
+   according to 'objgraph'. Furthermore, some memory is still held until
+   the interpreter is closed, like the module import cache.
+   
+
+.. data:: config param checkExceptions = true
+
+   
+   Check for exceptions after each Python API call. This is important for
+   correctness, but may have a performance impact.
+   
+   .. warning::
+   
+      While turning this flag off may improve performance, it may also lead to
+      segmentation faults and other undefined behavior. This flag should only
+      be turned off if you are certain that no exceptions will be thrown by
+      the Python code, or if a hard crash is acceptable.
+   
+
+.. record:: NoneType
+
+   Represents the python NoneType 
+
+   .. method:: proc str(): string
+
+      
+      Returns the string representation of None.
+      
+      Equivalent to calling ``str(None)`` in Python.
+      
+
+.. data:: const None = new NoneType()
+
+   Represents the python value 'None' 
+
+.. class:: Interpreter
+
+   
+   Represents the python interpreter. All code using the Python module should
+   create and maintain a single instance of this class.
+   
+   .. warning::
+   
+      Do not create more than one instance of this class per locale. Multiple
+      interpreters can be created by using :type:`SubInterpreter` instances.
+   
+
+   .. method:: proc importModule(modName: string): owned Module throws
+
+      
+      Import a Python module. This is equivalent to calling ``import modName``
+      in Python.
+      
+      .. warning::
+      
+         Importing a second module with the same name will overwrite the first.
+      
+      :arg modName: The name of the module that will be created. Note that if
+                    the module name already exists, it will be replaced.
+      
+
+   .. method:: proc importModule(modName: string, moduleContents): owned Module throws where moduleContents.type == string || moduleContents.type == bytes
+
+      
+      Import a Python module, using the provided ``moduleContents``. This is
+      equivalent to putting the code in a file, and then importing the file
+      via the file/module name.
+      
+      .. warning::
+      
+         Importing a second module with the same name will overwrite the first.
+      
+      :arg modName: The name of the module that will be created. Note that if
+                    the module name already exists, it will be replaced.
+      :arg moduleContents: The contents of the module. This can be a
+                           :type:`~String.string` of Python code or a
+                           :type:`~Bytes.bytes` object containing Python
+                           bytecode (i.e. from a ``*.pyc`` file).
+      
+
+   .. method:: proc load(pickle: bytes): owned Value throws
+
+      
+      Load a `Python Pickle <https://docs.python.org/3/library/pickle.html>`_
+      as a Python object.
+      
+      :arg pickle: The pickle data to load
+      
+
+   .. method:: proc compileLambda(code: string): owned Function throws
+
+      
+      Compile a lambda function like 'lambda x,: x + 1'
+      
+      Note: this only works with lambdas that accept a tuple of arguments,
+      like 'x,' or '\*args'
+      
+      For example:
+      .. code-block:: chapel
+      
+         interpreter.compileLambda("lambda x, y,: x + y");
+      
+
+   .. method:: proc run(code: string) throws
+
+      
+      Run a string of python code.
+      
+      This function will just run the code, it cannot be passed arguments or
+      return values.
+      
+
+   .. method:: proc registerConverter(in cvt: owned TypeConverter)
+
+      
+      Register a custom :type:`TypeConverter` with the interpreter. This allows
+      arbitrary Chapel types to be serialized/deserialized to and from Python
+      objects.
+      
+      The registered converter will take precedence over the default converters,
+      allowing users to override the default behavior.
+      
+
+   .. method:: proc checkException() throws
+
+      
+      Query to see if an Python exception has occurred. If there is an
+      exception, the Python exception will be thrown as a :type:`Exception`.
+      
+      This method requires the GIL to be held, calling it without doing so will
+      result in undefined behavior. See :type:`GIL`.
+      
+      .. note::
+      
+         This method should be called after any Python API call that may fail.
+         The wrapping types in this module will call this method automatically,
+         most users should not need to call this method directly.
+      
+
+   .. method:: proc flush(flushStderr: bool = false) throws
+
+      
+      Flush the standard output buffers of the Python interpreter. This is
+      useful when mixing Python and Chapel I/O to ensure that the output is
+      displayed in the correct order.
+      
+
+   .. method:: proc toPython(const val): PyObjectPtr throws
+
+      
+      Convert a Chapel value to a python object. This clones the Chapel value.
+      
+      This returns a new reference to a Python object.
+      
+      .. note::
+      
+         Most users should not need to call this directly, except when writing
+         a :type:`TypeConverter`.
+      
+
+   .. method:: proc fromPython(type t, obj: PyObjectPtr): t throws
+
+      
+      Convert a Python object to a Chapel value. This clones the Python value.
+      
+      This steals a reference to the Python object, so the Chapel object will
+      either own the Python object or it will decrement the reference count
+      when it is done with it.
+      
+      .. note::
+      
+         Most users should not need to call this directly, except when writing
+         a :type:`TypeConverter`.
+      
+
+.. class:: SubInterpreter : Interpreter
+
+   
+   Represents an isolated Python sub-interpreter. This is useful for running
+   truly parallel Python code, without the GIL interferring.
+   
+
+   .. method:: proc init(parent: borrowed Interpreter)
+
+      
+      Creates a new sub-interpreter with the given parent interpreter, which
+      must not be a sub-interpreter.
+      
+
+.. class:: Exception : Error
+
+   
+   Represents a Python exception, either forwarded from Python
+   (i.e. :proc:`Interpreter.checkException`) or thrown directly in Chapel code.
+   
+
+   .. method:: proc init(in message: string)
+
+      
+      Creates a new exception with the given message.
+      
+
+.. class:: PythonException : Exception
+
+   
+   Represents an exception caused in the Python code, forwarded by Chapel code
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: ImportError : PythonException
+
+   
+   Represents an ImportError in the Python code
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: BufferError : PythonException
+
+   
+   Represents a BufferError in the Python code
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: KeyError : PythonException
+
+   
+   Represents a KeyError in the Python code
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: ChapelException : Exception
+
+   
+   Represents an exception caused by code in the Chapel module,
+   not forwarded from Python.
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: TypeConverter
+
+   
+   Base class for Chapel/Python type converters.
+   
+   To create a custom type converter, subclass this class and implement the
+   :proc:`~TypeConverter.handlesType`, :proc:`~TypeConverter.toPython`, and
+   :proc:`~TypeConverter.fromPython` methods. Then register an instance of this
+   class with the interpreter by calling
+   :proc:`~Interpreter.registerConverter`.
+   
+
+   .. method:: proc handlesType(type T): bool
+
+      
+      Check if the converter can handle the given Chapel type.
+      
+      This method should return true if the converter can handle the given type,
+      and false otherwise.
+      
+
+   .. method:: proc toPython(interpreter: borrowed Interpreter, type T, const value: T): PyObjectPtr throws
+
+      
+      Convert a Chapel value to a Python object.
+      
+      This method should convert the Chapel value to a Python object and return
+      the :type:`~CTypes.c_ptr` to the underlying Python object.
+      
+      The :proc:`~Interpreter.toPython` method will call this method.
+      
+
+   .. method:: proc fromPython(interpreter: borrowed Interpreter, type T, obj: PyObjectPtr): T throws
+
+      
+      Convert a Python object to a Chapel value.
+      
+      This method should convert the Python object to a Chapel value and return
+      the Chapel value.
+      
+      The :proc:`~Interpreter.fromPython` method will call this method.
+      
+
+.. class:: Value
+
+   
+   Represents a Python value, it handles reference counting and is owned by
+   default.
+   
+
+   .. attribute:: var interpreter: borrowed Interpreter
+
+      
+      The interpreter that this object is associated with.
+      
+
+   .. method:: proc init(in interpreter: borrowed Interpreter, obj: PyObjectPtr, isOwned: bool = true)
+
+      
+      Takes ownership of an existing Python object, pointed to by ``obj``
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg obj: The :type:`~CTypes.c_ptr` to the existing object.
+      :arg isOwned: Whether this object owns the Python object.
+                    This is true by default.
+      
+
+   .. method:: proc init(in interpreter: borrowed Interpreter, pickleData: bytes) throws
+
+      
+      Creates a new Python object from a pickle.
+      See :proc:`Interpreter.load`.
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg pickleData: The pickle data to load.
+      
+
+   .. method:: proc init(in interpreter: borrowed Interpreter, value: ?) throws
+
+      
+      Creates a new Python object from a Chapel value.
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg value: The Chapel value to convert to a Python object.
+      
+
+   .. method:: proc check() throws
+
+      
+      Check if an exception has occurred in the interpreter.
+      
+      ``val.check();`` is equivalent to ``val.interpreter.checkException();``
+      
+      See :proc:`~Interpreter.checkException` for more information.
+      
+
+   .. method:: proc str(): string throws
+
+      
+      Returns the string representation of the object.
+      This is the same as casting to a string.
+      
+      Equivalent to calling ``str(obj)`` in Python.
+      
+
+   .. method:: proc this(type retType = owned Value, const args ..., kwargs: ? = none): retType throws where kwargs.isAssociative()
+
+      
+      Treat this value as a callable and call it with the given arguments.
+      
+      This handles conversion from Chapel types to Python types and back, by
+      copying the Chapel types to Python types and back.
+      
+      The keyword arguments should be passed as an associative Chapel array.
+      For example:
+      
+      .. code-block:: chapel
+      
+         var res = myObj(int, arg1, arg2, kwargs=["key1" => 42, "key2" => 17]);
+      
+      :arg retType: The Chapel type of the return value. If the callable returns
+                    nothing, use :type:`NoneType`.
+      :arg args: The arguments to pass to the callable.
+      :arg kwargs: The keyword arguments to pass to the callable.
+      
+
+   .. method:: proc get(type t = owned Value, attr: string): t throws
+
+      
+      Access an attribute/field of this Python object. This is equivalent to
+      calling ``getattr(obj, attr)`` or ``obj[attr]`` in Python.
+      
+      This method can be used as a general accessor for Python objects.
+      For example:
+      
+      ..
+         START_TEST
+         FILENAME: GetFac.chpl
+         START_GOOD
+         END_GOOD
+      
+      .. code-block:: chapel
+      
+         use Python;
+         var interp = new Interpreter();
+         var mod = interp.importModule("math");
+      
+         // the following two lines are equivalent
+         var fac1: Value = mod.get("factorial");
+         var fac2: Value = new Function(mod, "factorial");
+      
+      ..
+         END_TEST
+      
+      :arg t: The Chapel type of the value to return.
+      :arg attr: The name of the attribute/field to access.
+      
+
+   .. method:: proc set(attr: string, value) throws
+
+      
+      Set an attribute/field of this Python object. This is equivalent to
+      calling ``obj[attr] = value`` or ``setattr(obj, attr, value)`` in Python.
+      
+      :arg attr: The name of the attribute/field to set.
+      :arg value: The value to set the attribute/field to.
+      
+
+   .. method:: proc call(type retType = owned Value, method: string, const args ..., kwargs: ? = none): retType throws where kwargs.isAssociative()
+
+      
+      Call a method of this Python object. This is equivalent to calling
+      ``obj.method(args)`` in Python.
+      
+      :arg retType: The Chapel type of the return value.
+      :arg method: The name of the method to call.
+      :arg args: The arguments to pass to the method.
+      :arg kwargs: The keyword arguments to pass to the callable.
+      
+
+   .. method:: proc value(type value) throws
+
+      
+      Returns the Chapel value of the object.
+      
+      This is a shortcut for calling :proc:`~Interpreter.fromPython` on this
+      object, however it does not consume the object.
+      
+
+   .. method:: proc type release(in val: owned Value): PyObjectPtr
+
+      
+      Stop owning ``val``, returns the underlying ``c_ptr(PyObject)``.
+      
+      The caller is responsible for decrementing the reference count of the
+      returned object.
+      
+
+   .. method:: proc type adopting(in interpreter: borrowed Interpreter, in object: PyObjectPtr): owned Value throws
+
+      
+      Create a new :type:`Value`, adopting the object.
+      
+      When the new :type:`Value` is deleted, the reference count of the object
+      will be decremented.
+      
+
+   .. method:: proc type borrowing(in interpreter: borrowed Interpreter, in object: PyObjectPtr): owned Value throws
+
+      
+      Create a new :type:`Value`, adopting the object.
+      
+      When the new :type:`Value` is deleted, the reference count of the object
+      will be untouched.
+      
+
+   .. method:: proc getPyObject()
+
+      
+      Returns the :type:`~CTypes.c_ptr` to the underlying Python object.
+      
+      Most users should not need to call this method directly, except when
+      calling low-level CPython functions.
+      
+
+.. class:: Module : Value
+
+   
+   Represents a Python module.
+   
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in modName: string)
+
+      
+      Import a Python module by name. See :proc:`Interpreter.importModule`.
+      
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in modName: string, in moduleContents: string) throws
+
+      
+      Import a Python module from a string using an arbitrary name.
+      See :proc:`Interpreter.importModule`.
+      
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in modName: string, in moduleBytecode: bytes) throws
+
+      
+      Import a Python module from bytecode using an arbitrary name.
+      See :proc:`Interpreter.importModule`.
+      
+
+.. class:: Function : Value
+
+   
+   Represents a Python function.
+   
+
+   .. method:: proc init(mod: borrowed Value, in fnName: string)
+
+      
+      Get a handle to a function in a :class:`Value` by name.
+      
+      This is equivalent to ``mod.get(className)``. See :proc:`Value.get`.
+      
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in fnName: string, in obj: PyObjectPtr, isOwned: bool = true)
+
+      
+      Takes ownership of an existing Python object, pointed to by ``obj``.
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg fnName: The name of the function.
+      :arg obj: The :type:`~CTypes.c_ptr` to the existing object.
+      :arg isOwned: Whether this object owns the Python object. This is true by default.
+      
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in lambdaFn: string) throws
+
+      
+      Create a new Python lambda function from a string. The lambda arguments
+      must have a trailing comma.
+      
+      For example, to create a lambda function that takes two arguments, use:
+      
+      .. code-block:: python
+      
+         new Function(interpreter, "lambda x, y,: x + y")
+      
+      See also :proc:`Interpreter.compileLambda`.
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg lambdaFn: The lambda function to create.
+      
+
+.. class:: Class : Value
+
+   
+   Represents a Python class.
+   
+
+   .. method:: proc init(mod: borrowed Value, in className: string)
+
+      
+      Get a handle to a class in a :class:`Value` by name.
+      
+      This is equivalent to ``mod.get(className)``. See :proc:`Value.get`.
+      
+      :arg mod: The module to get the class from.
+      :arg className: The name of the class.
+      
+
+.. class:: PyList : Value
+
+   
+   Represents a Python list. This provides a Chapel interface to Python lists,
+   where the Python interpreter owns the list.
+   
+
+   .. method:: proc size: int throws
+
+      
+      Get the size of the list. Equivalent to calling ``len(obj)`` in Python.
+      
+      :returns: The size of the list.
+      
+
+   .. method:: proc get(type T = owned Value, idx: int): T throws
+
+      
+      Get an item from the list. Equivalent to calling ``obj[idx]`` in Python.
+      
+      :arg T: The Chapel type of the item to return.
+      :arg idx: The index of the item to get.
+      :returns: The item at the given index.
+      
+
+   .. method:: proc set(idx: int, item: ?) throws
+
+      
+      Set an item in the list. Equivalent to calling ``obj[idx] = item`` in
+      Python.
+      
+      :arg idx: The index of the item to set.
+      :arg item: The item to set.
+      
+
+.. class:: PyDict : Value
+
+   
+   Represents a Python dict. This provides a Chapel interface to Python dicts,
+   where the Python interpreter owns the dict.
+   
+
+   .. method:: proc size: int throws
+
+      
+      Get the size of the dict. Equivalent to calling ``len(obj)`` in Python.
+      
+      :returns: The size of the dict.
+      
+
+   .. method:: proc get(type T = owned Value, key: ?): T throws
+
+      
+      Get an item from the dict. Equivalent to calling ``obj[key]`` in Python.
+      
+      :arg T: The Chapel type of the item to return.
+      :arg key: The key of the item to get.
+      :returns: The item at the given key.
+      
+
+   .. method:: proc set(key: ?, item: ?) throws
+
+      
+      Set an item in the dict. Equivalent to calling ``obj[key] = item`` in
+      Python.
+      
+      :arg key: The key of the item to set.
+      :arg item: The item to set.
+      
+
+   .. method:: proc del(key: ?) throws
+
+      
+      Delete an item from the dict.  Equivalent to calling ``del obj[key]`` in
+      Python.
+      
+      :arg key: The key of the item to delete.
+      
+      :throws KeyError: If the key did not exist in the dict.
+      
+
+   .. method:: proc clear() throws
+
+      
+      Remove all elements from the dict.  Equivalent to calling ``obj.clear()``
+      in Python.
+      
+
+   .. method:: proc copy(): PyDict throws
+
+      
+      Perform a shallow copy into a new dict.  Equivalent to calling
+      ``obj.copy()`` in Python.
+      
+
+   .. method:: proc contains(key: ?): bool throws
+
+      
+      Check if an item is in the dict.  Equivalent to calling ``item in obj`` in
+      Python.
+      
+      :arg key: The key to check for membership in the dict.
+      
+
+.. class:: PySet : Value
+
+   
+   Represents a Python set. This provides a Chapel interface to Python sets,
+   where the Python interpreter owns the set.
+   
+
+   .. method:: proc size: int throws
+
+      
+      Get the size of the set. Equivalent to calling ``len(obj)`` in Python.
+      
+      :returns: The size of the set.
+      
+
+   .. method:: proc add(item: ?) throws
+
+      
+      Add an item to the set.  Equivalent to calling ``obj.add(item)`` in
+      Python.
+      
+      :arg item: The item to add to the set.
+      
+
+   .. method:: proc contains(item: ?): bool throws
+
+      
+      Check if an item is in the set.  Equivalent to calling ``item in obj`` in
+      Python.
+      
+      :arg item: The item to check for membership in the set.
+      
+
+   .. method:: proc discard(item: ?) throws
+
+      
+      Discard a specific item from the set.  Equivalent to calling
+      ``obj.discard(item)`` in Python.
+      
+      :arg item: The item to discard from the set.
+      
+
+   .. method:: proc pop(type T = owned Value): T throws
+
+      
+      Pop an arbitrary element from the set and return it.  Equivalent to
+      calling ``obj.pop()`` in Python.
+      
+      :arg T: The expected type of the element popped.  Defaults to
+              :type:`Value`.  If the Python set contains only elements of a
+              single type, that type can be specified using this argument.
+              Otherwise, `Value` is the most appropriate type, as we do not
+              control which element `pop` will return.
+      
+
+   .. method:: proc clear() throws
+
+      
+      Remove all elements from the set.  Equivalent to calling ``obj.clear()``
+      in Python
+      
+
+.. class:: PyArray : Value
+
+   
+   Represents a Python array. This provides a Chapel interface to Python types
+   that are array-like. This includes
+   `array.array <https://docs.python.org/3/library/array.html>`_ and
+   `numpy.ndarray <https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html>`_.
+   
+
+   .. attribute:: type eltType
+
+   .. method:: proc deinit()
+
+   .. method:: proc array: []
+
+.. class:: Array : Value
+
+   
+   Represents a handle to a Chapel array that is usable by Python code. This
+   allows code to pass Chapel arrays to Python without copying the data. This
+   only works for 1D local rectangular arrays.
+   
+   .. note::
+   
+      While Chapel arrays can be indexed arbitrarily by specifying a domain
+      (e.g. ``var myArr: [2..by 4 #2]``), the equivalent Python array will
+      also by indexed starting at 0 with a stride of 1. Methods like
+      :proc:`~Array.get` do no translation of the domain and should be
+      called with the Python interpretation of the index.
+   
+   
+   To pass a Chapel array to a Python function, you would normally
+   just use the Chapel array directly, resulting in the data being copied in.
+   To avoid this copy, first create an :type:`Array` object, then pass that to
+   the Python function.
+   
+   For example,
+   
+   .. code-block:: chapel
+   
+      myPythonFunction(NoneType, myChapelArray); // copies the data
+   
+      var arr = new Array(interpreter, myChapelArray);
+      myPythonFunction(NoneType, arr); // no copy is done
+   
+   .. warning::
+   
+      If the array is invalidated or deallocated in Chapel, the Python code
+      will crash when it tries to access the array.
+   
+
+   .. method:: proc init(in interpreter: borrowed Interpreter, ref arr: []) throws where isSupportedArrayType(arr)
+
+      
+      Create a new :type:`Array` object from a Chapel array.
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg arr: The Chapel array to create the object from.
+      
+
+   .. method:: proc size: int throws
+
+      
+      Get the size of the array. Equivalent to calling ``len(obj)`` in Python or
+      ``originalArray.size`` in Chapel.
+      
+      :returns: The size of the array.
+      
+
+   .. method:: proc get(idx: int): eltType throws
+
+      
+      Get an item from the array. Equivalent to calling ``obj[idx]`` in Python
+      or ``originalArray[idx]`` in Chapel.
+      
+      :arg idx: The index of the item to get.
+      :returns: The item at the given index.
+      
+
+   .. method:: proc set(idx: int, item: eltType) throws
+
+      
+      Set an item in the array. Equivalent to calling ``obj[idx] = item`` in
+      Python or ``originalArray[idx] = item`` in Chapel.
+      
+      :arg idx: The index of the item to set.
+      :arg item: The item to set.
+      
+
+.. record:: GIL
+
+   
+   Represents the Global Interpreter Lock, this is used to ensure that only one
+   thread is executing python code at a time. Each thread should have its own
+   :type:`GIL` instance.
+   
+   .. warning::
+   
+      This is not thread safe, do not attempt to use the same instance from
+      multiple threads. This may cause a segfault or deadlock.
+   
+
+   .. method:: proc init(param acquire: bool = true)
+
+      
+      Acquires the GIL on record creation by default.
+      Set ``acquire`` to false to delay acquisition.
+      
+
+   .. method:: proc ref acquire()
+
+      
+      Acquire the GIL. If the GIL is already acquired, this is a no-op.
+      
+
+   .. method:: proc ref release()
+
+      
+      Release the GIL. If the GIL is not acquired, this is a no-op.
+      
+      This method is called automatically when the record is destroyed.
+      
+
+.. record:: threadState
+
+   
+   Represents the current thread state. This saves and restores the current
+   thread state.
+   
+   .. warning::
+   
+      This is not thread safe, do not attempt to use the same instance from
+      multiple threads. This may cause a segfault or deadlock.
+   
+
+   .. method:: proc init(param save: bool = false)
+
+      
+      Saves the current thread state on record creation by default.
+      Set ``save`` to true to save the thread state on object creation.
+      
+
+   .. method:: proc ref save()
+
+      
+      Saves the current thread state. If the state is already saved, this
+      is a no-op.
+      
+
+   .. method:: proc ref restore()
+
+      
+      Restores the thread state. If the state is not saved, this is a no-op.
+      
+      This method is called automatically when the record is destroyed.
+      
+

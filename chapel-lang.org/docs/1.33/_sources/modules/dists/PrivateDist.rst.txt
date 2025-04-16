@@ -1,0 +1,70 @@
+.. default-domain:: chpl
+
+.. module:: PrivateDist
+   :synopsis: * Copyright 2020-2023 Hewlett Packard Enterprise Development LP
+
+PrivateDist
+===========
+**Usage**
+
+.. code-block:: chapel
+
+   use PrivateDist;
+
+
+or
+
+.. code-block:: chapel
+
+   import PrivateDist;
+.. warning::
+
+   PrivateDist is unstable and may change in the future
+
+.. record:: privateDist : writeSerializable
+
+   
+   This ``privateDist`` distribution maps each index ``i``
+   between ``0`` and ``numLocales-1`` to ``Locales[i]``.
+   
+   The index set of a domain distributed over ``privateDist``
+   is always ``0..numLocales-1``, regardless of the domain's rank,
+   and cannot be changed.
+   
+   The following domain is available as a convenience,
+   so user programs do not need to declare their own:
+   
+     .. code-block:: chapel
+   
+       const PrivateSpace: domain(1) dmapped privateDist();
+   
+   
+   **Example**
+   
+   The following code declares a Private-distributed array ``A``.
+   The `forall` loop visits each locale and sets the array element
+   corresponding to that locale to that locale's number of cores.
+   
+     .. code-block:: chapel
+   
+       var A: [PrivateSpace] int;
+       forall a in A do
+         a = here.numPUs();
+   
+   
+   **Data-Parallel Iteration**
+   
+   A `forall` loop over a ``privateDist`` domain or array
+   runs a single task on each locale.
+   That task executes the loop's iteration corresponding to
+   that locale's index in the ``Locales`` array.
+   
+   
+   **Limitations**
+   
+   Domains and arrays distributed over this distribution
+   do not provide some standard domain/array functionality.
+   
+   This distribution may perform unnecessary communication
+   between locales.
+

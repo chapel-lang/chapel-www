@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All About Compiler-Generated Code &mdash; Chapel Documentation 1.32</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Running Chapel Programs with GASNet on your Desktop" href="GASNetOnDesktops.html" />
+    <link rel="prev" title="The Chapel Runtime Library" href="RuntimeLibrary.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.32
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.32";
+$pagename = "developer/bestPractices/GeneratedCode";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Best Practices for Contributors</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ContributorInfo.html">Contributor Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="DCO.html">Getting started with Chapel and the Developer Certificate of Origin (DCO)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerDebugging.html">Tips On Debugging The Compiler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerIRTricks.html">Examining/Debugging Compiler IR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ErrorWarningMessaging.html">How To Generate Warnings And Error Messages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="RuntimeLibrary.html">The Chapel Runtime Library</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">All About Compiler-Generated Code</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#where-is-it-how-to-compile-it">Where is it? How to compile it?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#why-are-my-identifiers-renamed-in-the-generated-code">Why are my identifiers renamed in the generated code?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#how-to-benchmark-time-it">How to benchmark/time it?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#debugging-the-generated-code">Debugging the generated code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#profiling-the-generated-code">Profiling the generated code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#debugging-profiling-the-generated-code-alternative-approach">Debugging/profiling the generated code, alternative approach</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#profiling-only-parts-of-the-runtime">Profiling only parts of the runtime</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#miscellanea">Miscellanea</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="GASNetOnDesktops.html">Running Chapel Programs with GASNet on your Desktop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="git.html">Git tips for Chapel developers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CHPL_DEVELOPER.html">The CHPL_DEVELOPER environment variable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestSystem.html">Chapel Testing System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="SpellChecking.html">chplspell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Valgrind.html">Valgrind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Sanitizers.html">Sanitizers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Deprecation.html">Chapel’s Deprecation Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Unstable.html">Unstable Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="NightlyTesting.html">Nightly Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="StandardModuleStyle.html">Standard Module Style</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestAnnotationsLocally.html">How to test ANNOTATIONS.yaml changes locally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildingdocs.html">Building Chapel Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Potpourri.html">Miscellaneous Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../compiler-internals/index.html">Frontend Library API Docs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Docs for Contributors</a> &raquo;</li>
+          <li><a href="index.html">Best Practices for Contributors</a> &raquo;</li>
+      <li>All About Compiler-Generated Code</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/bestPractices/GeneratedCode.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="all-about-compiler-generated-code">
+<span id="best-practices-generated-code"></span><h1>All About Compiler-Generated Code<a class="headerlink" href="#all-about-compiler-generated-code" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="where-is-it-how-to-compile-it">
+<h2>Where is it? How to compile it?<a class="headerlink" href="#where-is-it-how-to-compile-it" title="Permalink to this headline">¶</a></h2>
+<p>By default: in a temporary directory, deleted when the compiler exits (only the executable remains).</p>
+<p><code class="docutils literal notranslate"><span class="pre">--savec</span> <span class="pre">DIRECTORY</span></code>:</p>
+<blockquote>
+<div><p>makes it go to DIRECTORY and stay there.</p>
+</div></blockquote>
+<p>To recompile:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">-f</span> <span class="pre">DIRECTORY/Makefile</span></code></p>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">--print-commands</span></code>:</p>
+<blockquote>
+<div><p>shows commands issued by the compiler</p>
+</div></blockquote>
+</div>
+<div class="section" id="why-are-my-identifiers-renamed-in-the-generated-code">
+<span id="more-munging-info"></span><h2>Why are my identifiers renamed in the generated code?<a class="headerlink" href="#why-are-my-identifiers-renamed-in-the-generated-code" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Note that all user identifiers are munged by default in Chapel’s
+generated code to prevent inadvertent conflicts with identifiers
+from other C libraries and headers against which Chapel is linked
+(see the <code class="docutils literal notranslate"><span class="pre">chpl</span></code> man page for <code class="docutils literal notranslate"><span class="pre">--[no-]munge-user-idents</span></code> for more
+information).  This can have the downside of making the generated
+code not correspond with the Chapel source in a way that can make
+reading the code, as well as debugging and profiling it, slightly
+more complicated.  Compiling with the <code class="docutils literal notranslate"><span class="pre">--no-munge-user-idents</span></code> flag
+can reduce the degree to which this is done (and for most programs,
+should still work fine).</p></li>
+<li><p>In some cases, Chapel does additional munging in order to turn legal
+Chapel into legal C (e.g., Chapel supports overloads but C doesn’t).
+This munging cannot be disabled by a flag and is typically necessary
+(though Chapel is sometimes overly conservative in deciding to
+munge).  Generally, the more C-like your code is, the less this
+should happen.</p></li>
+</ul>
+</div>
+<div class="section" id="how-to-benchmark-time-it">
+<h2>How to benchmark/time it?<a class="headerlink" href="#how-to-benchmark-time-it" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>in Chapel: you want to time only the important code,
+excluding the startup time. See the <a class="reference external" href="https://chapel-lang.org/docs/modules/standard/Time.html">Time Module</a>.</p></li>
+</ul>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">use</span> <span class="n">Time</span><span class="p">;</span>
+<span class="n">var</span> <span class="n">mytimer</span><span class="p">:</span><span class="n">Timer</span><span class="p">;</span>
+<span class="n">mytimer</span><span class="o">.</span><span class="n">clear</span><span class="p">();</span>
+
+<span class="n">mytimer</span><span class="o">.</span><span class="n">start</span><span class="p">();</span>
+
+<span class="o">...</span> <span class="n">measured</span> <span class="n">code</span> <span class="n">goes</span> <span class="n">here</span> <span class="o">...</span>
+<span class="n">mytimer</span><span class="o">.</span><span class="n">stop</span><span class="p">();</span>
+
+<span class="n">writeln</span><span class="p">(</span><span class="s2">&quot;time taken: &quot;</span> <span class="o">+</span> <span class="n">mytimer</span><span class="o">.</span><span class="n">elapsed</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot; seconds&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+<ul>
+<li><p>build your runtime optimized:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>cd $CHPL_HOME/runtime
+make clean
+make DEBUG=0 OPTIMIZE=1
+</pre></div>
+</div>
+<p>Note: currently you can have only one compilation of the runtime.Manipulate <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/{runtime,lib}</span></code> yourself if you want to have
+one copy for timing, another for debugging, etc.</p>
+</li>
+<li><p>when compiling, use:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">--fast</span></code></p>
+</div></blockquote>
+<p>This option (a) removes safety checks (e.g. for null pointers,
+array index bounds, etc.), and (b) compiles the generated code
+with optimization.</p>
+</li>
+<li><p>in C code: mimick the Chapel runtime, for apples-to-apples, e.g:</p></li>
+</ul>
+<blockquote>
+<div><div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">// from chpltypes.h</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">_real64</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#define chpl_seconds_timer(time) ((_real64)((time).tv_sec))</span>
+
+<span class="cp">#define chpl_microseconds_timer(time) ((_real64)((time).tv_usec))</span>
+
+<span class="c1">// current timer, in fractional seconds</span>
+<span class="kt">double</span><span class="w"> </span><span class="nf">gettimer</span><span class="p">(</span><span class="k">struct</span><span class="w"> </span><span class="nc">timeval</span><span class="w"> </span><span class="o">*</span><span class="n">timer</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="kt">int</span><span class="w"> </span><span class="n">dummy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gettimeofday</span><span class="p">(</span><span class="n">timer</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span><span class="w">  </span><span class="c1">// ignore the return code</span>
+<span class="w">   </span><span class="k">return</span><span class="w"> </span><span class="n">chpl_seconds_timer</span><span class="p">(</span><span class="o">*</span><span class="n">timer</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1.0e-6</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">chpl_microseconds_timer</span><span class="p">(</span><span class="o">*</span><span class="n">timer</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">timeval</span><span class="w"> </span><span class="n">mytimer</span><span class="p">;</span><span class="w"></span>
+<span class="kt">double</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gettimer</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mytimer</span><span class="p">);</span><span class="w"></span>
+
+<span class="p">...</span><span class="w"> </span><span class="n">measured</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="n">goes</span><span class="w"> </span><span class="n">here</span><span class="w"> </span><span class="p">...</span><span class="w"></span>
+<span class="kt">double</span><span class="w"> </span><span class="n">elapsedSeconds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gettimer</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mytimer</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="debugging-the-generated-code">
+<h2>Debugging the generated code<a class="headerlink" href="#debugging-the-generated-code" title="Permalink to this headline">¶</a></h2>
+<p>Using gdb and other debugging features are also discussed in:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/doc/rst/usingchapel/debugging.rst</span></code></p>
+</div></blockquote>
+<ul>
+<li><p>If you want to debug the runtime library as well, build your runtime so:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>cd $CHPL_HOME/runtime
+make clean
+make DEBUG=1 OPTIMIZE=0
+</pre></div>
+</div>
+<p>Note: currently you can have only one compilation of the runtime (see above).</p>
+</li>
+<li><p>When compiling, use:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">-g</span> <span class="pre">--savec</span> <span class="pre">DIRECTORY</span></code></p>
+</div></blockquote>
+</li>
+<li><p>By default gdb will step through/refer to the Chapel source code.</p>
+<p>To make gdb find it, put the following in your <code class="docutils literal notranslate"><span class="pre">~/.gdbinit</span></code>:</p>
+</li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>define sdirs
+ directory $arg0/modules/internal
+ directory $arg0/modules/standard
+ directory $arg0/modules/dists
+ directory $arg0/modules/layouts
+end
+</pre></div>
+</div>
+<p>then call <code class="docutils literal notranslate"><span class="pre">sdirs</span></code> from the gdb prompt (do not use <cite>~</cite> or <cite>$CHPL_HOME</cite>), e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">gdb</span><span class="p">)</span> <span class="n">sdirs</span> <span class="o">/</span><span class="n">users</span><span class="o">/</span><span class="n">vass</span><span class="o">/</span><span class="n">chapel</span>
+<span class="p">(</span><span class="n">gdb</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul>
+<li><p>To have gdb refer to the actual generated C code, compile with:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">-g</span> <span class="pre">--savec</span> <span class="pre">DIRECTORY2</span> <span class="pre">--c-line-numbers</span></code></p>
+</div></blockquote>
+</li>
+<li><p>GDB’s TUI mode is discussed in <code class="docutils literal notranslate"><span class="pre">CompilerDebugging.rst</span></code> and, e.g., here:</p>
+<blockquote>
+<div><p><a class="reference external" href="http://davis.lbl.gov/Manuals/GDB/gdb_21.html">http://davis.lbl.gov/Manuals/GDB/gdb_21.html</a></p>
+</div></blockquote>
+</li>
+<li><p>To see the IDs of the AST nodes in the generated code
+(see <code class="docutils literal notranslate"><span class="pre">CompilerIRTricks.txt</span></code>):</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">--gen-ids</span></code></p>
+</div></blockquote>
+</li>
+</ul>
+</div>
+<div class="section" id="profiling-the-generated-code">
+<h2>Profiling the generated code<a class="headerlink" href="#profiling-the-generated-code" title="Permalink to this headline">¶</a></h2>
+<p>We basically use <code class="docutils literal notranslate"><span class="pre">gprof</span></code> for profiling. (There is also <code class="docutils literal notranslate"><span class="pre">gcov</span></code>.)</p>
+<ul>
+<li><p>Be sure your runtime is compiled with optimization (see above).</p></li>
+<li><p>When compiling, use:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">--ccflags</span> <span class="pre">-pg</span> <span class="pre">--ldflags</span> <span class="pre">-pg</span> <span class="pre">--fast</span> <span class="pre">--savec</span> <span class="pre">DIRECTORY</span></code></p>
+</div></blockquote>
+<p>This produces <cite>gprof-enabled</cite> executable. (See <cite>gprof</cite> docs if unfamiliar.)</p>
+<p>You probably want <code class="docutils literal notranslate"><span class="pre">--fast</span></code> <code class="docutils literal notranslate"><span class="pre">--savec</span></code>, but they do not affect profilability.</p>
+</li>
+<li><p>If you want to profile the runtime as well, build it so:</p></li>
+</ul>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>cd $CHPL_HOME/runtime
+make clean
+make DEBUG=0 OPTIMIZE=1 PROFILE=1
+</pre></div>
+</div>
+</div></blockquote>
+<p>Note: currently you can have only one compilation of the runtime (see above).</p>
+</div>
+<div class="section" id="debugging-profiling-the-generated-code-alternative-approach">
+<h2>Debugging/profiling the generated code, alternative approach<a class="headerlink" href="#debugging-profiling-the-generated-code-alternative-approach" title="Permalink to this headline">¶</a></h2>
+<p>You might find it more convenient to debug and profile (<code class="docutils literal notranslate"><span class="pre">gprof</span></code>/<code class="docutils literal notranslate"><span class="pre">gcov</span></code>)
+<em>the same</em> version of the generated code.</p>
+<ul>
+<li><p>Keep track of how your runtime is presently built (see above).</p></li>
+<li><p>When compiling, use <code class="docutils literal notranslate"><span class="pre">--savec</span></code> but not <code class="docutils literal notranslate"><span class="pre">-g</span></code> (I think), <code class="docutils literal notranslate"><span class="pre">--ccflags</span></code>, or <code class="docutils literal notranslate"><span class="pre">--ldflags</span></code>,
+for example:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">--fast</span> <span class="pre">--savec</span> <span class="pre">DIR</span> <span class="pre">--c-line-numbers</span></code></p>
+</div></blockquote>
+</li>
+<li><p>Option A: run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">-f</span> <span class="pre">DIR/Makefile</span></code> then adjust the compilation
+commands being issued. (You might even be able to redirect the
+compilation to different runtime/lib directories.)</p></li>
+<li><p>Option B is to replace <cite>DIR/Makefile</cite>
+with the following (change <code class="docutils literal notranslate"><span class="pre">a.out</span></code> to your preferred executable name):</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ifneq <span class="o">(</span><span class="k">$(</span>DB<span class="k">)</span>,<span class="o">)</span>
+<span class="nv">EXTR_FLAGS</span> <span class="o">+=</span> -g
+<span class="nv">EXTR_sfx</span> <span class="o">+=</span> .db
+endif
+
+ifneq <span class="o">(</span><span class="k">$(</span>GP<span class="k">)</span>,<span class="o">)</span>
+<span class="nv">EXTR_FLAGS</span> <span class="o">+=</span> -pg
+<span class="nv">EXTR_sfx</span> <span class="o">+=</span> .gp
+endif
+
+ifneq <span class="o">(</span><span class="k">$(</span>GC<span class="k">)</span>,<span class="o">)</span>
+<span class="nv">EXTR_FLAGS</span> <span class="o">+=</span> -fprofile-arcs -ftest-coverage
+<span class="nv">EXTR_sfx</span> <span class="o">+=</span> .gc
+endif
+
+ifneq <span class="o">(</span><span class="k">$(</span>DB<span class="k">)</span>,<span class="o">)</span>
+<span class="c1"># don&#39;t want OPT_CFLAGS</span>
+<span class="nv">COMP_GEN_CFLAGS</span> <span class="o">=</span> <span class="k">$(</span>EXTR_FLAGS<span class="k">)</span> <span class="k">$(</span>WARN_GEN_CFLAGS<span class="k">)</span>               <span class="k">$(</span>NO_IEEE_FLOAT_GEN_CFLAGS<span class="k">)</span>
+<span class="k">else</span>
+<span class="nv">COMP_GEN_CFLAGS</span> <span class="o">=</span> <span class="k">$(</span>EXTR_FLAGS<span class="k">)</span> <span class="k">$(</span>WARN_GEN_CFLAGS<span class="k">)</span> <span class="k">$(</span>OPT_CFLAGS<span class="k">)</span> <span class="k">$(</span>NO_IEEE_FLOAT_GEN_CFLAGS<span class="k">)</span>
+endif
+
+<span class="nv">COMP_GEN_LFLAGS</span> <span class="o">=</span> <span class="k">$(</span>EXTR_FLAGS<span class="k">)</span>
+<span class="nv">BINNAME</span> <span class="o">=</span> a.out<span class="k">$(</span>EXTR_sfx<span class="k">)</span>
+TMPDIRNAME :<span class="o">=</span> <span class="k">$(</span>dir <span class="k">$(</span>lastword <span class="k">$(</span>MAKEFILE_LIST<span class="k">)))</span>
+<span class="nv">TMPBINNAME</span> <span class="o">=</span> <span class="k">$(</span>TMPDIRNAME<span class="k">)</span>a.out.tmp
+<span class="nv">CHAPEL_ROOT</span> <span class="o">=</span> <span class="k">$(</span>CHPL_HOME<span class="k">)</span>
+<span class="nv">TAGS_COMMAND</span> <span class="o">=</span> -@which <span class="k">$(</span>CHPL_TAGS_UTIL<span class="k">)</span> &gt; /dev/null <span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span> <span class="o">&amp;&amp;</span> <span class="nb">test</span> -f <span class="k">$(</span>CHAPEL_ROOT<span class="k">)</span>/runtime/<span class="k">$(</span>CHPL_TAGS_FILE<span class="k">)</span> <span class="o">&amp;&amp;</span> <span class="nb">cd</span> <span class="k">$(</span>TMPDIRNAME<span class="k">)</span> <span class="o">&amp;&amp;</span> cp <span class="k">$(</span>CHAPEL_ROOT<span class="k">)</span>/runtime/<span class="k">$(</span>CHPL_TAGS_FILE<span class="k">)</span> . <span class="o">&amp;&amp;</span> <span class="k">$(</span>CHPL_TAGS_UTIL<span class="k">)</span> <span class="k">$(</span>CHPL_TAGS_FLAGS<span class="k">)</span> <span class="k">$(</span>CHPL_TAGS_APPEND_FLAG<span class="k">)</span> *.c *.h
+
+<span class="nv">CHPLSRC</span> <span class="o">=</span> <span class="k">$(</span>TMPDIRNAME<span class="k">)</span>_main.c
+<span class="nv">LIBS</span> <span class="o">=</span>
+
+include <span class="k">$(</span>CHAPEL_ROOT<span class="k">)</span>/runtime/etc/Makefile.include
+</pre></div>
+</div>
+<p>Do all compilations in DIR (e.g. the directory with the generated code).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">DB</span><span class="o">=</span><span class="mi">1</span>   <span class="c1"># generates &#39;a.out.db&#39; for debugging</span>
+<span class="n">make</span> <span class="n">GP</span><span class="o">=</span><span class="mi">1</span>   <span class="c1"># generates &#39;a.out.gp&#39; for gprof</span>
+<span class="n">make</span> <span class="n">GC</span><span class="o">=</span><span class="mi">1</span>   <span class="c1"># generates &#39;a.out.gc&#39; for gcov</span>
+</pre></div>
+</div>
+<p>For <code class="docutils literal notranslate"><span class="pre">gcov</span></code>, you may need to rename a couple of files by hand:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rm</span> <span class="o">*.</span><span class="n">c</span><span class="o">.</span><span class="n">gcov</span> <span class="o">*.</span><span class="n">gcda</span> <span class="o">*.</span><span class="n">gcno</span>
+<span class="n">make</span> <span class="n">GC</span><span class="o">=</span><span class="mi">1</span>
+<span class="o">./</span><span class="n">a</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">gc</span> <span class="o">&lt;</span><span class="n">whatever</span> <span class="n">options</span> <span class="n">you</span> <span class="n">have</span> <span class="k">for</span> <span class="n">a</span><span class="o">.</span><span class="n">out</span><span class="o">&gt;</span>
+<span class="n">mv</span> <span class="n">a</span><span class="o">.</span><span class="n">out</span><span class="p">{</span><span class="o">.</span><span class="n">tmp</span><span class="p">,}</span><span class="o">.</span><span class="n">gcda</span>
+<span class="n">mv</span> <span class="n">a</span><span class="o">.</span><span class="n">out</span><span class="p">{</span><span class="o">.</span><span class="n">tmp</span><span class="p">,}</span><span class="o">.</span><span class="n">gcno</span>
+<span class="n">gcov</span> <span class="n">a</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">gc</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="profiling-only-parts-of-the-runtime">
+<h2>Profiling only parts of the runtime<a class="headerlink" href="#profiling-only-parts-of-the-runtime" title="Permalink to this headline">¶</a></h2>
+<p>Do you want <code class="docutils literal notranslate"><span class="pre">gprof/gcov/...</span></code> to look only at certain parts of the runtime,
+to reduce profiling overhead, making the results more true to reality?</p>
+<p>One way to do so is to transplant those parts from the runtime into
+the generated code, patching everything involved to satisfaction
+(e.g. so that those parts compile and the generated code refers to
+them instead of the original runtime). This can easily be laborious,
+but you get good control over what’s going on.</p>
+<p>Be sure NOT to re-run the Chapel compiler.</p>
+</div>
+<div class="section" id="miscellanea">
+<h2>Miscellanea<a class="headerlink" href="#miscellanea" title="Permalink to this headline">¶</a></h2>
+<p><cite>grepcomp</cite></p>
+<p><cite>greprt</cite></p>
+<p><cite>grepmod</cite></p>
+<dl class="simple">
+<dt><cite>…</cite></dt><dd><p>Shortcuts in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/util/devel</span></code> to grep the compiler, runtime, and
+Chapel module sources, resp.</p>
+</dd>
+</dl>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="RuntimeLibrary.html" class="btn btn-neutral float-left" title="The Chapel Runtime Library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="GASNetOnDesktops.html" class="btn btn-neutral float-right" title="Running Chapel Programs with GASNet on your Desktop" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

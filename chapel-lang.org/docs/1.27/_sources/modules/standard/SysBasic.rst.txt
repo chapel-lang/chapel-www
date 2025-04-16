@@ -1,0 +1,743 @@
+.. default-domain:: chpl
+
+.. module:: SysBasic
+   :synopsis: Types for low-level system error integration.
+
+SysBasic
+========
+**Usage**
+
+.. code-block:: chapel
+
+   use SysBasic;
+
+
+or
+
+.. code-block:: chapel
+
+   import SysBasic;
+
+Types for low-level system error integration.
+
+This module defines the error types :type:`syserr` and :type:`qio_err_t`.
+
+When should one use :type:`syserr` and when should one use :type:`qio_err_t`?
+:type:`qio_err_t` is a system error code (a `c_int` by a nicer name to
+indicate its purpose). :type:`syserr` is an enhanced error that might also
+include an error message. All user-facing Chapel library code, or user
+Chapel code, should generally use :type:`syserr`. When wrapping functions
+or declaring them in C, use :type:`qio_err_t` to indicate that a function is
+returning an error code.
+
+A note about the error code documentation in this file. Error descriptions
+for system errors are included here for convenience only. Other
+documentation, such as system man pages or the POSIX specification are the
+authority on system error codes.
+
+
+.. type:: type syserr
+
+   A type storing an error code or an error message.
+   A syserr can be compared using == or != to an qio_err_t (ie integer error code)
+   or to another syserr. A syserr can be cast to or from an qio_err_t. It can be
+   assigned the value of an qio_err_t or another syserr. In addition, syserr can be
+   checked directly in an if statement like so:
+   
+   .. code-block:: chapel
+   
+     var err: syserr;
+     if err then do writeln("err contains an error, ie err != ENOERR");
+     if !err then do writeln("err does not contain an error; err == ENOERR");
+   
+   
+   When a :type:`syserr` formal has default intent, the actual is copied to the
+   formal upon a function call and the formal cannot be assigned within the
+   function.
+   
+   The default value of the :type:`syserr` type is undefined.
+   
+   
+
+.. type:: type qio_err_t = c_int
+
+   An integral error code. This is really just a `c_int`, but code is
+   clearer if you use qio_err_t to indicate arguments, variables, and return types
+   that are system error codes.
+   
+
+.. type:: type fd_t = c_int
+
+   A system file descriptor. This is really just a `c_int`, but code is
+   clearer if you use fd_t to indicate arguments, variables, and return types
+   that are system file descriptors.
+   
+
+.. function:: proc ENOERR
+
+   The error code indicating that no error occurred (Chapel specific) 
+
+.. function:: proc EEOF
+
+   An error code indicating the end of file has been reached (Chapel specific)
+   
+
+.. function:: proc ESHORT
+
+   An error code indicating that the end of file or the end of the
+   input was reached before the requested amount of data could be read.
+   (Chapel specific)
+   
+
+.. function:: proc EFORMAT
+
+   An error code indicating a format error; for example when reading a quoted
+   string literal, this would be returned if we never encountered the
+   opening quote. (Chapel specific)
+   
+
+.. data:: const EBADE: qio_err_t
+
+   Invalid exchange (linux only) 
+
+.. data:: const EBADFD: qio_err_t
+
+   File descriptor in bad state (linux only) 
+
+.. data:: const EBADR: qio_err_t
+
+   Invalid request descriptor (linux only) 
+
+.. data:: const EBADRQC: qio_err_t
+
+   Invalid request code (linux only) 
+
+.. data:: const EBADSLT: qio_err_t
+
+   Invalid slot (linux only) 
+
+.. data:: const ECHRNG: qio_err_t
+
+   Channel number out of range (linux only) 
+
+.. data:: const ECOMM: qio_err_t
+
+   Communication error on send (linux only) 
+
+.. data:: const EHOSTDOWN: qio_err_t
+
+   Host is down. A socket operation failed because the destination host was
+   down. (linux, FreeBSD)
+   
+
+.. data:: const EISNAM: qio_err_t
+
+   Is a named type file (linux only) 
+
+.. data:: const EKEYEXPIRED: qio_err_t
+
+   Key has expired (linux only) 
+
+.. data:: const EKEYREJECTED: qio_err_t
+
+   Key was rejected by service (linux only) 
+
+.. data:: const EKEYREVOKED: qio_err_t
+
+   Key has been revoked (linux only) 
+
+.. data:: const EL2HLT: qio_err_t
+
+   Level 2 halted (linux only) 
+
+.. data:: const EL2NSYNC: qio_err_t
+
+   Level 2 not synchronized (linux only) 
+
+.. data:: const EL3HLT: qio_err_t
+
+   Level 3 halted (linux only) 
+
+.. data:: const EL3RST: qio_err_t
+
+   Level 3 halted (linux only) 
+
+.. data:: const ELIBACC: qio_err_t
+
+   Cannot access a needed shared library (linux only) 
+
+.. data:: const ELIBBAD: qio_err_t
+
+   Accessing a corrupted shared library (linux only) 
+
+.. data:: const ELIBMAX: qio_err_t
+
+   Attempting to link in too many shared libraries (linux only) 
+
+.. data:: const ELIBSCN: qio_err_t
+
+   lib section in a.out corrupted (linux only) 
+
+.. data:: const ELIBEXEC: qio_err_t
+
+   Cannot exec a shared library directly (linux only) 
+
+.. data:: const EMEDIUMTYPE: qio_err_t
+
+   Wrong medium type (linux only) 
+
+.. data:: const ENODATA: qio_err_t
+
+   No  message is available on the STREAM head read queue (POSIX.1)
+   
+
+.. data:: const ENOKEY: qio_err_t
+
+   Required key not available (linux only) 
+
+.. data:: const ENOMEDIUM: qio_err_t
+
+   No medium found (linux only) 
+
+.. data:: const ENONET: qio_err_t
+
+   Machine is not on the network (linux only)
+   
+
+.. data:: const ENOPKG: qio_err_t
+
+   Package not installed  (linux only)
+   
+
+.. data:: const ENOSR: qio_err_t
+
+   No STREAM resources (POSIX.1 XSI STREAMS option) 
+
+.. data:: const ENOSTR: qio_err_t
+
+   Not a STREAM (POSIX.1 XSI STREAMS option) 
+
+.. data:: const ENOTBLK: qio_err_t
+
+   Block device required.
+   A block device operation was attempted on a non-block device or file.
+   (linux, FreeBSD)
+   
+
+.. data:: const ENOTUNIQ: qio_err_t
+
+   Name not unique on network (linux only) 
+
+.. data:: const EPFNOSUPPORT: qio_err_t
+
+   Protocol family not supported. The protocol family has not been configured
+   into the system or no implementation for it exists. (linux, FreeBSD)
+   
+
+.. data:: const EREMCHG: qio_err_t
+
+   Remote address changed (linux only) 
+
+.. data:: const EREMOTE: qio_err_t
+
+   Object is remote (linux only) 
+
+.. data:: const EREMOTEIO: qio_err_t
+
+   Remote I/O error (linux only) 
+
+.. data:: const ERESTART: qio_err_t
+
+   Interrupted system call should be restarted (linux only) 
+
+.. data:: const ESHUTDOWN: qio_err_t
+
+   Can't send after socket shutdown. A request to send data was disallowed
+   because the socket had already been shut down with a previous shutdown system
+   call.
+   
+
+.. data:: const ESOCKTNOSUPPORT: qio_err_t
+
+   Socket type not supported. The support for the socket type has not been
+   configured into the system or no implementation for it exists.
+   (linux, FreeBSD)
+   
+
+.. data:: const ESTRPIPE: qio_err_t
+
+   Streams pipe error (linux only) 
+
+.. data:: const ETIME: qio_err_t
+
+   Timer expired (POSIX.1 XSI STREAMS option)
+   
+
+.. data:: const EUCLEAN: qio_err_t
+
+   Structure needs cleaning (linux only) 
+
+.. data:: const EUNATCH: qio_err_t
+
+   Protocol driver not attached (linux only) 
+
+.. data:: const EUSERS: qio_err_t
+
+   Too many users. The quota system ran out of table entries.
+   (linux, FreeBSD)
+   
+
+.. data:: const EXFULL: qio_err_t
+
+   Exchange full (linux only) 
+
+.. data:: const E2BIG: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EACCES: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EADDRINUSE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EADDRNOTAVAIL: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EAFNOSUPPORT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EAGAIN: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EALREADY: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EBADF: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EBADMSG: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EBUSY: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ECANCELED: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ECHILD: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ECONNABORTED: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ECONNREFUSED: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ECONNRESET: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EDEADLK: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EDESTADDRREQ: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EDOM: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EDQUOT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EEXIST: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EFAULT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EFBIG: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EHOSTUNREACH: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EIDRM: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EILSEQ: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EINPROGRESS: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EINTR: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EINVAL: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EIO: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EISCONN: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EISDIR: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ELOOP: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EMFILE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EMLINK: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EMSGSIZE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EMULTIHOP: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENAMETOOLONG: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENETDOWN: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENETRESET: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENETUNREACH: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENFILE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOBUFS: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENODEV: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOENT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOEXEC: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOLCK: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOLINK: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOMEM: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOMSG: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOPROTOOPT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOSPC: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOSYS: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOTCONN: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOTDIR: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOTEMPTY: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOTSOCK: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOTSUP: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENOTTY: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ENXIO: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EOPNOTSUPP: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EOVERFLOW: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EPERM: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EPIPE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EPROTO: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EPROTONOSUPPORT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EPROTOTYPE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ERANGE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EROFS: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ESPIPE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ESRCH: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ESTALE: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ETIMEDOUT: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const ETXTBSY: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EWOULDBLOCK: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+
+.. data:: const EXDEV: qio_err_t
+
+   .. warning::
+
+      POSIX error codes defined in 'SysBasic' are deprecated; please use them from 'OS.POSIX' instead
+

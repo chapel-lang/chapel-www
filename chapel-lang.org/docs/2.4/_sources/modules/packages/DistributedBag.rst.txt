@@ -1,0 +1,293 @@
+.. default-domain:: chpl
+
+.. module:: DistributedBag
+   :synopsis: Implements a parallel segmented multi-pool for depth-first tree-search.
+
+DistributedBag
+==============
+**Usage**
+
+.. code-block:: chapel
+
+   use DistributedBag;
+
+
+or
+
+.. code-block:: chapel
+
+   import DistributedBag;
+
+
+Implements a parallel segmented multi-pool for depth-first tree-search.
+The data structure is sometimes referred to as ``DistBag_DFS``.
+
+Summary
+_______
+
+A parallel-safe distributed multi-pool implementation specialized for depth-first
+search (DFS), that scales in terms of nodes, processors per node (PPN), and workload;
+the more PPN, the more segments we allocate to increase raw parallelism, and the larger
+the workload the better locality (see :const:`distributedBagInitialSegmentCap`). This
+data structure is locally ordered (ensuring DFS), encapsulates a dynamic work stealing
+mechanism to balance work across nodes, and provides a means to obtain a privatized
+instance of the data structure for maximized performance.
+
+.. note::
+
+  This module is a work in progress and may change in future releases.
+
+Usage
+_____
+
+To use :record:`distBag`, the initializer must be invoked explicitly to
+properly initialize the data structure. By default, one bag instance is
+initialized per locale, and one segment per task.
+
+.. code-block:: chapel
+
+  var bag = new distBag(int, targetLocales=ourTargetLocales);
+
+The basic methods that distBag supports require a ``taskId`` argument. This
+``taskId`` will serve as an index to the segment to be updated and it must be
+in ``0..<here.maskTaskPar``. More precisely, it is used to map each task to a
+segment, which ensures the parallel-safety of the data structure, as well as the
+local DFS ordering.
+
+.. code-block:: chapel
+
+  bag.add(0, taskId);
+  bag.addBulk(1..100, taskId);
+  var (hasElt, elt) = bag.remove(taskId)
+
+While the bag is safe to use in a distributed manner, each locale always operates
+on its privatized instance. This means that it is easy to add data in bulk,
+expecting it to be distributed, when in reality it is not; if another locale needs
+data, it will steal work on-demand. Here is an example of concurrent operations
+on distBag across multiple locales and tasks:
+
+.. code-block:: chapel
+
+  coforall loc in Locales do on loc {
+    coforall taskId in 0..<here.maxTaskPar {
+      var (hasElt, elt) = bag.remove(taskId);
+      if hasElt {
+        elt += 1;
+        bag.add(elt, taskId);
+      }
+    }
+  }
+
+Finally, distBag supports serial and parallel iteration, as well as a set of
+global operations. Here is an example of a distributed parallel iteration and a
+few global operations working with a ``distBag``:
+
+.. code-block:: chapel
+
+  forall elts in bag do
+    body();
+
+  const size = bag.getSize();
+  const foundElt = bag.contains(elt);
+  bag.clear();
+
+Methods
+_______
+
+.. data:: config const distributedBagInitialSegmentCap: int = 1024
+
+   
+   The initial capacity of each segment. When a segment is full, we double its
+   capacity.
+   
+
+.. data:: config const distributedBagMaxSegmentCap: int = 1024 * 1024
+
+   
+   The maximum capacity of each segment. This is crucial to ensure memory usage
+   does not grow out of control.
+   
+
+.. data:: config const distributedBagWorkStealingMinElts: int = 1
+
+   
+   The minimum number of elements a segment must have to become eligible to be
+   stolen from. This may be useful if some segments contain fewer elements than
+   others and should not be stolen from.
+   
+
+.. enum:: enum victimPolicy { RAND, RING }
+
+   
+   The victim selection policy for work stealing.
+   
+
+   .. enumconstant:: enum constant RAND
+
+      
+      Random selection.
+      
+
+   .. enumconstant:: enum constant RING
+
+      
+      Circular or ring-like selection, where each task steals work from the next
+      task in sequence, with the last task stealing from the first.
+      
+
+.. record:: distBag : serializable
+
+   
+   A parallel-safe distributed multi-pool implementation specialized for depth-first
+   search (DFS), that scales in terms of nodes, processors per node (PPN), and workload;
+   the more PPN, the more segments we allocate to increase raw parallelism, and the
+   larger the workload the better locality (see :const:`distributedBagInitialSegmentCap`).
+   This data structure is locally DFS ordered, encapsulates a dynamic work stealing
+   mechanism to balance work across nodes, and provides a means to obtain a privatized
+   instance of the data structure for maximized performance.
+   
+
+   .. attribute:: type eltType
+
+      
+      The type of the elements contained in this distBag.
+      
+
+   .. attribute:: var _impl: unmanaged DistributedBagImpl(eltType)?
+
+      
+      The implementation of the Bag is forwarded. See :class:`DistributedBagImpl` for
+      documentation.
+      
+
+.. class:: DistributedBagImpl : CollectionImpl(?)
+
+   .. attribute:: var targetLocales: [targetLocDom] locale
+
+      
+      The locales to allocate bags for and load balance across. ``targetLocDom``
+      represents the corresponding range of locales.
+      
+
+   .. method:: proc init(type eltType, targetLocales: [?targetLocDom] locale = Locales)
+
+      
+      Initialize an empty distBag.
+      
+
+   .. method:: proc add(elt: eltType, taskId: int): bool
+
+      
+      Insert an element in segment ``taskId``. The ordering is guaranteed to be
+      preserved. If :const:`distributedBagMaxSegmentCap` is reached, the insertion
+      fails and returns `false`.
+      
+      :arg elt: The element to insert.
+      :type elt: `eltType`
+      
+      :arg taskId: The index of the segment into which the element is inserted.
+      :type taskId: `int`
+      
+      :return: `true` if ``elt`` is successfully inserted in segment ``taskId``.
+      :rtype: `bool`
+      
+
+   .. method:: proc addBulk(elts, taskId: int): int
+
+      
+      Insert elements in bulk in segment ``taskId``. If the bag instance rejects
+      an element (e.g., when :const:`distributedBagMaxSegmentCap` is reached), we
+      cease to offer more. We return the number of elements successfully inserted.
+      
+      :arg elts: The elements to insert.
+      
+      :arg taskId: The index of the segment into which the element is inserted.
+      :type taskId: `int`
+      
+      :return: The number of elements successfully inserted in segment ``taskId``.
+      :rtype: `int`
+      
+
+   .. method:: proc remove(taskId: int, param policy: victimPolicy = victimPolicy.RAND): (bool, eltType)
+
+      
+      Remove an element from segment ``taskId``. The order in which elements are
+      removed is guaranteed to be the same order they have been inserted. If this
+      bag instance is empty, it will attempt to steal elements from bags of other
+      nodes.
+      
+      :arg taskId: The index of the segment from which the element is removed.
+      :type taskId: `int`
+      
+      :arg policy: The victim selection policy for work stealing.
+      :type policy: :type:`victimPolicy`
+      
+      :return: Depending on the scenarios: `(true, elt)` if we successfully removed
+               element `elt` from distBag; `(false, defaultOf(eltType))` otherwise.
+      :rtype: `(bool, eltType)`
+      
+
+   .. method:: override proc getSize(): int
+
+      
+      Obtain the number of elements held in this distBag.
+      
+      :return: The current number of elements contained in this distBag.
+      :rtype: `int`
+      
+      .. warning::
+      
+        This method is best-effort and can be non-deterministic for concurrent
+        updates across nodes, and may miss elements resulting from any concurrent
+        insertion or removal operations.
+      
+
+   .. method:: override proc contains(elt: eltType): bool
+
+      
+      Perform a lookup to determine if the requested element exists in this
+      distBag.
+      
+      :arg elt: An element to search for.
+      :type elt: `eltType`
+      
+      :return: `true` if this distBag contains ``elt``.
+      :rtype: `bool`
+      
+      .. warning::
+      
+        This method is best-effort and can be non-deterministic for concurrent
+        updates across nodes, and may miss elements resulting from any concurrent
+        insertion or removal operations.
+      
+
+   .. method:: override proc clear(): void
+
+      
+      Clear this distBag.
+      
+      .. warning::
+      
+        This method is best-effort and can be non-deterministic for concurrent
+        updates across nodes, and may miss elements resulting from any concurrent
+        insertion or removal operations.
+      
+
+   .. itermethod:: override iter these(): eltType
+
+      
+      Iterate over the elements of this distBag. To avoid holding onto locks,
+      we take a snapshot approach, increasing memory consumption but also
+      increasing parallelism. This allows other concurrent, even mutating,
+      operations while iterating, but opens the possibility to iterating over
+      duplicates or missing elements from concurrent operations.
+      
+      :yields: A reference to one of the elements contained in this distBag.
+      
+      .. warning::
+      
+        Iteration takes a snapshot approach, and as such can easily result in a
+        Out-Of-Memory issue. If the data structure is large, the user is doubly
+        advised to use parallel iteration, for both performance and memory benefit.
+      
+

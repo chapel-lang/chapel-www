@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checking Variable Lifetimes &mdash; Chapel Documentation 1.30</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="LLVM Support" href="llvm.html" />
+    <link rel="prev" title="Checking Overload Sets" href="overloadSets.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.30
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.30";
+$pagename = "technotes/lifetimeChecking";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="nilChecking.html">Checking for Nil Dereferences</a></li>
+<li class="toctree-l3"><a class="reference internal" href="overloadSets.html">Checking Overload Sets</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Checking Variable Lifetimes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#defining-scope-and-lifetime">Defining Scope and Lifetime</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-errors">Example Errors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#lifetime-inference">Lifetime Inference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#lifetime-annotations">Lifetime Annotations</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l3"><a class="reference internal" href="globalvars.html">Variables to Detect Compilation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="debuggingChapel.html">Debugging Chapel Source Code: Best Known Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      <li>Checking Variable Lifetimes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/lifetimeChecking.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="checking-variable-lifetimes">
+<span id="readme-lifetime-checking"></span><h1>Checking Variable Lifetimes<a class="headerlink" href="#checking-variable-lifetimes" title="Permalink to this headline">¶</a></h1>
+<p>As of Chapel 1.18, Chapel includes a compiler component called the
+lifetime checker. The lifetime checker produces errors at compile time to
+reveal potential memory errors. Note that the Chapel lifetime checker is
+not complete - that is, there are programs with memory errors that it
+will not detect. However, we hope that it offers a good balance between
+being easy to work with and catching common memory errors at
+compile-time. See also <a class="reference internal" href="nilChecking.html#readme-nil-checking"><span class="std std-ref">Checking for Nil Dereferences</span></a> which discusses a
+related component that discovers nil dereferences at compile time.</p>
+<div class="section" id="defining-scope-and-lifetime">
+<h2>Defining Scope and Lifetime<a class="headerlink" href="#defining-scope-and-lifetime" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="scope">
+<h3>Scope<a class="headerlink" href="#scope" title="Permalink to this headline">¶</a></h3>
+<p>Variables in Chapel have a lexical scope within which it is legal to
+access the variable. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">module</span> <span class="nc">DemonstrateScopes</span> <span class="p">{</span>
+  <span class="k">proc</span> <span class="nf">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">f</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+    <span class="c1">// scope of `f` includes the body of this function</span>
+    <span class="p">{</span>
+      <span class="c1">// and any nested blocks (including loops, conditionals, etc).</span>
+
+      <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+      <span class="c1">// `x` scope ends here, but `f` scope does not</span>
+    <span class="p">}</span>
+    <span class="c1">// it would be an error to access `x` here</span>
+  <span class="p">}</span>
+  <span class="c1">// it would be an error to access `f` here</span>
+
+  <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">b</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+    <span class="c1">// `b`s scope extends to the end of this block</span>
+  <span class="p">}</span>
+  <span class="c1">// it would be an error to try to use `b` here</span>
+
+  <span class="kd">var</span> <span class="nx">g</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+  <span class="c1">// `g` is a global variable and its scope extends</span>
+  <span class="c1">// to any code using this module.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A scope can be contained in another scope. For example, the scope of <code class="docutils literal notranslate"><span class="pre">x</span></code>
+is contained within the scope of <code class="docutils literal notranslate"><span class="pre">f</span></code> in the above example. In other
+words, anywhere that <code class="docutils literal notranslate"><span class="pre">x</span></code> can be accessed, <code class="docutils literal notranslate"><span class="pre">f</span></code> can also be accessed.
+In such a case we say that the scope of <code class="docutils literal notranslate"><span class="pre">x</span></code> is smaller than the scope of
+<code class="docutils literal notranslate"><span class="pre">f</span></code>.</p>
+</div>
+<div class="section" id="lifetime">
+<h3>Lifetime<a class="headerlink" href="#lifetime" title="Permalink to this headline">¶</a></h3>
+<p>The lifetime of a variable indicates when that variable can be safely
+used.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Variables that cannot refer to another value, such as numeric
+variables, have a lifetime equal to their lexical scope.</p></li>
+<li><p>Variables that can refer to other variables include <code class="docutils literal notranslate"><span class="pre">borrowed</span></code> class
+instances and <code class="docutils literal notranslate"><span class="pre">ref</span></code> variables. These variables get their lifetime
+from the lifetime of the variable that they refer to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">owned</span></code> and <code class="docutils literal notranslate"><span class="pre">shared</span></code> variables have lifetime equal to their scope.</p></li>
+</ul>
+</div></blockquote>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">owned</span></code> and <code class="docutils literal notranslate"><span class="pre">shared</span></code> variables can be returned or assigned
+without impacting their lifetime. The lifetime checker just checks that a
+<code class="docutils literal notranslate"><span class="pre">borrow</span></code> from such a variable does not outlive the variable itself.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">module</span> <span class="nc">DemonstrateLifetimes</span> <span class="p">{</span>
+  <span class="k">proc</span> <span class="nf">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+    <span class="c1">// `i`s lifetime extends to the end of this block</span>
+    <span class="kd">ref</span> <span class="nx">r</span> <span class="o">=</span> <span class="nx">i</span><span class="p">;</span>
+    <span class="c1">// `r` refers to `i`, so it&#39;s lifetime == `i`s lifetime</span>
+    <span class="kd">var</span> <span class="nx">own</span> <span class="o">=</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">SomeClass</span><span class="p">();</span>
+    <span class="c1">// `own`s lifetime extends to the end of this block,</span>
+    <span class="c1">// (at which point the class instance may be deleted)</span>
+    <span class="kd">var</span> <span class="nx">borrow</span> <span class="o">=</span> <span class="nx">own</span><span class="p">.</span><span class="nx">borrow</span><span class="p">();</span>
+    <span class="c1">// `borrow`s lifetime extends to the end of this block</span>
+    <span class="c1">// because its lifetime matches `own`</span>
+  <span class="p">}</span>
+
+  <span class="kd">var</span> <span class="nx">global</span><span class="p">:</span> <span class="k">owned</span> <span class="nx">SomeClass</span><span class="p">;</span>
+  <span class="k">proc</span> <span class="nf">settingGlobal</span><span class="p">()</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">SomeClass</span><span class="p">();</span>
+    <span class="c1">// lifetime of x extends for entire function body</span>
+
+    <span class="nx">global</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span> <span class="c1">// transfers the instance from x to global</span>
+    <span class="c1">// leaving x storing `nil`</span>
+
+    <span class="c1">// lifetime of `x` extends to here, but an attempt</span>
+    <span class="c1">// to use `x` would result in an error from</span>
+    <span class="c1">// compile-time nil checking.</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Similarly to scopes, lifetimes may be contained within each other.
+Ultimately, a lifetime is just the scope of some variable, and so we can
+say that one lifetime is smaller or larger than another, just as we can
+say that a scope is smaller or larger than another scope.</p>
+</div>
+</div>
+<div class="section" id="example-errors">
+<h2>Example Errors<a class="headerlink" href="#example-errors" title="Permalink to this headline">¶</a></h2>
+<p>The lifetime checker is designed to catch errors such as:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>returning a reference to or borrow from a function-local variable</p></li>
+<li><p>assigning a value with a shorter lifetime to something with a larger scope</p></li>
+</ul>
+</div></blockquote>
+<p>When the lifetime for a variable is smaller than its scope, that usually
+means that there is some point in the program where accessing that
+variable could lead to a memory error. There are some cases where the
+analysis indicates a memory error could occur, but a human programmer
+might know that it cannot for other reasons.</p>
+<div class="section" id="returning-a-reference-to-a-local-variable">
+<h3>Returning a Reference to a Local Variable<a class="headerlink" href="#returning-a-reference-to-a-local-variable" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// returnsref.chpl</span>
+<span class="k">proc</span> <span class="nf">refTo</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">)</span> <span class="kd">ref</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">x</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">returnsRefLocal</span><span class="p">()</span> <span class="kd">ref</span> <span class="c1">// note `ref` return intent</span>
+<span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+  <span class="k">return</span> <span class="nx">refTo</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span> <span class="c1">// returns `i` by reference</span>
+                   <span class="c1">// but `i` goes out of scope here</span>
+<span class="p">}</span>
+<span class="kd">ref</span> <span class="nx">r</span> <span class="o">=</span> <span class="nx">returnsRefLocal</span><span class="p">();</span>
+<span class="kd">var</span> <span class="nx">val</span> <span class="o">=</span> <span class="nx">r</span><span class="p">;</span> <span class="c1">// accesses invalid memory</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">returnsref</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span> <span class="n">In</span> <span class="n">function</span> <span class="s1">&#39;returnsRefLocal&#39;</span><span class="p">:</span>
+<span class="n">returnsref</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">9</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">Reference</span> <span class="n">to</span> <span class="n">scoped</span> <span class="n">variable</span> <span class="n">cannot</span> <span class="n">be</span> <span class="n">returned</span>
+<span class="n">returnsref</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">8</span><span class="p">:</span> <span class="n">note</span><span class="p">:</span> <span class="n">consider</span> <span class="n">scope</span> <span class="n">of</span> <span class="n">i</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="returning-a-borrow-from-a-local-owned-instance">
+<h3>Returning a Borrow From a Local Owned Instance<a class="headerlink" href="#returning-a-borrow-from-a-local-owned-instance" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// returnsborrow.chpl</span>
+<span class="k">class</span> <span class="nc">SomeClass</span> <span class="p">{</span> <span class="kd">var</span> <span class="nx">field</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span> <span class="p">}</span>
+<span class="k">proc</span> <span class="nf">borrowLocal</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">obj</span> <span class="o">=</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">SomeClass</span><span class="p">;</span>
+  <span class="k">return</span> <span class="nx">obj</span><span class="p">.</span><span class="nx">borrow</span><span class="p">();</span> <span class="c1">// returns borrow of `obj`</span>
+  <span class="c1">// but `obj` goes out of scope (and `delete`s the instance) here</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">b</span> <span class="o">=</span> <span class="nx">borrowLocal</span><span class="p">();</span>
+<span class="kd">var</span> <span class="nx">y</span> <span class="o">=</span> <span class="nx">b</span><span class="p">.</span><span class="nx">field</span><span class="p">;</span> <span class="c1">// accesses deleted memory</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">returnsborrow</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span> <span class="n">In</span> <span class="n">function</span> <span class="s1">&#39;borrowLocal&#39;</span><span class="p">:</span>
+<span class="n">returnsborrow</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">Scoped</span> <span class="n">variable</span> <span class="n">cannot</span> <span class="n">be</span> <span class="n">returned</span>
+<span class="n">returnsborrow</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">4</span><span class="p">:</span> <span class="n">note</span><span class="p">:</span> <span class="n">consider</span> <span class="n">scope</span> <span class="n">of</span> <span class="n">obj</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="assigning-a-borrow-to-something-with-longer-scope">
+<h3>Assigning a Borrow to something with Longer Scope<a class="headerlink" href="#assigning-a-borrow-to-something-with-longer-scope" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// assignsborrow.chpl</span>
+<span class="k">class</span> <span class="nc">SomeClass</span> <span class="p">{</span> <span class="p">}</span>
+
+<span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">bor</span><span class="p">:</span> <span class="k">borrowed</span> <span class="nx">SomeClass</span><span class="p">;</span>
+  <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">obj</span> <span class="o">=</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">SomeClass</span><span class="p">();</span>
+    <span class="nx">bor</span> <span class="o">=</span> <span class="nx">obj</span><span class="p">.</span><span class="nx">borrow</span><span class="p">();</span> <span class="c1">// borrow of `obj` escapes</span>
+    <span class="c1">// but `obj` goes out of scope (and `delete`s the instance) here</span>
+  <span class="p">}</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="nx">bor</span><span class="p">);</span> <span class="c1">// uses freed memory</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">assignsborrow</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">8</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">Scoped</span> <span class="n">variable</span> <span class="n">bor</span> <span class="n">would</span> <span class="n">outlive</span> <span class="n">the</span> <span class="n">value</span> <span class="n">it</span> <span class="ow">is</span> <span class="nb">set</span> <span class="n">to</span>
+<span class="n">assignsborrow</span><span class="o">.</span><span class="n">chpl</span><span class="p">:</span><span class="mi">7</span><span class="p">:</span> <span class="n">note</span><span class="p">:</span> <span class="n">consider</span> <span class="n">scope</span> <span class="n">of</span> <span class="n">obj</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="lifetime-inference">
+<h2>Lifetime Inference<a class="headerlink" href="#lifetime-inference" title="Permalink to this headline">¶</a></h2>
+<p>The lifetime checker starts by inferring the lifetime of each variable.
+It considers the ways that the variable is set:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>if the variable is a reference to another variable, then
+its lifetime will be the scope of that variable</p></li>
+<li><p>if a borrow is assigned or initialized from another variable, then
+its lifetime will be at most the lifetime of the other variable</p></li>
+<li><p>if the variable is set by a function call, then the lifetime is inferred
+according to rules described below</p></li>
+</ul>
+</div></blockquote>
+<p>Inference proceeds until the minimum inferred lifetime of each variable is
+established.</p>
+<div class="section" id="inferred-lifetimes-of-arguments">
+<h3>Inferred Lifetimes of Arguments<a class="headerlink" href="#inferred-lifetimes-of-arguments" title="Permalink to this headline">¶</a></h3>
+<p>For methods, the <code class="docutils literal notranslate"><span class="pre">this</span></code> argument is assumed to have longer lifetime than the
+actual arguments and only the <code class="docutils literal notranslate"><span class="pre">this</span></code> argument is assumed to have a lifetime
+that can be returned.</p>
+<p>For non-methods, all formals are considered to have a lifetime that can be
+returned.</p>
+</div>
+<div class="section" id="inferred-lifetime-of-function-call-results">
+<h3>Inferred Lifetime of Function Call Results<a class="headerlink" href="#inferred-lifetime-of-function-call-results" title="Permalink to this headline">¶</a></h3>
+<p>For <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">f(a,</span> <span class="pre">b,</span> <span class="pre">c)</span></code>, the lifetime of <code class="docutils literal notranslate"><span class="pre">x</span></code> is inferred to be the
+minimum lifetime of the arguments <code class="docutils literal notranslate"><span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">b</span></code>, <code class="docutils literal notranslate"><span class="pre">c</span></code> that have lifetimes
+that could be returned.</p>
+<p>For a method call, such as <code class="docutils literal notranslate"><span class="pre">y</span> <span class="pre">=</span> <span class="pre">receiver.f(a,</span> <span class="pre">b,</span> <span class="pre">c)</span></code>, the lifetime will
+be inferred to be the lifetime of <code class="docutils literal notranslate"><span class="pre">receiver</span></code>.</p>
+<p>If these inferred lifetimes are not appropriate for a function, the lifetimes
+can be specified with a lifetime annotation.</p>
+</div>
+</div>
+<div class="section" id="lifetime-annotations">
+<h2>Lifetime Annotations<a class="headerlink" href="#lifetime-annotations" title="Permalink to this headline">¶</a></h2>
+<p>Certain functions need to override the default lifetime inference rules.
+This can be accomplished by placing a <code class="docutils literal notranslate"><span class="pre">lifetime</span></code> clause after the
+return type. These <code class="docutils literal notranslate"><span class="pre">lifetime</span></code> clauses share some similarities with
+<code class="docutils literal notranslate"><span class="pre">where</span></code> clauses. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">C</span> <span class="p">{</span> <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span> <span class="p">}</span>
+<span class="kd">var</span> <span class="nx">globalOwned</span> <span class="o">=</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">C</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">globalBorrow</span> <span class="o">=</span> <span class="nx">globalOwned</span><span class="p">.</span><span class="nx">borrow</span><span class="p">();</span>
+
+<span class="c1">// Default lifetime inference assumes that the</span>
+<span class="c1">// returned lifetime is the lifetime of arg,</span>
+<span class="c1">// but that&#39;s not appropriate here.</span>
+<span class="c1">//</span>
+<span class="c1">// The lifetime annotation indicates that the returned value</span>
+<span class="c1">// has the lifetime of globalBorrow.</span>
+<span class="k">proc</span> <span class="nf">returnsGlobalBorrow</span><span class="p">(</span><span class="nx">arg</span><span class="p">:</span> <span class="k">borrowed</span> <span class="nx">C</span><span class="p">)</span>
+  <span class="k">lifetime</span> <span class="k">return</span> <span class="nx">globalBorrow</span>
+<span class="p">{</span>
+  <span class="k">return</span> <span class="nx">globalBorrow</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Other functions need to assert a relationship between the lifetimes of
+their arguments. This pattern comes up with functions that append some
+data to a data structure.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Collection</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">elementType</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">element</span><span class="p">:</span> <span class="nx">elementType</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// Without lifetime annotation, the compiler will raise an error,</span>
+<span class="c1">// because `this` is assumed to have larger lifetime than `arg`,</span>
+<span class="c1">// and so the assignment will set something with a longer lifetime</span>
+<span class="c1">// to something with a shorter lifetime.</span>
+<span class="c1">//</span>
+<span class="c1">// The lifetime clause `lifetime this &lt; arg` avoids that error</span>
+<span class="c1">// by informing the compiler that `this` (and by extension, `this.element`)</span>
+<span class="c1">// need to have lifetime no longer than `arg`.</span>
+<span class="k">proc</span> <span class="nf">Collection.addElement</span><span class="p">(</span><span class="nx">arg</span><span class="p">:</span> <span class="nx">elementType</span><span class="p">)</span>
+  <span class="k">lifetime</span> <span class="k">this</span> <span class="o">&lt;</span> <span class="nx">arg</span>
+<span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">element</span> <span class="o">=</span> <span class="nx">arg</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the lifetime clause needs to be written in terms of formal
+arguments, including <code class="docutils literal notranslate"><span class="pre">this</span></code> for methods, and possible outer variables.
+In particular, in the above, the constraint is between <code class="docutils literal notranslate"><span class="pre">this</span></code> and
+<code class="docutils literal notranslate"><span class="pre">arg</span></code> rather than <code class="docutils literal notranslate"><span class="pre">this.element</span></code> and <code class="docutils literal notranslate"><span class="pre">arg</span></code>. <code class="docutils literal notranslate"><span class="pre">this.element</span></code> will
+have its lifetime inferred to be the lifetime of <code class="docutils literal notranslate"><span class="pre">this</span></code>, so these are
+equivalent.</p>
+<p>In some cases, it is more natural to write the lifetime annotation in
+terms of what assignments the function may make. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">myswap</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">lhs</span><span class="p">:</span> <span class="k">borrowed</span> <span class="nx">MyClass</span><span class="p">,</span> <span class="kd">ref</span> <span class="nx">rhs</span><span class="p">:</span> <span class="k">borrowed</span> <span class="nx">MyClass</span><span class="p">)</span>
+  <span class="k">lifetime</span> <span class="nx">lhs</span><span class="o">=</span><span class="nx">rhs</span><span class="p">,</span> <span class="nx">rhs</span><span class="o">=</span><span class="nx">lhs</span>
+<span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">tmp</span> <span class="o">=</span> <span class="nx">lhs</span><span class="p">;</span>
+  <span class="nx">lhs</span> <span class="o">=</span> <span class="nx">rhs</span><span class="p">;</span>
+  <span class="nx">rhs</span> <span class="o">=</span> <span class="nx">tmp</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here the lifetime checker ensures that the lifetimes of the actual
+arguments are suitable for performing the assignments between formals
+that are indicated in the lifetime clause <code class="docutils literal notranslate"><span class="pre">lifetime</span> <span class="pre">lhs=rhs,</span> <span class="pre">rhs=lhs</span></code>.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="overloadSets.html" class="btn btn-neutral float-left" title="Checking Overload Sets" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="llvm.html" class="btn btn-neutral float-right" title="LLVM Support" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

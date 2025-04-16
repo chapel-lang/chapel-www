@@ -1,0 +1,373 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>on-clauses: controlling locality/affinity &mdash; Chapel Documentation 1.16</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.16" href="../../index.html"/>
+        <link rel="up" title="Chapel Users Guide (WIP)" href="../index.html"/>
+        <link rel="next" title="Chapel Evolution" href="../../language/evolution.html"/>
+        <link rel="prev" title="The locale Type and Variables" href="localeTypeAndVariables.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Chapel Documentation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<?php   // Variables given by sphinx 
+   $chplTitle = "1.16";   $pagename = "./users-guide/locality/onClauses";   include "../../versionButton.php";   ?>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Chapel Users Guide (WIP)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../index.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#base-language">Base Language</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#data-parallelism">Data Parallelism</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#locality">Locality</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="localesInChapel.html"><em>Locales</em>: representing architectural locality</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compilingAndExecutingMultiLocalePrograms.html">Compiling and Executing Multi-Locale Programs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="localeTypeAndVariables.html">The <strong>locale</strong> Type and Variables</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href=""><strong>on</strong>-clauses: controlling locality/affinity</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#simple-on-clause-examples">Simple On-Clause Examples</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#locality-is-orthogonal-to-parallelism">Locality is Orthogonal to Parallelism</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#data-driven-on-clauses">Data-driven On-clauses</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">Chapel Documentation 1.16</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Chapel Users Guide (WIP)</a> &raquo;</li>
+      
+    <li><strong>on</strong>-clauses: controlling locality/affinity</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/users-guide/locality/onClauses.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="on-clauses-controlling-locality-affinity">
+<h1><strong>on</strong>-clauses: controlling locality/affinity<a class="headerlink" href="#on-clauses-controlling-locality-affinity" title="Permalink to this headline">¶</a></h1>
+<p>As mentioned previously, all Chapel programs begin execution as a
+single task running on locale #0.  Tasks can execute on remote locales
+using <em>on-clauses</em>.  An on-clause prefixes another statement,
+specifying where it should be executed.  This can be thought of as
+migrating the task that encountered the on-clause to a (potentially)
+remote locale.  Once the on-clause's statement completes, the original
+task continues executing on the original locale.</p>
+<div class="section" id="simple-on-clause-examples">
+<h2>Simple On-Clause Examples<a class="headerlink" href="#simple-on-clause-examples" title="Permalink to this headline">¶</a></h2>
+<p>As an example, the following program iterates sequentially through all
+of the Locales on which the program is running, conceptually migrating
+the main task to that locale, where it writes out a message indicating
+the locale's ID:</p>
+<div class="literal-block-wrapper container" id="examples-users-guide-locality-onclause-chpl">
+<div class="code-block-caption"><span class="caption-text">examples/users-guide/locality/onClause.chpl</span><a class="headerlink" href="#examples-users-guide-locality-onclause-chpl" title="Permalink to this code">¶</a></div>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="nx">loc</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="k">do</span>
+  <span class="k">on</span> <span class="nx">loc</span> <span class="k">do</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Hello from locale #&quot;</span><span class="p">,</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<p>Running this program on four locales generates:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>Hello from locale #0
+Hello from locale #1
+Hello from locale #2
+Hello from locale #3
+</pre></div>
+</div>
+<p>Here's a minor change to this example which demonstrates that the
+original task starts and ends on locale #0:</p>
+<div class="literal-block-wrapper container" id="examples-users-guide-locality-onclauseplusorig-chpl">
+<div class="code-block-caption"><span class="caption-text">examples/users-guide/locality/onClausePlusOrig.chpl</span><a class="headerlink" href="#examples-users-guide-locality-onclauseplusorig-chpl" title="Permalink to this code">¶</a></div>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="nx">loc</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Started on locale #&quot;</span><span class="p">,</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+  <span class="k">on</span> <span class="nx">loc</span> <span class="k">do</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Hello from locale #&quot;</span><span class="p">,</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Back on    locale #&quot;</span><span class="p">,</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s">&quot;\n&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>When run on three locales, this program generates:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>Started on locale #0
+Hello from locale #0
+Back on    locale #0
+
+Started on locale #0
+Hello from locale #1
+Back on    locale #0
+
+Started on locale #0
+Hello from locale #2
+Back on    locale #0
+</pre></div>
+</div>
+<p>Note that the statement following an on-clause may include compound
+statements or function calls, so can result in an arbitrary amount of
+code being executed remotely.</p>
+</div>
+<div class="section" id="locality-is-orthogonal-to-parallelism">
+<h2>Locality is Orthogonal to Parallelism<a class="headerlink" href="#locality-is-orthogonal-to-parallelism" title="Permalink to this headline">¶</a></h2>
+<p>It's important to note that Chapel's features for controlling locality
+are orthogonal to those used to create parallelism.  Specifically,
+while both of the above programs run using multiple locales, neither
+is a parallel program.  Instead, a single conceptual task is moving
+between locales as it executes.  Similarly, all parallel programs from
+previous sections will only execute on a single locale---that is, they
+only result in shared-memory parallelism.</p>
+<p>In order to get distributed memory parallelism, all that's required is
+to compose Chapel's features for parallelism and locality.  As a
+simple example, the following program uses a coforall loop to create a
+task per locale in combination with an on-clause to execute each task
+on its corresponding locale:</p>
+<div class="literal-block-wrapper container" id="examples-users-guide-locality-coforallpluson-chpl">
+<div class="code-block-caption"><span class="caption-text">examples/users-guide/locality/coforallPlusOn.chpl</span><a class="headerlink" href="#examples-users-guide-locality-coforallpluson-chpl" title="Permalink to this code">¶</a></div>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">coforall</span> <span class="nx">loc</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="k">do</span>
+  <span class="k">on</span> <span class="nx">loc</span> <span class="k">do</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Hello from locale &quot;</span><span class="p">,</span> <span class="nx">loc</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s">&quot; of &quot;</span><span class="p">,</span> <span class="nx">numLocales</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<p>In effect, this creates an SPMD (Single Program, Multiple Data) style
+of parallelism.  When running on four locales, the output will be a
+nondeterministic permutation of the following four lines:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>Hello from locale 0 of 4
+Hello from locale 1 of 4
+Hello from locale 2 of 4
+Hello from locale 3 of 4
+</pre></div>
+</div>
+</div>
+<div class="section" id="data-driven-on-clauses">
+<h2>Data-driven On-clauses<a class="headerlink" href="#data-driven-on-clauses" title="Permalink to this headline">¶</a></h2>
+<p>While the on-clauses in the examples above use a locale value to
+specify where execution should take place, more generally, on-clauses
+can be specified using arbitrary expressions (typically variable
+references).  In such cases, execution moves to the locale on which
+the variable or expression is stored.  These are referred to as
+<em>data-driven on-clauses</em>.</p>
+<p>As a simple example of a data-driven on-clause, the following program
+moves its task to the locale on which <em>x</em> is stored:</p>
+<div class="literal-block-wrapper container" id="examples-users-guide-locality-datadrivenonclause-trivial-chpl">
+<div class="code-block-caption"><span class="caption-text">examples/users-guide/locality/dataDrivenOnClause-trivial.chpl</span><a class="headerlink" href="#examples-users-guide-locality-datadrivenonclause-trivial-chpl" title="Permalink to this code">¶</a></div>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="mi">42</span><span class="p">;</span>
+<span class="k">on</span> <span class="nx">x</span> <span class="k">do</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Executing where x is stored, which is locale #&quot;</span><span class="p">,</span> <span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<p>However, this program is trivial in that <em>x</em> is stored on locale 0,
+so the on-clause is essentially degenerate and doesn't move execution
+anywhere:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>Executing where x is stored, which is locale #0
+</pre></div>
+</div>
+<p>The next section will explain how variables can be declared on other
+locales to make data-driven on-clauses more interesting.</p>
+<p>(It's worth noting that even cases which use locale values to specify
+their on-clauses are technically data-driven since each unique locale
+value is stored on its corresponding locale.  However, in practice we
+typically use the term to refer to cases when an on-clause's
+expression is of a type other than <em>locale</em>).</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../language/evolution.html" class="btn btn-neutral float-right" title="Chapel Evolution" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="localeTypeAndVariables.html" class="btn btn-neutral" title="The locale Type and Variables" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'1.16.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,136 @@
+.. default-domain:: chpl
+
+.. module:: SharedObject
+   :synopsis: :record:`Shared` (along with :record:`~OwnedObject.Owned`) manage the
+
+SharedObject
+============
+**Usage**
+
+.. code-block:: chapel
+
+   use SharedObject;
+
+
+
+:record:`Shared` (along with :record:`~OwnedObject.Owned`) manage the
+deallocation of a class instance. :record:`Shared` is meant to be used when
+many different references will exist to the object and these references need
+to keep the object alive.
+
+To use :record:`Shared`, allocate a class instance following this
+pattern:
+
+.. code-block:: chapel
+
+  var mySharedObject = new Shared(new MyClass(...));
+
+When mySharedObject and any copies of it go out of scope, the class
+instance it refers to will be deleted.
+
+Copy initializing or assigning from mySharedObject will make
+other variables refer to the same class instance. The class instance
+will be deleted after all of these references go out of scope.
+
+.. code-block:: chapel
+
+  var globalSharedObject:Shared(MyClass);
+
+  proc makeGlobalSharedObject() {
+    var mySharedObject = new Shared(new MyClass(...));
+    globalSharedObject = mySharedObject;
+    // now mySharedObject is deinitialized, but the MyClass
+    // instance is not deleted until globalSharedObject is deinitialized.
+  }
+
+:record:`Shared` supports coercions to the class type as well as
+coercions from a ``Shared(T)`` to ``Shared(U)`` where ``T`` is a
+subclass of ``U``. See :record:`~OwnedObject.Owned` for examples
+of these coercions.
+
+
+
+.. record:: Shared
+
+   
+   
+   The :record:`Shared` manages the deletion of a class instance in a way
+   that supports multiple owners of the class instance.
+   
+   This is currently implemented with task-safe reference counting.
+   
+   
+
+
+   .. method:: proc forwarding_expr2_p()
+
+   .. method:: proc init(type t)
+
+      
+      Default-initialize a :record:`Shared`.
+      
+
+   .. method:: proc init(p)
+
+      
+      Initialize a :record:`Shared` with a class instance.
+      This :record:`Shared` will take over the deletion of the class
+      instance. It is an error to directly delete the class instance
+      while it is managed by :record:`Shared`.
+      
+      :arg p: the class instance to manage. Must be of class type.
+      
+
+   .. method:: proc init(src: Shared(?))
+
+      
+      Copy-initializer. Creates a new :record:`Shared`
+      that refers to the same class instance as `src`.
+      These will share responsibility for managing the instance.
+      
+
+   .. method:: proc deinit()
+
+      
+      The deinitializer for :record:`Shared` will destroy the class
+      instance once there are no longer any copies of this
+      :record:`Shared` that refer to it.
+      
+
+   .. method:: proc ref retain(newPtr: p.type )
+
+      
+      Change the instance managed by this class to `newPtr`.
+      If this record was the last :record:`Shared` managing a
+      non-nil instance, that instance will be deleted.
+      
+
+   .. method:: proc ref clear()
+
+      
+      Empty this :record:`Shared` so that it stores `nil`.
+      Deletes the managed object if this :record:`Shared` is the
+      last :record:`Shared` managing that object.
+      Does not return a value.
+      
+      Equivalent to ``Shared.retain(nil)``.
+      
+
+   .. method:: proc borrow()
+
+      
+      Return the object managed by this :record:`Shared` without
+      impacting its lifetime at all. It is an error to use the
+      value returned by this function after the :record:`Shared`
+      goes out of scope.
+      
+
+.. function:: proc =(ref lhs: Shared, rhs: Shared)
+
+   
+   Assign one :record:`Shared` to another.
+   Deletes the object managed by `lhs` if there are
+   no other :record:`Shared` referring to it. On return,
+   `lhs` will refer to the same object as `rhs`.
+   
+

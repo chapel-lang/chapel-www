@@ -1,0 +1,2227 @@
+.. default-domain:: chpl
+
+.. module:: BigInteger
+   :synopsis: Provides a 'bigint' type and supporting math operations.
+
+BigInteger
+==========
+**Usage**
+
+.. code-block:: chapel
+
+   use BigInteger;
+
+
+or
+
+.. code-block:: chapel
+
+   import BigInteger;
+
+Provides a 'bigint' type and supporting math operations.
+
+The ``bigint`` type supports arithmetic operations on arbitrary
+precision integers in a manner that is broadly consistent with
+the conventional operations on primitive fixed length integers.
+
+The current implementation is based on the low-level types and
+functions defined in the GMP module i.e. it is implemented using the
+GNU Multiple Precision Integer Arithmetic library (GMP). More specifically,
+:type:`bigint` wraps the GMP type :type:`~GMP.mpz_t`.
+
+The primary benefits of ``bigint`` over ``mpz_t`` are
+
+  1) support for multi-locale programs
+
+  2) the convenience of arithmetic operator overloads
+
+  3) automatic memory management of GMP data structures
+
+In addition to the expected set of operations, this record provides
+a number of methods that wrap GMP functions in a natural way:
+
+.. code-block:: chapel
+
+ use BigInteger;
+
+ var   a = new bigint(234958444);
+ const b = new bigint("4847382292989382987395534934347");
+ var   c = new bigint();
+
+ writeln(a * b);
+
+ fac(c, 00);
+ writeln(c);
+
+Casting and declarations can be used to create ``bigint`` records as
+well:
+
+.. code-block:: chapel
+
+ use BigInteger;
+
+ var   a = 234958444: bigint;
+ const b = "4847382292989382987395534934347": bigint;
+ var   c: bigint;
+
+.. warning::
+
+  Creating a ``bigint`` from an integer literal that is larger than
+  ``max(uint(64))`` would cause integer overflow before the
+  ``bigint`` is created, and so results in a compile-time error.
+  Strings should be used instead of integer literals for cases
+  like this:
+
+  .. code-block:: chapel
+
+    // These would result in integer overflow and cause compile-time errors
+    var bad1 = 4847382292989382987395534934347: bigint;
+    var bad2 = new bigint(4847382292989382987395534934347);
+
+    // These give the desired result
+    var good1 = "4847382292989382987395534934347": bigint;
+    var good2 = new bigint("4847382292989382987395534934347");
+
+
+Wrapping an ``mpz_t`` in a ``bigint`` record may introduce a
+measurable overhead in some cases.
+
+The GMP library defines a low-level API that is based on
+side-effecting compound operations.  The documentation recommends that
+one prefer to reuse a small number of existing mpz_t structures rather
+than using many values of short duration.
+
+Matching this style using ``bigint`` records and the compound
+assignment operators is likely to provide comparable performance to an
+implementation based on ``mpz_t``.  So, for example:
+
+.. code-block:: chapel
+
+  x  = b
+  x *= c;
+  x += a;
+
+is likely to achieve better performance than:
+
+.. code-block:: chapel
+
+  x = a + b * c;
+
+The Chapel compiler currently introduces two short lived temporaries for the
+intermediate results of the binary operators.
+
+The operators on ``bigint`` include variations that accept Chapel
+integers e.g.:
+
+.. code-block:: chapel
+
+  var a = new bigint("9738639463465935");
+  var b = 9395739153 * a;
+
+The Chapel int(64) literal is converted to an underlying,
+platform-specific C integer, to invoke the underlying GMP primitive
+function.  This example is likely to work well on popular 64-bit
+platforms but to fail on common 32-bit platforms.  Runtime checks are
+used to ensure the Chapel types can safely be cast to the
+platform-specific types.  Ths program will halt if the Chapel value
+cannot be represented using the GMP scalar type.
+
+The checks are controlled by the compiler options ``--[no-]cast-checks``,
+``--fast``, etc.
+
+Casting from ``bigint`` to ``integral`` and ``real`` types is also
+supported.  Values that are too large for the resultant type are
+truncated.  GMP primitives are used to first cast to platform-specific C
+types, which are then cast to Chapel types.  As a result, casting to
+64-bit types on 32-bit platforms may result in additional truncation.
+Additionally, casting a negative ``bigint`` to a ``uint`` will result in
+the absolute value truncated to fit within the type.:
+
+.. code-block:: chapel
+
+  var a = new bigint(-1);
+  writeln(a:uint);        // prints "1"
+
+See :mod:`GMP` for more information on how to use GMP with Chapel.
+
+
+.. record:: bigint : serializable
+
+   
+   The `bigint` type supports arithmetic operations on arbitrary
+   precision integers across multiple locales.
+   
+
+   .. method:: proc init()
+
+      
+      Initializes a :record:`bigint` to an initial value of ``0``.
+      
+
+   .. method:: proc init(const ref x: bigint)
+
+      
+      Initializes a :record:`bigint` to the value of ``x``.
+      
+      :arg x: The value to be stored in the resulting :record:`bigint`.
+      :type x: :record:`bigint`, ``int``, ``uint``
+      
+
+   .. method:: proc init(x: int)
+
+      See :proc:`init` 
+
+   .. method:: proc init(x: uint)
+
+      See :proc:`init` 
+
+   .. method:: proc init(x: string, base: int = 0) throws
+
+      Initialize a :record:`bigint` from a string and optionally a provided base
+      to use with the string.  If the string is not a correct base ``base``
+      number, will throw a :type:`~OS.BadFormatError`.
+      
+      :arg x: The value to be stored in the resulting :record:`bigint`.
+      :type x: :type:`~String.string`
+      :arg base: The base to use when creating the :record:`bigint` from ``x``.
+                 May vary from ``2`` to ``62`` or be ``0``.  Defaults to ``0``,
+                 which causes the base to be read from the start of the ``x``
+                 itself (``0x`` and ``0X`` will give hexadecimal, ``0b`` and
+                 ``0B`` will give binary, ``0`` will give octal, and everything
+                 else will be interpreted as decimal).
+      :type base: ``int``
+      
+      :throws BadFormatError: Thrown when ``x`` is not a correctly formatted
+                              number in base ``base``.
+      
+      
+
+   .. method:: proc init=(const ref x: bigint)
+
+      
+      Copy initializes a :record:`bigint` to the value of ``x``.
+      
+      :arg x: The value to be stored in the resulting :record:`bigint`.
+      :type x: :record:`bigint`, ``integral``
+      
+
+   .. method:: proc init=(x: integral)
+
+      See :proc:`init=` 
+
+   .. method:: proc sizeInBase(base: int): int
+
+      Determine the size of ``this`` measured in number of digits in the given
+      ``base``.  The sign of ``this`` is ignored, only the absolute value is
+      used.
+      
+      :arg base: The base in which to compute the number of digits used to
+                 represent ``this``.  Can be between 2 and 62.
+      :type base: ``int``
+      :returns: The size of ``this`` measured in number of digits in the given
+                ``base``.  Will either be exact or 1 too big.  If ``base`` is
+                a power of 2, will always be exact.  If ``this`` is 0, will
+                always return 1.
+      :rtype: ``int``
+      
+      .. seealso::
+         :proc:`GMP.mpz_sizeinbase` and
+         `mpz_sizeinbase <https://gmplib.org/manual/Miscellaneous-Integer-Functions#index-mpz_005fsizeinbase>`_.
+      
+
+   .. method:: proc getImpl(): __mpz_struct
+
+      .. warning::
+
+         getImpl is provided as a convenience but its result may change in the future
+
+      
+      Return the underlying implementation of :record:`bigint`.  Currently,
+      the type returned is ``__mpz_struct``.
+      
+
+   .. method:: proc getD2Exp(): (real, uint(32))
+
+      
+      Convert ``this`` to a tuple containing a ``real`` (truncated if necessary, by
+      rounding towards zero) and the exponent.  The returned tuple fulfills the
+      condition ``d * 2^exp == this`` where ``d`` is the first value in the
+      tuple and ``exp`` is the second.
+      
+      :returns: a tuple representing the number in multiple parts, ``(d, exp)``,
+                such that their combination ``d * 2^exp`` is equal to ``this``.
+      
+                ``d`` in this case will be in the range ``0.5 <= abs(d) < 1``,
+                unless ``this`` is ``0``, in which case ``d == 0.0`` and
+                ``exp == 0``.
+      :rtype: ``(real, uint(32))``
+      
+      .. seealso::
+         :proc:`GMP.mpz_get_d_2exp` and
+         `mpz_get_d_2exp <https://gmplib.org/manual/Converting-Integers#index-mpz_005fget_005fd_005f2exp>`_.
+      
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+      Writes this number to a :type:`~IO.fileWriter` 
+
+   .. method:: proc ref deserialize(reader, ref deserializer) throws
+
+      Read this number from a :type:`~IO.fileReader` 
+
+.. enum:: enum roundingMode { down = -1, zero = 0, up = 1 }
+
+   An enumeration of the different rounding strategies, for use with e.g.
+   :proc:`~BigInteger.div` to determine how to round the quotient when performing
+   the computation.
+   
+
+   .. enumconstant:: enum constant down = -1
+
+      
+      Indicates that the quotient should be rounded down towards -infinity and
+      any remainder should have the same sign as the denominator.
+      
+
+   .. enumconstant:: enum constant zero = 0
+
+      
+      Indicates that the quotient should be rounded towards zero and any
+      remainder should have the same sign as the numerator.
+      
+
+   .. enumconstant:: enum constant up = 1
+
+      
+      Indicates that the quotient should be rounded up towards +infinity and any
+      remainder should have the opposite sign as the denominator.
+      
+
+.. function:: operator :(x: integral, type t: bigint): bigint
+
+   Constructs a new :record:`bigint` from ``x``, see :proc:`bigint.init`. 
+
+.. function:: operator :(x: string, type t: bigint): bigint throws
+
+   
+   Constructs a new :record:`bigint` from ``x``,
+   see the :proc:`bigint.init` overload which takes a :type:`~String.string`.
+   
+
+.. function:: operator :(x: bool, type t: bigint): bigint throws
+
+   Constructs a new :record:`bigint` from ``x``, see :proc:`bigint.init`. 
+
+.. function:: operator :(const ref x: bigint, type t: numeric) where isIntType(t)
+
+   
+   Convert ``x`` to a signed integer. If ``x`` is larger than ``t``, the value
+   returned is the least significant part of ``x`` with the same sign as ``x``.
+   
+   .. seealso::
+      :proc:`GMP.mpz_get_si` and
+      `mpz_get_si <https://gmplib.org/manual/Converting-Integers#index-mpz_005fget_005fsi>`_.
+   
+
+.. function:: operator :(const ref x: bigint, type t: numeric) where isUintType(t)
+
+   
+   Convert ``x`` to an unsigned integer. If ``x`` is larger than ``t``, the value
+   returned is the least significant part of ``x`` ignoring the sign of ``x``.
+   
+   .. seealso::
+      :proc:`GMP.mpz_get_ui` and
+      `mpz_get_ui <https://gmplib.org/manual/Converting-Integers#index-mpz_005fget_005fui>`_.
+   
+
+.. function:: operator :(const ref x: bigint, type t: numeric) where isRealType(t)
+
+   
+   Convert ``x`` to a ``real`` with type ``t`` (truncated if necessary, by
+   rounding towards zero).
+   
+   .. warning::
+      If the resulting exponent from the conversion is too big, the result is
+      system dependent. If supported, an infinity may be returned. A hardware
+      overflow trap may also occur.
+   
+   .. seealso::
+      :proc:`GMP.mpz_get_d` and
+      `mpz_get_d <https://gmplib.org/manual/Converting-Integers#index-mpz_005fget_005fd>`_.
+   
+
+.. function:: operator :(const ref x: bigint, type t: string)
+
+   Convert ``x`` to a string representation. 
+
+.. method:: operator bigint. = (ref lhs: bigint, const ref rhs: bigint)
+
+   See :proc:`bigint.set` 
+
+.. method:: operator bigint. = (ref lhs: bigint, rhs: int)
+
+   See :proc:`bigint.set` 
+
+.. method:: operator bigint. = (ref lhs: bigint, rhs: uint)
+
+   See :proc:`bigint.set` 
+
+.. method:: operator bigint.+(const ref a: bigint): bigint
+
+   See :proc:`bigint.init` 
+
+.. method:: operator bigint.-(const ref a: bigint): bigint
+
+   See :proc:`~BigInteger.neg` 
+
+.. method:: operator bigint.~(const ref a: bigint): bigint
+
+   See :proc:`~BigInteger.com` 
+
+.. method:: operator bigint.+(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.+(const ref a: bigint, b: int): bigint
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.+(const ref a: bigint, b: uint): bigint
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.+(a: int, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.+(a: uint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.-(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.-(const ref a: bigint, b: int): bigint
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.-(const ref a: bigint, b: uint): bigint
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.-(a: int, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.-(a: uint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.*(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint.*(const ref a: bigint, b: int): bigint
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint.*(const ref a: bigint, b: uint): bigint
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint.*(a: int, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint.*(a: uint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint./(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.div` 
+
+.. method:: operator bigint./(const ref a: bigint, b: integral): bigint
+
+   See :proc:`~BigInteger.div` 
+
+.. method:: operator bigint.**(const ref base: bigint, const ref exp: bigint): bigint
+
+   See :proc:`~BigInteger.pow` 
+
+.. method:: operator bigint.**(const ref base: bigint, exp: int): bigint
+
+   See :proc:`~BigInteger.pow` 
+
+.. method:: operator bigint.**(const ref base: bigint, exp: uint): bigint
+
+   See :proc:`~BigInteger.pow` 
+
+.. method:: operator bigint.%(const ref a: bigint, const ref b: bigint): bigint
+
+   
+   Computes the mod operator on the two arguments, defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+   See :proc:`~BigInteger.rem`
+   
+
+.. method:: operator bigint.%(const ref a: bigint, b: int): bigint
+
+   See :proc:`bigint.%` 
+
+.. method:: operator bigint.%(const ref a: bigint, b: uint): bigint
+
+   See :proc:`bigint.%` 
+
+.. method:: operator bigint.<<(const ref a: bigint, b: int): bigint
+
+   See :proc:`~BigInteger.shiftLeft` 
+
+.. method:: operator bigint.<<(const ref a: bigint, b: uint): bigint
+
+   See :proc:`~BigInteger.shiftLeft` 
+
+.. method:: operator bigint.>>(const ref a: bigint, b: int): bigint
+
+   See :proc:`~BigInteger.shiftRight` 
+
+.. method:: operator bigint.>>(const ref a: bigint, b: uint): bigint
+
+   See :proc:`~BigInteger.shiftRight` 
+
+.. method:: operator bigint.&(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.and` 
+
+.. method:: operator bigint.|(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.or` 
+
+.. method:: operator bigint.^(const ref a: bigint, const ref b: bigint): bigint
+
+   See :proc:`~BigInteger.xor` 
+
+.. method:: operator bigint.==(const ref a: bigint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.==(const ref a: bigint, b: int): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.==(const ref a: bigint, b: uint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.==(a: int, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.==(a: uint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.!=(const ref a: bigint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.!=(const ref a: bigint, b: int): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.!=(const ref a: bigint, b: uint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.!=(a: int, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.!=(a: uint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>(const ref a: bigint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>(const ref a: bigint, b: int): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>(const ref a: bigint, b: uint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>(a: int, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>(a: uint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<(const ref a: bigint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<(const ref a: bigint, b: int): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<(const ref a: bigint, b: uint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<(a: int, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<(a: uint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>=(const ref a: bigint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>=(const ref a: bigint, b: int): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>=(const ref a: bigint, b: uint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>=(a: int, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.>=(a: uint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<=(const ref a: bigint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<=(const ref a: bigint, b: int): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<=(const ref a: bigint, b: uint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<=(a: int, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.<=(a: uint, const ref b: bigint): bool
+
+   See :proc:`bigint.cmp` 
+
+.. method:: operator bigint.+=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.+=(ref a: bigint, b: int)
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.+=(ref a: bigint, b: uint)
+
+   See :proc:`~BigInteger.add` 
+
+.. method:: operator bigint.-=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.-=(ref a: bigint, b: int)
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.-=(ref a: bigint, b: uint)
+
+   See :proc:`~BigInteger.sub` 
+
+.. method:: operator bigint.*=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint.*=(ref a: bigint, b: int)
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint.*=(ref a: bigint, b: uint)
+
+   See :proc:`~BigInteger.mul` 
+
+.. method:: operator bigint./=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.div` 
+
+.. method:: operator bigint./=(ref a: bigint, b: integral)
+
+   See :proc:`~BigInteger.div` 
+
+.. method:: operator bigint.**=(ref base: bigint, const ref exp: bigint)
+
+   See :proc:`~BigInteger.pow` 
+
+.. method:: operator bigint.**=(ref base: bigint, exp: int)
+
+   See :proc:`~BigInteger.pow` 
+
+.. method:: operator bigint.**=(ref base: bigint, exp: uint)
+
+   See :proc:`~BigInteger.pow` 
+
+.. method:: operator bigint.%=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`bigint.%` 
+
+.. method:: operator bigint.%=(ref a: bigint, b: int)
+
+   See :proc:`bigint.%` 
+
+.. method:: operator bigint.%=(ref a: bigint, b: uint)
+
+   See :proc:`bigint.%` 
+
+.. method:: operator bigint.&=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.and` 
+
+.. method:: operator bigint.|=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.or` 
+
+.. method:: operator bigint.^=(ref a: bigint, const ref b: bigint)
+
+   See :proc:`~BigInteger.xor` 
+
+.. method:: operator bigint.<<=(ref a: bigint, b: int)
+
+   See :proc:`~BigInteger.shiftLeft` 
+
+.. method:: operator bigint.<<=(ref a: bigint, b: uint)
+
+   See :proc:`~BigInteger.shiftLeft` 
+
+.. method:: operator bigint.>>=(ref a: bigint, b: int)
+
+   See :proc:`~BigInteger.shiftRight` 
+
+.. method:: operator bigint.>>=(ref a: bigint, b: uint)
+
+   See :proc:`~BigInteger.shiftRight` 
+
+.. method:: operator bigint.<=>(ref a: bigint, ref b: bigint)
+
+   See :proc:`bigint.swap` 
+
+.. function:: proc jacobi(const ref a: bigint, const ref b: bigint): int
+
+   .. warning::
+
+      jacobi is unstable and may change in the future
+
+   
+   Returns the Jacobi symbol ``a/b``, which is defined only when ``b`` is odd.
+   
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_jacobi` and
+      `mpz_jacobi <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fjacobi>`_.
+   
+
+.. function:: proc legendre(const ref a: bigint, const ref p: bigint): int
+
+   .. warning::
+
+      legendre is unstable and may change in the future
+
+   
+   Returns the Legendre symbol ``a/p``, which is defined only when ``p`` is
+   an odd positive prime number.
+   
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_legendre` and
+      `mpz_legendre <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005flegendre>`_.
+   
+
+.. function:: proc kronecker(const ref a: bigint, const ref b: bigint): int
+
+   .. warning::
+
+      kronecker is unstable and may change in the future
+
+   
+   Returns the Jacobi symbol ``a/b`` with the Kronecker extension. When
+   ``b`` is odd this is the same as the Jacobi symbol.
+   
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_kronecker` and
+      `mpz_kronecker <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fkronecker>`_.
+   
+
+.. function:: proc kronecker(const ref a: bigint, b: int): int
+
+   .. warning::
+
+      kronecker is unstable and may change in the future
+
+   See :proc:`kronecker` 
+
+.. function:: proc kronecker(a: int, const ref b: bigint): int
+
+   .. warning::
+
+      kronecker is unstable and may change in the future
+
+   See :proc:`kronecker` 
+
+.. function:: proc kronecker(const ref a: bigint, b: uint): int
+
+   .. warning::
+
+      kronecker is unstable and may change in the future
+
+   See :proc:`kronecker` 
+
+.. function:: proc kronecker(a: uint, const ref b: bigint): int
+
+   .. warning::
+
+      kronecker is unstable and may change in the future
+
+   See :proc:`kronecker` 
+
+.. function:: proc divExact(ref result: bigint, const ref numer: bigint, const ref denom: bigint)
+
+   
+   Computes ``numer/denom`` and stores the result in ``result``, which is a
+   :record:`bigint` instance.
+   
+   .. warning::
+      ``divExact`` is optimized to handle cases where ``numer/denom`` results
+      in an integer.  When ``numer/denom`` does not produce an integer, this
+      method may produce incorrect results.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg numer: numerator
+   :type numer: :record:`bigint`
+   :arg denom: denominator
+   :type denom: :record:`bigint` or ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_divexact` and
+      `mpz_divexact <https://gmplib.org/manual/Integer-Division#index-mpz_005fdivexact>`_.
+   
+
+.. function:: proc divExact(ref result: bigint, const ref numer: bigint, denom: integral)
+
+   See :proc:`~BigInteger.divExact` 
+
+.. method:: proc bigint.isDivisible(const ref div: bigint): bool
+
+   
+   Return ``true`` if ``this`` is exactly divisible by ``div``.  ``this`` is
+   divisible by ``div`` if there exists an integer ``q`` satisfying ``this =
+   q*div``.  Unlike the other division functions, ``0`` is an acceptable value
+   for ``div`` and only ``0`` is considered divisible by ``0``.
+   
+   :arg div: number to check if ``this`` is divisible by
+   :type div: :record:`bigint`, ``int`` or ``uint``
+   :return: ``true`` if ``this`` is exactly divisible by ``div``, ``false``
+            otherwise
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_divisible_p` and
+      `mpz_divisible_p <https://gmplib.org/manual/Integer-Division#index-mpz_005fdivisible_005fp>`_.
+   
+
+.. method:: proc bigint.isDivisible(div: int): bool
+
+   See :proc:`~bigint.isDivisible` 
+
+.. method:: proc bigint.isDivisible(div: uint): bool
+
+   See :proc:`~bigint.isDivisible` 
+
+.. method:: proc bigint.isDivisibleBy2Pow(exp: integral): bool
+
+   
+   Return ``true`` if ``this`` is exactly divisible by ``2^exp``.  ``this`` is
+   divisible by ``2^exp`` if there exists an integer ``q`` satisfying ``this =
+   q*2^exp``.
+   
+   :arg exp: power of 2 to check if ``this`` is divisible by
+   :type exp: ``integral``
+   
+   :return: ``true`` if ``this`` is exactly divisible by ``2^exp``, ``false``
+            otherwise
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_divisible_2exp_p` and
+      `mpz_divisible_2exp_p <https://gmplib.org/manual/Integer-Division#index-mpz_005fdivisible_005f2exp_005fp>`_.
+   
+
+.. method:: proc bigint.isCongruent(const ref con: bigint, const ref mod: bigint): bool
+
+   
+   Return ``true`` if ``this`` is congruent to ``con % mod``.  ``this`` is
+   congruent to ``con % mod`` if there exists an integer ``q`` satisfying
+   ``this = con + q*mod``.  Unlike the other division functions, ``0`` is an
+   acceptable value for ``mod``.  As a result ``this`` and ``con`` are
+   considered congruent modulo ``0`` only when exactly equal.
+   
+   :arg con: number to determine if ``this`` is congruent to, modulo ``mod``
+   :type con: :record:`bigint` or ``integral``
+   
+   :arg mod: divisor of ``con`` when determining if ``con`` is congruent to
+             ``this``
+   :type mod: :record:`bigint` or ``integral``
+   
+   :return: ``true`` if ``this`` is congruent to ``con`` modulo ``mod``,
+            ``false`` otherwise
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_congruent_p` and
+      `mpz_congruent_p <https://gmplib.org/manual/Integer-Division#index-mpz_005fcongruent_005fp>`_.
+   
+
+.. method:: proc bigint.isCongruent(con: integral, mod: integral): bool
+
+   See :proc:`~bigint.isCongruent` 
+
+.. method:: proc bigint.isCongruentBy2Pow(const ref con: bigint, modExp: integral): bool
+
+   
+   Return ``true`` if ``this`` is congruent to ``con % 2^modExp``.  ``this`` is
+   congruent to ``con % 2^modExp`` if there exists an integer ``q`` satisfying
+   ``this = con + q*2^modExp``.
+   
+   :arg con: number to determine if ``this`` is congruent to, modulo
+             ``2^modExp``.
+   :type con: :record:`bigint` or ``integral``
+   
+   :arg modExp: power of 2 to use as the divisor of ``con`` when determining if
+                ``con`` is congruent to ``this``.
+   :type modExp: ``integral``
+   
+   :return: ``true`` if ``this`` is congruent to ``con`` modulo ``2^modExp``,
+            ``false`` otherwise.
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_congruent_2exp_p` and
+      `mpz_congruent_2exp_p <https://gmplib.org/manual/Integer-Division#index-mpz_005fcongruent_005f2exp_005fp>`_.
+   
+
+.. function:: proc powMod(ref result: bigint, const ref base: bigint, const ref exp: bigint, const ref mod: bigint)
+
+   
+   Set ``result`` to the result of ``(base**exp) modulo mod``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg base: The value to be raised to the power of ``exp`` before performing
+              a modulo operation on.
+   :type base: :record:`bigint`
+   :arg exp: The exponent to raise ``base`` to the power of prior to the
+              modulo operation.  Can be negative if the inverse (1/``base``)
+              modulo ``mod`` exists.
+   :type exp: :record:`bigint`, ``int``, or ``uint``
+   :arg mod: The divisor for the modulo operation.
+   :type mod: :record:`bigint`
+   
+   .. warning::
+      The program behavior is undefined if ``exp`` is negative and the inverse
+      ``(1/base) modulo mod`` does not exist.
+   
+   .. seealso::
+      :proc:`GMP.mpz_powm` and
+      `mpz_powm <https://gmplib.org/manual/Integer-Exponentiation#index-mpz_005fpowm>`_.
+   
+
+.. function:: proc powMod(ref result: bigint, const ref base: bigint, exp: int, const ref mod: bigint)
+
+   See :proc:`~BigInteger.powMod` 
+
+.. function:: proc powMod(ref result: bigint, const ref base: bigint, exp: uint, const ref mod: bigint)
+
+   See :proc:`~BigInteger.powMod` 
+
+.. function:: proc pow(ref result: bigint, const ref base: bigint, exp: int)
+
+   
+   Set ``result`` to the result of ``base`` raised to ``exp``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg base: The value to be raised to the power of ``exp``.
+   :type base: :record:`bigint`, ``int`` or ``uint``
+   :arg exp: The exponent to raise ``base`` to the power of.
+   :type exp: ``int`` or ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_pow_ui` and
+      `mpz_pow_ui <https://gmplib.org/manual/Integer-Exponentiation#index-mpz_005fpow_005fui>`_.
+   
+
+.. function:: proc pow(ref result: bigint, const ref base: bigint, exp: uint)
+
+   See :proc:`~BigInteger.pow` 
+
+.. function:: proc pow(ref result: bigint, base: int, exp: int)
+
+   See :proc:`~BigInteger.pow` 
+
+.. function:: proc pow(ref result: bigint, base: uint, exp: uint)
+
+   See :proc:`~BigInteger.pow` 
+
+.. function:: proc root(ref result: bigint, const ref x: bigint, n: uint): int
+
+   
+   Sets ``result`` to the truncated integer ``n`` th root of ``x``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: Number to take the root of
+   :type x: :record:`bigint`
+   :arg n: Which root to take
+   :type n: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_root` and
+      `mpz_root <https://gmplib.org/manual/Integer-Roots#index-mpz_005froot>`_.
+   
+
+.. function:: proc rootRem(ref result: bigint, ref remain: bigint, const ref x: bigint, n: uint)
+
+   Sets ``result`` to the truncated integer ``n`` th root of ``x``. Stores
+   the remainder in ``remain``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg remain: Where the remainder is stored
+   :type remain: :record:`bigint`
+   :arg x: Number to take the root of
+   :type x: :record:`bigint`
+   :arg n: Which root to take
+   :type n: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_rootrem` and
+      `mpz_rootrem <https://gmplib.org/manual/Integer-Roots#index-mpz_005frootrem>`_.
+   
+
+.. function:: proc sqrt(ref result: bigint, const ref x: bigint)
+
+   
+   Sets ``result`` to the truncated integer square root of ``x``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: Number to take the square root of
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_sqrt` and
+      `mpz_sqrt <https://gmplib.org/manual/Integer-Roots#index-mpz_005fsqrt>`_.
+   
+
+.. function:: proc sqrtRem(ref result: bigint, ref remain: bigint, const ref x: bigint)
+
+   Sets ``result`` to the truncated integer square root of ``x``. Stores
+   the remainder in ``remain``.
+   
+   .. warning::
+      If ``result`` is also passed as the ``remain`` argument, the program
+      behavior is undefined.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg remain: Where the remainder is stored
+   :type remain: :record:`bigint`
+   :arg x: Number to take the square root of
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_sqrtrem` and
+      `mpz_sqrtrem <https://gmplib.org/manual/Integer-Roots#index-mpz_005fsqrtrem>`_.
+   
+
+.. method:: proc bigint.isPerfectPower(): bool
+
+   
+   Return ``true`` if ``this`` is a perfect power, i.e., if there exist
+   integers ``a`` and ``b`` with ``b > 1``, such that ``this = a^b``.
+   
+   Under this definition both 0 and 1 are considered to be perfect powers.
+   Negative values can only be odd perfect powers.
+   
+   :return: ``true`` if ``this`` is a perfect power, ``false`` otherwise.
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_perfect_power_p` and
+      `mpz_perfect_power_p <https://gmplib.org/manual/Integer-Roots#index-mpz_005fperfect_005fpower_005fp>`_.
+   
+
+.. method:: proc bigint.isPerfectSquare(): bool
+
+   
+   Return ``true`` if ``this`` is a perfect square, i.e., if the square root of
+   ``this`` is an integer.
+   
+   Under this definition both ``0`` and ``1`` are considered to be perfect squares.
+   
+   :return: ``true`` if ``this`` is a perfect square, ``false`` otherwise.
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_perfect_square_p` and
+      `mpz_perfect_square_p <https://gmplib.org/manual/Integer-Roots#index-mpz_005fperfect_005fsquare_005fp>`_.
+   
+
+.. enum:: enum primality { notPrime = 0, maybePrime, isPrime }
+
+   
+   An enumeration of the different possibilities of a number being prime, for
+   use with e.g. :proc:`~bigint.probablyPrime` to determine if a number is
+   prime or not.
+   
+
+   .. enumconstant:: enum constant notPrime = 0
+
+      Indicates that the number is not a prime. 
+
+   .. enumconstant:: enum constant maybePrime
+
+      Indicates that the number may or may not be a prime. 
+
+   .. enumconstant:: enum constant isPrime
+
+      Indicates that the number is a prime. 
+
+.. method:: proc bigint.probablyPrime(reps: int): primality
+
+   .. warning::
+
+      bigint.probablyPrime is unstable and may change in the future
+
+   
+   Determine whether ``this`` is prime.  Returns one of the :enum:`primality`
+   constants - :enumconstant:`~primality.isPrime`,
+   :enumconstant:`~primality.maybePrime`, or
+   :enumconstant:`~primality.notPrime`.
+   
+   Performs some trial divisions, a Baillie-PSW probable prime test, and
+   reps-24 Miller-Rabin probabilistic primality tests.  A higher ``reps`` value
+   will reduce the chances of a non-prime being identified as "probably prime".
+   A composite number will be identified as a prime with an asymptotic
+   probability of less than ``4^(-reps)``.  Reasonable values of ``reps`` are
+   between 15 and 50.
+   
+   :arg reps: number of attempts before returning
+              :enumconstant:`~primality.maybePrime` if a definitive answer
+              can't be found before then.
+   :type reps: ``int``
+   :returns: :enumconstant:`~primality.isPrime`,
+             :enumconstant:`~primality.maybePrime`, or
+             :enumconstant:`~primality.notPrime`.
+   :rtype: :enum:`primality`
+   
+   .. seealso::
+      :proc:`GMP.mpz_probab_prime_p` and
+      `mpz_probab_prime_p <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fprobab_005fprime_005fp>`_.
+   
+
+.. function:: proc nextPrime(ref result: bigint, const ref x: bigint)
+
+   .. warning::
+
+      nextPrime is unstable and may change in the future
+
+   Set ``result`` to the next prime number greater than ``x``.
+   
+   .. note::
+      This is a probabilistic function and in an unlikely case may set
+      ``result`` to a composite number.
+   
+   :arg result: return value that will contain the next prime number
+   :type result: :record:`bigint`
+   :arg x: the ``result`` will be a prime number bigger than this value
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_nextprime` and
+      `mpz_nextprime <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fnextprime>`_.
+   
+
+.. function:: proc gcd(ref result: bigint, const ref a: bigint, const ref b: bigint)
+
+   .. warning::
+
+      gcd is unstable and may change in the future
+
+   Set ``result`` to the greatest common divisor of ``a`` and ``b``
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg a: One of the numbers to compute the greatest common divisor of
+   :type a: :record:`bigint`
+   :arg b: One of the numbers to compute the greatest common divisor of
+   :type b: :record:`bigint`, ``int``, ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_gcd` and
+      `mpz_gcd <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fgcd>`_.
+   
+
+.. function:: proc gcd(ref result: bigint, const ref a: bigint, b: int)
+
+   .. warning::
+
+      gcd is unstable and may change in the future
+
+   See :proc:`gcd` 
+
+.. function:: proc gcd(ref result: bigint, const ref a: bigint, b: uint)
+
+   .. warning::
+
+      gcd is unstable and may change in the future
+
+   See :proc:`gcd` 
+
+.. function:: proc gcd(ref result: bigint, const ref a: bigint, const ref b: bigint, ref s: bigint, ref t: bigint): void
+
+   .. warning::
+
+      gcd is unstable and may change in the future
+
+   Set ``result`` to the greatest common divisor of ``a`` and ``b``, and
+   set ``s`` and ``t`` to coefficients such that ``a*s + b*t == result``.
+   
+   .. note::
+      The result stored in ``result`` is always positive, even if one or
+      both of ``a`` and ``b`` are negative (or zero if both are zero).
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg a: One of the numbers to compute the greatest common divisor of
+   :type a: :record:`bigint`
+   :arg b: One of the numbers to compute the greatest common divisor of
+   :type b: :record:`bigint`
+   :arg s: The returned coefficient that can be multiplied by ``a``.
+   :type s: :record:`bigint`
+   :arg t: The returned coefficient that can be multiplied by ``b``.
+   :type t: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_gcdext` and
+      `mpz_gcdext <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fgcdext>`_.
+   
+
+.. function:: proc lcm(ref result: bigint, const ref a: bigint, const ref b: bigint)
+
+   .. warning::
+
+      lcm is unstable and may change in the future
+
+   Set ``result`` to the least common multiple of ``a`` and ``b``
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg a: One of the numbers to compute the least common multiple of
+   :type a: :record:`bigint`
+   :arg b: One of the numbers to compute the least common multiple of
+   :type b: :record:`bigint`, ``int``, ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_lcm` and
+      `mpz_lcm <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005flcm>`_.
+   
+
+.. function:: proc lcm(ref result: bigint, const ref a: bigint, b: int)
+
+   .. warning::
+
+      lcm is unstable and may change in the future
+
+   See :proc:`lcm` 
+
+.. function:: proc lcm(ref result: bigint, const ref a: bigint, b: uint)
+
+   .. warning::
+
+      lcm is unstable and may change in the future
+
+   See :proc:`lcm` 
+
+.. class:: InversionError : Error
+
+   
+   An :class:`InversionError` is thrown if a :proc:`invert()` is attempted with
+   invalid arguments that result in a non-existent inverse. Specifically,
+   if the arguments cause a divide by zero, this error notifies the caller
+   that the internal value of the :record:`bigint` was left in an undefined state.
+   
+
+   .. method:: proc init()
+
+      Create an :class:`InversionError` with the default error message: `Inverse does not exist` 
+
+.. function:: proc invert(ref result: bigint, const ref x: bigint, const ref y: bigint) throws
+
+   
+   Set the value of ``result`` to the inverse of ``x`` modulo ``y``
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The dividend of the modulo operation
+   :type x: :record:`bigint`
+   :arg y: The divisor of the modulo operation
+   :type y: :record:`bigint`
+   :throws InversionError: Thrown when the inverse does not exist and the value of ``result`` will be left undefined.
+   
+   .. seealso::
+      :proc:`GMP.mpz_invert` and
+      `mpz_invert <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005finvert>`_.
+   
+
+.. function:: proc removeFactor(ref result: bigint, const ref x: bigint, const ref fac: bigint): uint
+
+   
+   Remove all occurrences of the factor ``fac`` from ``x`` and store the result
+   in ``result``.  Return the number of occurrences removed.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The value to remove all occurrences of ``fac`` from
+   :type x: :record:`bigint`
+   :arg fac: The factor to remove from ``x``.
+   :type fac: :record:`bigint`
+   :return: The number of occurrences of ``fac`` found in ``x``.
+   :rtype: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_remove` and
+       `mpz_remove <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fremove>`_.
+   
+
+.. function:: proc fac(ref result: bigint, a: integral)
+
+   .. warning::
+
+      fac is unstable and may change in the future
+
+   
+   Set ``result`` to the factorial of ``a``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg a: Number to take the factorial of
+   :type a: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_fac_ui` and
+      `mpz_fac_ui <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005ffac_005fui>`_.
+   
+
+.. function:: proc bin(ref result: bigint, const ref n: bigint, k: integral)
+
+   .. warning::
+
+      bin is unstable and may change in the future
+
+   
+   Set ``result`` to the binomial coefficient of ``n`` over ``k``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg n: Top number of the binomial
+   :type n: :record:`bigint` or ``uint``
+   :arg k: Bottom number of the binomial
+   :type k: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_bin_ui` and
+      `mpz_bin_ui <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005fbin_005fui>`_.
+   
+
+.. function:: proc bin(ref result: bigint, n: uint, k: integral)
+
+   .. warning::
+
+      bin is unstable and may change in the future
+
+   See :proc:`bin` 
+
+.. function:: proc fib(ref result: bigint, n: integral)
+
+   .. warning::
+
+      fib is unstable and may change in the future
+
+   
+   Set ``result`` to the ``n`` th Fibonacci number.
+   
+   :arg result: return value that will contain the Fibonacci number
+   :type result: :record:`bigint`
+   :arg n: which Fibonacci number to compute for ``result``.
+   :type n: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_fib_ui` and
+      `mpz_fib_ui <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005ffib_005fui>`_.
+   
+
+.. function:: proc fib2(ref result: bigint, ref fnsub1: bigint, n: integral)
+
+   .. warning::
+
+      fib2 is unstable and may change in the future
+
+   
+   Set ``result`` to the ``n`` th Fibonacci number and set ``fnsub1`` to the
+   ``n-1`` th Fibonacci number.
+   
+   :arg result: return value that will contain the Fibonacci number
+   :type result: :record:`bigint`
+   :arg fnsub1: return value that will contain the previous Fibonacci number
+   :type fnsub1: :record:`bigint`
+   :arg n: which Fibonacci number to compute for ``result``. ``fnsub1`` is set
+           to the ``n-1`` Fibonacci number.
+   :type n: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_fib2_ui` and
+      `mpz_fib2_ui <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005ffib2_005fui>`_.
+   
+
+.. function:: proc lucNum(ref result: bigint, n: integral)
+
+   .. warning::
+
+      lucNum is unstable and may change in the future
+
+   
+   Set ``result`` to the ``n`` th Lucas number.
+   
+   :arg result: return value that will contain the Lucas number
+   :type result: :record:`bigint`
+   :arg n: which Lucas number to compute
+   :type n: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_lucnum_ui` and
+      `mpz_lucnum_ui <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005flucnum_005fui>`_.
+   
+
+.. function:: proc lucNum2(ref result: bigint, ref fnsub1: bigint, n: integral)
+
+   .. warning::
+
+      lucNum2 is unstable and may change in the future
+
+   
+   Set ``result`` to the ``n`` th Lucas number and set ``fnsub1`` to the
+   ``n-1`` th Lucas number.
+   
+   :arg result: return value that will contain the Lucas number
+   :type result: :record:`bigint`
+   :arg fnsub1: return value that will contain the previous Lucas number
+   :type fnsub1: :record:`bigint`
+   :arg n: which Lucas number to compute for ``result``. ``fnsub1`` is set to
+           the ``n-1`` Lucas number.
+   :type n: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_lucnum2_ui` and
+      `mpz_lucnum2_ui <https://gmplib.org/manual/Number-Theoretic-Functions#index-mpz_005flucnum2_005fui>`_.
+   
+
+.. method:: proc bigint.popCount(): uint
+
+   
+   Returns the number of ``1`` bits in ``this``. If ``this`` is negative, the
+   number of ``1`` bits is infinite and the return value is the largest
+   possible :type:`~GMP.mp_bitcnt_t`.
+   
+   :returns: The number of ``1`` bits in ``this``
+   :rtype: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_popcount` and
+      `mpz_popcount <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fpopcount>`_.
+   
+
+.. method:: proc bigint.hammingDistance(const ref x: bigint): uint
+
+   .. warning::
+
+      bigint.hammingDistance is unstable and may change in the future
+
+   
+   Returns the number of bit positions that differ between ``this`` and ``x``.
+   If ``this`` and ``x`` have different signs, the number of bits that differ
+   is infinite and the return value is the largest possible
+   :type:`~GMP.mp_bitcnt_t`.
+   
+   :arg x: value to compare ``this`` against
+   :type x: :record:`bigint`
+   :returns: The number of bits that differ
+   :rtype: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_hamdist` and
+      `mpz_hamdist <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fhamdist>`_.
+   
+
+.. method:: proc bigint.findNext0(startBitIdx: integral): uint
+
+   
+   Returns the index of the first ``0`` bit found, starting from
+   ``startBitIdx`` and searching towards the more significant bits.
+   
+   If the bit at ``startBitIdx`` is ``1``, will return ``startBitIdx``.
+   
+   :arg startBitIdx: The index of the first bit to start searching for a ``0``
+   :type startBitIdx: ``integral``
+   :returns: The index of the first ``0`` bit after ``startBitIdx``, inclusive
+   :rtype: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_scan0` and
+      `mpz_scan0 <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fscan0>`_.
+   
+
+.. method:: proc bigint.findNext1(startBitIdx: integral): uint
+
+   
+   Returns the index of the first ``1`` bit found, starting from
+   ``startBitIdx`` and searching towards the more significant bits.
+   
+   If the bit at ``startBitIdx`` is ``1``, will return ``startBitIdx``.
+   
+   :arg startBitIdx: The index of the first bit to start searching for a ``1``
+   :type startBitIdx: ``integral``
+   :returns: The index of the first ``1`` bit after ``startBitIdx``, inclusive
+   :rtype: ``uint``
+   
+   .. seealso::
+      :proc:`GMP.mpz_scan1` and
+      `mpz_scan1 <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fscan1>`_.
+   
+
+.. method:: proc ref bigint.setBit(idx: integral)
+
+   
+   Set the bit at ``idx`` of ``this``.
+   
+   :arg idx: The index of the bit to be set
+   :type idx: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_setbit` and
+      `mpz_setbit <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fsetbit>`_.
+   
+
+.. method:: proc ref bigint.clearBit(idx: integral)
+
+   
+   Clear the bit at ``idx`` of ``this``.
+   
+   :arg idx: The index of the bit to be cleared
+   :type idx: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_clrbit` and
+      `mpz_clrbit <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fclrbit>`_.
+   
+
+.. method:: proc ref bigint.toggleBit(idx: integral)
+
+   
+   Toggle the bit at ``idx`` of ``this``. If the bit was 1, set it to 0. If
+   the bit was 0, set it to 1.
+   
+   :arg idx: The index of the bit to be toggled
+   :type idx: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_combit` and
+      `mpz_combit <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fcombit>`_.
+   
+
+.. method:: proc bigint.getBit(idx: integral): int
+
+   
+   Get the bit at ``idx`` of ``this``.
+   
+   :arg idx: The index of the bit to be returned
+   :type idx: ``integral``
+   :returns: The bit at index ``idx``
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_tstbit` and
+      `mpz_tstbit <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005ftstbit>`_.
+   
+
+.. method:: proc bigint.fitsInto(type t: integral): bool
+
+   
+   Test whether a :record:`bigint` will fit into one of the standard integer types.
+   
+   :arg t: The Integral type to check against.
+   :type t: ``integral``
+   :rtype: ``bool``
+   
+   .. seealso::
+      `mpz_fits_* <https://gmplib.org/manual/Miscellaneous-Integer-Functions>`_.
+   
+
+.. method:: proc bigint.isEven(): bool
+
+   
+   Returns ``true`` if ``this`` is an even number, ``false`` otherwise.
+   
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_even_p` and
+      `mpz_even_p <https://gmplib.org/manual/Miscellaneous-Integer-Functions#index-mpz_005feven_005fp>`_.
+   
+
+.. method:: proc bigint.isOdd(): bool
+
+   
+   Returns ``true`` if ``this`` is an odd number, ``false`` otherwise.
+   
+   :rtype: ``bool``
+   
+   .. seealso::
+      :proc:`GMP.mpz_odd_p` and
+      `mpz_odd_p <https://gmplib.org/manual/Miscellaneous-Integer-Functions#index-mpz_005fodd_005fp>`_.
+   
+
+.. function:: proc add(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Sets ``result`` to the sum of ``x`` and ``y``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The first operand of the sum
+   :type x: :record:`bigint`
+   :arg y: The second operand of the sum
+   :type y: :record:`bigint`, ``uint``, ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_add`,
+      :proc:`GMP.mpz_add_ui`, and
+      `mpz_add <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fadd>`_.
+   
+
+.. function:: proc add(ref result: bigint, const ref x: bigint, y: int)
+
+   See :proc:`add` 
+
+.. function:: proc add(ref result: bigint, const ref x: bigint, y: uint)
+
+   See :proc:`add` 
+
+.. function:: proc sub(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Sets ``result`` to the difference of ``x`` and ``y``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The first operand of the difference
+   :type x: :record:`bigint`, ``uint``, ``int``
+   :arg y: The second operand of the difference
+   :type y: :record:`bigint`, ``uint``, ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_sub`,
+      :proc:`GMP.mpz_sub_ui`, and
+      `mpz_sub <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fsub>`_.
+   
+
+.. function:: proc sub(ref result: bigint, const ref x: bigint, y: int)
+
+   See :proc:`sub` 
+
+.. function:: proc sub(ref result: bigint, const ref x: bigint, y: uint)
+
+   See :proc:`sub` 
+
+.. function:: proc sub(ref result: bigint, x: int, const ref y: bigint)
+
+   See :proc:`sub` 
+
+.. function:: proc sub(ref result: bigint, x: uint, const ref y: bigint)
+
+   See :proc:`sub` 
+
+.. function:: proc mul(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Sets ``result`` to the product of ``x`` and ``y``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The first operand of the product
+   :type x: :record:`bigint`
+   :arg y: The second operand of the product
+   :type y: :record:`bigint`, ``uint``, ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_mul`,
+      :proc:`GMP.mpz_mul_ui`,
+      :proc:`GMP.mpz_mul_si`, and
+      `mpz_mul <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fmul>`_.
+   
+
+.. function:: proc mul(ref result: bigint, const ref x: bigint, y: int)
+
+   See :proc:`mul` 
+
+.. function:: proc mul(ref result: bigint, const ref x: bigint, y: uint)
+
+   See :proc:`mul` 
+
+.. function:: proc addMul(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Adds the product of ``x`` and ``y`` to ``result``
+   (``result = result + (x * y)``).
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The first operand of the product
+   :type x: :record:`bigint`
+   :arg y: The second operand of the product
+   :type y: :record:`bigint`, ``uint``, ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_addmul`,
+      :proc:`GMP.mpz_addmul_ui`, and
+      `mpz_addmul <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005faddmul>`_.
+   
+
+.. function:: proc addMul(ref result: bigint, const ref x: bigint, y: int)
+
+   See :proc:`addMul` 
+
+.. function:: proc addMul(ref result: bigint, const ref x: bigint, y: uint)
+
+   See :proc:`addMul` 
+
+.. function:: proc subMul(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Subtracts the product of ``x`` and ``y`` from ``result``
+   (``result = result - (x * y)``).
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The first operand of the product
+   :type x: :record:`bigint`
+   :arg y: The second operand of the product
+   :type y: :record:`bigint`, ``uint``, ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_submul`,
+      :proc:`GMP.mpz_submul_ui`, and
+      `mpz_submul <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fsub>`_.
+   
+
+.. function:: proc subMul(ref result: bigint, const ref x: bigint, y: int)
+
+   See :proc:`addMul` 
+
+.. function:: proc subMul(ref result: bigint, const ref x: bigint, y: uint)
+
+   See :proc:`addMul` 
+
+.. function:: proc mul2Exp(ref result: bigint, const ref x: bigint, exp: integral)
+
+   .. warning::
+
+      mul2Exp is unstable and may change in the future
+
+   
+   Computes ``x*(2**exp)`` and stores the result in ``result``.
+   
+   This is the same as performing a left bit shift of ``x`` by ``exp`` bits.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The number to be multiplied
+   :type x: :record:`bigint`
+   :arg exp: The exponent that 2 should be raised to before being used
+   :type exp: ``integral``
+   
+   .. seealso::
+      :proc:`GMP.mpz_mul_2exp` and
+      `mpz_mul_2exp <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fmul_005f2exp>`_.
+   
+
+.. function:: proc neg(ref result: bigint, const ref x: bigint)
+
+   
+   Sets ``result`` to the negation of ``x``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The number to be negated
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_neg` amd
+      `mpz_neg <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fneg>`_.
+   
+
+.. function:: proc abs(ref result: bigint, const ref x: bigint)
+
+   
+   Sets ``result`` to the absolute value of ``x``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The number to take the absolute value of
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_abs` amd
+      `mpz_abs <https://gmplib.org/manual/Integer-Arithmetic#index-mpz_005fabs>`_.
+   
+
+.. function:: proc div(ref result: bigint, const ref numer: bigint, const ref denom: bigint, param rounding = roundingMode.zero)
+
+   Divide ``numer`` by ``denom``, forming a quotient and storing it in
+   ``result``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: :record:`bigint`
+   :arg denom: The denominator of the division operation to be performed
+   :type denom: :record:`bigint`, ``integral``
+   :arg rounding: The rounding style to use, see :enum:`roundingMode` for a
+                  description of what the rounding styles entail.  Defaults to
+                  :enumconstant:`~roundingMode.zero` if unspecified
+   :type rounding: :enum:`roundingMode`
+   
+   .. warning::
+      If the denominator is zero, the program behavior is undefined.
+   
+   .. seealso::
+      :proc:`GMP.mpz_cdiv_q`,
+      :proc:`GMP.mpz_fdiv_q`,
+      :proc:`GMP.mpz_tdiv_q`, and
+      `mpz_*div_q <https://gmplib.org/manual/Integer-Division#index-Division-functions>`_.
+   
+
+.. function:: proc div(ref result: bigint, const ref numer: bigint, denom: integral, param rounding = roundingMode.zero)
+
+   See :proc:`~BigInteger.div` 
+
+.. function:: proc rem(ref result: bigint, const ref numer: bigint, const ref denom: bigint, param rounding = roundingMode.zero)
+
+   Divide ``numer`` by ``denom``, forming a remainder and storing it in
+   ``result``.  The absolute value of the remainder will always be less than the
+   absolute value of the denominator (i.e. ``abs(result) < abs(denom)``).
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: :record:`bigint`
+   :arg denom: The denominator of the division operation to be performed
+   :type denom: :record:`bigint`, ``integral``
+   :arg rounding: The rounding style to use, see :enum:`roundingMode` for a
+                  description of what the rounding styles entail.  Defaults to
+                  :enumconstant:`~roundingMode.zero` if unspecified
+   :type rounding: :enum:`roundingMode`
+   
+   .. warning::
+      If the denominator is zero, the program behavior is undefined.
+   
+   .. note::
+      When ``rounding`` is :enumconstant:`~roundingMode.down`, this procedure
+      is equivalent to :proc:`~BigInteger.mod`.
+   
+   .. seealso::
+      :proc:`GMP.mpz_cdiv_r`,
+      :proc:`GMP.mpz_fdiv_r`,
+      :proc:`GMP.mpz_tdiv_r`, and
+      `mpz_*div_r <https://gmplib.org/manual/Integer-Division#index-Division-functions>`_.
+   
+
+.. function:: proc rem(ref result: bigint, const ref numer: bigint, denom: integral, param rounding = roundingMode.zero)
+
+   See :proc:`~BigInteger.rem` 
+
+.. function:: proc divRem(ref result: bigint, ref remain: bigint, const ref numer: bigint, const ref denom: bigint, param rounding = roundingMode.zero)
+
+   Divide ``numer`` by ``denom``, forming a quotient and storing it in
+   ``result``, and a remainder and storing it in ``remain``.  The quotient and
+   remainder will always satisfy ``numer = result*denom + remain`` after the
+   operation has finished.  The absolute value of the remainder will always be
+   less than the absolute value of the denominator (i.e. ``abs(result) <
+   abs(denom)``).
+   
+   .. warning::
+      If ``result`` is also passed as the ``remain`` argument, the program
+      behavior is undefined.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg remain: Stores the remainder of the division
+   :type remain: :record:`bigint`
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: :record:`bigint`
+   :arg denom: The denominator of the division operation to be performed
+   :type denom: :record:`bigint`, ``integral``
+   :arg rounding: The rounding style to use, see :enum:`roundingMode` for a
+                  description of what the rounding styles entail.  Defaults to
+                  :enumconstant:`~roundingMode.zero` if unspecified
+   :type rounding: :enum:`roundingMode`
+   
+   .. warning::
+      If the denominator is zero, the program behavior is undefined.
+   
+   .. seealso::
+      :proc:`GMP.mpz_cdiv_qr`,
+      :proc:`GMP.mpz_fdiv_qr`,
+      :proc:`GMP.mpz_tdiv_qr`, and
+      `mpz_*div_qr <https://gmplib.org/manual/Integer-Division#index-Division-functions>`_.
+   
+
+.. function:: proc divRem(ref result: bigint, ref remain: bigint, const ref numer: bigint, denom: integral, param rounding = roundingMode.zero)
+
+   See :proc:`~BigInteger.divRem` 
+
+.. function:: proc div2Exp(ref result: bigint, const ref numer: bigint, exp: integral, param rounding = roundingMode.zero)
+
+   .. warning::
+
+      div2Exp is unstable and may change in the future
+
+   Divide ``numer`` by ``2^exp``, forming a quotient and storing it in
+   ``result``.
+   
+   This is the same as performing a right bit shift of ``numer`` by ``exp``
+   bits when ``rounding`` is :enumconstant:`~roundingMode.down`.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: :record:`bigint`
+   :arg exp: The exponent that 2 should be raised to before being used as the
+             denominator of the division operation to be performed
+   :type exp: ``integral``
+   :arg rounding: The rounding style to use, see :enum:`roundingMode` for a
+                  description of what the rounding styles entail.  Defaults to
+                  :enumconstant:`~roundingMode.zero` if unspecified
+   :type rounding: :enum:`roundingMode`
+   
+   .. seealso::
+      :proc:`GMP.mpz_cdiv_q_2exp`,
+      :proc:`GMP.mpz_fdiv_q_2exp`,
+      :proc:`GMP.mpz_tdiv_q_2exp`, and
+      `mpz_*div_q_2exp <https://gmplib.org/manual/Integer-Division#index-Division-functions>`_.
+   
+
+.. function:: proc rem2Exp(ref result: bigint, const ref numer: bigint, exp: integral, param rounding = roundingMode.zero)
+
+   .. warning::
+
+      rem2Exp is unstable and may change in the future
+
+   Divide ``numer`` by ``2^exp``, forming a remainder and storing it in
+   ``result``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: :record:`bigint`
+   :arg exp: The exponent that 2 should be raised to before being used as the
+             denominator of the division operation to be performed
+   :type exp: ``integral``
+   :arg rounding: The rounding style to use, see :enum:`roundingMode` for a
+                  description of what the rounding styles entail.  Defaults to
+                  :enumconstant:`~roundingMode.zero` if unspecified
+   :type rounding: :enum:`roundingMode`
+   
+   .. seealso::
+      :proc:`GMP.mpz_cdiv_r_2exp`,
+      :proc:`GMP.mpz_fdiv_r_2exp`,
+      :proc:`GMP.mpz_tdiv_r_2exp`, and
+      `mpz_*div_r_2exp <https://gmplib.org/manual/Integer-Division#index-Division-functions>`_.
+   
+
+.. function:: proc shiftLeft(ref result: bigint, const ref x: bigint, n: integral)
+
+   Stores ``x`` shifted left by ``n`` bits in ``result``. Negative ``n`` will
+   result in a right shift.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The number to be shifted
+   :type x: :record:`bigint`
+   :arg n: The number of bits to be shifted
+   :type n: ``integral``
+   
+   .. seealso::
+      :proc:`~BigInteger.mul2Exp` and :proc:`~BigInteger.div2Exp`
+   
+
+.. function:: proc shiftRight(ref result: bigint, const ref x: bigint, n: integral)
+
+   Stores ``x`` shifted right by ``n`` bits in ``result``. Negative ``n`` will
+   result in a left shift.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The number to be shifted
+   :type x: :record:`bigint`
+   :arg n: The number of bits to be shifted
+   :type n: ``integral``
+   
+   .. seealso::
+      :proc:`~BigInteger.div2Exp` and :proc:`~BigInteger.mul2Exp`
+   
+
+.. function:: proc mod(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Computes the mod operator on the two arguments, defined as
+   ``mod(x, y) = x - y * floor(x / y)``.
+   
+   The result is always >= 0 if `y` > 0. It is an error if `y` == 0.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: The dividend
+   :type x: :record:`bigint`
+   :arg y: The divisor
+   :type y: :record:`bigint` or ``integral``
+   
+   .. note::
+      If ``y`` is a ``uint``, then fewer conditionals will be evaluated at
+      run time.
+   
+   .. note::
+      This procedure is equivalent to calling :proc:`~BigInteger.rem` with
+      ``rounding`` set to :enumconstant:`~roundingMode.down`.
+   
+
+.. function:: proc mod(ref result: bigint, const ref x: bigint, y: integral): int
+
+   See :proc:`~BigInteger.mod` 
+
+.. method:: proc bigint.cmp(const ref x: bigint): int
+
+   
+   Compares ``this`` and ``x``.
+   
+   :arg x: The number to compare against
+   :type x: :record:`bigint`, ``uint``, ``int``, ``real``
+   :returns: Returns a positive value if ``this`` is greater than ``x``,
+             a negative value if ``this`` is less than ``x``, or zero if they
+             are equal.
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_cmp` and
+      `mpz_cmp <https://gmplib.org/manual/Integer-Comparisons#index-mpz_005fcmp>`_.
+   
+
+.. method:: proc bigint.cmp(x: int): int
+
+   See :proc:`~bigint.cmp` 
+
+.. method:: proc bigint.cmp(x: uint): int
+
+   See :proc:`~bigint.cmp` 
+
+.. method:: proc bigint.cmp(x: real): int
+
+   See :proc:`~bigint.cmp` 
+
+.. method:: proc bigint.cmpabs(const ref x: bigint): int
+
+   
+   Compares the absolute value of ``this`` and the absolute value of ``x``.
+   
+   :arg x: The number to compare against
+   :type x: :record:`bigint`, ``uint``, ``real``
+   :returns: Returns a positive value if ``abs(this)`` is greater than
+             ``abs(x)``, a negative value if ``abs(this)`` is less than
+             ``abs(x)``, or zero if they are equal.
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_cmpabs` and
+      `mpz_cmpabs <https://gmplib.org/manual/Integer-Comparisons#index-mpz_005fcmpabs>`_.
+   
+
+.. method:: proc bigint.cmpabs(x: uint): int
+
+   See :proc:`~bigint.cmpabs` 
+
+.. method:: proc bigint.cmpabs(x: real): int
+
+   See :proc:`~bigint.cmpabs` 
+
+.. method:: proc bigint.sgn(): int
+
+   .. warning::
+
+      bigint.sgn is unstable and may change its name and return type in the future
+
+   
+   Returns the sign of ``this``.
+   
+   :returns: Returns 1 if positive, -1 if negative, and 0 if zero.
+   :rtype: ``int``
+   
+   .. seealso::
+      :proc:`GMP.mpz_sgn` and
+      `mpz_sgn <https://gmplib.org/manual/Integer-Comparisons#index-mpz_005fsgn>`_.
+   
+
+.. function:: proc and(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Compute the bitwise and of ``x`` and ``y`` and store it in ``result``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: First operand
+   :type x: :record:`bigint`
+   :arg y: Second operand
+   :type y: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_and` and
+      `mpz_and <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fand>`_.
+   
+
+.. function:: proc or(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Compute the bitwise inclusive or of ``x`` and ``y`` and store it in
+   ``result``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: First operand
+   :type x: :record:`bigint`
+   :arg y: Second operand
+   :type y: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_ior` and
+      `mpz_ior <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fior>`_.
+   
+
+.. function:: proc xor(ref result: bigint, const ref x: bigint, const ref y: bigint)
+
+   
+   Compute the bitwise exclusive or of ``x`` and ``y`` and store it in
+   ``result``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: First operand
+   :type x: :record:`bigint`
+   :arg y: Second operand
+   :type y: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_xor` and
+      `mpz_xor <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fxor>`_.
+   
+
+.. function:: proc com(ref result: bigint, const ref x: bigint)
+
+   
+   Compute the bitwise one's complement of ``x`` and store it in ``result``.
+   
+   :arg result: Where the result is stored
+   :type result: :record:`bigint`
+   :arg x: Number to be complemented
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_com` and
+      `mpz_com <https://gmplib.org/manual/Integer-Logic-and-Bit-Fiddling#index-mpz_005fcom>`_.
+   
+
+.. method:: proc ref bigint.set(const ref x: bigint)
+
+   
+   Assign ``x`` to ``this``
+   
+   :arg x: Number to be assigned
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_set` and
+      `mpz_set <https://gmplib.org/manual/Assigning-Integers#index-mpz_005fset>`_.
+   
+
+.. method:: proc ref bigint.set(x: int)
+
+   See :proc:`bigint.set` 
+
+.. method:: proc ref bigint.set(x: uint)
+
+   See :proc:`bigint.set` 
+
+.. method:: proc ref bigint.set(x: real)
+
+   See :proc:`bigint.set` 
+
+.. method:: proc ref bigint.set(x: string, base: int = 0)
+
+   See :proc:`bigint.set` 
+
+.. method:: proc ref bigint.swap(ref x: bigint)
+
+   
+   Swaps ``this`` and ``x``
+   
+   :arg x: Number to be swapped
+   :type x: :record:`bigint`
+   
+   .. seealso::
+      :proc:`GMP.mpz_swap` and
+      `mpz_swap <https://gmplib.org/manual/Assigning-Integers#index-mpz_005fswap>`_.
+   
+

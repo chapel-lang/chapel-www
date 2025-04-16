@@ -1,0 +1,544 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Promotion: implicit data parallelism &mdash; Chapel Documentation 1.16</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.16" href="../../index.html"/>
+        <link rel="up" title="Chapel Users Guide (WIP)" href="../index.html"/>
+        <link rel="next" title="Locales: representing architectural locality" href="../locality/localesInChapel.html"/>
+        <link rel="prev" title="forall-loops: data-parallel loops" href="forall.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Chapel Documentation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<?php   // Variables given by sphinx 
+   $chplTitle = "1.16";   $pagename = "./users-guide/datapar/promotion";   include "../../versionButton.php";   ?>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Chapel Users Guide (WIP)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../index.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#base-language">Base Language</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#data-parallelism">Data Parallelism</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="forall.html"><strong>forall</strong>-loops: data-parallel loops</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="">Promotion: implicit data parallelism</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#multi-argument-promotion">Multi-Argument Promotion</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#promoted-calls-and-forall-intents">Promoted Calls and Forall Intents</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#promoting-using-ranges-domains-forall-expressions">Promoting Using Ranges, Domains, Forall Expressions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#promoted-library-routines-and-operators">Promoted Library Routines and Operators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#promotion-vs-whole-array-operations">Promotion vs. Whole-Array Operations</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#locality">Locality</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">Chapel Documentation 1.16</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Chapel Users Guide (WIP)</a> &raquo;</li>
+      
+    <li>Promotion: implicit data parallelism</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/users-guide/datapar/promotion.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="promotion-implicit-data-parallelism">
+<span id="ug-promotion"></span><h1>Promotion: implicit data parallelism<a class="headerlink" href="#promotion-implicit-data-parallelism" title="Permalink to this headline">¶</a></h1>
+<p>In Chapel, <em>function promotion</em> (or simply <em>promotion</em>) refers to an
+implicit form of data parallelism that is triggered by passing a
+collection of values to an argument that expects a single value.  More
+precisely, when passing:</p>
+<ul class="simple">
+<li>an array of type <em>t</em>,</li>
+<li>a range or domain whose index type is <em>t</em>, or</li>
+<li>a forall expression yielding type <em>t</em>,</li>
+</ul>
+<p>to a function argument expecting type <em>t</em>, that function will be
+called in a data-parallel manner for all values in the expression.</p>
+<p>As a simple example, consider the following function, <code class="docutils literal"><span class="pre">negate()</span></code>
+which takes a <code class="docutils literal"><span class="pre">real</span></code> value by reference and negates it:</p>
+<div class="literal-block-wrapper container" id="examples-users-guide-datapar-promotion-chpl">
+<div class="code-block-caption"><span class="caption-text">examples/users-guide/datapar/promotion.chpl</span><a class="headerlink" href="#examples-users-guide-datapar-promotion-chpl" title="Permalink to this code">¶</a></div>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">negate</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">x</span> <span class="o">=</span> <span class="o">-</span><span class="nx">x</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>In addition to calling the function with a single <code class="docutils literal"><span class="pre">real</span></code> variable,
+we can also call the function in a promoted manner using an array of
+reals, as follows:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">3.4</span><span class="p">,</span> <span class="mf">5.6</span><span class="p">];</span>
+<span class="nx">negate</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>If we print out the array after making this call, we can see that each
+element has been negated, as expected:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>-1.2 -3.4 -5.6
+</pre></div>
+</div>
+<p>Moreover, the execution will be equivalent to the following
+data-parallel forall-loop:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">a</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">do</span>
+  <span class="nx">negate</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Nothing about the above requires using a 1D array.  We could also
+promote <code class="docutils literal"><span class="pre">negate()</span></code> by passing it a multidimensional array of reals:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A2</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span> <span class="kt">real</span>
+      <span class="o">=</span> <span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span> <span class="kd">in</span> <span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">}</span> <span class="k">do</span> <span class="nx">i</span> <span class="o">+</span> <span class="nx">j</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+
+<span class="nx">negate</span><span class="p">(</span><span class="nx">A2</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>which would again be equivalent to the loop:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">a2</span> <span class="kd">in</span> <span class="nx">A2</span> <span class="k">do</span>
+  <span class="nx">negate</span><span class="p">(</span><span class="nx">a2</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="section" id="multi-argument-promotion">
+<h2>Multi-Argument Promotion<a class="headerlink" href="#multi-argument-promotion" title="Permalink to this headline">¶</a></h2>
+<p>When multiple function arguments are promoted in a single call, the
+result is equivalent to a zippered forall-loop.  As an example,
+consider the following function which takes two <code class="docutils literal"><span class="pre">real</span></code> arguments by
+<code class="docutils literal"><span class="pre">ref</span></code> and sorts them relative to one another using a swap
+assignment:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">sortTwo</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="kd">ref</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="nx">x</span> <span class="o">&gt;</span> <span class="nx">y</span> <span class="k">then</span>
+    <span class="nx">x</span> <span class="o">&lt;=&gt;</span> <span class="nx">y</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This function can be promoted using two arrays of reals as follows:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">B</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.3</span><span class="p">,</span> <span class="mf">3.4</span><span class="p">,</span> <span class="mf">5.6</span><span class="p">],</span>
+    <span class="nx">C</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">4.6</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">];</span>
+
+<span class="nx">sortTwo</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span> <span class="nx">C</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This promotion is equivalent to the following zippered forall-loop:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">c</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span> <span class="nx">C</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">sortTwo</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">c</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Either form will leave the arrays as follows:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>0.2 3.4 1.3
+2.3 4.6 5.6
+</pre></div>
+</div>
+<p>Promoting multiple arguments simultaneously requires that the
+arguments can legally be zippered together, as in an explicit
+forall-loop.</p>
+<p>All of a function's arguments need not be promoted simultaneously.
+Any arguments that are promoted define the implicit, potentially
+zippered forall-loop.  All others are simply passed through to their
+formal argument normally.  For example, consider the following
+function which assigns its <em>y</em> argument into its <em>x</em> argument only if
+the third argument, <em>b</em>, is true:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">maybeCopy</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">b</span><span class="p">:</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="nx">b</span> <span class="k">then</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The following calls demonstrate that various combinations of arguments
+may be promoted, where <em>A</em> and <em>B</em> are as above, and <em>Mask</em> is an
+array of <code class="docutils literal"><span class="pre">bool</span></code> values:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">A</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+<span class="nx">B</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">3.4</span><span class="p">,</span> <span class="mf">5.6</span><span class="p">];</span>
+<span class="kd">var</span> <span class="nx">Mask</span> <span class="o">=</span> <span class="p">[</span><span class="kc">true</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="kc">true</span><span class="p">];</span>
+
+<span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="nx">Mask</span><span class="p">);</span>
+<span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>These calls are equivalent to the following forall-loops:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">m</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">Mask</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">,</span> <span class="nx">m</span><span class="p">);</span>
+<span class="k">forall</span> <span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>So, after the respective calls above, <em>A</em> will store the following
+values:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>1.2 0.0 1.2
+1.2 3.4 5.6
+</pre></div>
+</div>
+</div>
+<div class="section" id="promoted-calls-and-forall-intents">
+<h2>Promoted Calls and Forall Intents<a class="headerlink" href="#promoted-calls-and-forall-intents" title="Permalink to this headline">¶</a></h2>
+<p>Note that default forall intents apply to promoted calls as they would
+to the equivalent forall-loop.  As an example, consider the following
+call.  It is promoted due to its second and third arguments, and tries
+to pass a scalar <em>r</em> into the first argument which has <code class="docutils literal"><span class="pre">ref</span></code> intent:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">r</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+<span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="nx">Mask</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Attempting to compile this promoted call results in a compile-time
+error.  To see the reason, consider the equivalent forall-loop:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">m</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span> <span class="nx">Mask</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="nx">b</span><span class="p">,</span> <span class="nx">m</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>On the way into the loop, a <code class="docutils literal"><span class="pre">const</span></code> shadow copy of <em>r</em> is created,
+as with any other forall-loop.  But since constants can't be passed by
+<code class="docutils literal"><span class="pre">ref</span></code> argument intent, an error is triggered.  As with forall
+intents on explicit loops, these rules prevent common race conditions.
+For example, if the call <em>had</em> been executed, it would be a race as to
+which of <em>B</em>'s values would be stored into <em>r</em>.</p>
+<p>Promoted calls do not support a mechanism to override default forall
+intents.  Thus, in order to override the default intents, users need
+to write out the equivalent loop explicitly and add a <code class="docutils literal"><span class="pre">with</span></code> clause.
+For example, the following would yield the equivalent of the promoted
+call to <code class="docutils literal"><span class="pre">maybeCopy()</span></code> with the race enabled:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">m</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span> <span class="nx">Mask</span><span class="p">)</span> <span class="k">with</span> <span class="p">(</span><span class="kd">ref</span> <span class="nx">r</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="nx">b</span><span class="p">,</span> <span class="nx">m</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="promoting-using-ranges-domains-forall-expressions">
+<h2>Promoting Using Ranges, Domains, Forall Expressions<a class="headerlink" href="#promoting-using-ranges-domains-forall-expressions" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned at the outset, not only can arrays be used to promote
+functions, but ranges, domains, and forall expressions can as well.
+For example, the following calls promote <code class="docutils literal"><span class="pre">maybeCopy()</span></code> using a
+range, a domain, and a forall expression respectively:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="mi">1</span><span class="o">..</span><span class="mi">6</span> <span class="k">by</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+<span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">A</span><span class="p">.</span><span class="k">domain</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+<span class="nx">maybeCopy</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">3</span> <span class="k">do</span> <span class="mi">2</span><span class="o">*</span><span class="nx">i</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The contents of <em>A</em> after these calls is as follows:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>1.0 3.0 5.0
+1.0 2.0 3.0
+2.5 4.5 6.5
+</pre></div>
+</div>
+<p>At the time of this writing, Chapel does not support an official way
+for users to create their own collection types that support promotion.
+We expect to support this capability in the future by having the
+collection type support certain well-defined iterator methods.</p>
+</div>
+<div class="section" id="promoted-library-routines-and-operators">
+<h2>Promoted Library Routines and Operators<a class="headerlink" href="#promoted-library-routines-and-operators" title="Permalink to this headline">¶</a></h2>
+<p>All of the examples above illustrate promotion on procedures written
+by a user.  Yet any procedure is a candidate for promotion in Chapel,
+including library routines and operators.  As an example, consider the
+following lines of code:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">A</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">9.0</span><span class="p">];</span>
+<span class="nx">B</span> <span class="o">=</span> <span class="nx">sqrt</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">B</span> <span class="o">=</span> <span class="nx">A</span> <span class="o">+</span> <span class="nx">A</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The second statement promotes the standard <code class="docutils literal"><span class="pre">sqrt()</span></code> library routine,
+resulting in an array of results, stored in <em>B</em>:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>1.0 2.0 3.0
+</pre></div>
+</div>
+<p>The third statement doubles the array <em>A</em> and stores the result in <em>B</em>
+as expected:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>2.0 8.0 18.0
+</pre></div>
+</div>
+<p>Note that Chapel does not support an explicit <code class="docutils literal"><span class="pre">+</span></code> operator for
+arrays.  Rather, it implements this operation by promoting the
+standard <code class="docutils literal"><span class="pre">+</span></code> operator for the array's element type.  Similarly,
+applying <code class="docutils literal"><span class="pre">*</span></code> to arrays promotes the scalar <code class="docutils literal"><span class="pre">*</span></code> operator.  For this
+reason, applying <code class="docutils literal"><span class="pre">*</span></code> to Chapel arrays results in an elementwise
+multiplication of the arrays' elements by default, rather than a
+matrix multiplication operation.</p>
+<p>Even the assignment operations in these statements can be considered
+to be promotions of scalar assignment for <code class="docutils literal"><span class="pre">real</span></code> values.  Thus, the
+statements above can be considered to be equivalent to:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">a</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span> <span class="nx">A</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">b</span> <span class="o">=</span> <span class="nx">sqrt</span><span class="p">(</span><span class="nx">a</span><span class="p">);</span>
+<span class="k">forall</span> <span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="nx">a</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span> <span class="nx">A</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">b</span> <span class="o">=</span> <span class="nx">a</span> <span class="o">+</span> <span class="nx">a</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="promotion-vs-whole-array-operations">
+<h2>Promotion vs. Whole-Array Operations<a class="headerlink" href="#promotion-vs-whole-array-operations" title="Permalink to this headline">¶</a></h2>
+<p>Chapel's promoted operators result in different behavior than you
+might expect from a typical array language.  To understand the
+difference, let's look at an example:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">C</span> <span class="o">=</span> <span class="nx">A</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="nx">B</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>As expected, this statement doubles each element of <em>B</em>, adds the
+result to its corresponding value in <em>A</em>, and then assigns that result
+to the corresponding value in <em>C</em>.  However, most array languages
+would define the semantics of this statement by evaluating an operator
+at a time, as follows:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">T</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="nx">B</span><span class="p">;</span>
+<span class="nx">C</span> <span class="o">=</span> <span class="nx">A</span> <span class="o">+</span> <span class="nx">T</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>In contrast, Chapel defines it using zippered iteration:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">c</span><span class="p">,</span> <span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">C</span><span class="p">,</span> <span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">c</span> <span class="o">=</span> <span class="nx">a</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="nx">b</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>In this case, the two approaches compute the same values, but the
+Chapel approach has the benefit of avoiding the need for any temporary
+arrays to store intermediate array results.  This makes memory
+requirements of Chapel programs more explicit to users while also
+tending to make better use of memory caches in modern architectures.</p>
+<p>For other computations, Chapel's promotion semantics generate a
+different result than most array languages would.  For example,
+consider the following computation which attempts to replace each
+interior element of <em>V</em> with the average of its neighbors:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">V</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="nx">V</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">9</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="nx">V</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">]</span> <span class="o">+</span> <span class="nx">V</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">10</span><span class="p">])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Again, in an array language, this computation would typically be
+evaluated by applying each operator in turn:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">T2</span> <span class="o">=</span> <span class="nx">V</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">]</span> <span class="o">+</span> <span class="nx">V</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">10</span><span class="p">];</span>
+<span class="nx">V</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">9</span><span class="p">]</span> <span class="o">=</span> <span class="nx">T2</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>However, Chapel's zippered promotion semantics result in the following
+interpretation:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">v1</span><span class="p">,</span> <span class="nx">v2</span><span class="p">,</span> <span class="nx">v3</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">V</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">9</span><span class="p">],</span> <span class="nx">V</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">],</span> <span class="nx">V</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">10</span><span class="p">])</span> <span class="k">do</span>
+  <span class="nx">v1</span> <span class="o">=</span> <span class="p">(</span><span class="nx">v2</span> <span class="o">+</span> <span class="nx">v3</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>which is equivalent to:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">2</span><span class="o">..</span><span class="mi">9</span> <span class="k">do</span>
+  <span class="nx">V</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="nx">V</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">V</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Both of these loops have a race condition, and therefore so does the
+original whole-array computation in Chapel.  Specifically, the tasks
+used to execute the forall-loop may try to read and write overlapping
+values of <em>V</em> simultaneously.  Thus, where the author likely intended
+for all the original values of <em>V</em> to be averaged, in reality one or
+more tasks are likely to end up reading the new values that were
+computed by their sibling tasks.</p>
+<p>For this reason, it is important that users of promotion keep the
+underlying zippered interpretation in mind and ensure that they are
+not introducing race conditions between the iterations.  For example,
+to write the previous computation safely in Chapel using promotion,
+users could introduce a temporary array:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">V2</span> <span class="o">=</span> <span class="p">(</span><span class="nx">V</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">]</span> <span class="o">+</span> <span class="nx">V</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">10</span><span class="p">])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
+<span class="nx">V</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">9</span><span class="p">]</span> <span class="o">=</span> <span class="nx">V2</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Alternatively, they could create an explicit array-oriented
+implementation of <code class="docutils literal"><span class="pre">+</span></code> to avoid the promotion.  Note that this still
+requires a temporary array in which to store and return the result:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">arrayAdd</span><span class="p">(</span><span class="nx">X</span><span class="p">:</span> <span class="p">[]</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="p">[]</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">Z</span> <span class="o">=</span> <span class="nx">X</span> <span class="o">+</span> <span class="nx">Y</span><span class="p">;</span>
+  <span class="k">return</span> <span class="nx">Z</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">V</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">9</span><span class="p">]</span> <span class="o">=</span> <span class="nx">arrayAdd</span><span class="p">(</span><span class="nx">V</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">],</span> <span class="nx">V</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">10</span><span class="p">])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../locality/localesInChapel.html" class="btn btn-neutral float-right" title="Locales: representing architectural locality" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="forall.html" class="btn btn-neutral" title="forall-loops: data-parallel loops" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'1.16.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

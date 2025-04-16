@@ -1,0 +1,1383 @@
+.. default-domain:: chpl
+
+.. module:: BigInteger
+   :synopsis: Provides a 'bigint' type and supporting math operations.
+
+BigInteger
+==========
+**Usage**
+
+.. code-block:: chapel
+
+   use BigInteger;
+
+
+or
+
+.. code-block:: chapel
+
+   import BigInteger;
+
+Provides a 'bigint' type and supporting math operations.
+
+The ``bigint`` record supports arithmetic operations on arbitrary
+precision integers in a manner that is broadly consistent with
+the conventional operations on primitive fixed length integers.
+
+The current implementation is based on the low-level types and
+functions defined in the GMP module i.e. it is implemented using the
+GNU Multiple Precision Integer Arithmetic library (GMP). More specifically
+the record :record:`bigint` wraps the GMP type :type:`~GMP.mpz_t`.
+
+The primary benefits of ``bigint`` over ``mpz_t`` are
+
+  1) support for multi-locale programs
+
+  2) the convenience of arithmetic operator overloads
+
+  3) automatic memory management of GMP data structures
+
+In addition to the expected set of operations, this record provides
+a number of methods that wrap GMP functions in a natural way:
+
+.. code-block:: chapel
+
+ use BigInteger;
+
+ var   a = new bigint(234958444);
+ const b = new bigint("4847382292989382987395534934347");
+ var   c = new bigint();
+
+ writeln(a * b);
+
+ c.fac(100);
+ writeln(c);
+
+Casting and declarations can be used to create ``bigint`` records as
+well:
+
+.. code-block:: chapel
+
+ use BigInteger;
+
+ var   a = 234958444: bigint;
+ const b = "4847382292989382987395534934347": bigint;
+ var   c: bigint;
+
+.. warning::
+
+  Creating a ``bigint`` from an integer literal that is larger than
+  ``max(uint(64))`` would cause integer overflow before the
+  ``bigint`` is created, and so results in a compile-time error.
+  Strings should be used instead of integer literals for cases
+  like this:
+
+  .. code-block:: chapel
+
+    // These would result in integer overflow and cause compile-time errors
+    var bad1 = 4847382292989382987395534934347: bigint;
+    var bad2 = new bigint(4847382292989382987395534934347);
+
+    // These give the desired result
+    var good1 = "4847382292989382987395534934347": bigint;
+    var good2 = new bigint("4847382292989382987395534934347");
+
+
+Wrapping an ``mpz_t`` in a ``bigint`` record may introduce a
+measurable overhead in some cases.
+
+The GMP library defines a low-level API that is based on
+side-effecting compound operations.  The documentation recommends that
+one prefer to reuse a small number of existing mpz_t structures rather
+than using many values of short duration.
+
+Matching this style using ``bigint`` records and the compound
+assignment operators is likely to provide comparable performance to an
+implementation based on ``mpz_t``.  So, for example:
+
+.. code-block:: chapel
+
+  x  = b
+  x *= c;
+  x += a;
+
+is likely to achieve better performance than:
+
+.. code-block:: chapel
+
+  x = a + b * c;
+
+The Chapel compiler currently introduces two short lived temporaries for the
+intermediate results of the binary operators.
+
+The operators on ``bigint`` include variations that accept Chapel
+integers e.g.:
+
+.. code-block:: chapel
+
+  var a = new bigint("9738639463465935");
+  var b = 9395739153 * a;
+
+The Chapel int(64) literal is converted to an underlying,
+platform-specific C integer, to invoke the underlying GMP primitive
+function.  This example is likely to work well on popular 64-bit
+platforms but to fail on common 32-bit platforms.  Runtime checks are
+used to ensure the Chapel types can safely be cast to the
+platform-specific types.  Ths program will halt if the Chapel value
+cannot be represented using the GMP scalar type.
+
+The checks are controlled by the compiler options ``--[no-]cast-checks``,
+``--fast``, etc.
+
+Casting from ``bigint`` to ``integral`` and ``real`` types is also
+supported.  Values that are too large for the resultant type are
+truncated.  GMP primitives are used to first cast to platform-specific C
+types, which are then cast to Chapel types.  As a result, casting to
+64-bit types on 32-bit platforms may result in additional truncation.
+Additionally, casting a negative ``bigint`` to a ``uint`` will result in
+the absolute value truncated to fit within the type.:
+
+.. code-block:: chapel
+
+  var a = new bigint(-1);
+  writeln(a:uint);        // prints "1"
+
+See :mod:`GMP` for more information on how to use GMP with Chapel.
+
+
+.. enum:: enum Round { DOWN = -1, ZERO = 0, UP = 1 }
+
+   
+   .. warning::
+   
+      The enum Round is deprecated, please use the enum round instead
+   
+
+
+.. enum:: enum round { down = -1, zero = 0, up = 1 }
+
+   An enumeration of the different rounding strategies, for use with e.g.
+   :proc:`~bigint.divQ` to determine how to round the quotient when performing
+   the computation.
+   
+   - ``round.down`` indicates that the quotient should be rounded down towards
+     -infinity and any remainder should have the same sign as the denominator.
+   - ``round.zero`` indicates that the quotient should be rounded towards zero
+     and any remainder should have the same sign as the numerator.
+   - ``round.up`` indicates that the quotient should be rounded up towards
+     +infinity and any remainder should have the opposite sign as the
+     denominator.
+   
+
+
+.. record:: bigint
+
+   .. method:: proc init()
+
+   .. method:: proc init(const ref num: bigint)
+
+   .. method:: proc init=(const ref num: bigint)
+
+   .. method:: proc init(num: int)
+
+   .. method:: proc init(num: uint)
+
+   .. method:: proc init=(num: integral)
+
+   .. method:: proc init(str: string, base: int = 0)
+
+   .. method:: proc init(str: string, base: int = 0, out error: syserr)
+
+   .. method:: proc size(): c_size_t
+
+      
+      .. warning::
+      
+         bigint.size() is deprecated
+      
+
+   .. method:: proc sizeinbase(base: int): uint
+
+      
+      .. warning::
+      
+         bigint.sizeinbase() is deprecated, use bigint.sizeInBase() instead
+      
+
+   .. method:: proc sizeInBase(base: int): int
+
+      Determine the size of ``this`` measured in number of digits in the given
+      ``base``.  The sign of ``this`` is ignored, only the absolute value is
+      used.
+      
+      :arg base: The base in which to compute the number of digits used to
+                 represent ``this``.  Can be between 2 and 62.
+      :type base: ``int``
+      
+      :returns: The size of ``this`` measured in number of digits in the given
+                ``base``.  Will either be exact or 1 too big.  If ``base`` is
+                a power of 2, will always be exact.  If ``this`` is 0, will
+                always return 1.
+      :rtype: ``int``
+      
+
+   .. method:: proc numLimbs: uint
+
+      .. warning::
+
+         This method is deprecated, please use :proc:`GMP.chpl_gmp_mpz_nlimbs` on the mpz field instead
+
+   .. method:: proc get_limbn(n: integral): uint
+
+      .. warning::
+
+         This method is deprecated, please use :proc:`GMP.chpl_gmp_mpz_getlimbn` on the mpz field instead
+
+   .. method:: proc mpzStruct(): __mpz_struct
+
+      .. warning::
+
+         mpzStruct is deprecated, please use :proc:`getImpl` instead
+
+   .. method:: proc getImpl(): __mpz_struct
+
+      Return the underlying implementation of :record:`bigint`.  Currently,
+      the type returned is ``__mpz_struct``.
+      
+      This method is provided as a convenience but its result may change in the
+      future.
+      
+
+   .. method:: proc get_d_2exp(): (uint(32), real)
+
+      .. warning::
+
+         get_d_2exp is deprecated in favor of :proc:`bigint.getD2Exp`, which returns (d, exp) instead of (exp, d).  Please use that method instead
+
+   .. method:: proc getD2Exp(): (real, uint(32))
+
+      
+      Convert ``this`` to a tuple containing a real (truncated if necessary, by
+      rounding towards zero) and the exponent.  The returned tuple fulfills the
+      condition ``d * 2^exp == this`` where ``d`` is the first value in the
+      tuple and ``exp`` is the second.
+      
+      :returns: a tuple representing the number in multiple parts, ``(d, exp)``,
+                such that their combination ``d * 2^exp`` is equal to ``this``.
+      
+                ``d`` in this case will be in the range ``0.5 <= abs(d) < 1``,
+                unless ``this`` is ``0``, in which case ``d == 0.0`` and
+                ``exp == 0``.
+      :rtype: ``(real, uint(32))``
+      
+
+   .. method:: proc get_str(base: int = 10): string
+
+   .. method:: proc writeThis(writer) throws
+
+.. method:: proc type bigint.=(ref lhs: bigint, const ref rhs: bigint)
+
+.. method:: proc type bigint.=(ref lhs: bigint, rhs: int)
+
+.. method:: proc type bigint.=(ref lhs: bigint, rhs: uint)
+
+.. method:: proc type bigint.+(const ref a: bigint)
+
+.. method:: proc type bigint.-(const ref a: bigint)
+
+.. method:: proc type bigint.~(const ref a: bigint)
+
+.. method:: proc type bigint.+(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.+(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.+(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.+(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.+(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.-(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.-(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.-(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.-(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.-(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.*(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.*(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.*(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.*(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.*(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint./(const ref a: bigint, const ref b: bigint): bigint
+
+.. method:: proc type bigint./(const ref a: bigint, b: integral): bigint
+
+   Divide ``a`` by ``b``, returning the result.
+   
+   :arg a: The numerator of the division operation
+   :type a: :record:`bigint`
+   
+   :arg b: The denominator of the division operation
+   :type b: :record:`bigint` or ``integral``
+   
+   :returns: The result of dividing ``a`` by ``b``
+   :rtype: :record:`bigint`
+   
+
+.. method:: proc type bigint.**(const ref base: bigint, const ref exp: bigint)
+
+.. method:: proc type bigint.**(const ref base: bigint, exp: int)
+
+.. method:: proc type bigint.**(const ref base: bigint, exp: uint)
+
+.. method:: proc type bigint.%(const ref a: bigint, const ref b: bigint)
+
+   Computes the mod operator on the two arguments, defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc type bigint.%(const ref a: bigint, b: int)
+
+   Computes the mod operator on the two arguments, defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc type bigint.%(const ref a: bigint, b: uint)
+
+   Computes the mod operator on the two arguments, defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc type bigint.<<(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.<<(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.>>(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.>>(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.&(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.|(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.^(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.==(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.==(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.==(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.==(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.==(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.!=(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.!=(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.!=(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.!=(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.!=(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.>(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.>(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.>(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.>(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.>(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.<(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.<(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.<(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.<(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.<(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.>=(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.>=(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.>=(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.>=(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.>=(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.<=(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.<=(const ref a: bigint, b: int)
+
+.. method:: proc type bigint.<=(a: int, const ref b: bigint)
+
+.. method:: proc type bigint.<=(const ref a: bigint, b: uint)
+
+.. method:: proc type bigint.<=(a: uint, const ref b: bigint)
+
+.. method:: proc type bigint.+=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.+=(ref a: bigint, b: int)
+
+.. method:: proc type bigint.+=(ref a: bigint, b: uint)
+
+.. method:: proc type bigint.-=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.-=(ref a: bigint, b: int)
+
+.. method:: proc type bigint.-=(ref a: bigint, b: uint)
+
+.. method:: proc type bigint.*=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.*=(ref a: bigint, b: int)
+
+.. method:: proc type bigint.*=(ref a: bigint, b: uint)
+
+.. method:: proc type bigint./=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint./=(ref a: bigint, b: integral)
+
+   Divide ``a`` by ``b``, storing the result in ``a``.
+   
+   :arg a: The numerator of the division operation
+   :type a: :record:`bigint`
+   
+   :arg b: The denominator of the division operation
+   :type b: :record:`bigint` or ``integral``
+   
+
+.. method:: proc type bigint.**=(ref base: bigint, const ref exp: bigint)
+
+.. method:: proc type bigint.**=(ref base: bigint, exp: int)
+
+.. method:: proc type bigint.**=(ref base: bigint, exp: uint)
+
+.. method:: proc type bigint.%=(ref a: bigint, const ref b: bigint)
+
+   Mod ``a`` by ``b``, storing the result in ``a``.
+   
+   Here, the modulo operation is defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc type bigint.%=(ref a: bigint, b: int)
+
+   Mod ``a`` by ``b``, storing the result in ``a``.
+   
+   Here, the modulo operation is defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc type bigint.%=(ref a: bigint, b: uint)
+
+   Mod ``a`` by ``b``, storing the result in ``a``.
+   
+   Here, the modulo operation is defined as
+   ``a % b = a - b * trunc(a / b)``.
+   
+   The result is always >= 0 if `a` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc type bigint.&=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.|=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.^=(ref a: bigint, const ref b: bigint)
+
+.. method:: proc type bigint.<<=(ref a: bigint, b: int)
+
+.. method:: proc type bigint.<<=(ref a: bigint, b: uint)
+
+.. method:: proc type bigint.>>=(ref a: bigint, b: int)
+
+.. method:: proc type bigint.>>=(ref a: bigint, b: uint)
+
+.. method:: proc type bigint.<=>(ref a: bigint, ref b: bigint)
+
+.. function:: proc jacobi(const ref a: bigint, const ref b: bigint): int
+
+.. function:: proc legendre(const ref a: bigint, const ref p: bigint): int
+
+.. function:: proc kronecker(const ref a: bigint, const ref b: bigint): int
+
+.. function:: proc kronecker(const ref a: bigint, b: int): int
+
+.. function:: proc kronecker(a: int, const ref b: bigint): int
+
+.. function:: proc kronecker(const ref a: bigint, b: uint): int
+
+.. function:: proc kronecker(a: uint, const ref b: bigint): int
+
+.. method:: proc bigint.divexact(const ref n: bigint, const ref d: bigint)
+
+   
+   .. warning::
+   
+      n and d are deprecated - please use numer and denom respectively
+   
+
+.. method:: proc bigint.divexact(const ref n: bigint, d: integral)
+
+   
+   .. warning::
+   
+      n and d are deprecated - please use numer and denom respectively
+   
+
+.. method:: proc bigint.divexact(const ref numer: bigint, const ref denom: bigint)
+
+.. method:: proc bigint.divexact(const ref numer: bigint, denom: integral)
+
+   
+   Computes ``numer/denom`` and stores the result in ``this``, which is a
+   :record:`bigint` instance.
+   
+   .. warning::
+   
+      ``divexact`` is optimized to handle cases where ``numer/denom`` results
+      in an integer.  When ``numer/denom`` does not produce an integer, this
+      method may produce incorrect results.
+   
+   :arg numer: numerator
+   
+   :type numer: :record:`bigint`
+   
+   :arg denom: denominator
+   
+   :type denom: :record:`bigint` or ``integral``
+   
+
+.. method:: proc bigint.divisible_p(const ref d: bigint): int
+
+   
+   .. warning::
+   
+      bigint.divisible_p is deprecated, use bigint.isDivisible instead
+   
+
+.. method:: proc bigint.divisible_p(d: int): int
+
+   
+   .. warning::
+   
+      bigint.divisible_p is deprecated, use bigint.isDivisible instead
+   
+
+.. method:: proc bigint.divisible_p(d: uint): int
+
+   
+   .. warning::
+   
+      bigint.divisible_p is deprecated, use bigint.isDivisible instead
+   
+
+.. method:: proc bigint.isDivisible(const ref div: bigint): bool
+
+.. method:: proc bigint.isDivisible(div: int): bool
+
+.. method:: proc bigint.isDivisible(div: uint): bool
+
+   
+   Return ``true`` if ``this`` is exactly divisible by ``div``.  ``this`` is
+   divisible by ``div`` if there exists an integer ``q`` satisfying ``this =
+   q*div``.  Unlike the other division functions, ``0`` is an acceptable value
+   for ``div`` and only ``0`` is considered divisible by ``0``.
+   
+   :arg div: number to check if ``this`` is divisible by
+   :type div: :record:`bigint`, ``int`` or ``uint``
+   
+   :return: ``true`` if ``this`` is exactly divisible by ``div``, ``false``
+            otherwise
+   :rtype: ``bool``
+   
+
+.. method:: proc bigint.divisible_2exp_p(b: integral): int
+
+   
+   .. warning::
+   
+      bigint.divisible_2exp_p is deprecated, use bigint.isDivisibleBy2Pow instead
+   
+
+.. method:: proc bigint.isDivisibleBy2Pow(exp: integral): bool
+
+   
+   Return ``true`` if ``this`` is exactly divisible by ``2^exp``.  ``this`` is
+   divisible by ``2^exp`` if there exists an integer ``q`` satisfying ``this =
+   q*2^exp``.
+   
+   :arg exp: power of 2 to check if ``this`` is divisible by
+   :type exp: ``integral``
+   
+   :return: ``true`` if ``this`` is exactly divisible by ``2^exp``, ``false``
+            otherwise
+   :rtype: ``bool``
+   
+
+.. method:: proc bigint.congruent_p(const ref c: bigint, const ref d: bigint): int
+
+   
+   .. warning::
+   
+      bigint.congruent_p is deprecated, use bigint.isCongruent instead
+   
+
+.. method:: proc bigint.congruent_p(c: integral, d: integral): int
+
+   
+   .. warning::
+   
+      bigint.congruent_p is deprecated, use bigint.isCongruent instead
+   
+
+.. method:: proc bigint.isCongruent(const ref con: bigint, const ref mod: bigint): bool
+
+.. method:: proc bigint.isCongruent(con: integral, mod: integral): bool
+
+   
+   Return ``true`` if ``this`` is congruent to ``con % mod``.  ``this`` is
+   congruent to ``con % mod`` if there exists an integer ``q`` satisfying
+   ``this = con + q*mod``.  Unlike the other division functions, ``0`` is an
+   acceptable value for ``mod``.  As a result ``this`` and ``con`` are
+   considered congruent modulo ``0`` only when exactly equal.
+   
+   :arg con: number to determine if ``this`` is congruent to, modulo ``mod``
+   :type con: :record:`bigint` or ``integral``
+   
+   :arg mod: divisor of ``con`` when determining if ``con`` is congruent to
+             ``this``
+   :type mod: :record:`bigint` or ``integral``
+   
+   :return: ``true`` if ``this`` is congruent to ``con`` modulo ``mod``,
+            ``false`` otherwise
+   :rtype: ``bool``
+   
+
+.. method:: proc bigint.congruent_2exp_p(const ref c: bigint, b: integral): int
+
+   
+   .. warning::
+   
+      bigint.congruent_2exp_p is deprecated, use bigint.isCongruentBy2Pow instead
+   
+
+.. method:: proc bigint.isCongruentBy2Pow(const ref con: bigint, modExp: integral): bool
+
+   
+   Return ``true`` if ``this`` is congruent to ``con % 2^modExp``.  ``this`` is
+   congruent to ``con % 2^modExp`` if there exists an integer ``q`` satisfying
+   ``this = con + q*2^modExp``.
+   
+   :arg con: number to determine if ``this`` is congruent to, modulo
+             ``2^modExp``.
+   :type con: :record:`bigint` or ``integral``
+   
+   :arg modExp: power of 2 to use as the divisor of ``con`` when determining if
+                ``con`` is congruent to ``this``.
+   :type modExp: ``integral``
+   
+   :return: ``true`` if ``this`` is congruent to ``con`` modulo ``2^modExp``,
+            ``false`` otherwise.
+   :rtype: ``bool``
+   
+
+.. method:: proc bigint.powm(const ref base: bigint, const ref exp: bigint, const ref mod: bigint)
+
+   
+   .. warning::
+   
+      bigint.powm is deprecated, use bigint.powMod instead
+   
+
+.. method:: proc bigint.powm(const ref base: bigint, exp: int, const ref mod: bigint)
+
+   
+   .. warning::
+   
+      bigint.powm is deprecated, use bigint.powMod instead
+   
+
+.. method:: proc bigint.powm(const ref base: bigint, exp: uint, const ref mod: bigint)
+
+   
+   .. warning::
+   
+      bigint.powm is deprecated, use bigint.powMod instead
+   
+
+.. method:: proc bigint.powMod(const ref base: bigint, const ref exp: bigint, const ref mod: bigint)
+
+.. method:: proc bigint.powMod(const ref base: bigint, exp: int, const ref mod: bigint)
+
+.. method:: proc bigint.powMod(const ref base: bigint, exp: uint, const ref mod: bigint)
+
+   Set ``this`` to the result of (``base`` raised to ``exp``) modulo ``mod``.
+   
+   :arg base: The value to be raised to the power of ``exp`` before performing
+              a modulo operation on.
+   :type base: ``bigint``
+   
+   :arg exp: The exponent to raise ``base`` to the power of prior to the
+             modulo operation.  Can be negative if the inverse (1/``base``)
+             modulo ``mod`` exists.
+   :type exp: ``bigint``, ``int``, or ``uint``
+   
+   :arg mod: The divisor for the modulo operation.
+   :type mod: ``bigint``
+   
+   .. warning::
+      The program behavior is undefined if ``exp`` is negative and the inverse
+      (1/``base``) modulo ``mod`` does not exist.
+   
+
+.. method:: proc bigint.pow(const ref base: bigint, exp: int)
+
+.. method:: proc bigint.pow(const ref base: bigint, exp: uint)
+
+.. method:: proc bigint.pow(base: int, exp: int)
+
+.. method:: proc bigint.pow(base: uint, exp: uint)
+
+   Set ``this`` to the result of ``base`` raised to ``exp``.
+   
+   :arg base: The value to be raised to the power of ``exp``.
+   :type base: ``bigint``, ``int`` or ``uint``
+   
+   :arg exp: The exponent to raise ``base`` to the power of.
+   :type exp: ``int`` or ``uint``
+   
+
+.. method:: proc bigint.root(const ref a: bigint, n: uint): int
+
+.. method:: proc bigint.rootrem(ref rem: bigint, const ref u: bigint, n: uint)
+
+.. method:: proc bigint.sqrt(const ref a: bigint)
+
+.. method:: proc bigint.sqrtrem(ref rem: bigint, const ref a: bigint)
+
+.. method:: proc bigint.perfect_power_p(): int
+
+   
+   .. warning::
+   
+      bigint.perfect_power_p is deprecated, use bigint.isPerfectPower instead
+   
+
+.. method:: proc bigint.isPerfectPower(): bool
+
+   
+   Return ``true`` if ``this`` is a perfect power, i.e., if there exist
+   integers ``a`` and ``b`` with ``b > 1``, such that ``this = a^b``.
+   
+   Under this definition both 0 and 1 are considered to be perfect powers.
+   Negative values can only be odd perfect powers.
+   
+   :return: ``true`` if ``this`` is a perfect power, ``false`` otherwise.
+   
+
+.. method:: proc bigint.perfect_square_p(): int
+
+   
+   .. warning::
+   
+      bigint.perfect_square_p is deprecated, use bigint.isPerfectSquare instead
+   
+
+.. method:: proc bigint.isPerfectSquare(): bool
+
+   
+   Return ``true`` if ``this`` is a perfect square, i.e., if the square root of
+   ``this`` is an integer.  Under this definition both ``0`` and ``1`` are
+   considered to be perfect squares.
+   
+   :return: ``true`` if ``this`` is a perfect square, ``false`` otherwise.
+   :rtype: ``bool``
+   
+
+.. method:: proc bigint.probab_prime_p(reps: int): int
+
+   
+   .. warning::
+   
+      bigint.probab_prime_p is deprecated, use bigint.probablyPrime instead
+   
+
+.. enum:: enum primality { notPrime = 0, maybePrime, isPrime }
+
+   An enumeration of the different possibilities of a number being prime, for use with e.g.
+   :proc:`~bigint.probablyPrime` to determine if a number is prime or not.
+   
+   - ``primality.notPrime`` indicates that the number is not a prime.
+   - ``primality.maybePrime`` indicates that the number may or may not be a prime.
+   - ``primality.isPrime`` indicates that the number is a prime.
+   
+
+
+.. method:: proc bigint.probablyPrime(reps: int): primality
+
+   
+   Determine whether ``this`` is prime.  Returns one of the :enum:`primality`
+   constants - ``primality.isPrime``, ``primality.maybePrime``, or
+   ``primality.notPrime``.
+   
+   Performs some trial divisions, a Baillie-PSW probable prime test, and
+   reps-24 Miller-Rabin probabilistic primality tests.  A higher ``reps`` value
+   will reduce the chances of a non-prime being identified as "probably prime".
+   A composite number will be identified as a prime with an asymptotic
+   probability of less than ``4^(-reps)``.  Reasonable values of ``reps`` are
+   between 15 and 50.
+   
+   :arg reps: number of attempts before returning ``primality.maybePrime`` if
+              a definitive answer can't be found before then.
+   :type reps: ``int``
+   
+   :returns: ``primality.isPrime``, ``primality.maybePrime`` or
+             ``primality.notPrime``.
+   :rtype: :enum:`primality`
+   
+
+.. method:: proc bigint.nextprime(const ref a: bigint)
+
+.. method:: proc bigint.gcd(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.gcd(const ref a: bigint, b: int)
+
+.. method:: proc bigint.gcd(const ref a: bigint, b: uint)
+
+.. method:: proc bigint.gcd(const ref a: bigint, const ref b: bigint, ref s: bigint, ref t: bigint): void
+
+   Set ``this`` to the greatest common divisor of ``a`` and ``b``, and
+   set ``s`` and ``t`` to coefficients such that ``a*s + b*t == this``.
+   
+   .. note::
+      The result stored in ``this`` is always positive, even if one or
+      both of ``a`` and ``b`` are negative (or zero if both are zero).
+   
+   This fulfills the same role as the GMP function ``mpz_gcdext``.
+   
+   :arg a: One of the numbers to compute the greatest common divisor of
+   :type a: :record:`bigint`
+   
+   :arg b: One of the numbers to compute the greatest common divisor of
+   :type b: :record:`bigint`
+   
+   :arg s: The returned coefficient that can be multiplied by ``a``.
+   :type s: :record:`bigint`
+   
+   :arg t: The returned coefficient that can be multiplied by ``b``.
+   :type t: :record:`bigint`
+   
+
+.. method:: proc bigint.gcdext(ref s: bigint, ref t: bigint, const ref a: bigint, const ref b: bigint)
+
+   .. warning::
+
+      gcdext is deprecated, please use the new overload of :proc:`bigint.gcd` with s and t arguments instead
+
+.. method:: proc bigint.lcm(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.lcm(const ref a: bigint, b: int)
+
+.. method:: proc bigint.lcm(const ref a: bigint, b: uint)
+
+.. class:: InversionError : Error
+
+   
+   An `InversionError` is thrown if a :proc:`bigint.invert()` is attempted with
+   invalid arguments that result in a non-existant inverse. Specifically,
+   if the arguments cause a divide by zero, this error notifies the caller
+   that the internal value of the :record:`bigint` was left in an undefined state.
+   
+
+
+   .. method:: proc init()
+
+      Create an :class:`InversionError` with the default error message: `Inverse does not exist` 
+
+.. data:: config param InvertReturnInt = true
+
+   
+   A parameter to select between the new and deprecated overloads of :proc:`bigint.invert()`
+   * `InvertReturnInt = true` causes the deprecated version of :proc:`bigint.invert()` to be called
+   * `InvertReturnInt = false` causes the new version of :proc:`bigint.invert()` to be called (this version does not return a status integer)
+   
+
+.. method:: proc bigint.invert(const ref a: bigint, const ref b: bigint): int throws
+
+   .. warning::
+
+      The int-returning overload of bigint.invert() is deprecated - please use the non-returning version by setting `InvertReturnInt` to false
+
+.. method:: proc bigint.invert(const ref a: bigint, const ref b: bigint) throws
+
+   Set the value of ``this`` to the inverse of ``a`` modulo ``b``
+   
+   .. note::
+      If an inverse does not exist, an :class:`InversionError` will be thrown,
+      and the value of ``this`` will be left undefined
+   
+   This fulfills the same role as the GMP number theoretic function ``mpz_invert``.
+   
+   :arg a: The dividend of the modulo operation
+   :type a: :record:`bigint`
+   
+   :arg b: The divisor of the modulo operation
+   :type b: :record:`bigint`
+   
+   
+
+.. method:: proc bigint.remove(const ref a: bigint, const ref f: bigint): uint
+
+   
+   .. warning::
+   
+      bigint.remove is deprecated, use bigint.removeFactor instead
+   
+
+.. method:: proc bigint.removeFactor(const ref x: bigint, const ref fac: bigint): uint
+
+   
+   Remove all occurrences of the factor ``fac`` from ``x`` and store the result
+   in ``this``.  Return the number of occurrences removed.
+   
+   :arg x: The value to remove all occurrences of ``fac`` from
+   :type x: :record:`bigint`
+   
+   :arg fac: The factor to remove from ``x``.
+   :type fac: :record:`bigint`
+   
+   :return: The number of occurrences of ``fac`` found in ``x``.
+   :rtype: ``uint``
+   
+
+.. method:: proc bigint.fac(a: integral)
+
+.. method:: proc bigint.bin(const ref n: bigint, k: integral)
+
+.. method:: proc bigint.bin(n: uint, k: integral)
+
+.. method:: proc bigint.fib(n: integral)
+
+.. method:: proc bigint.fib2(ref fnsub1: bigint, n: integral)
+
+.. method:: proc bigint.lucnum(n: integral)
+
+.. method:: proc bigint.lucnum2(ref fnsub1: bigint, n: integral)
+
+.. method:: proc bigint.popcount(): uint
+
+.. method:: proc bigint.hamdist(const ref b: bigint): uint
+
+.. method:: proc bigint.scan0(starting_bit: integral): uint
+
+   .. warning::
+
+      The 'starting_bit' argument is deprecated, please use 'startBitIdx' instead
+
+.. method:: proc bigint.scan0(startBitIdx: integral): uint
+
+   Scan ``this``, starting from ``startBitIdx``, towards more significant
+   bits until the first ``0`` bit is found.  Return the index of the found
+   bit.
+   
+   If the bit at ``startBitIdx`` is ``0``, will return ``startBitIdx``.
+   
+   :arg startBitIdx: the index of the first bit to start searching for a
+                     ``0``
+   :type startBitIdx: ``integral``
+   
+   :returns: the index of the first ``0`` bit after ``startBitIdx``,
+             inclusive
+   :rtype: ``uint``
+   
+
+.. method:: proc bigint.scan1(starting_bit: integral): uint
+
+   .. warning::
+
+      The 'starting_bit' argument is deprecated, please use 'startBitIdx' instead
+
+.. method:: proc bigint.scan1(startBitIdx: integral): uint
+
+   Scan ``this``, starting from ``startBitIdx``, towards more significant
+   bits until the first ``1`` bit is found.  Return the index of the found
+   bit.
+   
+   If the bit at ``startBitIdx`` is ``1``, will return ``startBitIdx``.
+   
+   :arg startBitIdx: the index of the first bit to start searching for a
+                     ``1``
+   :type startBitIdx: ``integral``
+   
+   :returns: the index of the first ``1`` bit after ``startBitIdx``,
+             inclusive
+   :rtype: ``uint``
+   
+
+.. method:: proc bigint.setbit(bit_index: integral)
+
+.. method:: proc bigint.clrbit(bit_index: integral)
+
+.. method:: proc bigint.combit(bit_index: integral)
+
+.. method:: proc bigint.tstbit(bit_index: integral): int
+
+.. method:: proc bigint.fits_ulong_p(): int
+
+.. method:: proc bigint.fits_slong_p(): int
+
+.. method:: proc bigint.fits_uint_p(): int
+
+.. method:: proc bigint.fits_sint_p(): int
+
+.. method:: proc bigint.fits_ushort_p(): int
+
+.. method:: proc bigint.fits_sshort_p(): int
+
+.. method:: proc bigint.even_p(): int
+
+   
+   .. warning::
+   
+      bigint.even_p is deprecated, use bigint.isEven instead
+   
+
+.. method:: proc bigint.isEven(): bool
+
+   
+   Returns ``true`` if ``this`` is an even number, ``false`` otherwise.
+   
+
+.. method:: proc bigint.odd_p(): int
+
+   
+   .. warning::
+   
+      bigint.odd_p is deprecated, use bigint.isOdd instead
+   
+
+.. method:: proc bigint.isOdd(): bool
+
+   
+   Returns ``true`` if ``this`` is an odd number, ``false`` otherwise.
+   
+
+.. method:: proc bigint.add(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.add(const ref a: bigint, b: int)
+
+.. method:: proc bigint.add(const ref a: bigint, b: uint)
+
+.. method:: proc bigint.sub(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.sub(const ref a: bigint, b: int)
+
+.. method:: proc bigint.sub(const ref a: bigint, b: uint)
+
+.. method:: proc bigint.sub(a: int, const ref b: bigint)
+
+.. method:: proc bigint.sub(a: uint, const ref b: bigint)
+
+.. method:: proc bigint.mul(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.mul(const ref a: bigint, b: int)
+
+.. method:: proc bigint.mul(const ref a: bigint, b: uint)
+
+.. method:: proc bigint.addmul(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.addmul(const ref a: bigint, b: int)
+
+.. method:: proc bigint.addmul(const ref a: bigint, b: uint)
+
+.. method:: proc bigint.submul(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.submul(const ref a: bigint, b: int)
+
+.. method:: proc bigint.submul(const ref a: bigint, b: uint)
+
+.. method:: proc bigint.mul_2exp(const ref a: bigint, b: integral)
+
+.. method:: proc bigint.neg(const ref a: bigint)
+
+.. method:: proc bigint.abs(const ref a: bigint)
+
+.. method:: proc bigint.div_q(const ref n: bigint, const ref d: bigint, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_q using Round is deprecated, use bigint.divQ with round
+      instead
+   
+
+.. method:: proc bigint.div_q(const ref n: bigint, d: integral, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_q using Round is deprecated, use bigint.divQ with round
+      instead
+   
+
+.. method:: proc bigint.divQ(const ref numer: bigint, const ref denom: bigint, param rounding = round.zero)
+
+.. method:: proc bigint.divQ(const ref numer: bigint, denom: integral, param rounding = round.zero)
+
+   Divide ``numer`` by ``denom``, forming a quotient and storing it in
+   ``this``.
+   
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: ``bigint``
+   
+   :arg denom: The denominator of the division operation to be performed
+   :type denom: ``bigint``, ``integral``
+   
+   :arg rounding: The rounding style to use, see :enum:`round` for a
+                  description of what the rounding styles entail.  Defaults to
+                  ``zero`` if unspecified
+   :type rounding: ``round``
+   
+   .. warning::
+      If the denominator is zero, the program behavior is undefined.
+   
+
+.. method:: proc bigint.div_r(const ref n: bigint, const ref d: bigint, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_r using Round is deprecated, use bigint.divR with round
+      instead
+   
+
+.. method:: proc bigint.div_r(const ref n: bigint, d: integral, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_r using Round is deprecated, use bigint.divR with round
+      instead
+   
+
+.. method:: proc bigint.divR(const ref numer: bigint, const ref denom: bigint, param rounding = round.zero)
+
+.. method:: proc bigint.divR(const ref numer: bigint, denom: integral, param rounding = round.zero)
+
+   Divide ``numer`` by ``denom``, forming a remainder and storing it in
+   ``this``.  The absolute value of the remainder will always be less than the
+   absolute value of the denominator (i.e. ``abs(this) < abs(denom)``).
+   
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: ``bigint``
+   
+   :arg denom: The denominator of the division operation to be performed
+   :type denom: ``bigint``, ``integral``
+   
+   :arg rounding: The rounding style to use, see :enum:`round` for a
+                  description of what the rounding styles entail.  Defaults to
+                  ``zero`` if unspecified
+   :type rounding: ``round``
+   
+   .. warning::
+      If the denominator is zero, the program behavior is undefined.
+   
+
+.. method:: proc bigint.div_qr(ref r: bigint, const ref n: bigint, const ref d: bigint, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_qr using Round is deprecated, use bigint.divQR with round
+      instead
+   
+
+.. method:: proc bigint.div_qr(ref r: bigint, const ref n: bigint, d: integral, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_qr using Round is deprecated, use bigint.divQR with round
+      instead
+   
+
+.. method:: proc bigint.divQR(ref remain: bigint, const ref numer: bigint, const ref denom: bigint, param rounding = round.zero)
+
+.. method:: proc bigint.divQR(ref remain: bigint, const ref numer: bigint, denom: integral, param rounding = round.zero)
+
+   Divide ``numer`` by ``denom``, forming a quotient and storing it in
+   ``this``, and a remainder and storing it in ``remain``.  The quotient and
+   remainder will always satisfy ``numer = this*denom + remain`` after the
+   operation has finished.  The absolute value of the remainder will always be
+   less than the absolute value of the denominator (i.e. ``abs(this) <
+   abs(denom)``).
+   
+   .. warning::
+      If ``this`` is also passed as the ``remain`` argument, the program
+      behavior is undefined.
+   
+   :arg remain: Stores the remainder of the division
+   :type remain: ``bigint``
+   
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: ``bigint``
+   
+   :arg denom: The denominator of the division operation to be performed
+   :type denom: ``bigint``, ``integral``
+   
+   :arg rounding: The rounding style to use, see :enum:`round` for a
+                  description of what the rounding styles entail.  Defaults to
+                  ``zero`` if unspecified
+   :type rounding: ``round``
+   
+   .. warning::
+      If the denominator is zero, the program behavior is undefined.
+   
+
+.. method:: proc bigint.div_q_2exp(const ref n: bigint, b: integral, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_q_2exp using Round is deprecated, use bigint.divQ2Exp with
+      round instead
+   
+
+.. method:: proc bigint.divQ2Exp(const ref numer: bigint, exp: integral, param rounding = round.zero)
+
+   Divide ``numer`` by ``2^exp``, forming a quotient and storing it in
+   ``this``.
+   
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: ``bigint``
+   
+   :arg exp: The exponent that 2 should be raised to before being used as the
+             denominator of the division operation to be performed
+   :type exp: ``integral``
+   
+   :arg rounding: The rounding style to use, see :enum:`round` for a
+                  description of what the rounding styles entail.  Defaults to
+                  ``zero`` if unspecified
+   :type rounding: ``round``
+   
+
+.. method:: proc bigint.div_r_2exp(const ref n: bigint, b: integral, param rounding = Round.ZERO)
+
+   
+   .. warning::
+   
+      bigint.div_r_2exp using Round is deprecated, use bigint.divR2Exp with
+      round instead
+   
+
+.. method:: proc bigint.divR2Exp(const ref numer: bigint, exp: integral, param rounding = round.zero)
+
+   Divide ``numer`` by ``2^exp``, forming a remainder and storing it in
+   ``this``.
+   
+   :arg numer: The numerator of the division operation to be performed
+   :type numer: ``bigint``
+   
+   :arg exp: The exponent that 2 should be raised to before being used as the
+             denominator of the division operation to be performed
+   :type exp: ``integral``
+   
+   :arg rounding: The rounding style to use, see :enum:`round` for a
+                  description of what the rounding styles entail.  Defaults to
+                  ``zero`` if unspecified
+   :type rounding: ``round``
+   
+
+.. method:: proc bigint.mod(const ref a: bigint, const ref b: bigint)
+
+   Computes the mod operator on the two arguments, defined as
+   ``mod(a, b) = a - b * floor(a / b)``.
+   
+   The result is stored in ``this``.
+   
+   The result is always >= 0 if `b` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc bigint.mod(const ref a: bigint, b: integral): int
+
+   Computes the mod operator on the two arguments, defined as
+   ``mod(a, b) = a - b * floor(a / b)``.
+   
+   If b is of an unsigned type, then
+   fewer conditionals will be evaluated at run time.
+   
+   The result is stored in ``this`` and returned as an ``int``.
+   
+   The result is always >= 0 if `b` > 0.
+   It is an error if `b` == 0.
+   
+
+.. method:: proc bigint.cmp(const ref b: bigint): int
+
+.. method:: proc bigint.cmp(b: int): int
+
+.. method:: proc bigint.cmp(b: uint): int
+
+.. method:: proc bigint.cmp(b: real): int
+
+.. method:: proc bigint.cmpabs(const ref b: bigint): int
+
+.. method:: proc bigint.cmpabs(b: uint): int
+
+.. method:: proc bigint.cmpabs(b: real): int
+
+.. method:: proc bigint.sgn(): int
+
+.. method:: proc bigint.and(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.ior(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.xor(const ref a: bigint, const ref b: bigint)
+
+.. method:: proc bigint.com(const ref a: bigint)
+
+.. method:: proc bigint.set(const ref a: bigint)
+
+.. method:: proc bigint.set(num: int)
+
+.. method:: proc bigint.set(num: uint)
+
+.. method:: proc bigint.set(num: real)
+
+.. method:: proc bigint.set(str: string, base: int = 0)
+
+.. method:: proc bigint.swap(ref a: bigint)
+

@@ -1,0 +1,157 @@
+.. default-domain:: chpl
+
+.. module:: Image
+   :synopsis: Provides a way to write arrays of pixels to an output image format.
+
+Image
+=====
+**Usage**
+
+.. code-block:: chapel
+
+   use Image;
+
+
+or
+
+.. code-block:: chapel
+
+   import Image;
+
+.. warning::
+
+   Image is unstable
+
+Provides a way to write arrays of pixels to an output image format.
+
+For example, the following code creates a 3x3 array of pixels and writes it to
+a BMP file. The array is then scaled by a factor of 2 (creating a 9x9 image)
+and written to a second BMP file.
+
+.. code-block:: chapel
+
+   use Image;
+
+   var color: [1..3, 1..3] 3*int;
+
+   colors[1, ..] = [(0xFF,0,0), (0,0xFF,0), (0,0,0xFF)];
+   colors[2, ..] = [(0,0xFF,0), (0,0,0xFF), (0xFF,0,0)];
+   colors[3, ..] = [(0,0,0xFF), (0xFF,0,0), (0,0xFF,0)];
+
+   var format = (rgbColor.blue, rgbColor.green, rgbColor.red);
+   var arr = colorToPixel(color, format=format);
+
+   writeImage("pixels.bmp", imageType.bmp, arr);
+   writeImage("pixels2.bmp", imageType.bmp, scale(arr, 2));
+
+
+
+.. enum:: enum imageType { bmp, png, jpg }
+
+   Defines what kind of image to output 
+
+   .. enumconstant:: enum constant bmp
+
+      A BMP image is written from a 2D array of pixels 
+
+   .. enumconstant:: enum constant png
+
+      a PNG image is written from a 2D array of pixels 
+
+   .. enumconstant:: enum constant jpg
+
+      a JPG image is written from a 2D array of pixels 
+
+.. function:: proc writeImage(image, format: imageType, pixels: [] pixelType) throws where pixels.isRectangular() && pixels.rank == 2
+
+   
+   Write an array of pixels as an image
+   
+   :arg image: the output filename or an open fileWriter
+   :arg format: the image format
+   :arg pixels: an array of pixel values
+   
+
+.. function:: proc readImage(image, format: imageType): [] pixelType throws
+
+   
+   Read an image file into an array of pixels
+   
+   :arg image: the input filename or an open fileReader
+   :arg format: the image format
+   :returns: an array of pixel values
+   
+
+.. function:: proc colorToPixel(colors: [?d] (3*(pixelType)), format: 3*(rgbColor) = (rgbColor.red, rgbColor.green, rgbColor.blue)): [d] pixelType where d.isRectangular() && d.rank == 2
+
+   
+   Takes a 2D array of color values and turns them into pixels. The order of
+   the colors is determined by the ``format`` formal. The default format is
+   ``(red, green, blue)``.
+   
+   :arg colors: the 2D array of colors
+   :arg format: the order of the colors in the array. it must be a permutation
+                of ``(red, green, blue)``
+   :returns: a new array of pixels with the same domain as ``colors``
+   
+
+.. function:: proc pixelToColor(pixels: [?d] pixelType, format: 3*(rgbColor) = (rgbColor.red, rgbColor.green, rgbColor.blue)): [d] (3*(pixelType)) where d.isRectangular() && d.rank == 2
+
+   
+   Takes a 2D array of pixels and turns them into color values. The order of
+   the colors is determined by the ``format`` formal. The default format is
+   ``(red, green, blue)``.
+   
+   :arg pixels: the 2D array of pixels
+   :arg format: the order of the colors in the array. it must be a permutation
+                of ``(red, green, blue)``
+   :returns: a new array of colors with the same domain as ``pixels``
+   
+
+.. function:: proc downSample(arr: [?d], newMin: int = 0, newMax: int = 0xFFFFFF): [d] int where d.isRectangular() && d.rank == 2
+
+   
+   Takes a 2D array of some element type and computes an integer color
+   gradient between the newMin/Max. This is a simple interpolation of the
+   values in the array to the new range.
+   
+   :arg arr: the 2D array of values to sample
+   :arg newMin: the new minimum value
+   :arg newMax: the new maximum value
+   :returns: a new array of pixels with the same domain as ``arr``
+   
+
+.. function:: proc interpolateColor(arr: [?d], colorA: pixelType, colorB: pixelType, colorRange = interpolateColorDefaultColorRange(arr)): [d] pixelType
+
+   
+   Linearly interpolates between two colors to create an array of pixels.
+   
+
+.. function:: proc scale(arr: [?d], factor: int): [] where d.isRectangular() && d.rank == 2
+
+   
+   Scale a 2D array of pixels by a given factor
+   
+   :arg arr: the 2D array of pixels
+   :arg factor: the factor to scale by
+   :returns: a new array of pixels scaled by the factor
+   
+
+.. record:: mediaPipe
+
+   
+   Represents a ffmpeg stream that frame data can be written to to produce a mp4.
+   
+
+   .. method:: proc init(image: string, imgType: imageType, framerate: int = 30, rateFactor: int = 1) throws
+
+   .. method:: proc ref deinit()
+
+   .. method:: proc writeFrame(pixelData: [] pixelType) throws
+
+      
+      Write a frame into the media pipe.
+      
+
+   .. method:: proc ref finish() throws
+

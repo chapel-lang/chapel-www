@@ -1,0 +1,288 @@
+.. default-domain:: chpl
+
+.. module:: BLAS
+   :synopsis: Support for Basic Linear Algebra Subprograms (BLAS) kernel routines.
+
+BLAS
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use BLAS;
+
+**Submodules**
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   BLAS/*
+
+
+
+Support for Basic Linear Algebra Subprograms (BLAS) kernel routines.
+
+The `netlib documentation <http://www.netlib.org/blas/#_documentation>`_
+describes BLAS as the following::
+
+   The BLAS (Basic Linear Algebra Subprograms) are routines that provide
+   standard building blocks for performing basic vector and matrix operations.
+   The Level 1 BLAS perform scalar, vector and vector-vector operations, the
+   Level 2 BLAS perform matrix-vector operations, and the Level 3 BLAS perform
+   matrix-matrix operations. Because the BLAS are efficient, portable, and
+   widely available, they are commonly used in the development of high quality
+   linear algebra software, LAPACK for example.
+
+This module wraps the functionality of level 3 matrix-matrix BLAS routines,
+supporting the array element types, ``real(32)`` (single), ``real`` (double),
+``complex(32)`` (complex), and ``complex`` (complex double) under a single
+interface.
+
+
+Compiling with BLAS
+-------------------
+
+In order to compile a Chapel program that uses this module, the
+BLAS and CBLAS (C wrappers to BLAS) libraries must be installed on the system.
+The paths to both the ``cblas.h`` header file and BLAS library
+must be passed to the ``-I`` and ``-L`` compiler arguments. The library name,
+typically ``blas``, must be passed to the ``-l`` argument as well.
+
+The compilation command should look something like this:
+
+.. code-block:: sh
+
+    chpl -I$PATH_TO_CBLAS_DIR \
+         -L$PATH_TO_BLAS_LIBS -lblas source.chpl
+
+BLAS Implementations:
+  There is a wide range of
+  `BLAS implementations <https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Implementations>`_
+  available.
+  This module was built and tested with `netlib's CBLAS
+  <http://www.netlib.org/blas/#_cblas>`_, but many other implementations are
+  compatible as well.
+  Using a version of BLAS optimized for the user's system will yield the best
+  performance.
+
+  There are a few known caveats with some popular implementations:
+
+  * **ATLAS**
+
+    * The compilation command above likely requires the additional flag: ``-latlas``
+
+  * **MKL**
+
+    * The BLAS module assumes that the CBLAS functions are defined in the
+      header named ``cblas.h``.
+      MKL defines these in ``mkl_cblas.h``. This can be worked around by
+      creating a symbolic link to the correct header file name:
+      ``ln -s mkl_cblas.h cblas.h``
+
+  * **OpenBLAS**
+
+    * The header files that are included with OpenBLAS differ from the reference
+      CBLAS prototypes for complex arguments by using ``float*`` and ``double*``
+      pointers, instead of ``void*`` pointers.  Using this will likely result in
+      warnings about incompatible pointer types. These may be ignored.
+
+Cray Systems:
+  No compiler flags should be necessary when compiling BLAS programs on
+  Crays. The **PBLAS** implementation is made available through Cray's libsci,
+  which comes installed on all Cray systems. This is typically loaded by
+  default, but can be manually loaded with ``module load cray-libsci`` as well.
+  Chapel programs compiled on Crays utilize the ``cc`` wrapper as the backend
+  compiler, which implicitly links against the libsci library. Therefore, no
+  additional steps are required of the user.
+
+Chapel Level 3 BLAS API
+-----------------------
+
+For convenience, this module provides wrappers around the Level 3
+(matrix-matrix) BLAS functions. These determine the appropriate functions to
+call, based on the array element types, as well as the array dimensions. The
+other functionality is identical to the corresponding BLAS functions.
+
+The names of these routines are identical to the corresponding BLAS functions,
+except that the type prefix is dropped. For instance, ``gemm`` is the
+wrapper for the ``[sdcz]gemm`` routines.
+
+.. note::
+ Chapel determines the dimensions of the matrices from the arrays that are
+ passed in. However, if one is passing in a sub-array such that the array
+ elements are not contiguously stored in memory, then the user needs to
+ pass in the leading dimension (```lda``` etc) to the array, just as they
+ would in C. These default to 0, in which case Chapel determines the appropriate
+ values based on the array passed in.
+
+
+
+.. enum:: enum Order { Row = 101: c_int, Col }
+
+   Define row or column order 
+
+
+.. enum:: enum Op { N = 111: c_int, T, H }
+
+   Operation of matrix : none, transpose, or adjoint 
+
+
+.. enum:: enum Uplo { Upper = 121: c_int, Lower }
+
+   Storage for symmetric matrices 
+
+
+.. enum:: enum Diag { NonUnit = 131: c_int, Unit }
+
+   Assume a unit or non-unit diagonal 
+
+
+.. enum:: enum Side { Left = 141: c_int, Right }
+
+   Operate on the left or right side 
+
+
+.. function:: proc gemm(A: [?Adom], B: [?Bdom], C: [?Cdom], alpha, beta, opA: Op = Op.N, opB: Op = Op.N, order: Order = Order.Row, ldA: int = 0, ldB: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `GEMM routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gac4e11e8e8a4b0c802d2229b08da341f6.html#gac4e11e8e8a4b0c802d2229b08da341f6>`_
+   
+   Performs the matrix-matrix operation::
+   
+     C := alpha * op(A) * op(B) + beta * C
+   
+   
+
+.. function:: proc symm(A: [?Adom], B: [?Bdom], C: [?Cdom], alpha, beta, uplo: Uplo = Uplo.Upper, side: Side = Side.Left, order: Order = Order.Row, ldA: int = 0, ldB: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `SYMM routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_ga2490eea9e962fd69b9902e22aaa3a634.html#ga2490eea9e962fd69b9902e22aaa3a634>`_
+   
+    Performs the matrix-matrix operation::
+   
+      C := alpha * A * B + beta * C
+   
+    or::
+   
+      C := alpha * B * A + beta * C
+   
+    where ``A`` is a symmetric matrix.
+   
+
+.. function:: proc hemm(A: [?Adom], B: [?Bdom], C: [?Cdom], alpha, beta, uplo: Uplo = Uplo.Upper, side: Side = Side.Left, order: Order = Order.Row, ldA: int = 0, ldB: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `HEMM routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gad2d1853a142397404eae974b6574ece3.html#gad2d1853a142397404eae974b6574ece3>`_
+   
+   Performs the matrix-matrix operation::
+   
+     C := alpha * A * B + beta * C
+   
+   or::
+   
+     C := alpha * B * A + beta * C
+   
+   where ``A`` is an hermitian matrix.
+   
+
+.. function:: proc syrk(A: [?Adom], C: [?Cdom], alpha, beta, uplo: Uplo = Uplo.Upper, trans: Op = Op.N, order: Order = Order.Row, ldA: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `SYRK routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_ga1b4f63daf04fdf3061bd25dfec0d3e84.html#ga1b4f63daf04fdf3061bd25dfec0d3e84>`_
+   
+   Performs the matrix-matrix operation::
+   
+     C := alpha * A * A**T + beta * C
+   
+   or::
+   
+     C := alpha * A**T * A + beta * C
+   
+   
+   where ``C`` is a symmetric matrix, and ``A**T`` is the transpose of ``A``.
+   
+
+.. function:: proc herk(A: [?Adom], C: [?Cdom], alpha, beta, uplo: Uplo = Uplo.Upper, trans: Op = Op.N, order: Order = Order.Row, ldA: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `HERK routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gade9f14cf41f0cefea7918d716f3e1c20.html#gade9f14cf41f0cefea7918d716f3e1c20>`_
+   
+   Performs the matrix-matrix operation::
+   
+     C := alpha * A * A**H + beta * C
+   
+   or::
+   
+     C := alpha * A**H * A + beta * C
+   
+   where ``C`` is an hermitian matrix, and ``A**H`` is the conjugate transpose
+   of ``A``.
+   
+
+.. function:: proc syr2k(A: [?Adom], B: [?Bdom], C: [?Cdom], alpha, beta, uplo: Uplo = Uplo.Upper, trans: Op = Op.N, order: Order = Order.Row, ldA: int = 0, ldB: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `SYR2K routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gaa8320d51ded07cd3038db237fd400547.html#gaa8320d51ded07cd3038db237fd400547>`_
+   
+   Performs the matrix-matrix operation::
+   
+     C := alpha * A * B**T + alpha * B * A**T +  beta * C
+   
+   or::
+   
+     C := alpha * A**T * B + alpha * B**T * A +  beta * C
+   
+   where ``C`` is a symmetric matrix, and ``A**T`` and ``B**T`` are the
+   transpose of ``A`` and ``B`` , respectively.
+   
+
+.. function:: proc her2k(A: [?Adom], B: [?Bdom], C: [?Cdom], alpha, beta, uplo: Uplo = Uplo.Upper, trans: Op = Op.N, order: Order = Order.Row, ldA: int = 0, ldB: int = 0, ldC: int = 0)
+
+   
+   Wrapper for the `HER2K routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gaf5266b622e0fbbd972cfc2df3061984f.html#gaf5266b622e0fbbd972cfc2df3061984f>`_
+   
+   Performs the matrix-matrix operation::
+   
+     C := alpha * A * B**H + conjg(alpha) * B * A**H +  beta * C
+   
+   or::
+   
+     C := alpha * A**H * B + conjg(alpha) * B**H * A +  beta * C
+   
+   where ``C`` is an hermitian matrix, ``B**H`` is the conjugate transpose of
+   ``B`` , ``conjg(alpha)`` is the complex conjugate of ``alpha``.
+   
+
+.. function:: proc trmm(A: [?Adom], B: [?Bdom], alpha, uplo: Uplo = Uplo.Upper, trans: Op = Op.N, side: Side = Side.Left, diag: Diag = Diag.NonUnit, order: Order = Order.Row, ldA: int = 0, ldB: int = 0)
+
+   
+   Wrapper for the `TRMM routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gad7c297c05b482699b6d60a29c8d4a165.html#gad7c297c05b482699b6d60a29c8d4a165>`_
+   
+   Performs the matrix-matrix operation::
+   
+     B := alpha * op(A) * B
+   
+   or::
+   
+     B := alpha * B * op(A)
+   
+   where ``A`` is a triangular matrix.
+   
+
+.. function:: proc trsm(A: [?Adom], B: [?Bdom], alpha, uplo: Uplo = Uplo.Upper, trans: Op = Op.N, side: Side = Side.Left, diag: Diag = Diag.NonUnit, order: Order = Order.Row, ldA: int = 0, ldB: int = 0)
+
+   
+   Wrapper for the `TRSM routines <http://www.netlib.org/lapack/explore-html/db/def/group__complex__blas__level3_gaf33844c7fd27e5434496d2ce0c1fc9d4.html#gaf33844c7fd27e5434496d2ce0c1fc9d4>`_
+   
+   Solves the matrix equation::
+   
+     op(A) * X = alpha * B
+   
+   or::
+   
+     X * op(A) = alpha * B
+   
+   where ``A`` is a triangular matrix.
+   
+

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>forall-loops: data-parallel loops &mdash; Chapel Documentation 1.29</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Promotion: implicit data parallelism" href="promotion.html" />
+    <link rel="prev" title="coforall-loops: loop-based tasking" href="../taskpar/coforall.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.29
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.29";
+$pagename = "users-guide/datapar/forall";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Chapel Users Guide (WIP)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../index.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#base-language">Base Language</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#data-parallelism">Data Parallelism</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#"><strong>forall</strong>-loops: data-parallel loops</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#motivation-for-forall-loops">Motivation for forall-loops</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#characteristics-of-forall-loop-bodies">Characteristics of Forall-loop Bodies</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zippered-forall-loops">Zippered forall loops</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="promotion.html">Promotion: implicit data parallelism</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#locality">Locality</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Chapel Users Guide (WIP)</a> &raquo;</li>
+      <li><strong>forall</strong>-loops: data-parallel loops</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/users-guide/datapar/forall.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="forall-loops-data-parallel-loops">
+<span id="ug-forall"></span><h1><strong>forall</strong>-loops: data-parallel loops<a class="headerlink" href="#forall-loops-data-parallel-loops" title="Permalink to this headline">¶</a></h1>
+<p>The <strong>forall-loop</strong> is Chapel’s central concept for expressing data
+parallelism.  Forall-loops are similar to <a class="reference internal" href="../taskpar/coforall.html#ug-coforall"><span class="std std-ref">coforall-loops</span></a> in that both are parallel variants of Chapel’s
+<a class="reference internal" href="../base/forloops.html#ug-forloops"><span class="std std-ref">for-loop</span></a>.  However, where a coforall-loop creates
+a concurrent task per iteration and a for-loop is executed serially by
+a single task, a forall-loop may use an arbitrary number of tasks to
+execute the loop.  As a result, it may execute serially using a single
+task, or it can use any number of tasks up to the number of iterations
+(or even beyond, though that is unusual).</p>
+<p>More specifically, the actual number of tasks used to execute a
+forall-loop is determined by its iterand expressions.  The iterands
+specify <em>parallel iterators</em>, either directly or via expressions whose
+types support default parallel iterator methods (ranges, domains, and
+arrays being key examples).  These iterators typically select
+the number of tasks to use based on dynamic information such as the
+size of the loop and/or the number of available processors.  In
+addition to specifying the degree of concurrency to use, parallel
+iterators also determine where their tasks run and how the loop’s
+iterations will be divided between them.  These choices are referred
+to as the <em>scheduling policy</em> for the loop.</p>
+<p>In practice, the default parallel iterators for many expressions
+create a number of tasks proportional to the amount of system
+parallelism that they are targeting.  For example, by default a local
+forall loop will typically create a number of tasks equal to the
+number of processor cores available on its compute node.  In contrast,
+a forall loop over a distributed array will typically create a task
+per core across all of the compute nodes to which the array is
+distributed.</p>
+<p>As with coforall-loops, the original task that encounters a
+forall-loop will not proceed until the tasks executing the loop’s
+iterations have completed.</p>
+<div class="section" id="motivation-for-forall-loops">
+<h2>Motivation for forall-loops<a class="headerlink" href="#motivation-for-forall-loops" title="Permalink to this headline">¶</a></h2>
+<p>As a simple motivating example, consider the following serial loop
+that increments every element in a million-element array <em>A</em>:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">examples/users-guide/datapar/forall.chpl</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="mi">1000000</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="k">for</span> <span class="nx">a</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">do</span>
+  <span class="nx">a</span> <span class="o">+=</span> <span class="mf">1.0</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
+<p>Since the array is large and the loop’s iterations are independent of
+one other, it would likely be beneficial to accelerate this computation by
+executing it in parallel.  A coforall-loop could be used to express
+the parallelism:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">coforall</span> <span class="nx">a</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">do</span>
+  <span class="nx">a</span> <span class="o">+=</span> <span class="mf">1.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>However, a coforall-loop would likely be overkill for this situation
+since it would create one million tasks, each of which is only
+responsible for incrementing a single element.  For most hardware
+platforms, this would generate more concurrency than the system could
+execute in parallel.  Moreover, the cost of creating, scheduling, and
+destroying the tasks would likely overshadow the small amount of
+computation that each one performs.  Better would be to create a
+smaller number of tasks and assign a number of loop iterations to
+each, as a means of amortizing the task creation overheads while
+avoiding overwhelming the target system with too much concurrency.</p>
+<p>This is precisely what forall-loops are for.  While they result in
+parallel execution like coforalls, they typically use a number of
+tasks that is appropriate for the system, dividing the loop’s
+iterations between them.  Thus, we could write this parallel loop as:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">a</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">do</span>
+  <span class="nx">a</span> <span class="o">+=</span> <span class="mf">1.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>In slightly more detail, the number of tasks used to implement a
+forall-loop is determined by its iterand expression(s), in this case
+the array <em>A</em>.  As declared here, <em>A</em> uses the default implementation
+(<em>domain map</em>) which causes it to be allocated locally to the
+compute node on which the active task is running.  The default
+parallel iterator for <em>A</em> creates a number of tasks equal to the number
+of available processor cores and divides the iterations evenly between
+them.  For example, if this program were running on a quad-core
+processor, <em>A</em>’s parallel iterator would create four tasks and assign
+each of them 250,000 (a quarter) of the array elements / loop
+iterations.  Note that these policy choices are simply defaults and
+can be overridden by the programmer using various mechanisms
+covered in subsequent sections.</p>
+</div>
+<div class="section" id="characteristics-of-forall-loop-bodies">
+<h2>Characteristics of Forall-loop Bodies<a class="headerlink" href="#characteristics-of-forall-loop-bodies" title="Permalink to this headline">¶</a></h2>
+<p>Because the number of tasks used to execute a forall-loop is not
+well-defined, such loops must be <em>serializable</em>.  This means that the
+loop’s iterations must be written such that they can legally be
+executed by a single task.  At the same time, since the loop’s
+iterations are likely to execute in parallel, there should be no
+sensitivity to the order in which they will execute—in practice, the
+iterands may schedule them in whatever order they choose.  To that
+end, by using a forall-loop, the user is asserting that it is safe to
+run the iterations serially or in parallel, and in any order.</p>
+<p>Practically speaking, these characteristics mean that there can be no
+synchronization dependencies between iterations of a forall-loop as
+there could be in a coforall-loop; doing so could cause deadlock
+depending on how the iterations are mapped to tasks.  In addition,
+there should typically be no loop-carried dependences across
+iterations since doing so can lead to race conditions and
+nondeterministic behavior.</p>
+<p>As a simple example of a race condition in a forall loop, consider the
+following example whose output is nondeterministic in Chapel:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">2</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span> <span class="k">do</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>Intuitively, it appears that the user hopes to replace each of the
+interior elements of <em>A</em> with the sum of its neighbors in parallel.
+However, whenever multiple tasks are used to implement the loop, there
+will be a race.  Specifically, for a given iteration <em>i</em>, there is no
+guarantee that the <code class="docutils literal notranslate"><span class="pre">A[i-1]</span></code> and <code class="docutils literal notranslate"><span class="pre">A[i+1]</span></code> elements it reads will
+still contain the original input values of <em>A</em> as opposed to ones that
+were just computed and written by another task running in parallel.
+The resulting values of the array elements will therefore depend on
+the number of tasks running, how the iterations are divided between
+them, and the specific timing of when each iteration executes relative
+to its neighbors.  In other words, the outcome is highly
+unpredictable.</p>
+<p>In contrast, if the forall-loop were executed by a single task
+serially and in a specific order, it would be deterministic.  However,
+it would still not implement the presumed computation since some reads
+of neighboring elements would necessarily refer to values that had
+already been updated.  For example, if the elements were computed in
+ascending order, each access to <code class="docutils literal notranslate"><span class="pre">A[i-1]</span></code> would read a value
+that had just overwritten the intended value in the previous iteration.</p>
+<p>The lesson in this example is that when using a forall-loop, the
+programmer asserts that the loop’s iterations can execute safely in
+parallel and is responsible for the outcome when they cannot.  Chapel
+does not prevent nondeterministic forall loops from being written, it
+merely implements the parallelism that the programmer specifies.</p>
+<p>Here are two variations of the previous loop which <em>are</em>
+parallel-safe:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">2</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span> <span class="k">by</span> <span class="mi">2</span> <span class="k">do</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">];</span>
+
+<span class="kd">var</span> <span class="nx">B</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">2</span><span class="o">..</span><span class="nx">n</span><span class="o">-</span><span class="mi">1</span> <span class="k">do</span>
+  <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>In the first loop, the race condition is eliminated since the loop
+only iterates over every other element of <em>A</em>.  This guarantees that
+the elements of <em>A</em> being written are independent of the ones being
+read and eliminates the potential for races between tasks.  In the
+second loop, the overlap is eliminated by reading from <em>A</em> and writing
+into a second array, <em>B</em>.  In this way, it again guarantees that no
+task will read values that are potentially being written by other
+tasks in parallel.</p>
+<p>Starting from our original array <em>A</em> which stored 1.0 in every
+position, the results of <em>A</em> and <em>B</em> after executing the loops above
+would be as follows (for <em>n</em> == 8):</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>A is: 1.0 2.0 1.0 2.0 1.0 2.0 1.0 1.0
+B is: 0.0 2.0 4.0 2.0 4.0 2.0 3.0 0.0
+</pre></div>
+</div>
+</div>
+<div class="section" id="zippered-forall-loops">
+<h2>Zippered forall loops<a class="headerlink" href="#zippered-forall-loops" title="Permalink to this headline">¶</a></h2>
+<p>Like for- and coforall-loops, forall-loops support zippered iteration.
+In this case, the first iterand in the zippering (called the <em>leader</em>)
+controls the loop scheduling policies.  All the other iterands
+(<em>followers</em>) are implemented in a way that guarantees that
+corresponding iterations will line up in spite of the parallel
+execution.  How such iterators are written will be covered in later
+sections.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../taskpar/coforall.html" class="btn btn-neutral float-left" title="coforall-loops: loop-based tasking" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="promotion.html" class="btn btn-neutral float-right" title="Promotion: implicit data parallelism" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

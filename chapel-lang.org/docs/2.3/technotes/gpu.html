@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPU Programming &mdash; Chapel Documentation 2.3</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c3c8ae58"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="C Interoperability" href="extern.html" />
+    <link rel="prev" title="The foreach Loop" href="foreach.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.3
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.3";
+$pagename = "technotes/gpu";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local.html">The ‘local’ keyword</a></li>
+<li class="toctree-l3"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l3"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="foreach.html">The 'foreach' Loop</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">GPU Programming</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examples">Examples</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#setup">Setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#known-limitations">Known Limitations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tested-configurations">Tested Configurations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gpu-support-on-windows-subsystem-for-linux">GPU Support on Windows Subsystem for Linux</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#further-information">Further Information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#io">IO</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Technical Notes</a></li>
+      <li class="breadcrumb-item active">GPU Programming</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/gpu.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gpu-programming">
+<span id="readme-gpu"></span><h1><a class="toc-backref" href="#id3" role="doc-backlink">GPU Programming</a><a class="headerlink" href="#gpu-programming" title="Link to this heading">¶</a></h1>
+<p>Chapel enables developers to use parallelism at different levels: from
+intra-node multicore parallelism, to cross-node distributed parallelism, to
+GPUs. This technote serves as a reference on how to use Chapel to program GPUs.
+Specifically, it gives a quick overview of GPU programming, includes a handful
+of examples, discusses system requirements and current limitations for GPU
+support, and delves into more details on some specific GPU-related features.</p>
+<p>Readers preferring a more tutorial-like introduction to Chapel’s GPU support,
+may also wish to look at our <a class="reference external" href="https://chapel-lang.org/blog/series/gpu-programming-in-chapel/">GPU Programming in Chapel</a> blog series.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This work is under active development. As such, the interface is unstable and
+expected to change.</p>
+</div>
+<nav class="contents" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#gpu-programming" id="id3">GPU Programming</a></p>
+<ul>
+<li><p><a class="reference internal" href="#overview" id="id4">Overview</a></p></li>
+<li><p><a class="reference internal" href="#examples" id="id5">Examples</a></p>
+<ul>
+<li><p><a class="reference internal" href="#benchmark-examples" id="id6">Benchmark examples</a></p></li>
+<li><p><a class="reference internal" href="#test-examples" id="id7">Test examples</a></p></li>
+<li><p><a class="reference internal" href="#examples-with-multiple-gpus" id="id8">Examples with multiple GPUs</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#setup" id="id9">Setup</a></p>
+<ul>
+<li><p><a class="reference internal" href="#requirements" id="id10">Requirements</a></p></li>
+<li><p><a class="reference internal" href="#gpu-related-environment-variables" id="id11">GPU-Related Environment Variables</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#features" id="id12">Features</a></p>
+<ul>
+<li><p><a class="reference internal" href="#vendor-portability" id="id13">Vendor Portability</a></p></li>
+<li><p><a class="reference internal" href="#gpu-related-attributes" id="id14">GPU-Related Attributes</a></p></li>
+<li><p><a class="reference internal" href="#cpu-as-device-mode" id="id15">CPU-as-Device Mode</a></p></li>
+<li><p><a class="reference internal" href="#diagnostics-and-utilities" id="id16">Diagnostics and Utilities</a></p></li>
+<li><p><a class="reference internal" href="#multi-locale-support" id="id17">Multi-Locale Support</a></p></li>
+<li><p><a class="reference internal" href="#reductions-and-scans" id="id18">Reductions and Scans</a></p></li>
+<li><p><a class="reference internal" href="#device-to-device-communication-support" id="id19">Device-to-Device Communication Support</a></p>
+<ul>
+<li><p><a class="reference internal" href="#for-nvidia" id="id20">For NVIDIA</a></p></li>
+<li><p><a class="reference internal" href="#for-amd" id="id21">For AMD</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#memory-strategies" id="id22">Memory Strategies</a></p></li>
+<li><p><a class="reference internal" href="#debugger-and-profiler-support-for-nvidia" id="id23">Debugger and Profiler Support for NVIDIA</a></p></li>
+<li><p><a class="reference internal" href="#examining-generated-assembly" id="id24">Examining Generated Assembly</a></p></li>
+<li><p><a class="reference internal" href="#chapel-tasks-and-gpu-execution" id="id25">Chapel Tasks and GPU Execution</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#known-limitations" id="id26">Known Limitations</a></p>
+<ul>
+<li><p><a class="reference internal" href="#using-c-interoperability" id="id27">Using C Interoperability</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#performance-tips" id="id28">Performance Tips</a></p></li>
+<li><p><a class="reference internal" href="#tested-configurations" id="id29">Tested Configurations</a></p></li>
+<li><p><a class="reference internal" href="#gpu-support-on-windows-subsystem-for-linux" id="id30">GPU Support on Windows Subsystem for Linux</a></p></li>
+<li><p><a class="reference internal" href="#further-information" id="id31">Further Information</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+<section id="overview">
+<h2><a class="toc-backref" href="#id4" role="doc-backlink">Overview</a><a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>The Chapel compiler will generate GPU kernels for certain parallel operations
+such as <code class="docutils literal notranslate"><span class="pre">forall</span></code>/<code class="docutils literal notranslate"><span class="pre">foreach</span></code> loops, <code class="docutils literal notranslate"><span class="pre">reduce</span></code> expressions and promoted
+expressions. These will be launched onto a GPU when the current locale (e.g.
+<code class="docutils literal notranslate"><span class="pre">here</span></code>) is the sublocale representing that particular GPU. To deploy code to a
+GPU, put the relevant code in an <code class="docutils literal notranslate"><span class="pre">on</span></code> statement targeting a GPU sublocale
+(i.e. <code class="docutils literal notranslate"><span class="pre">here.gpus[0]</span></code>).</p>
+<p>Any arrays that are declared by tasks executing on a GPU sublocale will, by
+default, be accessible on the GPU (see the <a class="reference internal" href="#memory-strategies">Memory Strategies</a> subsection for
+more information about alternate memory strategies).</p>
+<p>Chapel will launch kernels for all eligible data-parallel operations that are
+encountered by tasks executing on a GPU sublocale. Expressions are eligible
+when:</p>
+<ul class="simple">
+<li><p>They are order-independent, such as:</p>
+<ul>
+<li><p><a class="reference external" href="../users-guide/datapar/forall.html">forall</a> or <a class="reference external" href="foreach.html">foreach</a>
+loops over iterators that are also order-independent (i.e. the yielding loop
+uses <code class="docutils literal notranslate"><span class="pre">foreach</span></code> loops instead of <code class="docutils literal notranslate"><span class="pre">for</span></code>. All Chapel iterators of ranges,
+domains and arrays are order-independent),</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reduce</span></code> expressions over order-independent iterators,</p></li>
+<li><p>Promoted expressions over order-independent iterators.</p></li>
+</ul>
+</li>
+<li><p>They do not call out to <code class="docutils literal notranslate"><span class="pre">extern</span></code> functions (aside from those in an exempted
+set of Chapel runtime functions).</p></li>
+<li><p>They do not allocate memory dynamically (i.e. no class instances or Chapel
+arrays are created within).</p></li>
+<li><p>They are free of any call to a function that fails to meet the above
+criteria or accesses outer variables.</p></li>
+</ul>
+<p>Any code in an <code class="docutils literal notranslate"><span class="pre">on</span></code> statement for a GPU sublocale that is not within an
+eligible loop will be executed on the CPU.</p>
+</section>
+<section id="examples">
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Examples</a><a class="headerlink" href="#examples" title="Link to this heading">¶</a></h2>
+<p>The following example illustrates running a computation on a GPU as well as a
+CPU. When <code class="docutils literal notranslate"><span class="pre">jacobi</span></code> is called with a GPU locale it will allocate the arrays
+<code class="docutils literal notranslate"><span class="pre">A</span></code> and <code class="docutils literal notranslate"><span class="pre">B</span></code> on the device memory of the GPU and we generate three GPU
+kernels for the <code class="docutils literal notranslate"><span class="pre">forall</span></code> loops in the function.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">nSteps</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+<span class="kd">config</span> <span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;on GPU:&quot;</span><span class="p">);</span>
+<span class="nx">jacobi</span><span class="p">(</span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;on CPU:&quot;</span><span class="p">);</span>
+<span class="nx">jacobi</span><span class="p">(</span><span class="nx">here</span><span class="p">);</span>
+
+<span class="k">proc</span> <span class="nf">jacobi</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">on</span> <span class="nx">loc</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="nx">n</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+
+    <span class="nx">A</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="nx">A</span><span class="p">[</span><span class="nx">n</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">:</span><span class="kt">real</span><span class="p">;</span> <span class="p">}</span>
+
+    <span class="k">for</span> <span class="nx">step</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">nSteps</span> <span class="p">{</span>
+      <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span> <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.33333</span> <span class="o">*</span> <span class="p">(</span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]);</span> <span class="p">}</span>
+      <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="p">{</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.33333</span> <span class="o">*</span> <span class="p">(</span><span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">+</span> <span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]);</span> <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For additional examples we suggest looking at some of our internal tests. Note
+that these are not packaged in the Chapel release but are accessible from our
+<a class="reference external" href="https://github.com/chapel-lang/chapel">public Github repository</a>.</p>
+<p>Tests of particular interest include:</p>
+<section id="benchmark-examples">
+<h3><a class="toc-backref" href="#id6" role="doc-backlink">Benchmark examples</a><a class="headerlink" href="#benchmark-examples" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/jacobi/jacobi.chpl">Jacobi</a> – Jacobi example (shown above)</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/streamPrototype/stream.chpl">Stream</a> – GPU enabled version of Stream benchmark</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/studies/shoc/triad.chpl">SHOC Triad (Direct)</a> – a transliterated version of the SHOC Triad benchmark</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/studies/shoc/triadchpl.chpl">SHOC Triad (Chapeltastic)</a> – a version of the SHOC benchmark simplified to use Chapel language features (such as promotion)</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/studies/shoc/shoc-sort.chpl">SHOC Sort</a> – SHOC radix sort benchmark</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/asynchrony/asyncTaskComm.chpl">asyncTaskComm</a> – a synthetic benchmark to test overlap performance using multiple Chapel tasks.</p></li>
+</ul>
+</section>
+<section id="test-examples">
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">Test examples</a><a class="headerlink" href="#test-examples" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/assertOnFailToGpuize.chpl">assertOnFailToGpuize</a> – various examples of loops that are not eligible for GPU execution</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/mathOps.chpl">mathOps</a> – calls to various math functions within kernels that call out to the CUDA Math library</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/measureGpuCycles.chpl">measureGpuCycles</a> – measuring time within a GPU kernel</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/promotion2.chpl">promotion2</a> – GPU kernels from promoted expressions</p></li>
+</ul>
+</section>
+<section id="examples-with-multiple-gpus">
+<h3><a class="toc-backref" href="#id8" role="doc-backlink">Examples with multiple GPUs</a><a class="headerlink" href="#examples-with-multiple-gpus" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/multiGPU/multiGPU.chpl">multiGPU</a> – simple example using all GPUs within a locale</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/multiGPU/worksharing.chpl">workSharing</a> – stream-like example showing computation shared between GPUs and CPU</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/multiLocale/onAllGpusOnAllLocales.chpl">onAllGpusOnAllLocales</a> – simple example using all GPUs and locales</p></li>
+<li><p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/multiLocale/copyToLocaleThenToGpu.chpl">copyToLocaleThenToGpu</a> – stream-like example (with data initialized on Locale 0 then transferred to other locales and GPUs)</p></li>
+</ul>
+</section>
+</section>
+<section id="setup">
+<h2><a class="toc-backref" href="#id9" role="doc-backlink">Setup</a><a class="headerlink" href="#setup" title="Link to this heading">¶</a></h2>
+<section id="requirements">
+<h3><a class="toc-backref" href="#id10" role="doc-backlink">Requirements</a><a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h3>
+<p>First, please make sure you are using Chapel’s <a class="reference external" href="../usingchapel/QUICKSTART.html#using-chapel-in-its-preferred-configuration">preferred configuration</a>
+as the starting point. Specifically, the “quickstart” configuration can not be
+used with GPU support.</p>
+<p>The following are further requirements for GPU support:</p>
+<ul class="simple">
+<li><p>For targeting NVIDIA or AMD GPUs, the default <code class="docutils literal notranslate"><span class="pre">LLVM</span></code> backend must be used as
+Chapel’s backend compiler (i.e.  <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM</span></code> must be set to <code class="docutils literal notranslate"><span class="pre">system</span></code> or
+<code class="docutils literal notranslate"><span class="pre">bundled</span></code>).</p>
+<ul>
+<li><p>Note that <code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_COMPILER</span></code> must be <code class="docutils literal notranslate"><span class="pre">llvm</span></code>. This is the default
+when <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM</span></code> is set to <code class="docutils literal notranslate"><span class="pre">system</span></code> or <code class="docutils literal notranslate"><span class="pre">bundled</span></code>.</p></li>
+</ul>
+</li>
+<li><p>The environment variable <code class="docutils literal notranslate"><span class="pre">CHPL_LOCALE_MODEL</span></code> must be set to <code class="docutils literal notranslate"><span class="pre">gpu</span></code>.</p></li>
+<li><p>Specifically for targeting NVIDIA GPUs:</p>
+<ul>
+<li><p>CUDA toolkit version 11.x or 12.x must be installed.</p></li>
+<li><p>We test with system LLVM 19. Older versions may work.</p>
+<ul>
+<li><p>Note that LLVM versions older than 16 do not support CUDA 12.</p></li>
+</ul>
+</li>
+<li><p>If using <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM=system</span></code>, it must have been built with support for
+NVPTX target. You can check supported targets of your LLVM installation by
+running <code class="docutils literal notranslate"><span class="pre">llvm-config</span> <span class="pre">--targets-built</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Specifically for targeting AMD GPUs:</p>
+<ul>
+<li><p>ROCm version between 5.0 and 5.4 or between ROCm 6.0 and 6.2 must be
+installed.</p></li>
+<li><p>For ROCm 5.x, <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM</span></code> must be set to <code class="docutils literal notranslate"><span class="pre">system</span></code>. Note that, ROCm
+installations come with LLVM. Setting <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM=system</span></code> will allow you to
+use that LLVM.</p></li>
+<li><p>For ROCm 6.x, only <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM=bundled</span></code> is supported.</p></li>
+</ul>
+</li>
+<li><p>Specifically for using the <a class="reference internal" href="#cpu-as-device-mode">CPU-as-Device mode</a>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU=cpu</span></code> must be explicitly set. In other words, Chapel will not
+automatically fall back to this mode simply because it can’t detect GPUs.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="gpu-related-environment-variables">
+<h3><a class="toc-backref" href="#id11" role="doc-backlink">GPU-Related Environment Variables</a><a class="headerlink" href="#gpu-related-environment-variables" title="Link to this heading">¶</a></h3>
+<p>Several variables affect how Chapel generates code for and interacts with GPUs.
+These variables include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_LOCALE_MODEL</span></code> — must be set to <code class="docutils literal notranslate"><span class="pre">gpu</span></code> to enable GPU support.
+Chapel will need to be rebuilt if this value is changed.  For more information,
+see <a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-locale-model"><span class="std std-ref">CHPL_LOCALE_MODEL</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU</span></code> — may be set to <code class="docutils literal notranslate"><span class="pre">nvidia</span></code>, <code class="docutils literal notranslate"><span class="pre">amd</span></code>, or <code class="docutils literal notranslate"><span class="pre">cpu</span></code>. If unset, as
+part of its build process, Chapel will attempt to automatically determine what
+type of GPU you’re trying to target. Changing this variable requires
+rebuilding the Chapel runtime. For more information, see the <a class="reference internal" href="#vendor-portability">Vendor
+Portability</a> section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU_ARCH</span></code> — specifies GPU architecture to generate kernel code for.
+This must be set while targeting AMD GPUs.  If unset and targeting NVIDIA
+GPUs, will default to <code class="docutils literal notranslate"><span class="pre">sm_60</span></code>. This may also be set by passing the <code class="docutils literal notranslate"><span class="pre">chpl</span></code>
+compiler <code class="docutils literal notranslate"><span class="pre">--gpu-arch=&lt;architecture&gt;</span></code>. For more information, see the <a class="reference internal" href="#vendor-portability">Vendor
+Portability</a> section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_CUDA_PATH</span></code> — specifies path to CUDA toolkit.  If unset, Chapel tries
+to automatically determine this path based on the location of <code class="docutils literal notranslate"><span class="pre">nvcc</span></code>. This
+variable is unused if not targeting NVIDIA GPUs. For more information, see
+the <a class="reference internal" href="#vendor-portability">Vendor Portability</a> section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_ROCM_PATH</span></code> — specifies the path to the ROCm library. If unset,
+Chapel tries to automatically determine this path based on the location of
+<code class="docutils literal notranslate"><span class="pre">hipcc</span></code>.  This variable is unused if not targeting AMD GPUs. For more
+information, see the <a class="reference internal" href="#vendor-portability">Vendor Portability</a> section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_RT_NUM_GPUS_PER_LOCALE</span></code> — sets how many GPU sublocales to have per
+locale. If using <code class="docutils literal notranslate"><span class="pre">CHPL_GPU=cpu</span></code>, may be set to any non negative value,
+otherwise it may be set to any value equal to or lower than the number of GPUs
+available on each node.  If unset, defaults to the number of GPUs available on
+each node, except for when <code class="docutils literal notranslate"><span class="pre">CHPL_GPU=cpu</span></code>, in which case it defaults to 1.
+For more information, see the <a class="reference internal" href="#cpu-as-device-mode">CPU-as-Device mode</a> section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU_MEM_STRATEGY</span></code> — dictates how to allocate data when on a GPU
+locale.  May be set to <code class="docutils literal notranslate"><span class="pre">unified_memory</span></code> or <code class="docutils literal notranslate"><span class="pre">array_on_device</span></code>. If unset,
+defaults to <code class="docutils literal notranslate"><span class="pre">array_on_device</span></code>. Changing this variable requires rebuilding
+Chapel. For more information, see the <a class="reference internal" href="#memory-strategies">Memory Strategies</a> section.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU_BLOCK_SIZE</span></code> — specifies the default block size when launching
+kernels. If unset, defaults to 512. This variable may also be set by passing
+the <code class="docutils literal notranslate"><span class="pre">chpl</span></code> compiler <code class="docutils literal notranslate"><span class="pre">--gpu-block-size=&lt;block_size&gt;</span></code>. It can also be
+overwritten on a per-kernel basis by using the <code class="docutils literal notranslate"><span class="pre">&#64;gpu.blockSize(n)</span></code> loop
+attribute (described in more detail in <a class="reference internal" href="#gpu-related-attributes">GPU-Related Attributes</a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU_SPECIALIZATION</span></code> — if set, outlines bodies of ‘on’ statements
+and clones all functions reachable from that block. The ‘on’ statement is
+rewritten to call the cloned version of the outlined function when on a  GPU
+locale. This mode increases overall code size but allows the compiler to
+assume that a given function will execute on the GPU locale and optimize
+accordingly. This may also be set by passing the <code class="docutils literal notranslate"><span class="pre">chpl</span></code> compiler the
+<code class="docutils literal notranslate"><span class="pre">--gpu-specialization</span></code> flag. This is an experimental mode subject to change
+in the future.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_GPU_NO_CPU_MODE_WARNING</span></code> - this variable is relevant when using the
+<a class="reference internal" href="#cpu-as-device-mode">CPU-as-Device mode</a> and if set, uses of
+the <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code> attribute do not generate warnings at execution time.
+Alternatively, this behavior can be enabled by passing
+<code class="docutils literal notranslate"><span class="pre">--gpuNoCpuModeWarning</span></code> to your application. For more information, see the
+<a class="reference internal" href="#cpu-as-device-mode">CPU-as-Device mode</a> section.</p></li>
+</ul>
+</section>
+</section>
+<section id="features">
+<h2><a class="toc-backref" href="#id12" role="doc-backlink">Features</a><a class="headerlink" href="#features" title="Link to this heading">¶</a></h2>
+<p>In the following subsections we discuss various features of GPU supports.</p>
+<section id="vendor-portability">
+<h3><a class="toc-backref" href="#id13" role="doc-backlink">Vendor Portability</a><a class="headerlink" href="#vendor-portability" title="Link to this heading">¶</a></h3>
+<p>Chapel is able to generate code that will execute on either NVIDIA or AMD GPUs.
+Chapel’s build system will automatically try and deduce what type of GPU you
+have and where your installation of relevant runtime (e.g. CUDA or ROCm) are.
+If the type of GPU is not detected you may set the <code class="docutils literal notranslate"><span class="pre">CHPL_GPU</span></code> environment
+variable manually to either <code class="docutils literal notranslate"><span class="pre">nvidia</span></code> or <code class="docutils literal notranslate"><span class="pre">amd</span></code>.  <code class="docutils literal notranslate"><span class="pre">CHPL_GPU</span></code> may also
+manually be set to <code class="docutils literal notranslate"><span class="pre">cpu</span></code> to use <a class="reference internal" href="#cpu-as-device-mode">CPU-as-Device mode</a>.</p>
+<p>Based on the value of <code class="docutils literal notranslate"><span class="pre">CHPL_GPU</span></code>, Chapel’s build system will also attempt to
+automatically detect the path to the relevant runtime. If it is not
+automatically detected (or you would like to use a different installation) you
+may set <code class="docutils literal notranslate"><span class="pre">CHPL_CUDA_PATH</span></code> and/or <code class="docutils literal notranslate"><span class="pre">CHPL_ROCM_PATH</span></code> explicitly.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">CHPL_GPU_ARCH</span></code> environment variable can be set to control the desired GPU
+architecture to compile for. The default value is <code class="docutils literal notranslate"><span class="pre">sm_60</span></code> for
+<code class="docutils literal notranslate"><span class="pre">CHPL_GPU=nvidia</span></code>. You may also use the <code class="docutils literal notranslate"><span class="pre">--gpu-arch</span></code> compiler flag to
+set GPU architecture.  If using AMD, this variable must be set. <a class="reference external" href="https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html">This table in
+the ROCm documentation</a>
+has possible architecture values (see the “LLVM target name” column). For NVIDIA, see
+the <a class="reference external" href="https://developer.nvidia.com/cuda-gpus">CUDA Compute Capability</a> table.</p>
+<p>For NVIDIA, the <code class="docutils literal notranslate"><span class="pre">CHPL_GPU_ARCH</span></code> variable can also be set to a comma-separated
+list. This causes the Chapel compiler to generate device code for each of the
+given compute capabilities, and to bundle the different versions in a single
+executable. When the program is executed, the compute capability best suited
+for the available GPU will be loaded by the CUDA runtime. Support for this
+feature for AMD GPUs is planned, but not currently available.</p>
+</section>
+<section id="gpu-related-attributes">
+<h3><a class="toc-backref" href="#id14" role="doc-backlink">GPU-Related Attributes</a><a class="headerlink" href="#gpu-related-attributes" title="Link to this heading">¶</a></h3>
+<p>Chapel’s GPU support makes use of attributes (see <a class="reference external" href="./attributes.html">Attributes in Chapel</a>)
+to control various aspects of how code is compiled or executed on the GPU.
+Currently the following GPU-specific attributes are available:
+<code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code> and <code class="docutils literal notranslate"><span class="pre">&#64;gpu.assertEligible</span></code> (described in <a class="reference internal" href="#diagnostics-and-utilities">Diagnostics and Utilities</a>),
+<code class="docutils literal notranslate"><span class="pre">&#64;gpu.blockSize</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&#64;gpu.itersPerThread</span></code>.
+Because
+Chapel’s GPU support primarily works by converting eligible loops into GPU
+kernels, GPU-specific attributes primarily apply to loops. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">myBlockSize</span> <span class="o">=</span> <span class="mi">128</span><span class="p">;</span>
+
+<span class="k">on</span> <span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">{</span>
+  <span class="k">@</span><span class="nd">assertOnGpu</span>
+  <span class="k">@</span><span class="nd">gpu.blockSize</span><span class="p">(</span><span class="nx">myBlockSize</span><span class="p">)</span>
+  <span class="k">foreach</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">1024</span> <span class="p">{</span> <span class="cm">/* ... your code here ... */</span> <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In the above code, <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code> ensures that the <code class="docutils literal notranslate"><span class="pre">foreach</span></code> loop is
+GPU-eligible, and <code class="docutils literal notranslate"><span class="pre">&#64;gpu.blockSize</span></code> sets the block size for the kernel to
+<code class="docutils literal notranslate"><span class="pre">myBlockSize</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&#64;gpu.assertEligible</span></code> reports a compile-time error when compiling with
+<code class="docutils literal notranslate"><span class="pre">CHPL_LOCALE_MODEL==gpu</span></code> and the annotated loop is not GPU-eligible.
+No runtime checks are performed.</p>
+<p>The attribute <code class="docutils literal notranslate"><span class="pre">&#64;gpu.itersPerThread(numIters)</span></code> requests that the kernel
+executes each consecutive <code class="docutils literal notranslate"><span class="pre">numIters</span></code> iterations of the affected loop
+sequentially within the same GPU thread. Users must ensure that
+the arguments to the “blockSize” and “itersPerThread” attributes
+are positive and non-zero.</p>
+<p>To apply attributes to expression-level loops such as
+<a class="reference internal" href="../language/spec/data-parallelism.html#promotion"><span class="std std-ref">promoted function calls</span></a> or <code class="docutils literal notranslate"><span class="pre">foreach</span></code> expressions, Chapel
+also (experimentally) supports decorating variable declarations with GPU
+attributes. In the following example, an array <code class="docutils literal notranslate"><span class="pre">A</span></code> is initialized from a
+<code class="docutils literal notranslate"><span class="pre">foreach</span></code> expression, where two GPU attributes are used to control the
+execution of the expression on the GPU:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">@</span><span class="nd">gpu.blockSize</span><span class="p">(</span><span class="mi">128</span><span class="p">)</span>
+<span class="k">@</span><span class="nd">gpu.itersPerThread</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="k">foreach</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">1000000</span> <span class="k">do</span> <span class="nx">i</span> <span class="o">*</span> <span class="nx">i</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This integrates with Chapel’s support for <a class="reference external" href="./remote.html">Remote Variable Declarations</a>;
+the following piece of code demonstrates declaring a (GPU-allocated) array
+<code class="docutils literal notranslate"><span class="pre">A</span></code> in code that otherwise runs on a CPU locale:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">@</span><span class="nd">assertOnGpu</span>
+<span class="k">on</span> <span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="k">foreach</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">1000000</span> <span class="k">do</span> <span class="nx">i</span> <span class="o">*</span> <span class="nx">i</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code> attribute applies and checks the GPU eligibility of the
+<code class="docutils literal notranslate"><span class="pre">foreach</span></code> expression. The expression is then executed on the GPU locale,
+which ensures the runtime GPU assertion is satisfied.</p>
+</section>
+<section id="cpu-as-device-mode">
+<h3><a class="toc-backref" href="#id15" role="doc-backlink">CPU-as-Device Mode</a><a class="headerlink" href="#cpu-as-device-mode" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">CHPL_GPU</span></code> environment variable can be set to <code class="docutils literal notranslate"><span class="pre">cpu</span></code> to enable many GPU
+features to be used without requiring any GPUs and/or vendor SDKs to be
+installed. This mode is mainly for initial development steps or quick feature
+tests where access to GPUs may be limited. In this mode:</p>
+<ul class="simple">
+<li><p>The compiler will generate GPU kernels from eligible loops normally.</p></li>
+<li><p>It will call the internal runtime API for GPU operations, so that features
+outlined under <a class="reference internal" href="#diagnostics-and-utilities">Diagnostics and Utilities</a> will work as expected.</p>
+<ul>
+<li><p>For example, the <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code> attribute will fail at compile time for
+ineligible loops normally.  This can allow testing if a loop is
+GPU-eligible. It will generate a warning per-iteration at execution time.
+The <code class="docutils literal notranslate"><span class="pre">CHPL_GPU_NO_CPU_MODE_WARNING</span></code> environment can be set to suppress
+these warnings. Alternatively, you can pass <code class="docutils literal notranslate"><span class="pre">--gpuNoCpuModeWarning</span></code> to
+your application to the same effect.</p></li>
+<li><p>Note that data movements between device and host will not be captured by the
+<a class="reference internal" href="../modules/standard/GpuDiagnostics.html#module-GpuDiagnostics" title="GpuDiagnostics: Supports counting and reporting GPU operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">GpuDiagnostics</span></code></a> module in this mode.</p></li>
+</ul>
+</li>
+<li><p>Even though the kernel launches will be registered by GPU diagnostics, the
+loop will be executed for correctness testing and there will not be any actual
+kernel launch even if you have a GPU available.</p></li>
+<li><p>Advanced features like <code class="docutils literal notranslate"><span class="pre">syncThreads</span></code> and <code class="docutils literal notranslate"><span class="pre">createSharedArray</span></code> will compile
+and run, but in all likelihood code that uses those features will not
+generate correct results.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">asyncGpuComm</span></code> procedure will do a blocking <code class="docutils literal notranslate"><span class="pre">memcpy</span></code> and
+<code class="docutils literal notranslate"><span class="pre">gpuCommWait</span></code> will return immediately.</p></li>
+<li><p>There will be one GPU sublocale per locale by default.
+<code class="docutils literal notranslate"><span class="pre">CHPL_RT_NUM_GPUS_PER_LOCALE</span></code> can be set to control how many GPU sublocales
+will be created per locale.</p></li>
+<li><p>Inner loops in loop nests that consist of GPU-eligible loops will be reported
+as kernel launch whereas in regular GPU modes, such loops will not be launched
+as a kernel as the execution will already be on the GPU. This may cause
+increased kernel launches reported by the <a class="reference internal" href="../modules/standard/GpuDiagnostics.html#module-GpuDiagnostics" title="GpuDiagnostics: Supports counting and reporting GPU operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">GpuDiagnostics</span></code></a> utilities with
+loop nests and multidimensional loops.</p></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This mode should not be used for performance studies. Application correctness
+is not guaranteed in complex cases.</p>
+</div>
+</section>
+<section id="diagnostics-and-utilities">
+<h3><a class="toc-backref" href="#id16" role="doc-backlink">Diagnostics and Utilities</a><a class="headerlink" href="#diagnostics-and-utilities" title="Link to this heading">¶</a></h3>
+<p>The <a class="reference internal" href="../modules/standard/GpuDiagnostics.html#module-GpuDiagnostics" title="GpuDiagnostics: Supports counting and reporting GPU operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">GpuDiagnostics</span></code></a> module contains functions to help users count and
+track kernel launches and data movement between host and device(s).</p>
+<p>To count the number of kernel launches that occur in a section of code,
+surround that code with calls to <a class="reference internal" href="../modules/standard/GpuDiagnostics.html#GpuDiagnostics.startGpuDiagnostics" title="GpuDiagnostics.startGpuDiagnostics"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">startGpuDiagnostics</span></code></a>
+and <a class="reference internal" href="../modules/standard/GpuDiagnostics.html#GpuDiagnostics.stopGpuDiagnostics" title="GpuDiagnostics.stopGpuDiagnostics"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">stopGpuDiagnostics</span></code></a> and then call
+<a class="reference internal" href="../modules/standard/GpuDiagnostics.html#GpuDiagnostics.getGpuDiagnostics" title="GpuDiagnostics.getGpuDiagnostics"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">getGpuDiagnostics</span></code></a>.  If called in a multi-locale
+environment <a class="reference internal" href="../modules/standard/GpuDiagnostics.html#GpuDiagnostics.getGpuDiagnostics" title="GpuDiagnostics.getGpuDiagnostics"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">getGpuDiagnostics</span></code></a> will return an array of
+counts of launches on a per-locale basis.</p>
+<p>To get verbose output (indicating the location of each kernel launch) surround
+the code with calls to <a class="reference internal" href="../modules/standard/GpuDiagnostics.html#GpuDiagnostics.startVerboseGpu" title="GpuDiagnostics.startVerboseGpu"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">startVerboseGpu</span></code></a> and
+<a class="reference internal" href="../modules/standard/GpuDiagnostics.html#GpuDiagnostics.stopVerboseGpu" title="GpuDiagnostics.stopVerboseGpu"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">stopVerboseGpu</span></code></a>. This output will be directed to
+<code class="docutils literal notranslate"><span class="pre">stdout</span></code>.</p>
+<p>To get a list of all GPU eligible loops at compile-time (regardless of if they
+will actually run on a GPU or not) pass <code class="docutils literal notranslate"><span class="pre">chpl</span></code> the <code class="docutils literal notranslate"><span class="pre">--report-gpu</span></code> flag.</p>
+<p>Since not all Chapel loops are eligible for conversion into GPU kernels, it
+is helpful to be able to ensure that a particular loop is being executed
+on the GPU. This can be achieved by marking the loop with the
+<a class="reference internal" href="../modules/standard/GPU.html#GPU.&#64;assertOnGpu" title="GPU.&#64;assertOnGpu"><code class="xref chpl chpl-annotation docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code></a> attribute. When a <code class="docutils literal notranslate"><span class="pre">forall</span></code> or <code class="docutils literal notranslate"><span class="pre">foreach</span></code>
+loop is marked with this attribute, the compiler will perform a compile-time
+check and produce an error if one of the aforementioned requirements is not met.
+Loops marked with the <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code> attribute will also conduct a runtime
+assertion that will halt execution when not being performed on a GPU. This can
+happen when the loop is eligible for GPU execution, but is being executed
+outside of a GPU locale. The <a class="reference internal" href="../modules/standard/GPU.html#module-GPU" title="GPU: Supports utility functions for operating with GPUs."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">GPU</span></code></a> module contains additional utility
+functions.</p>
+<p>In some cases, it is desirable to write code that can execute on the GPU, but is
+not required to do so. In this case, <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code>’s runtime component
+is unnecessary. The <a class="reference internal" href="../modules/standard/GPU.html#GPU.&#64;gpu.assertEligible" title="GPU.&#64;gpu.assertEligible"><code class="xref chpl chpl-annotation docutils literal notranslate"><span class="pre">&#64;gpu.assertEligible</span></code></a> attribute has the
+same compile-time behavior as <code class="docutils literal notranslate"><span class="pre">&#64;assertOnGpu</span></code>, but does not perform this
+execution-time check.</p>
+<p>Utilities in the <a class="reference internal" href="../modules/standard/MemDiagnostics.html#module-MemDiagnostics" title="MemDiagnostics: Provides routines for reasoning about memory usage."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">MemDiagnostics</span></code></a> module can be used to monitor GPU memory
+allocations and detect memory leaks. For example, <a class="reference internal" href="../modules/standard/MemDiagnostics.html#MemDiagnostics.startVerboseMem" title="MemDiagnostics.startVerboseMem"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">startVerboseMem()</span></code></a> and <a class="reference internal" href="../modules/standard/MemDiagnostics.html#MemDiagnostics.stopVerboseMem" title="MemDiagnostics.stopVerboseMem"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">stopVerboseMem()</span></code></a> can be used to enable and disable output
+from memory allocations and deallocations. GPU-based operations will be marked
+in the generated output.</p>
+</section>
+<section id="multi-locale-support">
+<h3><a class="toc-backref" href="#id17" role="doc-backlink">Multi-Locale Support</a><a class="headerlink" href="#multi-locale-support" title="Link to this heading">¶</a></h3>
+<p>The GPU locale model may be used alongside communication layers (values of
+<code class="docutils literal notranslate"><span class="pre">CHPL_COMM</span></code> other than <code class="docutils literal notranslate"><span class="pre">none</span></code>). This enables programs to use GPUs across
+nodes.</p>
+<p>In this mode, normal remote access is supported outside of loops that are
+offloaded to the GPU; however, remote access within a kernel is not supported.
+An idiomatic way to use all GPUs available across locales is with nested
+<code class="docutils literal notranslate"><span class="pre">coforall</span></code> loops like the following:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">coforall</span> <span class="nx">loc</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="k">do</span> <span class="k">on</span> <span class="nx">loc</span> <span class="p">{</span>
+  <span class="k">coforall</span> <span class="nx">gpu</span> <span class="kd">in</span> <span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span> <span class="k">do</span> <span class="k">on</span> <span class="nx">gpu</span> <span class="p">{</span>
+    <span class="k">foreach</span> <span class="p">{</span>
+      <span class="c1">// ...</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For more examples see the tests under <a class="reference external" href="https://github.com/chapel-lang/chapel/tree/main/test/gpu/native/multiLocale"><code class="docutils literal notranslate"><span class="pre">test/gpu/native/multiLocale</span></code></a> available from our
+<a class="reference external" href="https://github.com/chapel-lang/chapel">public Github repository</a>.</p>
+</section>
+<section id="reductions-and-scans">
+<h3><a class="toc-backref" href="#id18" role="doc-backlink">Reductions and Scans</a><a class="headerlink" href="#reductions-and-scans" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">min</span></code> and <code class="docutils literal notranslate"><span class="pre">max</span></code> reductions are supported via <code class="docutils literal notranslate"><span class="pre">reduce</span></code> expressions
+and intents. We are working towards expanding this to other kinds of reductions
+and <code class="docutils literal notranslate"><span class="pre">scan</span></code> expressions and deprecating the mentioned functions in the
+<a class="reference internal" href="../modules/standard/GPU.html#module-GPU" title="GPU: Supports utility functions for operating with GPUs."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">GPU</span></code></a> module.</p>
+<p>The <a class="reference internal" href="../modules/standard/GPU.html#module-GPU" title="GPU: Supports utility functions for operating with GPUs."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">GPU</span></code></a> module has standalone functions for basic reductions (e.g.
+<a class="reference internal" href="../modules/standard/GPU.html#GPU.gpuSumReduce" title="GPU.gpuSumReduce"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">gpuSumReduce</span></code></a>) and scans (e.g.  <a class="reference internal" href="../modules/standard/GPU.html#GPU.gpuScan" title="GPU.gpuScan"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">gpuScan</span></code></a>). We expect
+these functions to be deprecated in favor of <code class="docutils literal notranslate"><span class="pre">reduce</span></code> and <code class="docutils literal notranslate"><span class="pre">scan</span></code> expressions
+in a future release.</p>
+</section>
+<section id="device-to-device-communication-support">
+<h3><a class="toc-backref" href="#id19" role="doc-backlink">Device-to-Device Communication Support</a><a class="headerlink" href="#device-to-device-communication-support" title="Link to this heading">¶</a></h3>
+<p>Chapel supports direct communication between interconnected GPUs. The supported
+connection types are dictated by the GPU vendor.</p>
+<section id="for-nvidia">
+<h4><a class="toc-backref" href="#id20" role="doc-backlink">For NVIDIA</a><a class="headerlink" href="#for-nvidia" title="Link to this heading">¶</a></h4>
+<p>PCIe and NVLink (on NVIDIA GPUs) are known to work.</p>
+<p>This feature is disabled by default; it can be enabled by setting the
+<code class="docutils literal notranslate"><span class="pre">enableGpuP2P</span></code> configuration constant using the compiler flag
+<code class="docutils literal notranslate"><span class="pre">-senableGpuP2P=true</span></code>. Note that data movement does not require any code
+changes. The following example demonstrates using device-to-device communication
+to send data between two GPUs:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">dev1</span> <span class="o">=</span> <span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+    <span class="nx">dev2</span> <span class="o">=</span> <span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="k">on</span> <span class="nx">dev1</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">dev1Data</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="o">..#</span><span class="mi">1024</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+  <span class="k">on</span> <span class="nx">dev2</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">dev2Data</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="o">..#</span><span class="mi">1024</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+    <span class="nx">dev2Data</span> <span class="o">=</span> <span class="nx">dev1Data</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Notice that in this example, the GPU locales were stored into variables
+<code class="docutils literal notranslate"><span class="pre">dev1</span></code> and <code class="docutils literal notranslate"><span class="pre">dev2</span></code>. Writing <code class="docutils literal notranslate"><span class="pre">on</span> <span class="pre">here.gpus[1]</span></code> in the second <code class="docutils literal notranslate"><span class="pre">on</span></code> statement
+directly would not be correct, since neither GPU locale has GPU sublocales of
+its own.</p>
+</section>
+<section id="for-amd">
+<h4><a class="toc-backref" href="#id21" role="doc-backlink">For AMD</a><a class="headerlink" href="#for-amd" title="Link to this heading">¶</a></h4>
+<p>The ROCm 5.x versions we support do not support enabling
+peer-to-peer communication in the way above. However, for optimum bandwidth
+between two devices <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">HSA_ENABLE_SDMA=0</span></code> can be used. This will enable
+using multiple Infinity Fabric links between GPUs/GCDs. However, note that it
+will do that by using kernels to move data. These kernel launches will be
+internal to ROCm and will not be captured by Chapel’s GPU diagnostic utilities.
+However, the impacts can be observable when an application needs to overlap
+computation and communication, as what the user thinks as “communication” will
+also involve kernel execution. More information about this can be found in <a class="reference external" href="https://gpuopen.com/learn/amd-lab-notes/amd-lab-notes-gpu-aware-mpi-readme/#gpu-to-gpu-communication-options">in
+this article</a>.</p>
+</section>
+</section>
+<section id="memory-strategies">
+<h3><a class="toc-backref" href="#id22" role="doc-backlink">Memory Strategies</a><a class="headerlink" href="#memory-strategies" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">CHPL_GPU_MEM_STRATEGY</span></code> environment variable can be used to choose
+between two different memory strategies. Memory strategies determine how memory
+is allocated when on a GPU locale.</p>
+<p>The current default strategy is <code class="docutils literal notranslate"><span class="pre">array_on_device</span></code>. This strategy stores array
+data directly on the device and store other data on the host in a page-locked
+manner.  There are multiple benefits to using this strategy including that it
+will result in optimal communication performance between the host and the
+device and may be required for Chapel to interoperate with various third-party
+communication libraries.</p>
+<p>The alternative is to set the environment variable explicitly to
+<code class="docutils literal notranslate"><span class="pre">unified_memory</span></code>. The strategy applies to all dynamically-allocated data on a
+GPU sublocale (i.e. <code class="docutils literal notranslate"><span class="pre">here.gpus[0]</span></code>).  Under unified memory the underlying GPU
+implementation implicitly manages the migration of data to and from the GPU as
+necessary. Note that host data can be accessed from within a GPU eligible loop
+running on the device via a direct-memory transfer.</p>
+</section>
+<section id="debugger-and-profiler-support-for-nvidia">
+<h3><a class="toc-backref" href="#id23" role="doc-backlink">Debugger and Profiler Support for NVIDIA</a><a class="headerlink" href="#debugger-and-profiler-support-for-nvidia" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">cuda-gdb</span></code> and <a class="reference external" href="https://developer.nvidia.com/nsight-compute">NVIDIA NSight Compute</a> can be used to debug and profile
+GPU kernels. We have limited experience with both of these tools.  However,
+compiling with <code class="docutils literal notranslate"><span class="pre">-g</span></code> and running the application in <code class="docutils literal notranslate"><span class="pre">cuda-gdb</span></code> help uncover
+segmentation faults coming from GPU kernels.</p>
+<p>Similarly, NSight Compute can be used to collect detailed performance metrics
+from GPU kernels generated by the Chapel compiler. By default, using <code class="docutils literal notranslate"><span class="pre">-g</span></code> only
+enables Chapel line numbers to be associated with performance metrics, however
+it thwarts optimizations done by the backend assembler. In our experience, this
+can reduce execution performance significantly, making profiling less valuable.
+To avoid this, please use <code class="docutils literal notranslate"><span class="pre">--gpu-ptxas-enforce-optimization</span></code> while compiling
+alongside <code class="docutils literal notranslate"><span class="pre">-g</span></code>, and of course, <code class="docutils literal notranslate"><span class="pre">--fast</span></code>.</p>
+</section>
+<section id="examining-generated-assembly">
+<h3><a class="toc-backref" href="#id24" role="doc-backlink">Examining Generated Assembly</a><a class="headerlink" href="#examining-generated-assembly" title="Link to this heading">¶</a></h3>
+<p>While analyzing performance, users might also wish to look at the assembly
+<code class="docutils literal notranslate"><span class="pre">chpl</span></code> generates for GPU kernels. To do this pass <code class="docutils literal notranslate"><span class="pre">chpl</span></code> <code class="docutils literal notranslate"><span class="pre">--savec</span>
+<span class="pre">&lt;dirName&gt;</span></code> (replacing <code class="docutils literal notranslate"><span class="pre">&lt;dirname&gt;</span></code> with a directory name to contain the
+generate assembly). The Chapel compiler will emit a file <code class="docutils literal notranslate"><span class="pre">chpl__gpu.s</span></code>, which
+contains AMD GCN or NVIDIA PTX instructions as appropriate.</p>
+<p>In the generated assembly, kernels are named
+<code class="docutils literal notranslate"><span class="pre">chpl_gpu_kernel_&lt;fileName&gt;_line_&lt;num&gt;_</span></code> (with <code class="docutils literal notranslate"><span class="pre">filename</span></code> replaced with the
+file containing the outlined loop and <code class="docutils literal notranslate"><span class="pre">num</span></code> as the line number of the loop
+header. For example, a kernel on line 3 of <code class="docutils literal notranslate"><span class="pre">chpl.foo</span></code> will be named
+<code class="docutils literal notranslate"><span class="pre">chpl_gpu_kernel_foo_line_3_</span></code>). The kernel name may have a number as a suffix
+if the same line of code required multiple kernels to be generated. Typically,
+this can happen if the loop in question was in a generic function with multiple
+instantiations.</p>
+</section>
+<section id="chapel-tasks-and-gpu-execution">
+<h3><a class="toc-backref" href="#id25" role="doc-backlink">Chapel Tasks and GPU Execution</a><a class="headerlink" href="#chapel-tasks-and-gpu-execution" title="Link to this heading">¶</a></h3>
+<p>Chapel runtime will use a GPU stream per-task, per-device by default. While
+individual streams are synchronized with the host after each operation (e.g.,
+whole array operations and kernel launches will return only when the operation
+is completed), this allows efficiently oversubscribing GPUs by running multiple
+tasks on them to gain more performance by allowing the device runtime to overlap
+data movement with computation.</p>
+<ul class="simple">
+<li><p>This behavior is disabled for <code class="docutils literal notranslate"><span class="pre">CHPL_GPU_MEM_STRATEGY=unified_memory</span></code>.</p></li>
+<li><p>It can also be disabled for the default
+<code class="docutils literal notranslate"><span class="pre">CHPL_GPU_MEM_STRATEGY=array_on_device</span></code>, by running the application with
+<code class="docutils literal notranslate"><span class="pre">--gpuUseStreamPerTask=false</span></code>.</p></li>
+</ul>
+<p>See the <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/gpu/native/asynchrony/asyncTaskComm.chpl">asyncTaskComm</a>
+benchmark for a full example of a pattern that benefits from oversubscribing
+GPUs.</p>
+</section>
+</section>
+<section id="known-limitations">
+<h2><a class="toc-backref" href="#id26" role="doc-backlink">Known Limitations</a><a class="headerlink" href="#known-limitations" title="Link to this heading">¶</a></h2>
+<p>We are aware of the following limitations and plan to work on them among other
+improvements in the future.</p>
+<ul class="simple">
+<li><p>Intel GPUs are not supported, yet.</p></li>
+<li><p>Distributed arrays cannot be used within GPU kernels.</p></li>
+<li><p>PGAS style communication is not available within GPU kernels; that is:
+reading from or writing to a variable that is stored on a different locale
+from inside a GPU eligible loop (when executing on a GPU) is not supported.</p></li>
+<li><p>Runtime checks such as bounds checks and nil-dereference checks are
+automatically disabled for CHPL_LOCALE_MODEL=gpu. i.e., <code class="docutils literal notranslate"><span class="pre">--no-checks</span></code> is
+implied when compiling.</p></li>
+<li><p>The use of most <code class="docutils literal notranslate"><span class="pre">extern</span></code> functions within a GPU eligible loop is not
+supported (a limited set of functions used by Chapel’s runtime library are
+supported).</p></li>
+<li><p>It’s not currently possible to compile for multiple AMD GPU architectures
+at the same time.</p></li>
+<li><p>Associative arrays cannot be used on GPU sublocales with
+<code class="docutils literal notranslate"><span class="pre">CHPL_GPU_MEM_STRATEGY=array_on_device</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_TASKS=fifo</span></code> is not supported. Note that <a class="reference external" href="../usingchapel/tasks.html#chpl-tasks-fifo">fifo tasking layer</a> is the
+default in only Cygwin and NetBSD.</p></li>
+<li><p>The compiler assumes without complete checking that the loop indices
+of the loops executed on GPUs are incremented by <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p></li>
+</ul>
+<section id="using-c-interoperability">
+<h3><a class="toc-backref" href="#id27" role="doc-backlink">Using C Interoperability</a><a class="headerlink" href="#using-c-interoperability" title="Link to this heading">¶</a></h3>
+<p>C interoperability on the host side is supported. However, GPU programming
+implies C++ linkage. To handle that, the Chapel compiler compiles the <code class="docutils literal notranslate"><span class="pre">.c</span></code>
+files passed via the command line and/or <code class="docutils literal notranslate"><span class="pre">require</span></code> statements with <code class="docutils literal notranslate"><span class="pre">clang</span> <span class="pre">-x</span>
+<span class="pre">[cuda|hip]</span></code>. This implies that some C features may fail to compile if they are
+not supported by the above <code class="docutils literal notranslate"><span class="pre">clang</span></code> compilation.</p>
+</section>
+</section>
+<section id="performance-tips">
+<h2><a class="toc-backref" href="#id28" role="doc-backlink">Performance Tips</a><a class="headerlink" href="#performance-tips" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>If measuring performance, and using an NVIDIA GPU, please be aware that GPU
+initialization may incur a 1-3 second startup cost per GPU due to ECC
+scrubbing.  This initialization occurs when starting a gpu-enabled Chapel
+program when NVIDIA’s kernel mode driver is not already loaded and running.
+If you are using Linux and not running an X server on the target GPU, then
+you may wish to install <a class="reference external" href="https://docs.nvidia.com/deploy/driver-persistence/index.html#persistence-daemon">NVIDIA’s `driver persistence daemon</a>
+to alleviate this issue.</p></li>
+</ul>
+</section>
+<section id="tested-configurations">
+<h2><a class="toc-backref" href="#id29" role="doc-backlink">Tested Configurations</a><a class="headerlink" href="#tested-configurations" title="Link to this heading">¶</a></h2>
+<p>We have experience with the following hardware and software versions. The ones
+marked with * are covered in our nightly testing configurations.</p>
+<ul class="simple">
+<li><p>NVIDIA</p>
+<ul>
+<li><p>Hardware: RTX A2000, P100*, V100*, A100*, H100, GH200</p></li>
+<li><p>Software: CUDA 11.3, 11.6, 11.8*, 12.0, 12.2, 12.4*</p></li>
+</ul>
+</li>
+<li><p>AMD</p>
+<ul>
+<li><p>Hardware: MI60*, MI100 and MI250X*</p></li>
+<li><p>Software:ROCm 5.4*, 6.0, 6.1, 6.2*</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="gpu-support-on-windows-subsystem-for-linux">
+<h2><a class="toc-backref" href="#id30" role="doc-backlink">GPU Support on Windows Subsystem for Linux</a><a class="headerlink" href="#gpu-support-on-windows-subsystem-for-linux" title="Link to this heading">¶</a></h2>
+<p>NVIDIA GPUs can be used on Windows through through WSL. To enable GPU support on
+WSL we require the CUDA Toolkit to be installed in the WSL environment and the
+NVIDIA driver to be installed on the Windows host. See the <a class="reference external" href="https://docs.nvidia.com/cuda/wsl-user-guide/index.html#getting-started-with-cuda-on-wsl-2">NVIDIA documentation</a>
+for more information on setting up CUDA on WSL.
+See <a class="reference external" href="../platforms/windows.html#using-chapel-on-wsl">Using Chapel on WSL</a>
+for more information on using Chapel with WSL.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This configuration is not currently tested nightly. Please report any issues
+you encounter when using Chapel on WSL by <a class="reference external" href="https://github.com/chapel-lang/chapel/issues/new">filing a bug report</a></p>
+</div>
+</div></blockquote>
+</section>
+<section id="further-information">
+<h2><a class="toc-backref" href="#id31" role="doc-backlink">Further Information</a><a class="headerlink" href="#further-information" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>The <a class="reference external" href="https://chapel-lang.org/blog/series/gpu-programming-in-chapel/">GPU Programming in Chapel series</a> is a good
+resource for getting started with GPU programming in Chapel.</p></li>
+<li><p>Please refer to issues with <a class="reference external" href="https://github.com/chapel-lang/chapel/labels/area%3A%20GPU%20Support">GPU Support label</a> for
+other known limitations and issues.</p></li>
+<li><p>Alternatively, you can add the <a class="reference external" href="https://github.com/chapel-lang/chapel/issues?q=is%3Aopen+label%3A%22area%3A+GPU+Support%22+label%3A%22type%3A+Bug%22">bug label</a>
+for known bugs only.</p></li>
+<li><p>Additional information about GPU Support can be found in the “GPU Support”
+slide decks from our <a class="reference external" href="https://chapel-lang.org/releaseNotes.html">release notes</a>; however, be aware that
+information presented in release notes for prior releases may be out-of-date.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="foreach.html" class="btn btn-neutral float-left" title="The foreach Loop" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="extern.html" class="btn btn-neutral float-right" title="C Interoperability" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

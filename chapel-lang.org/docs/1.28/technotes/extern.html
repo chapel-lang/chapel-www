@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>C Interoperability &mdash; Chapel Documentation 1.28</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Calling Chapel Code from Other Languages" href="libraries.html" />
+    <link rel="prev" title="GPU Programming" href="gpu.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.28
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.28";
+$pagename = "technotes/extern";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#interoperability">Interoperability</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">C Interoperability</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#working-with-c">Working with C</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#standard-c-types">Standard C Types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#support-for-extern-declarations">Support for Extern Declarations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#support-for-extern-blocks">Support for Extern Blocks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-extern-declarations">Using Extern Declarations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#expressing-dependencies">Expressing Dependencies</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#future-directions">Future Directions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="libraries.html">Calling Chapel Code from Other Languages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fortranInterop.html">Fortran Interoperability</a></li>
+<li class="toctree-l3"><a class="reference internal" href="allocators.html">Using the Chapel Allocator from C</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages (WIP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      <li>C Interoperability</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/extern.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="c-interoperability">
+<span id="readme-extern"></span><h1>C Interoperability<a class="headerlink" href="#c-interoperability" title="Permalink to this headline">¶</a></h1>
+<p>This README describes support in the Chapel compiler for referring to C
+code within Chapel using a keyword named <cite>extern</cite>. These features are
+still in the process of being improved.</p>
+<p>Note that it is also possible to call Chapel from C using the <cite>export</cite>
+keyword. Please see <a class="reference internal" href="libraries.html#readme-libraries"><span class="std std-ref">Calling Chapel Code from Other Languages</span></a> for details.</p>
+<p>External C functions, variables, and types can be referred to within a
+Chapel program. The section <a class="reference internal" href="#working-with-c">Working with C</a> below describes the
+basic ideas of how Chapel and C interoperate. There are two supported
+strategies for providing the Chapel compiler with information about the
+C declarations that should be usable from Chapel code.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>The explicit strategy is to use extern declarations, as described in
+the section <a class="reference internal" href="#support-for-extern-declarations">Support for Extern Declarations</a> below.  When using the
+explicit strategy, one creates a Chapel declarations for each C
+function, variable, or type that one wants to use from Chapel code.
+This explicit strategy allows for a great deal of manual control over
+how the Chapel compiler views a C function or type. This strategy is
+typically used within the Chapel standard modules for portability
+reasons. The <a class="reference internal" href="../tools/c2chapel/c2chapel.html#c2chapel"><span class="std std-ref">c2chapel</span></a> tool can be used to automatically generate
+extern declarations from a valid C99 file.</p></li>
+<li><p>The extern block feature provides an implicit strategy, as described in
+the section <a class="reference internal" href="#support-for-extern-blocks">Support for Extern Blocks</a> below. This strategy makes
+use of the <cite>clang</cite> parser and so requires a Chapel compiler built with
+LLVM support. The main advantage of the extern block strategy is that
+it is not necessary to provide Chapel declarations for every desired C
+function or type. Instead, such declarations are added automatically.
+In addition, the extern block can contain C function definitions in
+addition to declarations and so provides a way in which programs that
+need to be written in both C and Chapel can be implemented in a single
+source file.</p></li>
+</ol>
+</div></blockquote>
+<div class="section" id="working-with-c">
+<h2>Working with C<a class="headerlink" href="#working-with-c" title="Permalink to this headline">¶</a></h2>
+<p>Whether using extern declarations or extern blocks, it is important
+to understand the basic interoperability support provided by the
+Chapel compiler.</p>
+<p>The general approach is as follows:</p>
+<ol class="arabic simple">
+<li><p>Programmers inform the Chapel compiler about C concepts that they want
+to refer to in their Chapel code with <a class="reference internal" href="#readme-extern-extern-declarations"><span class="std std-ref">explicit extern
+declarations</span></a> or by <a class="reference internal" href="#readme-extern-extern-block"><span class="std std-ref">creating
+extern declarations with extern blocks</span></a>.</p></li>
+<li><p>Programmers use the extern C concepts that have been described. That
+might include declaring variables, calling functions, or operating on
+already declared global variables. See <a class="reference internal" href="#using-extern-declarations">Using Extern Declarations</a>.</p></li>
+<li><p>Library and header dependencies are described on the Chapel compiler’s
+command line or with <code class="docutils literal notranslate"><span class="pre">require</span></code> statements as described in the section
+<a class="reference internal" href="#expressing-dependencies">Expressing Dependencies</a>.</p></li>
+</ol>
+<p>The next section describes the basic information about how the Chapel
+compiler views common C types.</p>
+</div>
+<div class="section" id="standard-c-types">
+<span id="readme-extern-standard-c-types"></span><h2>Standard C Types<a class="headerlink" href="#standard-c-types" title="Permalink to this headline">¶</a></h2>
+<p>In declaring extern C procedures and variables, one of the
+requirements is to accurately describe their types within the Chapel
+‘extern’ declarations.  Because the C specification allows compilers
+to determine how many bits are used in the representation of various
+types, one must be careful to avoid false assumptions, such as that a
+C ‘int’ can always be represented via a Chapel ‘int’ or ‘int(32)’.</p>
+<p>To help with mapping types between C and Chapel, Chapel installations
+contain a standard module named <a class="reference internal" href="../modules/standard/CTypes.html#module-CTypes" title="CTypes: Defines C types and related routines to support interoperability."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CTypes</span></code></a> (located in
+<code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/modules/standard/</span></code>).  This module defines a number of
+type aliases that accurately describe C types using their Chapel
+equivalents.  Most of these are prefixed by <code class="docutils literal notranslate"><span class="pre">c_</span></code> to distinguish them
+from Chapel type names that may have different meanings.</p>
+<p>The Chapel names for C types are:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">c_int</span>
+<span class="nx">c_uint</span>
+<span class="nx">c_long</span>
+<span class="nx">c_ulong</span>
+<span class="nx">c_longlong</span>
+<span class="nx">c_ulonglong</span>
+<span class="nx">c_char</span>
+<span class="nx">c_schar</span>
+<span class="nx">c_uchar</span>
+<span class="nx">c_short</span>
+<span class="nx">c_ushort</span>
+<span class="nx">ssize_t</span>
+<span class="nx">size_t</span>
+<span class="nx">c_void_ptr</span>
+<span class="nx">c_ptr</span><span class="p">(</span><span class="nx">T</span><span class="p">)</span>
+<span class="nx">c_array</span><span class="p">(</span><span class="nx">T</span><span class="p">,</span><span class="nx">n</span><span class="p">)</span>
+<span class="nx">c_string</span>
+</pre></div>
+</div>
+<p>For consistency, the following type aliases are also provided even
+though their sizes can’t vary in C (thereby permitting the equivalent
+Chapel types to always be usable):</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">c_float</span>  <span class="c1">// (a real(32) in Chapel)</span>
+<span class="nx">c_double</span> <span class="c1">// (a real(64) in Chapel)</span>
+</pre></div>
+</div>
+<p>c_void_ptr, c_string, c_ptr(T), and c_array(T,n) are
+described in the next section.</p>
+<div class="section" id="pointer-and-string-types">
+<h3>Pointer and String Types<a class="headerlink" href="#pointer-and-string-types" title="Permalink to this headline">¶</a></h3>
+<p>Chapel supports four C pointer types: c_void_ptr, c_ptr(T), c_string, and
+c_fn_ptr. In addition, it supports c_array(T,n).</p>
+<p>These types are the same as C types:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>c_void_ptr is void*
+c_ptr(T) is T*
+c_string is const char*
+c_fn_ptr represents a C function pointer (with unspecified arg and return types)
+c_array(T,n) is T[n]
+</pre></div>
+</div>
+<p>Note that in some cases, a ref argument intent may be used in place of
+c_void_ptr or c_ptr(T).</p>
+<p>These pointer types may only point to local memory. The intent is
+that they will be used to interoperate with C libraries that run within a
+single locale. In addition, these pointer types must be treated carefully as it
+is possible to create the same kinds of problems as in C - in particular, it is
+necessary know that one of these types points to valid memory before it is
+used.  As in C, these pointers could point to a stack variable that is no
+longer valid, or to memory that has been freed. The Chapel language makes no
+effort to extend a variable’s lifetime if it is converted in some manner to a C
+pointer.</p>
+<div class="section" id="c-void-ptr">
+<h4>c_void_ptr<a class="headerlink" href="#c-void-ptr" title="Permalink to this headline">¶</a></h4>
+<p>The c_void_ptr type is provided as an opaque C pointer. Since the type is
+unknown, there is no way to dereference this pointer. In addition, it is not
+possible to construct a c_void_ptr directly in Chapel. Normally, a C function
+will return the void pointer, which will be passed to other C functions.</p>
+</div>
+<div class="section" id="c-ptr-t">
+<h4>c_ptr(T)<a class="headerlink" href="#c-ptr-t" title="Permalink to this headline">¶</a></h4>
+<p>The c_ptr(T) type is a generic type representing a C pointer to an arbitrary
+type T. This pointer should normally only point to local memory - since no
+communication will be generated when it is dereferenced.  Of course, the
+pointed-to type T should be one that is supported in C interoperability if the
+c_ptr(T) is used for C interoperability. The c_ptr(T) type supports
+indexing to get a reference to the i’th element (starting from 0).</p>
+</div>
+<div class="section" id="c-array-t-n">
+<h4>c_array(T,n)<a class="headerlink" href="#c-array-t-n" title="Permalink to this headline">¶</a></h4>
+<p>The c_array(T,n) type is a generic value type representing a C fixed-size
+array. Here ‘n’ is the number of elements and must be known at compile-time.</p>
+<p>The c_array type is a value type in Chapel code but it can coerce to
+a c_ptr(T) type.</p>
+<p>Allocating a variable of c_array type in a function will allocate that
+variable on the stack. Indexing into a c_array works similarly to
+indexing into a c_ptr and starts from 0. c_array supports by-value copy
+initialization and assignment.</p>
+</div>
+<div class="section" id="ref-intents">
+<span id="readme-extern-standard-c-types-ref-intents"></span><h4>ref intents<a class="headerlink" href="#ref-intents" title="Permalink to this headline">¶</a></h4>
+<p>Note that when declaring extern procedures that use function arguments that are
+passed by pointer in C, it is recommended to use the ref argument intent
+instead of c_ptr(T). Using the ref intent allows the arguments to the extern
+proc to be passed directly instead of needing to be converted to a C pointer
+first. For example, both the functions byRef and byPtr below have the same C
+prototype, but they must be used differently in Chapel:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// both of these correspond to void fn(int* x)</span>
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">byRef</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span><span class="nx">c_int</span><span class="p">);</span>
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">byPtr</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span>
+
+<span class="kd">var</span> <span class="nx">x</span><span class="p">:</span><span class="nx">c_int</span> <span class="o">=</span> <span class="mi">7</span><span class="p">;</span>
+<span class="o">by</span><span class="nx">Ref</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span> <span class="c1">// ref argument intent allows the variable to be passed directly</span>
+<span class="o">by</span><span class="nx">Ptr</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">x</span><span class="p">));</span> <span class="c1">// c_ptr argument must be constructed explicitly</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="c-string">
+<h4>c_string<a class="headerlink" href="#c-string" title="Permalink to this headline">¶</a></h4>
+<p>The c_string type maps to a constant C string (that is, const char*)
+that is intended for use locally. A c_string can be obtained from a
+Chapel string using the method <a class="reference internal" href="../language/spec/strings.html#String.string.c_str" title="String.string.c_str"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">c_str</span></code></a>. A Chapel string can be
+constructed from a C string using the cast operator. Note however that
+because c_string is a local-only type, the .c_str() method can only be
+called on Chapel strings that are stored on the same locale; calling
+.c_str() on a non-local string will result in a runtime error.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">c_string</span></code> is expected to be deprecated in a future release in favor
+of instead using <code class="docutils literal notranslate"><span class="pre">c_ptr</span></code> types such as <code class="docutils literal notranslate"><span class="pre">c_ptr(int(8))</span></code>.</p>
+</div>
+</div>
+<div class="section" id="c-fn-ptr">
+<h4>c_fn_ptr<a class="headerlink" href="#c-fn-ptr" title="Permalink to this headline">¶</a></h4>
+<p>The c_fn_ptr type is useful for representing arguments to external
+functions that accept function pointers.  At present, there is no way
+to specify the argument types or return type of the function pointer.
+Chapel functions can be passed as arguments of type c_fn_ptr via the
+c_ptrTo() call, as with other c_ptr types.  For example, given an
+external C function foo() that takes in a pointer to a function that
+accepts an int and returns a double, the following code would declare
+that function and pass a Chapel function to it:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">(</span><span class="nx">f</span><span class="p">:</span> <span class="nx">c_fn_ptr</span><span class="p">);</span>
+
+<span class="nx">foo</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">bar</span><span class="p">));</span>
+
+<span class="k">proc</span> <span class="nf">bar</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">):</span> <span class="nx">c_double</span> <span class="p">{</span>
+  <span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Any calls that foo() makes through its function pointer argument will
+call back to Chapel’s bar() routine.  Note that any Chapel functions
+passed as c_fn_ptr arguments cannot be overloaded nor generic.</p>
+</div>
+</div>
+</div>
+<div class="section" id="support-for-extern-declarations">
+<span id="readme-extern-extern-declarations"></span><h2>Support for Extern Declarations<a class="headerlink" href="#support-for-extern-declarations" title="Permalink to this headline">¶</a></h2>
+<p>Chapel allows users to refer to external C types, variables, and functions via
+extern declarations. These external declarations are part of the Chapel
+language and can be written alongside pure Chapel in any “.chpl” file. If
+manually writing extern declarations isn’t practical (e.g., for large
+libraries), the <a class="reference internal" href="../tools/c2chapel/c2chapel.html#c2chapel"><span class="std std-ref">c2chapel</span></a> tool can be used to automatically generate
+extern declarations.</p>
+<div class="section" id="declaring-external-c-types">
+<h3>Declaring External C Types<a class="headerlink" href="#declaring-external-c-types" title="Permalink to this headline">¶</a></h3>
+<p>You can refer to other external C types using ‘extern’ plus the normal
+type alias keyword.  By leaving off any sort of type definition, you
+are telling the Chapel compiler that it can’t assume it knows anything
+about how the type is represented or how to operate on it (though the
+compiler may make copies of values of the type using assignment and/or
+memcpy()).</p>
+<p>Effectively, such a declaration defines a new primitive type in
+Chapel.  For example, the following declaration says that there is an
+external type named ‘foo’:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="kd">type</span> <span class="nx">foo</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This permits you to declare variables of type ‘foo’ and to declare
+external functions that accept or return arguments of type ‘foo’.
+Because Chapel knows nothing about the type ‘foo’ such variables
+cannot be manipulated within Chapel apart from passing them between
+routines.  The type symbol ‘foo’ must be declared in a C header file
+provided on Chapel’s compiler command-line.</p>
+<p>If an external C type can be described in Chapel, that definition can
+be given in Chapel, which permits the compiler to deal with the type
+directly, as it would any other Chapel type alias.  For example, if
+the external type ‘foo’ was a 64-bit integer, you could describe it in
+Chapel using:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="kd">type</span> <span class="nx">foo</span> <span class="o">=</span> <span class="kt">int</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Static, fixed-size C array types can be described within Chapel using
+c_array. For example, the following C typedef:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">typedef</span> <span class="nx">double</span> <span class="nx">vec</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>could be described in Chapel using:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="kd">type</span> <span class="nx">vec</span> <span class="o">=</span> <span class="nx">c_array</span><span class="p">(</span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">),</span><span class="mi">3</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>To refer to more complex C types like external structs or pointers to
+structs, see the section on <a class="reference internal" href="#declaring-external-c-structs">Declaring External C Structs</a> below.</p>
+</div>
+<div class="section" id="declaring-external-c-variables-and-constants">
+<h3>Declaring External C Variables and Constants<a class="headerlink" href="#declaring-external-c-variables-and-constants" title="Permalink to this headline">¶</a></h3>
+<p>A C variable or constant can be referred to within Chapel by prefixing
+its declaration with the extern keyword.  For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="kd">var</span> <span class="nx">bar</span><span class="p">:</span> <span class="nx">foo</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>would tell the Chapel compiler about an external C variable named
+‘bar’ of type ‘foo’.  Similarly:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="kd">const</span> <span class="nx">baz</span><span class="p">:</span> <span class="kt">int</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>would refer to an external 32-bit integer constant named ‘baz’ in the
+C code.  In practice, external consts can be used to provide Chapel
+definitions for #defines and enum symbols in addition to traditional C
+constants.</p>
+<p>Note that it is not currently possible to explicitly declare an <cite>extern param</cite>.
+In the future, it might be possible to use an <a class="reference internal" href="#readme-extern-extern-block"><span class="std std-ref">extern block</span></a> to import #define constants that are known at
+compile time as param constants within Chapel.</p>
+</div>
+<div class="section" id="declaring-external-c-functions">
+<h3>Declaring External C Functions<a class="headerlink" href="#declaring-external-c-functions" title="Permalink to this headline">¶</a></h3>
+<p>To make a call to an external C function, you will need to prototype
+the routine in your Chapel code using the <code class="docutils literal notranslate"><span class="pre">extern</span></code> keyword.  For
+example, for a C function foo() that takes no arguments and returns
+nothing, the prototype would appear as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">();</span>
+</pre></div>
+</div>
+<div class="section" id="declaring-return-types">
+<h4>Declaring Return Types<a class="headerlink" href="#declaring-return-types" title="Permalink to this headline">¶</a></h4>
+<p>C functions that return values which you wish to refer to within your
+Chapel program must have those return types declared. Note that the Chapel
+compiler will not infer the return type as it does for Chapel functions.
+To make the function above return a C “double”, it would be declared:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">():</span> <span class="kt">real</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="#readme-extern-declarations-limitations"><span class="std std-ref">Allowed Intents and Types</span></a> section for
+limitations on what types can be returned.</p>
+</div>
+<div class="section" id="declaring-arguments">
+<h4>Declaring Arguments<a class="headerlink" href="#declaring-arguments" title="Permalink to this headline">¶</a></h4>
+<p>Similarly, external functions that expect arguments must declare those
+arguments in Chapel.</p>
+<p>Types of function arguments may be omitted, in which case the types
+will be inferred based on the Chapel callsite.  For example, the
+following Chapel code:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">y</span><span class="p">):</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+
+<span class="nx">foo</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Would imply that external function foo() is able to take two 32-bit
+integer values and that it returns a 64-bit real (‘double’ in C).
+External function declarations with omitted type arguments can be used
+to support calls to external C macros or varargs functions that accept
+multiple argument signatures.</p>
+</div>
+<div class="section" id="allowed-intents-and-types">
+<span id="readme-extern-declarations-limitations"></span><h4>Allowed Intents and Types<a class="headerlink" href="#allowed-intents-and-types" title="Permalink to this headline">¶</a></h4>
+<p>Since C passes and returns by value, a C argument such as <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">arg</span></code>
+corresponds to an <code class="docutils literal notranslate"><span class="pre">in</span></code> intent argument in a Chapel <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code>.
+An argument such as <code class="docutils literal notranslate"><span class="pre">int*</span> <span class="pre">ptrArg</span></code> can be represented either with
+<code class="docutils literal notranslate"><span class="pre">c_ptr(int)</span></code> or with the <code class="docutils literal notranslate"><span class="pre">ref</span></code> intent in Chapel (and see
+<a class="reference internal" href="#readme-extern-standard-c-types-ref-intents"><span class="std std-ref">ref intents</span></a> for a discussion of why
+you would use one or the other).</p>
+<p>Note that, for numeric and pointer types, the default intent in Chapel is
+already <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">in</span></code> (see the spec section <a class="reference internal" href="../language/spec/procedures.html#abstract-intents"><span class="std std-ref">Abstract Intents</span></a>).</p>
+<p>As of 1.23, there are several limitations on what types can be passed to
+or returned from <code class="docutils literal notranslate"><span class="pre">extern</span></code> or <code class="docutils literal notranslate"><span class="pre">export</span></code> functions and what intents can
+be used for the arguments to these functions.</p>
+<p>First, here are the allowable argument and return types for <code class="docutils literal notranslate"><span class="pre">extern</span></code>
+and <code class="docutils literal notranslate"><span class="pre">export</span></code> functions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Built-in numeric type and pointer types, including the C types
+described above</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">record</span></code> types</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">string</span></code> and <code class="docutils literal notranslate"><span class="pre">bytes</span></code> are allowed in an <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">proc</span></code> but not in
+an <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code></p>
+<ul>
+<li><p>see <a class="reference internal" href="libraries.html#readme-libraries"><span class="std std-ref">Calling Chapel Code from Other Languages</span></a></p></li>
+</ul>
+</li>
+<li><p>array types are allowed in some cases</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code> arguments currently allow single-locale rectangular
+arrays in which case the argument will be a pointer to the first
+element</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">proc</span></code> s can support more Chapel array types - see
+<a class="reference internal" href="libraries.html#readme-libraries"><span class="std std-ref">Calling Chapel Code from Other Languages</span></a></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">unmanaged</span></code> and <code class="docutils literal notranslate"><span class="pre">borrowed</span></code> class types are allowed</p></li>
+</ul>
+</div></blockquote>
+<p>The following types are not allowed as argument or return types for
+<code class="docutils literal notranslate"><span class="pre">extern</span></code> or <code class="docutils literal notranslate"><span class="pre">export</span></code> functions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">owned</span></code> and <code class="docutils literal notranslate"><span class="pre">shared</span></code> classes</p></li>
+<li><p>any Chapel record type that is not an <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">record</span></code></p></li>
+</ul>
+</div></blockquote>
+<p>Only the following argument intents are allowed in <code class="docutils literal notranslate"><span class="pre">extern</span></code> and
+<code class="docutils literal notranslate"><span class="pre">export</span></code> functions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>for built-in numeric and pointer types - default intent and <code class="docutils literal notranslate"><span class="pre">const</span></code>
+(these correspond to <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">in</span></code> for those types)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">in</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">in</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ref</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code></p></li>
+</ul>
+</div></blockquote>
+<p>Additionally, <code class="docutils literal notranslate"><span class="pre">type</span></code> intent arguments are allowed for <code class="docutils literal notranslate"><span class="pre">extern</span></code>
+functions (see <a class="reference internal" href="#readme-extern-declarations-type-arguments"><span class="std std-ref">Type Arguments</span></a>).</p>
+</div>
+<div class="section" id="varargs-functions">
+<h4>Varargs Functions<a class="headerlink" href="#varargs-functions" title="Permalink to this headline">¶</a></h4>
+<p>Default arguments can be declared for external function arguments, in
+which case the Chapel compiler will supply the default argument value
+if it is omitted at the callsite.  For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">y</span> <span class="o">=</span> <span class="mf">1.2</span><span class="p">):</span> <span class="kt">real</span><span class="p">;</span>
+
+<span class="nx">foo</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Would cause external function foo() to be called with the arguments 0
+and 1.2.</p>
+<p>C varargs functions can be declared using Chapel’s varargs (“…”)
+syntax.  For example, the following declaration prototypes C’s printf
+function:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">printf</span><span class="p">(</span><span class="nx">fmt</span><span class="p">:</span> <span class="nx">c_string</span><span class="p">,</span> <span class="nx">vals</span><span class="o">..</span><span class="p">.?</span><span class="nx">numvals</span><span class="p">):</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Note that it can also be prototyped more trivially/less accurately
+as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">printf</span><span class="p">(</span><span class="nx">args</span><span class="o">..</span><span class="p">.):</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>which relies on the callsite to pass in reasonable arguments
+(otherwise, the C compilation step will likely fail).</p>
+</div>
+<div class="section" id="type-arguments">
+<span id="readme-extern-declarations-type-arguments"></span><h4>Type Arguments<a class="headerlink" href="#type-arguments" title="Permalink to this headline">¶</a></h4>
+<p>External C functions or macros that accept type arguments can also be
+prototyped in Chapel by declaring the argument as a type.  For
+example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="nx">foo</span><span class="p">(</span><span class="kd">type</span> <span class="nx">t</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Calling such a routine with a Chapel type will cause the type
+identifier (e.g., ‘int’) to be passed to the routine.  In practice,
+this will typically only be useful if the external function is a macro
+or built-in (like sizeof()) that can handle type identifiers.</p>
+</div>
+<div class="section" id="array-arguments">
+<h4>Array Arguments<a class="headerlink" href="#array-arguments" title="Permalink to this headline">¶</a></h4>
+<p>Extern functions with array arguments are handled as a special case within the
+compiler. As an example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="p">[]</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">n</span><span class="p">:</span> <span class="kt">int</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This procedure definition will match up to a C function with the prototype of</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nx">foo</span><span class="p">(</span><span class="nx">int64_t</span><span class="o">*</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">int64_t</span> <span class="nx">n</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The Chapel compiler will then rewrite any calls to <cite>foo</cite> like this:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="mi">10</span><span class="p">);</span> <span class="c1">// -&gt; foo(c_ptrTo(x), 10);</span>
+</pre></div>
+</div>
+<p>Note that this same technique won’t work for distributed rectangular arrays,
+nor for associative, sparse, or opaque arrays because their data isn’t
+necessarily stored using a representation that translates trivially to a C
+array.  The compiler will automatically insert <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">CTypes;</span></code> into scopes
+containing an <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code> declaration with an array argument in order
+to support the pointer types used to pass the array to the external routine.</p>
+</div>
+<div class="section" id="renaming-extern-procs">
+<h4>Renaming Extern Procs<a class="headerlink" href="#renaming-extern-procs" title="Permalink to this headline">¶</a></h4>
+<p>It is possible to provide the Chapel compiler with a different
+name for the function than the name available to other Chapel code.
+For example, if there is a C function called <code class="docutils literal notranslate"><span class="pre">foo_in_c</span></code> returning an int,
+we might use the following declaration to provide that function to
+other Chapel code with the name <code class="docutils literal notranslate"><span class="pre">foo_in_chapel</span></code></p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;foo_in_c&quot;</span> <span class="k">proc</span> <span class="nf">foo_in_chapel</span><span class="p">():</span> <span class="nx">c_int</span><span class="p">;</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">foo_in_chapel</span><span class="p">());</span> <span class="c1">// will generate a call to foo_in_c</span>
+</pre></div>
+</div>
+<p>An arbitrary expression can be used instead of the string literal
+<cite>“foo_in_c”</cite> from this example. The expression just needs to evaluate
+to a <cite>param</cite> <cite>string</cite>.</p>
+</div>
+</div>
+<div class="section" id="frequently-asked-questions-about-declaring-external-routines">
+<h3>Frequently Asked Questions About Declaring External Routines<a class="headerlink" href="#frequently-asked-questions-about-declaring-external-routines" title="Permalink to this headline">¶</a></h3>
+<p>How do I pass a Chapel variable to an external routine that expects
+a pointer?</p>
+<p>Today, the preferred way to do this is to declare the argument as
+having ‘ref’ intent.  This should cause the Chapel compiler to pass
+a pointer to the argument.  For example, given a C function:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nx">foo</span><span class="p">(</span><span class="nx">double</span><span class="o">*</span> <span class="nx">x</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This could be called in Chapel using:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">myVal</span><span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">1.2</span><span class="p">;</span>
+
+<span class="nx">foo</span><span class="p">(</span><span class="nx">myVal</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="declaring-external-c-structs">
+<h3>Declaring External C Structs<a class="headerlink" href="#declaring-external-c-structs" title="Permalink to this headline">¶</a></h3>
+<p>External C struct types can be referred to within Chapel by prefixing
+a Chapel record definition with the extern keyword.  For example,
+given an external C structure defined in foo.h called fltdbl:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_fltdbl</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="kt">double</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"> </span><span class="n">fltdbl</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>This type could be referred to within a Chapel program using:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">fltdbl</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Within the Chapel declaration, some or all of the fields from the C
+structure may be specified.  Any fields that are not specified (or
+that cannot be specified because there is no equivalent Chapel type)
+cannot be referenced within the Chapel code.  The order of these
+fields need not match the order they were specified within the C code.
+As an example, the following declaration would permit access to both
+fields x and y within variables of type fltdbl:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">fltdbl</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>as would the following declaration:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">fltdbl</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Alternatively, the external declaration could only mention one of the
+fields.  For example, the following declaration would permit field y
+to be accessed by a Chapel program, but not field x (though both would
+still be stored in any variable of type ‘fltdbl’).</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">fltdbl</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Alternatively, the external declaration can avoid mentioning any
+fields, which would permit a variable of that struct type to be passed
+between Chapel and C routines, but without permitting its fields to be
+accessed within the Chapel program:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">fltdbl</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Extern records can work with pointers or fixed-sized arrays.
+Suppose we have this C structure:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">bufptr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span><span class="w"></span>
+<span class="w">  </span><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"> </span><span class="n">bufptr</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>It can be declared in Chapel as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">bufptr</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">buf</span><span class="p">:</span><span class="nx">c_array</span><span class="p">(</span><span class="nx">c_int</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">ptr</span><span class="p">:</span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A C header file containing the struct’s definition in C must be
+specified on the chpl compiler command line or in a <code class="docutils literal notranslate"><span class="pre">require</span></code> statement
+as described in <a class="reference internal" href="#expressing-dependencies">Expressing Dependencies</a>.</p>
+<p>To work with a C structure that is not typedef’d, just name the
+C type name after the <code class="docutils literal notranslate"><span class="pre">extern</span></code> keyword. In the example below,
+the <code class="docutils literal notranslate"><span class="pre">struct</span> <span class="pre">stat</span></code> type does not have a corresponding typedef
+in C. Therefore, we inform the Chapel compiler that the C name
+for the type is <code class="docutils literal notranslate"><span class="pre">struct</span> <span class="pre">stat</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;struct stat&quot;</span> <span class="k">record</span> <span class="nc">chpl_stat_type</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">st_size</span><span class="p">:</span> <span class="nx">off_t</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">getFileSize</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="nx">c_string</span><span class="p">)</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span>
+  <span class="k">extern</span> <span class="k">proc</span> <span class="nf">stat</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="nx">c_string</span><span class="p">,</span> <span class="kd">ref</span> <span class="nx">buf</span><span class="p">:</span><span class="nx">chpl_stat_type</span><span class="p">):</span> <span class="nx">c_int</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">buf</span><span class="p">:</span> <span class="nx">chpl_stat_type</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="nx">chpl_stat_function</span><span class="p">(</span><span class="nx">path</span><span class="p">,</span> <span class="nx">buf</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">buf</span><span class="p">.</span><span class="nx">st_size</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">getFileSize</span><span class="p">(</span><span class="s">&quot;stat-example.chpl&quot;</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="opaque-types">
+<h3>Opaque Types<a class="headerlink" href="#opaque-types" title="Permalink to this headline">¶</a></h3>
+<p>NOTE: This support may eventually be deprecated as other ‘extern’
+features become increasingly flexible and robust.</p>
+<p>You can refer to other external pointer-based C types that cannot be
+described in Chapel using the “opaque” keyword.  As the name implies,
+these types are opaque as far as Chapel is concerned and cannot be
+used for operations other than argument passing and assignment
+(to/from other similarly opaque types).</p>
+<p>For example, Chapel could be used to call an external C function that
+returns a pointer to a structure (that we can’t or won’t describe as
+an external class using the previous mechanism) as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">returnStructPtr</span><span class="p">():</span> <span class="kt">opaque</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">structPtr</span><span class="p">:</span> <span class="kt">opaque</span> <span class="o">=</span> <span class="nx">returnStructPtr</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>However, because structPtr’s type is opaque, it cannot be used for
+much apart from assigning it to other opaque variables of matching
+underlying type, or passing it back to an external C routine that
+expects a pointer-to-struct of that type:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">operateOnStructPtr</span><span class="p">(</span><span class="nx">ptr</span><span class="p">:</span> <span class="kt">opaque</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">copyOfStructPtr</span> <span class="o">=</span> <span class="nx">structPtr</span><span class="p">;</span>
+
+<span class="nx">operateOnStructPtr</span><span class="p">(</span><span class="nx">structPtr</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="support-for-extern-blocks">
+<span id="readme-extern-extern-block"></span><h2>Support for Extern Blocks<a class="headerlink" href="#support-for-extern-blocks" title="Permalink to this headline">¶</a></h2>
+<p>[Note: The features in this section rely on Chapel to being built with
+llvm/clang enabled.  To do so, set environment variable CHPL_LLVM to
+‘bundled’ and rebuild your Chapel installation. See <a class="reference internal" href="llvm.html#readme-llvm"><span class="std std-ref">LLVM Support</span></a>.].</p>
+<p>C code and header files can be included directly within Chapel source
+code using an <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">block</span></code> as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+  <span class="o">#</span><span class="nx">include</span> <span class="s">&quot;my_C_API.h&quot;</span>
+  <span class="nx">static</span> <span class="kt">int</span> <span class="nx">myCInt</span> <span class="o">=</span> <span class="mi">7</span><span class="p">;</span>
+  <span class="o">....</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Such <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">{</span> <span class="pre">}</span></code> block statements add the top-level C statements to
+the enclosing Chapel module.  This is similar to what one might do
+manually using the extern declarations (as described above), but can
+save a lot of labor for a large API.  Moreover, using an inline extern
+block permits you to write C declarations directly within Chapel
+without having to create distinct C files.</p>
+<p>An <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">{</span> <span class="pre">}</span></code> also adds <code class="docutils literal notranslate"><span class="pre">private</span> <span class="pre">use</span></code> statements for the following
+modules since they will generally be used by the implicitly generated
+<code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code> functions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><a class="reference internal" href="../modules/standard/CTypes.html#module-CTypes" title="CTypes: Defines C types and related routines to support interoperability."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CTypes</span></code></a></p></li>
+</ul>
+</div></blockquote>
+<p>If you don’t want to have a lot of C symbols cluttering up a module’s
+namespace, it’s easy to put the C code into its own Chapel module:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">module</span> <span class="nc">C</span> <span class="p">{</span>
+  <span class="k">extern</span> <span class="p">{</span>
+    <span class="nx">static</span> <span class="kt">int</span> <span class="nx">foo</span><span class="p">(</span><span class="kt">int</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> <span class="p">}</span>
+    <span class="o">..</span><span class="p">.</span> <span class="nx">c</span> <span class="nx">code</span> <span class="nx">here</span><span class="o">..</span><span class="p">.</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">C</span><span class="p">.</span><span class="nx">foo</span><span class="p">(</span><span class="mi">3</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>In that event, you might consider adding <code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">use</span> <span class="pre">CTypes;</span></code>
+to the module so that the types and functions generated by the extern
+block will be usable.</p>
+<p>This feature strives to support C global variables, functions, structures,
+typedefs, enums, and some #defines. Structures always generate a Chapel record,
+and pointers to a structure are represented with c_ptr(struct type). Also,
+pointer arguments to functions are always represented with c_ptr or c_string
+instead of the ref intent.</p>
+<p>Note that functions or variables declared within an extern block should either
+be declared in a .h file that is #included or they should be be declared
+<code class="docutils literal notranslate"><span class="pre">static</span></code> (otherwise you might get a warning during C compilation).</p>
+<p>Also note that a <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">inline</span></code> function can be inlined into Chapel
+code that calls it. Thus, by using <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">inline</span></code> in an <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">block</span></code>,
+it is possible to hand-tune a computational kernel by writing some of
+it in inline assembly.</p>
+<div class="section" id="defines">
+<h3>#defines<a class="headerlink" href="#defines" title="Permalink to this headline">¶</a></h3>
+<p>The extern block functionality allows simple #defines to be used from
+Chapel code. Simple defines take no arguments and define an integer,
+string, or real value or use another #define that does so. Casts to
+built-in numeric types are also supported, as are macros that are simply
+an alternative name for another C variable. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+ <span class="o">#</span><span class="nx">define</span> <span class="nx">NEG_ONE</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+ <span class="o">#</span><span class="nx">define</span> <span class="nx">MY_NUMBER</span> <span class="p">((</span><span class="nx">unsigned</span> <span class="kt">int</span><span class="p">)</span><span class="nx">NEG_ONE</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">NEG_ONE</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">MY_NUMBER</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>However, it is easy to create #defines that are not supported because the
+Chapel compiler is unable to determine their expression type. In particular,
+any #define taking arguments is not currently supported. For example, the
+ADD definition below has a resulting expression type that cannot be determined
+by the Chapel compiler:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+  <span class="o">#</span><span class="nx">define</span> <span class="nx">ADD</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span><span class="nx">y</span><span class="p">)</span> <span class="p">((</span><span class="nx">x</span><span class="p">)</span><span class="o">+</span><span class="p">(</span><span class="nx">y</span><span class="p">))</span> <span class="c1">// NOT SUPPORTED</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">ADD</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">);</span> <span class="c1">// ERROR - ADD not defined in Chapel.</span>
+</pre></div>
+</div>
+<p>If the library you are using depends on these types, the current solution
+is to create inline functions to call the define with the appropriate argument
+types; for example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+  <span class="o">#</span><span class="nx">define</span> <span class="nx">ADD</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span><span class="nx">y</span><span class="p">)</span> <span class="p">((</span><span class="nx">x</span><span class="p">)</span><span class="o">+</span><span class="p">(</span><span class="nx">y</span><span class="p">))</span>
+  <span class="nx">static</span> <span class="k">inline</span> <span class="kt">int</span> <span class="nx">ADD_int_int</span><span class="p">(</span><span class="kt">int</span> <span class="nx">x</span><span class="p">,</span> <span class="kt">int</span> <span class="nx">y</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">ADD</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span><span class="nx">y</span><span class="p">);</span> <span class="p">}</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">sum</span> <span class="o">=</span> <span class="nx">ADD_int_int</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">sum</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="pointer-types">
+<h3>Pointer Types<a class="headerlink" href="#pointer-types" title="Permalink to this headline">¶</a></h3>
+<p>See the section <a class="reference internal" href="#pointer-and-string-types">Pointer and String Types</a> above for background on
+how the Chapel programs can work with C pointer types. Any pointer type used in
+an extern block will be made visible to the Chapel program as c_ptr(T) or
+c_string (for const char* types).</p>
+<p>For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+  <span class="nx">static</span> <span class="kt">void</span> <span class="nx">setItToOne</span><span class="p">(</span><span class="kt">int</span><span class="o">*</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span> <span class="o">*</span><span class="nx">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="p">}</span>
+  <span class="c1">// will translate automatically into</span>
+  <span class="c1">//  extern proc setItToOne(x:c_ptr(c_int));</span>
+
+  <span class="c1">// The Chapel compiler can&#39;t know if X is used as an array,</span>
+  <span class="c1">// if the argument will come from a Chapel variable, and in more general</span>
+  <span class="c1">// cases, the best way to handle multiple levels of pointers. For example:</span>
+  <span class="nx">static</span> <span class="kt">void</span> <span class="nx">setSpace</span><span class="p">(</span><span class="kt">int</span><span class="o">**</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">static</span> <span class="kt">int</span> <span class="nx">space</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+    <span class="o">*</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">space</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c1">// translates automatically into</span>
+  <span class="c1">//  extern proc returnSpace( x:c_ptr(c_ptr(c_int)) );</span>
+
+  <span class="nx">static</span> <span class="kt">void</span> <span class="nx">setString</span><span class="p">(</span><span class="kd">const</span> <span class="nx">char</span><span class="o">**</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span> <span class="o">*</span><span class="nx">x</span> <span class="o">=</span> <span class="s">&quot;My String&quot;</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">x</span><span class="p">:</span><span class="nx">c_int</span><span class="p">;</span>
+<span class="nx">setItToOne</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">x</span><span class="p">));</span>
+
+<span class="kd">var</span> <span class="nx">space</span><span class="p">:</span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">);</span>
+<span class="nx">setSpace</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">space</span><span class="p">));</span>
+
+<span class="kd">var</span> <span class="nx">str</span><span class="p">:</span><span class="nx">c_string</span><span class="p">;</span>
+<span class="nx">setString</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">str</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">toString</span><span class="p">(</span><span class="nx">str</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>As you can see in this example, using the extern block might result in
+more calls to c_ptrTo() when using the generated extern declarations,
+because the compiler cannot automatically distinguish between several
+common cases (passing an array vs. passing in an argument by reference).</p>
+</div>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>Here’s a more complete example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">module</span> <span class="nc">MyCModule</span> <span class="p">{</span>
+  <span class="k">extern</span> <span class="p">{</span>
+    <span class="nx">static</span> <span class="kt">int</span> <span class="nx">foo</span><span class="p">(</span><span class="kt">int</span> <span class="nx">b</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">b</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Hello&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">MyCModule</span><span class="p">.</span><span class="nx">foo</span><span class="p">(</span><span class="mi">7</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>This prints out</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Hello</span>
+<span class="mi">8</span>
+</pre></div>
+</div>
+<p>which demonstrates full integration between Chapel and the C function
+it calls.</p>
+</div>
+</div>
+<div class="section" id="using-extern-declarations">
+<h2>Using Extern Declarations<a class="headerlink" href="#using-extern-declarations" title="Permalink to this headline">¶</a></h2>
+<p>Extern declarations can be used just like normal Chapel types, variables,
+or functions. Using these extern declarations from Chapel code requires
+some care.</p>
+<div class="section" id="parallel-safety">
+<h3>Parallel Safety<a class="headerlink" href="#parallel-safety" title="Permalink to this headline">¶</a></h3>
+<p>If external routines are to be called from Chapel within parallel
+execution contexts, they should be parallel-safe.  As with internal Chapel
+routines, it is also the responsibility of the Chapel programmer to call
+external routines in a manner that preserves the integrity of objects
+accessible to those routines.  Simply put, objects shared across Chapel
+tasks must be kept parallel-safe within Chapel.</p>
+</div>
+<div class="section" id="multiple-locales">
+<h3>Multiple Locales<a class="headerlink" href="#multiple-locales" title="Permalink to this headline">¶</a></h3>
+<p>Since the extern C code does not generally have any support for multiple
+locales, it is important to take care when using this code from multiple
+locales. Here are some things to be aware of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>extern global variables will refer to a local version of that variable
+on each locale. These variables might become different if they
+are changed differently on different locales.</p></li>
+<li><p>c_ptr is always generated as a narrow pointer type (in other words, it
+does not encode the locale storing the pointed-to value - just an
+address). That means that passing a c_ptr from one locale to another
+and then using it on the second locale will probably result in a core
+dump.</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="initialization">
+<h3>Initialization<a class="headerlink" href="#initialization" title="Permalink to this headline">¶</a></h3>
+<p>Chapel variables of extern type are not generally initialized
+automatically. Be sure to manually initialize Chapel variables of extern
+type.</p>
+<p>The Chapel compiler assume that extern records can be copied to each
+other without running any copy initializer. Similarly, it does not call
+any deinitializer for extern records.</p>
+<p>In the future, we would like to support automatic zero initialization
+of such variables and a way to provide their default initializer.</p>
+</div>
+<div class="section" id="working-with-c-ptr">
+<h3>Working with c_ptr<a class="headerlink" href="#working-with-c-ptr" title="Permalink to this headline">¶</a></h3>
+<p>A c_ptr type can be constructed from a Chapel variable using the c_ptrTo()
+function; for example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">i</span><span class="p">:</span><span class="nx">c_int</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">i_ptr</span> <span class="o">=</span> <span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span> <span class="c1">// now i_ptr has type c_ptr(c_int) == int* in C</span>
+</pre></div>
+</div>
+<p>Since a C pointer might refer to a single variable or an array, the c_ptr type
+supports 0-based array indexing and dereferencing. In addition, it is possible
+to allocate and free space for one or more elements and return the result as a
+c_ptr. See the following example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">cArray</span> <span class="o">=</span> <span class="nx">c_calloc</span><span class="p">(</span><span class="nx">c_int</span><span class="p">,</span> <span class="mi">10</span><span class="p">);</span>
+<span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">0</span><span class="o">..#</span><span class="mi">10</span> <span class="p">{</span>
+ <span class="nx">cArray</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">:</span><span class="nx">c_int</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c1">// c_ptr.deref() always refers to the first element.</span>
+<span class="nx">cArray</span><span class="p">.</span><span class="nx">deref</span><span class="p">()</span> <span class="o">=</span> <span class="mi">17</span><span class="p">;</span>
+<span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">0</span><span class="o">..#</span><span class="mi">10</span> <span class="p">{</span>
+ <span class="nx">writeln</span><span class="p">(</span><span class="nx">cArray</span><span class="p">[</span><span class="nx">i</span><span class="p">]);</span>
+<span class="p">}</span>
+<span class="nx">c_free</span><span class="p">(</span><span class="nx">cArray</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Variables of type c_ptr can be compared against or set to nil.</p>
+</div>
+<div class="section" id="working-with-strings">
+<h3>Working with strings<a class="headerlink" href="#working-with-strings" title="Permalink to this headline">¶</a></h3>
+<p>If you need to call a C function and provide a Chapel string, you may need to
+convert the Chapel string to a C string first.  Chapel string literals will
+automatically convert to C strings.  A Chapel string variable can be converted
+using the <a class="reference internal" href="../language/spec/strings.html#String.string.c_str" title="String.string.c_str"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">c_str</span></code></a> method.</p>
+<p>myprint.h:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">myprint</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">str</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+<p>myprint.c:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">myprint</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">str</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">str</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>myprint.chpl:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">myprint</span><span class="p">(</span><span class="nx">str</span><span class="p">:</span><span class="nx">c_string</span><span class="p">);</span>
+
+<span class="c1">// string literal is automatically converted to a c_string</span>
+<span class="nx">myprint</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+
+<span class="c1">// a string variable must be converted with .c_str()</span>
+<span class="kd">var</span> <span class="nx">s</span> <span class="o">=</span> <span class="s">&quot;goodbye&quot;</span><span class="p">;</span>
+<span class="nx">myprint</span><span class="p">(</span><span class="nx">s</span><span class="p">.</span><span class="nx">c_str</span><span class="p">());</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="expressing-dependencies">
+<h2>Expressing Dependencies<a class="headerlink" href="#expressing-dependencies" title="Permalink to this headline">¶</a></h2>
+<p>Any required C header files, source code files, object files, or
+library files must be provided to the Chapel compiler by one of
+two mechanisms.</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p>They can be listed at compile-time on the Chapel command line For
+example, if an external function foo() was defined in foo.h and foo.c,
+it could be added to the compilation using any of these commands:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>chpl foo.h foo.c myProgram.chpl
+chpl foo.h foo.o myProgram.chpl <span class="c1">#if foo.c had already been compiled)</span>
+chpl foo.h -lfoo myProgram.chpl <span class="c1">#if foo.c had been archived in libfoo.a)</span>
+</pre></div>
+</div>
+<p>Note that you can use -I and -L arguments for the Chapel compiler
+to specify include or library paths as with a C compiler.</p>
+</li>
+<li><p>Alternatively, the required C resources can be listed within the
+Chapel file using the <cite>require</cite> statement. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">require</span> <span class="s">&quot;foo.h&quot;</span><span class="p">,</span> <span class="s">&quot;foo.c&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This has an effect similar to adding foo.h and foo.c to the Chapel
+compiler’s command line. Filenames are interpreted as expressing a
+path relative to the directory in which the source file lives.
+You can also use the compiler’s -I and -L flags to indicate search
+directories for headers or library files.</p>
+<p>Similarly, the version below uses the require statement to indicate
+that this module depends on libfoo.a (and has a similar effect as if
+<code class="docutils literal notranslate"><span class="pre">-lfoo</span></code> were added to the command line).</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">require</span> <span class="s">&quot;foo.h&quot;</span><span class="p">,</span> <span class="s">&quot;-lfoo&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Require statements accept general <code class="docutils literal notranslate"><span class="pre">param</span></code> string expressions
+beyond the string literals shown in these examples.  Only
+<code class="docutils literal notranslate"><span class="pre">require</span></code> statements in code that the compiler considers
+executable will be processed.  Thus, a <code class="docutils literal notranslate"><span class="pre">require</span></code> statement
+guarded by a <code class="docutils literal notranslate"><span class="pre">param</span></code> conditional that the compiler folds out, or
+in a module that does not appear in the program’s <code class="docutils literal notranslate"><span class="pre">use</span></code>
+statements will not be added to the program’s requirements.  For
+example, the following code either requires <code class="docutils literal notranslate"><span class="pre">foo.h</span></code> or whatever
+requirement is specified by <em>defaultHeader</em> (<code class="docutils literal notranslate"><span class="pre">bar.h</span></code> by default)
+depending on the value of <em>requireFoo</em>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">param</span> <span class="nx">requireFoo</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span>
+             <span class="nx">defaultHeader</span><span class="o">=</span><span class="s">&quot;bar.h&quot;</span><span class="p">;</span>
+
+<span class="k">if</span> <span class="nx">requireFoo</span> <span class="k">then</span>
+  <span class="k">require</span> <span class="s">&quot;foo.h&quot;</span><span class="p">;</span>
+<span class="k">else</span>
+  <span class="k">require</span> <span class="nx">defaultHeader</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</div></blockquote>
+<p>Either approach has the following results:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>During Chapel’s C code generation stage, any header files listed on the
+compiler’s command line or in a require statement will be #include’d by
+the generated code in order to ensure that the appropriate prototypes
+are found before making any references to the external symbols.</p></li>
+<li><p>During Chapel’s C compilation stage, any C files on the command line or
+in a require statement will be compiled using the same flags as the
+Chapel-generated C files (use –print-commands to see these compile
+commands).</p></li>
+<li><p>During Chapel’s link step, any .o and .a files listed on the compiler’s
+command-line or in require statements will be included in the final
+executable.</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="future-directions">
+<h2>Future Directions<a class="headerlink" href="#future-directions" title="Permalink to this headline">¶</a></h2>
+<p>We intend to continue improving these capabilities to provide richer
+support for external types and functions over time.  If you
+have specific requests for improvement, please let us know on the
+<a class="reference external" href="https://github.com/chapel-lang/chapel/issues">Chapel GitHub issues page</a> or community forums.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gpu.html" class="btn btn-neutral float-left" title="GPU Programming" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="libraries.html" class="btn btn-neutral float-right" title="Calling Chapel Code from Other Languages" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

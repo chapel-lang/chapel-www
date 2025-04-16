@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Query Framework &mdash; Chapel Documentation 1.26</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Parsing" href="parsing.html" />
+    <link rel="prev" title="Compiler Library API Docs" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.26
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.26";
+$pagename = "developer/compiler-internals/queries";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bestPractices/index.html">Best Practices for Contributors</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Compiler Library API Docs</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Query Framework</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#constraints">Constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#writing-a-query">Writing a Query</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#checking-and-recomputing-queries">Checking and Recomputing Queries</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#requirements-on-types-used-in-queries">Requirements on Types Used in Queries</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#update-functions">Update Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mark-functions">Mark Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pointer-memory-management">Pointer Memory Management</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="parsing.html">Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="resolution.html">Resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="types.html">Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="uast.html">Untyped AST (uAST)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="base.html">Base</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Chapel Documentation Index</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Docs for Contributors</a> &raquo;</li>
+          <li><a href="index.html">Compiler Library API Docs</a> &raquo;</li>
+      <li>Query Framework</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/compiler-internals/queries.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="query-framework">
+<span id="chapter-dyno-chpl-queries"></span><h1>Query Framework<a class="headerlink" href="#query-framework" title="Permalink to this headline">¶</a></h1>
+<p>This section describes the query framework that supports
+incremental compilation.</p>
+<p>This <a class="reference internal" href="base.html#_CPPv4N4chpl7ContextE" title="chpl::Context"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">chpl::Context</span></code></a> class stores the compilation-wide context.
+Another name for this compilation-wide context is <em>program database</em>. It
+handles unique’d strings and also stores the results of queries (so that
+they are are memoized). It tracks dependencies of queries in order to
+update them appropriately when a dependency changes.</p>
+<p>Queries are functions that are written in a stylized manner to interact
+with the Context (aka program database). For example, a <code class="docutils literal notranslate"><span class="pre">parse</span></code> query
+might accept as an argument a <code class="docutils literal notranslate"><span class="pre">UniqueString</span> <span class="pre">path</span></code> and return a vector
+of owned AST nodes.  Another example is a query to determine the location
+of an AST node; it would accept as an argument an <code class="docutils literal notranslate"><span class="pre">ASTNode*</span></code> and it
+would return a Location.</p>
+<p>Queries can depend upon other queries by calling them. Queries can be
+called as regular C++ functions.</p>
+<p>When running a query, the query system will manage:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>checking to see if the query result is already saved and available for
+reuse</p></li>
+<li><p>recording the queries called by that query as dependencies</p></li>
+</ul>
+</div></blockquote>
+<div class="section" id="constraints">
+<h2>Constraints<a class="headerlink" href="#constraints" title="Permalink to this headline">¶</a></h2>
+<p>Queries should not have side effects. They should not mutate global
+variables, for example.</p>
+<p>Queries should call dependent queries in a deterministic manner. Queries
+should have deterministic results - the same arguments should lead to the
+same result.</p>
+<p>A query can return a heap-allocated object or include heap allocated
+objects in its result. When it does so, other queries can safely use
+pointers to the heap-allocated object as arguments or in return values.
+See also the <a class="reference internal" href="#pointer-memory-management">Pointer Memory Management</a> section below.</p>
+</div>
+<div class="section" id="writing-a-query">
+<h2>Writing a Query<a class="headerlink" href="#writing-a-query" title="Permalink to this headline">¶</a></h2>
+<p>To write a query, create a function that:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>includes a <a class="reference internal" href="base.html#_CPPv4N4chpl7ContextE" title="chpl::Context"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">chpl::Context</span></code></a> argument followed
+by zero or more query arguments</p></li>
+<li><p>returns a const reference to the desired result type</p></li>
+<li><p>is written in a particular way to interact with the Context through
+the <code class="docutils literal notranslate"><span class="pre">QUERY_</span></code> macros defined in query-impl.h.</p></li>
+</ul>
+</div></blockquote>
+<p>Queries cannot be regular methods but they can be class methods (static
+methods).</p>
+<p>For example, here is a query that computes MyResultType from myArg1 and
+myArg2:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;chpl/queries/query-impl.h&quot;</span><span class="cp"></span>
+
+<span class="k">const</span> <span class="n">MyResultType</span><span class="o">&amp;</span> <span class="nf">myQueryFunction</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span> <span class="n">context</span><span class="p">,</span>
+                                    <span class="n">MyArgType</span> <span class="n">myArg1</span><span class="p">,</span>
+                                    <span class="n">MyOtherArgType</span> <span class="n">myArg2</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">myQueryFunction</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">myArg1</span><span class="p">,</span> <span class="n">myArg2</span><span class="p">)</span>
+
+  <span class="c1">// do steps to compute the result</span>
+  <span class="n">MyResultType</span> <span class="n">result</span> <span class="o">=</span> <span class="p">...;</span>
+  <span class="c1">// if an error is encountered, it can be saved with QUERY_ERROR(error)</span>
+
+  <span class="k">return</span> <span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>To call the query, just write e.g. <code class="docutils literal notranslate"><span class="pre">myQueryFunction(context,</span> <span class="pre">arg1,</span> <span class="pre">arg2)</span></code>.</p>
+<p>The macros are where the query framework takes important steps to make
+this function in to a query.</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">QUERY_BEGIN</span></code>, the query framework will check to see if there is
+already a result in the Context for these arguments that can be reused.
+If a result can be reused, <code class="docutils literal notranslate"><span class="pre">QUERY_BEGIN</span></code> will run the <code class="docutils literal notranslate"><span class="pre">mark</span></code> function
+on the result and return it (see <a class="reference internal" href="#mark-functions">Mark Functions</a> below). Otherwise, the
+query proceeds to execute the rest of the function body in order to
+compute the result.</p>
+<p>The framework also supports input queries which use <code class="docutils literal notranslate"><span class="pre">QUERY_BEGIN_INPUT</span></code>
+instead of <code class="docutils literal notranslate"><span class="pre">QUERY_BEGIN</span></code>. These queries pull in state from outside the
+framework - for example, they might read a file. They will be re-run
+every revision even if their dependencies are unchanged.</p>
+<p>While running the rest of the function body, any queries called will be
+automatically recorded as dependencies.</p>
+<p>The query concludes with <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">QUERY_END(result)</span></code> which indicates to
+the query framework that <code class="docutils literal notranslate"><span class="pre">result</span></code> is a local variable containing the
+result of the query. This result, or one equivalent to it, will be
+returned and stored in the Context for future reuse. This process is
+managed by the <code class="docutils literal notranslate"><span class="pre">update</span></code> function (see <a class="reference internal" href="#update-functions">Update Functions</a> below).</p>
+<p>Types used as argument or return types in queries need to have certain
+functionality as described in the Requirements on Types Used in Queries
+section below.</p>
+</div>
+<div class="section" id="checking-and-recomputing-queries">
+<h2>Checking and Recomputing Queries<a class="headerlink" href="#checking-and-recomputing-queries" title="Permalink to this headline">¶</a></h2>
+<p>The first step in a query occurs within <code class="docutils literal notranslate"><span class="pre">QUERY_BEGIN</span></code>. In this step,
+the query framework checks to see if the body of the query needs to be
+run.  This uses <code class="docutils literal notranslate"><span class="pre">lastChecked</span></code> and <code class="docutils literal notranslate"><span class="pre">lastChanged</span></code> values which are
+revision numbers stored for the query in the Context.</p>
+<p>The framework will check if dependencies have changed and this process
+will include recursively re-running them if necessary.</p>
+<p>The framework will skip running the body and return an existing
+result if:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>lastChecked matches the current revision number</p></li>
+<li><p>the query is not an input query and no dependencies changed in this
+revision (i.e., for all dependencies, lastChanged &lt; currentRevision)</p></li>
+</ul>
+</div></blockquote>
+<p>Otherwise, the body of the query will be run. While running the body, the
+query framework tracks the queries called as dependencies. When
+<code class="docutils literal notranslate"><span class="pre">QUERY_END</span></code> is reached, the query framework decides if it is possible
+to reuse the previous result. In particular, if there were no changes in
+the result, the old result can be reused and then it may be possible to
+skip running queries dependent on this one. This is sometimes called the
+<em>early cutoff optimization</em> in the context of build systems.</p>
+</div>
+<div class="section" id="requirements-on-types-used-in-queries">
+<h2>Requirements on Types Used in Queries<a class="headerlink" href="#requirements-on-types-used-in-queries" title="Permalink to this headline">¶</a></h2>
+<p>There are some requirements on query argument/key types and on result types:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>argument/key types must have <code class="docutils literal notranslate"><span class="pre">std::hash&lt;KeyType&gt;</span></code>
+(typically by providing a hash method and calling it from
+a std::hash template specialization)</p></li>
+<li><p>argument/key types must have <code class="docutils literal notranslate"><span class="pre">std::equal_to&lt;KeyType&gt;</span></code>
+(typically by providing an <code class="docutils literal notranslate"><span class="pre">==</span></code> operator overload)</p></li>
+<li><p>result types must have <code class="docutils literal notranslate"><span class="pre">chpl::update&lt;MyResultType&gt;</span></code>
+(typically by providing an <code class="docutils literal notranslate"><span class="pre">update</span></code> method)</p></li>
+<li><p>result types must have <code class="docutils literal notranslate"><span class="pre">chpl::mark&lt;MyResultType&gt;</span></code>
+(typically by providing a <code class="docutils literal notranslate"><span class="pre">mark</span></code> method)</p></li>
+<li><p>result types must be default constructable</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="update-functions">
+<h2>Update Functions<a class="headerlink" href="#update-functions" title="Permalink to this headline">¶</a></h2>
+<p>As described above, after running a query, the query framework needs to
+decide if some or all of the old result can be reused. Reuse is important
+because it can allow the system to avoid re-running queries that depend on
+this one.  Result types can inform this process by implementing an
+<code class="docutils literal notranslate"><span class="pre">update</span></code> method on the result type.</p>
+<p>For example, an <code class="docutils literal notranslate"><span class="pre">update</span></code> method might look like this:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyResultType</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kt">bool</span> <span class="nf">update</span><span class="p">(</span><span class="n">MyResultType</span><span class="o">&amp;</span> <span class="n">keep</span><span class="p">,</span> <span class="n">MyResultType</span><span class="o">&amp;</span> <span class="n">addin</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Or, for a query returning an <code class="docutils literal notranslate"><span class="pre">owned</span></code> result, it might look like this:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">OwnResult</span> <span class="p">{</span>
+   <span class="k">static</span> <span class="kt">bool</span> <span class="nf">update</span><span class="p">(</span><span class="n">owned</span><span class="o">&lt;</span><span class="n">OwnResult</span><span class="o">&gt;&amp;</span> <span class="n">keep</span><span class="p">,</span> <span class="n">owned</span><span class="o">&lt;</span><span class="n">OwnResult</span><span class="o">&gt;&amp;</span> <span class="n">addin</span><span class="p">);</span>
+ <span class="p">}</span>
+</pre></div>
+</div>
+<p>In either case, the meaning of the arguments and return type is the same.</p>
+<p>On entry to the <code class="docutils literal notranslate"><span class="pre">update</span></code> function:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">keep</span></code> is the old result from a previous revision</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">addin</span></code> is the new result just computed</p></li>
+</ul>
+</div></blockquote>
+<p>After running this function:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">keep</span></code> stores the result we need to keep</p></li>
+<li><p>any values not kept need to be stored in <code class="docutils literal notranslate"><span class="pre">addin</span></code></p></li>
+</ul>
+</div></blockquote>
+<p>The function returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if anything changed in <code class="docutils literal notranslate"><span class="pre">keep</span></code> and
+<code class="docutils literal notranslate"><span class="pre">false</span></code> if <code class="docutils literal notranslate"><span class="pre">keep</span></code> was reused without changes.</p>
+<p>Put another way, the <code class="docutils literal notranslate"><span class="pre">update</span></code> function needs to:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>store the current, updated result in <code class="docutils literal notranslate"><span class="pre">keep</span></code></p></li>
+<li><p>store the unused result in <code class="docutils literal notranslate"><span class="pre">addin</span></code></p></li>
+<li><p>return <code class="docutils literal notranslate"><span class="pre">false</span></code> if <code class="docutils literal notranslate"><span class="pre">keep</span></code> matched <code class="docutils literal notranslate"><span class="pre">addin</span></code> – that is, <code class="docutils literal notranslate"><span class="pre">keep</span></code> did not
+need to be updated; and <code class="docutils literal notranslate"><span class="pre">true</span></code> otherwise.</p></li>
+</ul>
+</div></blockquote>
+<p>For most result types, <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">defaultUpdate(keep,</span> <span class="pre">addin);</span></code> should be
+sufficient. In the event that a result is actually a collection of
+results that owns the elements (for example, when parsing, the result is
+conceptually a vector of top-level symbol), the <code class="docutils literal notranslate"><span class="pre">update</span></code> function
+should try to update only those elements of <code class="docutils literal notranslate"><span class="pre">keep</span></code> that changed by
+swapping in the appropriate elements from <code class="docutils literal notranslate"><span class="pre">addin</span></code>. This strategy allows
+later queries that depend on such a result to use pointers to the owned
+elements and to avoid updating everything if just one element changed.</p>
+<p>The query framework actually uses template specialization of a
+<code class="docutils literal notranslate"><span class="pre">chpl::update</span></code> function object in <code class="docutils literal notranslate"><span class="pre">update-functions.h</span></code> to implement
+<code class="docutils literal notranslate"><span class="pre">update</span></code> for a variety of standard C++ types. The default
+implementation of this <code class="docutils literal notranslate"><span class="pre">chpl::update</span></code> function object just calls the
+update method on the type. <code class="docutils literal notranslate"><span class="pre">update-functions.h</span></code> also provides
+<code class="docutils literal notranslate"><span class="pre">defaultUpdateOwned</span></code> which is usually all that is needed for <code class="docutils literal notranslate"><span class="pre">owned</span></code>
+results.</p>
+</div>
+<div class="section" id="mark-functions">
+<h2>Mark Functions<a class="headerlink" href="#mark-functions" title="Permalink to this headline">¶</a></h2>
+<p>In order to garbage collect <code class="docutils literal notranslate"><span class="pre">UniqueStrings</span></code> appropriately, and to
+enable consistency checking within the query framework, types returned by
+a query need to support a <code class="docutils literal notranslate"><span class="pre">mark</span></code> function.</p>
+<p>In some situations, the query framework can reuse a result without
+running the <code class="docutils literal notranslate"><span class="pre">update</span></code> function for it. That can happen when all
+dependencies have been checked in this revision and the dependencies are
+all reused. In that event, the <code class="docutils literal notranslate"><span class="pre">UniqueStrings</span></code> that are contained in or
+referred to by the result need to be marked so that any <code class="docutils literal notranslate"><span class="pre">UniqueStrings</span></code>
+not used can be garbage collected. This is accomplished through the
+<code class="docutils literal notranslate"><span class="pre">mark</span></code> function.</p>
+<p>For example, an <code class="docutils literal notranslate"><span class="pre">mark</span></code> method might look like this:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyResultType</span> <span class="p">{</span>
+  <span class="kt">void</span> <span class="nf">mark</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span> <span class="n">context</span><span class="p">)</span> <span class="k">const</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">mark</span></code> function needs to traverse the returned value:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>marking owned contained pointers with context-&gt;markOwnedPointer
+or context-&gt;markPointer(owned value)</p></li>
+<li><p>marking unowned/borrowed contained pointers with
+context-&gt;markUnownedPointer or context-&gt;markPointer(pointer value)</p></li>
+<li><p>marking contained UniqueStrings with <code class="docutils literal notranslate"><span class="pre">UniqueString::mark(context)</span></code></p></li>
+<li><p>generally, marking any fields storing a custom value by calling
+<code class="docutils literal notranslate"><span class="pre">field.mark(context)</span></code>.</p></li>
+</ul>
+</div></blockquote>
+<p>The implementation actually uses a template specialization of a
+<code class="docutils literal notranslate"><span class="pre">chpl::mark</span></code> function object in <code class="docutils literal notranslate"><span class="pre">mark-functions.h</span></code> to implement
+<code class="docutils literal notranslate"><span class="pre">mark</span></code> for a variety of standard C++ types. The default version runs
+the <code class="docutils literal notranslate"><span class="pre">mark</span></code> method described above.</p>
+</div>
+<div class="section" id="pointer-memory-management">
+<h2>Pointer Memory Management<a class="headerlink" href="#pointer-memory-management" title="Permalink to this headline">¶</a></h2>
+<p>Queries can use pointers as argument or return types. However, in order
+for this to work, the pointer must point to something returned by a query
+in a heap allocation. Typically, queries that want to support having the
+result handled as a pointer return an <code class="docutils literal notranslate"><span class="pre">owned</span></code> (aka <code class="docutils literal notranslate"><span class="pre">std::unique_ptr</span></code>)
+value for the result.</p>
+<p>It is not sufficient to simply use the address of the <cite>const &amp;</cite> result of
+the query - that is a location in the map that will change as the map is
+updated. Instead, such patterns should use <cite>owned</cite> to make sure a new
+heap-allocated value is created.</p>
+<p>When working with results containing pointers, the <code class="docutils literal notranslate"><span class="pre">update</span></code> function
+should not rely on the contents of these pointers from the <code class="docutils literal notranslate"><span class="pre">keep</span></code>
+value. The system will make sure that they refer to valid memory but they
+might be a combination of old results.  Additionally, the system will
+ensure that any old results being replaced will remain allocated until
+the garbage collection runs outside of any query.</p>
+<p>For example, a <code class="docutils literal notranslate"><span class="pre">parse</span></code> query might result in a list of <code class="docutils literal notranslate"><span class="pre">owned</span></code> AST
+element pointers. A follow-on query, <code class="docutils literal notranslate"><span class="pre">listSymbols</span></code>, can result in
+something containing these AST element pointers, but not owning them. In
+that event, the <code class="docutils literal notranslate"><span class="pre">listSymbols</span></code> query needs to use an <code class="docutils literal notranslate"><span class="pre">update</span></code> function
+that does not look in to the AST element pointers. However it can compare
+the pointers themselves because the <code class="docutils literal notranslate"><span class="pre">parse</span></code> query will update the
+pointer if the contents change.</p>
+<p>When using this pattern:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>a query argument that is an unowned pointer always refer to something
+from the current revision</p></li>
+<li><p>an unowned pointer in a query result always refer to something from
+the current revision that had <code class="docutils literal notranslate"><span class="pre">mark</span></code> run on it when the query owning
+it returned it</p></li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Compiler Library API Docs" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="parsing.html" class="btn btn-neutral float-right" title="Parsing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

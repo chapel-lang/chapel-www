@@ -1,0 +1,285 @@
+.. default-domain:: chpl
+
+.. module:: GPU
+   :synopsis: Supports utility functions for operating with GPUs.
+
+GPU
+===
+**Usage**
+
+.. code-block:: chapel
+
+   use GPU;
+
+
+or
+
+.. code-block:: chapel
+
+   import GPU;
+
+Supports utility functions for operating with GPUs.
+
+.. warning::
+
+  This module is unstable and its interface is subject to change in the
+  future.
+
+  GPU support is a relatively new feature to Chapel and is under active
+  development.
+
+  For the most up-to-date information about GPU support see the
+  :ref:`technical note <readme-gpu>` about it.
+
+.. function:: proc gpuWrite(const args ...?k)
+
+   
+   This function is intended to be called from within a GPU kernel and is
+   useful for debugging purposes.
+   
+   Currently using :proc:`~ChapelIO.write` to send output to ``stdout`` will
+   make a loop ineligible for GPU execution; use :proc:`gpuWrite` instead.
+   
+   Currently this function will only work if values of type
+   ``c_ptrConst(c_char)`` are passed.
+   
+   On NVIDIA GPUs the written values will be flushed to the terminal after
+   the kernel has finished executing.  Note that there is a 1MB limit on the
+   size of this buffer.
+   
+
+.. function:: proc gpuWriteln(const args ...?k)
+
+   
+   Pass arguments to :proc:`gpuWrite` and follow with a newline.
+   
+
+.. function:: proc assertOnGpu()
+
+   .. warning::
+
+      the functional form of assertOnGpu() is deprecated. Please use the @assertOnGpu loop attribute instead.
+
+   
+   Will halt execution at runtime if called from outside a GPU.  If used on
+   first line in ``foreach`` or ``forall`` loop will also do a compile time
+   check that the loop is eligible for execution on a GPU.
+   
+
+.. function:: proc gpuClock(): uint
+
+   
+   Returns value of a per-multiprocessor counter that increments every clock cycle.
+   This function is meant to be called to time sections of code within a GPU
+   enabled loop.
+   
+
+.. function:: proc gpuClocksPerSec(devNum: int)
+
+   
+   Returns the number of clock cycles per second of a GPU multiprocessor.
+   Note: currently we don't support calling this function from within a kernel.
+   
+
+.. function:: proc syncThreads()
+
+   
+   Synchronize threads within a GPU block.
+   
+
+.. function:: proc createSharedArray(type eltType, param size): c_ptr(eltType)
+
+   
+   Allocate block shared memory, enough to store ``size`` elements of
+   ``eltType``. Returns a :type:`CTypes.c_ptr` to the allocated array. Note that
+   although every thread in a block calls this procedure, the same shared array
+   is returned to all of them.
+   
+   :arg eltType: the type of elements to allocate the array for.
+   
+   :arg size: the number of elements in each GPU thread block's copy of the array.
+   
+
+.. function:: proc setBlockSize(blockSize: integral)
+
+   
+   Set the block size for kernels launched on the GPU.
+   
+
+.. function:: proc gpuAtomicAdd(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically add 'val' to 'x' and store the result in 'x'.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicSub(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically subtract 'val' from 'x' and store the result in 'x'.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicExch(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically exchange the value stored in 'x' with 'val'.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicMin(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically compare 'x' and 'val' and store the minimum in 'x'.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicMax(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically compare 'x' and 'val' and store the maximum in 'x'.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicInc(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically increments x if the original value of x is
+   greater-than or equal to val, if so the result is stored in 'x'. Otherwise x is set to 0.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicDec(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically determine if 'x' equals 0 or is greater than 'val'.
+   If so store 'val' in 'x' otherwise decrement 'x' by 1. Otherwise x is set to val.
+   The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicAnd(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically perform a bitwise 'and' operation on 'x' and 'val' and store
+   the result in 'x'. The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicOr(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically perform a bitwise 'or' operation on 'x' and 'val' and store
+   the result in 'x'. The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicXor(ref x: ?T, val: T): T
+
+   When run on a GPU, atomically perform a bitwise 'xor' operation on 'x' and 'val' and store
+   the result in 'x'. The operation returns the old value of x. 
+
+.. function:: proc gpuAtomicCAS(ref x: ?T, cmp: T, val: T): T
+
+   When run on a GPU, atomically compare the value in 'x' and 'cmp', if they
+   are equal store 'val' in 'x'. The operation returns the old value of x. 
+
+.. function:: proc gpuSumReduce(const ref A: [] ?t)
+
+   
+   Add all elements of an array together on the GPU (that is, perform a
+   sum-reduction). The array must be in GPU-accessible memory and the function
+   must be called from outside a GPU-eligible loop. Only arrays with int, uint,
+   and real types are supported. A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4]; // will be GPU-accessible
+        writeln(gpuSumReduce(Arr)); // 15
+      }
+   
+
+.. function:: proc gpuMinReduce(const ref A: [] ?t)
+
+   
+   Return the minimum element of an array on the GPU (that is, perform a
+   min-reduction). The array must be in GPU-accessible memory and the function
+   must be called from outside a GPU-eligible loop. Only arrays with int, uint,
+   and real types are supported. A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4]; // will be GPU-accessible
+        writeln(gpuMinReduce(Arr)); // 1
+      }
+   
+
+.. function:: proc gpuMaxReduce(const ref A: [] ?t)
+
+   
+   Return the maximum element of an array on the GPU (that is, perform a
+   max-reduction). The array must be in GPU-accessible memory and the function
+   must be called from outside a GPU-eligible loop. Only arrays with int, uint,
+   and real types are supported. A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4]; // will be GPU-accessible
+        writeln(gpuMaxReduce(Arr)); // 5
+      }
+   
+
+.. function:: proc gpuMinLocReduce(const ref A: [] ?t)
+
+   
+   For an array on the GPU, return a tuple with the value and the index of the
+   minimum element (that is, perform a minloc-reduction). If there are multiple
+   elements with the same minimum value, the index of the first one is
+   returned. The array must be in GPU-accessible memory and the function must
+   be called from outside a GPU-eligible loop.  Only arrays with int, uint, and
+   real types are supported. A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4]; // will be GPU-accessible
+        writeln(gpuMinLocReduce(Arr)); // (1, 2). Note that Arr[2]==1.
+      }
+   
+
+.. function:: proc gpuMaxLocReduce(const ref A: [] ?t)
+
+   
+   For an array on the GPU, return a tuple with the value and the index of the
+   maximum element (that is, perform a maxloc-reduction). If there are multiple
+   elements with the same maximum value, the index of the first one is
+   returned. The array must be in GPU-accessible memory and the function must
+   be called from outside a GPU-eligible loop.  Only arrays with int, uint, and
+   real types are supported. A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4]; // will be GPU-accessible
+        writeln(gpuMaxLocReduce(Arr)); // (5, 3). Note that Arr[3]==5.
+      }
+   
+
+.. function:: proc gpuScan(ref gpuArr: [] ?t) where isNumericType(t) && !isComplexType(t)
+
+   
+   Calculates an exclusive prefix sum (scan) of an array on the GPU.
+   The array must be in GPU-accessible memory and the function
+   must be called from outside a GPU-eligible loop.
+   Arrays of numeric types are supported.
+   A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4]; // will be GPU-accessible
+        gpuScan(Arr);
+        writeln(Arr); // [0, 3, 5, 6, 11]
+      }
+   
+
+.. function:: proc gpuSort(ref gpuInputArr: [] uint)
+
+   
+   Sort an array on the GPU.
+   The array must be in GPU-accessible memory and the function must
+   be called from outside a GPU-eligible loop.
+   Only arrays with uint eltType are supported.
+   A simple example is the following:
+   
+    .. code-block:: chapel
+   
+      on here.gpus[0] {
+        var Arr = [3, 2, 1, 5, 4] : uint; // will be GPU-accessible
+        gpuSort(Arr);
+        writeln(Arr); // [1, 2, 3, 4, 5]
+      }
+   
+

@@ -1,0 +1,432 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Error Handling &mdash; Chapel Documentation 1.15</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.15" href="../index.html"/>
+        <link rel="up" title="Technical Notes" href="index.html"/>
+        <link rel="next" title="C Interoperability" href="extern.html"/>
+        <link rel="prev" title="Domain Map Standard Interface" href="dsi.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Chapel Documentation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<?php   // Variables given by sphinx 
+   $chplTitle = "1.15";   $pagename = "./technotes/errorHandling";   include "../versionButton.php";   ?>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel's Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auxIO.html">Auxiliary I/O Systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chpl-ipe.html">Interactive Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Error Handling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#errors">Errors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#throwing-errors">Throwing Errors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#handling-errors">Handling Errors</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#strict-mode">Strict Mode</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#propagation">Propagation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#default-mode">Default Mode</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#current-limitations">Current Limitations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initializers.html">Initializers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The 'local' keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="voidVariables.html">Void Variables and Fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation 1.15</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      
+    <li>Error Handling</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/technotes/errorHandling.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="error-handling">
+<span id="readme-errorhandling"></span><h1>Error Handling<a class="headerlink" href="#error-handling" title="Permalink to this headline">¶</a></h1>
+<p>This README describes the early version of error handling implemented in Chapel
+1.15. For a complete explanation of the final design and rationale, refer to
+<a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/8.rst">CHIP 8</a>.</p>
+<div class="section" id="errors">
+<h2>Errors<a class="headerlink" href="#errors" title="Permalink to this headline">¶</a></h2>
+<p>A base class <code class="docutils literal"><span class="pre">Error</span></code> is defined in the Chapel standard modules.
+It includes an initializer accepting a string argument, which is the error
+message to display if the error is not caught.</p>
+<p>Users may use the provided <code class="docutils literal"><span class="pre">Error</span></code> directly, or create their own error
+hierarchy with <code class="docutils literal"><span class="pre">Error</span></code> at its root.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyError</span><span class="p">:</span> <span class="nx">Error</span> <span class="p">{}</span>
+
+<span class="k">class</span> <span class="nc">MyIntError</span><span class="p">:</span> <span class="nx">MyError</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>While defining a standard set of <code class="docutils literal"><span class="pre">Error</span></code> subclasses is planned for the
+future, Chapel only provides <code class="docutils literal"><span class="pre">Error</span></code> at present.</p>
+</div>
+<div class="section" id="throwing-errors">
+<h2>Throwing Errors<a class="headerlink" href="#throwing-errors" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">throw</span></code> statements throw errors from a function to its callee.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="c1">// throwing a newly created error</span>
+<span class="nx">throw</span> <span class="k">new</span> <span class="nx">Error</span><span class="p">(</span><span class="s">&quot;error message here&quot;</span><span class="p">);</span>
+
+<span class="c1">// throwing an error stored in a variable</span>
+<span class="kd">var</span> <span class="nx">e</span><span class="p">:</span> <span class="nx">Error</span><span class="p">;</span>
+<span class="c1">// ... set e ...</span>
+<span class="nx">throw</span> <span class="nx">e</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>If a function may throw an error, it must be declared with <code class="docutils literal"><span class="pre">throws</span></code>.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">mayThrowErrors</span><span class="p">()</span> <span class="nx">throws</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+<span class="k">proc</span> <span class="nf">mayThrowErrorsAlso</span><span class="p">():</span> <span class="nx">A</span> <span class="nx">throws</span> <span class="k">where</span> <span class="o">..</span><span class="p">.</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+<span class="k">proc</span> <span class="nf">mayNotThrowErrors</span><span class="p">()</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="handling-errors">
+<h2>Handling Errors<a class="headerlink" href="#handling-errors" title="Permalink to this headline">¶</a></h2>
+<p>Chapel supports two modes for error handling: strict mode for production code,
+and default mode for drafting and iterating. Strict mode forces users to
+explicitly mark throwing calls and handle errors, clarifying the program's
+control flow to the user and the reader. Default mode loosens those
+requirements with implicit error handling.</p>
+<p>Strict mode is enabled by passing <code class="docutils literal"><span class="pre">--strict-errors</span></code> to the Chapel compiler,
+otherwise the compiler will use default mode.</p>
+<div class="section" id="strict-mode">
+<h3>Strict Mode<a class="headerlink" href="#strict-mode" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">try</span></code>/<code class="docutils literal"><span class="pre">try!</span></code> blocks and their associated <code class="docutils literal"><span class="pre">catch</span></code> clauses allow the user
+to create a handler for a throwing call.</p>
+<ul class="simple">
+<li>Statements that contain throwing calls must be enclosed in a <code class="docutils literal"><span class="pre">try</span></code> block.<ul>
+<li>If an error is raised by a call in a <code class="docutils literal"><span class="pre">try</span></code> block, the rest of the block
+is abandoned and control flow is passed to the list of <code class="docutils literal"><span class="pre">catch</span></code> clauses.</li>
+</ul>
+</li>
+<li>Each <code class="docutils literal"><span class="pre">catch</span></code> clause may contain a type filter. If the error's type matches
+the type filter, the block associated with that <code class="docutils literal"><span class="pre">catch</span></code> clause (and only
+that block) will be executed.<ul>
+<li>These filters will be evaluated in order of declaration, so even if a more
+exact filter is present in the list, it will not be selected if a matching
+general filter precedes it.</li>
+<li>If no filter is included, or only an error variable name is provided, then
+all errors will match. A clause with such a filter must be declared at the
+end of the list, since clauses that follow it could never be executed.</li>
+<li>Unless the <code class="docutils literal"><span class="pre">catch</span></code> clause block contains a <code class="docutils literal"><span class="pre">throw</span></code>, execution will
+resume after the <code class="docutils literal"><span class="pre">try</span></code> block.</li>
+</ul>
+</li>
+</ul>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">try</span> <span class="p">{</span>
+  <span class="nx">mayThrowErrors</span><span class="p">();</span>
+  <span class="nx">mayThrowErrorsAlso</span><span class="p">();</span>
+<span class="p">}</span> <span class="nx">catch</span> <span class="nx">e</span><span class="p">:</span> <span class="nx">MyIntError</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught MyIntError &quot;</span> <span class="o">+</span> <span class="nx">e</span><span class="p">.</span><span class="nx">i</span> <span class="o">+</span> <span class="s">&quot;, continue&quot;</span><span class="p">);</span>
+<span class="p">}</span> <span class="nx">catch</span> <span class="nx">e</span><span class="p">:</span> <span class="nx">MyError</span> <span class="p">{</span>
+  <span class="nx">throw</span> <span class="nx">e</span><span class="p">;</span>
+<span class="p">}</span> <span class="nx">catch</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;unexpected error&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>If none of the type filters matches the error, a catchall block will be
+inserted. Its functionality will depend on whether a <code class="docutils literal"><span class="pre">try</span></code> or <code class="docutils literal"><span class="pre">try!</span></code>
+was used.<ul>
+<li>If <code class="docutils literal"><span class="pre">try</span></code> was used, the error will be propagated. (More on this below.)</li>
+<li>If <code class="docutils literal"><span class="pre">try!</span></code> was used, the program will <code class="docutils literal"><span class="pre">halt()</span></code>.</li>
+</ul>
+</li>
+<li><code class="docutils literal"><span class="pre">try</span></code> blocks may be used without any <code class="docutils literal"><span class="pre">catch</span></code> clauses, or without brackets
+for single statements.</li>
+</ul>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">try</span> <span class="p">{</span>
+  <span class="nx">ioSourceOne</span><span class="p">();</span>
+  <span class="nx">ioSourceTwo</span><span class="p">();</span>
+  <span class="nx">ioSourceThree</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nx">try</span><span class="o">!</span> <span class="nx">cannotFail</span><span class="p">();</span>
+<span class="nx">try</span><span class="o">!</span> <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">requiredVariable</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="propagation">
+<h3>Propagation<a class="headerlink" href="#propagation" title="Permalink to this headline">¶</a></h3>
+<p>Propagation means that the error will be passed off to a set of handlers
+beyond the current scope. This can be accomplished in two ways:</p>
+<ol class="arabic simple">
+<li>Out of the enclosing function, if the function is declared with <code class="docutils literal"><span class="pre">throws</span></code>.</li>
+</ol>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">ioSetup</span><span class="p">()</span> <span class="nx">throws</span> <span class="p">{</span>
+  <span class="nx">try</span> <span class="p">{</span>
+    <span class="nx">ioSourceOne</span><span class="p">();</span>
+    <span class="nx">ioSourceTwo</span><span class="p">();</span>
+    <span class="nx">ioSourceThree</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li>To the catch blocks of an enclosing <code class="docutils literal"><span class="pre">try</span></code>.</li>
+</ol>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">try</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;outer try&quot;</span><span class="p">);</span>
+  <span class="nx">try</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;inner try&quot;</span><span class="p">);</span>
+    <span class="nx">throw</span> <span class="k">new</span> <span class="nx">MyError</span><span class="p">();</span>
+  <span class="p">}</span> <span class="nx">catch</span> <span class="nx">err</span><span class="p">:</span> <span class="nx">MyIntError</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;MyError should not be caught here&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span> <span class="nx">catch</span> <span class="nx">err</span><span class="p">:</span> <span class="nx">MyError</span> <span class="p">{</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught MyError&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="default-mode">
+<h3>Default Mode<a class="headerlink" href="#default-mode" title="Permalink to this headline">¶</a></h3>
+<p>In addition to the features in the <em>Strict Mode</em> section, default mode allows
+throwing calls to be called without being enclosed by a <code class="docutils literal"><span class="pre">try</span></code> or <code class="docutils literal"><span class="pre">try!</span></code>
+block. This is done by inserting an implicit handler after the call:</p>
+<ul class="simple">
+<li>If the caller is declared with <code class="docutils literal"><span class="pre">throws</span></code>, any error encountered will be
+thrown in turn.</li>
+<li>If the caller is not declared with <code class="docutils literal"><span class="pre">throws</span></code>, the program will <code class="docutils literal"><span class="pre">halt()</span></code>
+if any error is encountered.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="current-limitations">
+<h2>Current Limitations<a class="headerlink" href="#current-limitations" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>In general it is not possible to use error handling with parallel or
+multilocale constructs.<ul>
+<li><code class="docutils literal"><span class="pre">forall</span></code>, <code class="docutils literal"><span class="pre">begin</span></code>, <code class="docutils literal"><span class="pre">on</span></code>, etc.</li>
+<li>However it is possible to use throwing calls handled entirely within the
+scope of a given construct, without propagation.</li>
+</ul>
+</li>
+<li>Errors may not be generic classes.</li>
+<li>Virtual methods cannot throw. In practice, this means that while a typical
+class may contain throwing methods, a class that is extended or a class
+that is extending another class may not contain throwing methods.</li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="extern.html" class="btn btn-neutral float-right" title="C Interoperability" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="dsi.html" class="btn btn-neutral" title="Domain Map Standard Interface" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.15.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

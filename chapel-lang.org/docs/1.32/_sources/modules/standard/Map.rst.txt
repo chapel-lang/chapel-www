@@ -1,0 +1,485 @@
+.. default-domain:: chpl
+
+.. module:: Map
+   :synopsis: Chapel's standard 'map' type for key-value storage.
+
+Map
+===
+**Usage**
+
+.. code-block:: chapel
+
+   use Map;
+
+
+or
+
+.. code-block:: chapel
+
+   import Map;
+
+Chapel's standard 'map' type for key-value storage.
+
+This module contains the implementation of the map type which is a container
+that stores key-value associations.
+
+Maps are not parallel safe by default, but can be made parallel safe by
+setting the param formal `parSafe` to true in any map constructor. When
+constructed from another map, the new map will inherit the parallel safety
+mode of its originating map. Note that the ``parSafe`` mode is currently
+unstable and will eventually be replaced by a standalone parallel-safe map
+type.
+
+.. record:: map : serializable
+
+   .. attribute:: type keyType
+
+      Type of map keys. 
+
+   .. attribute:: type valType
+
+      Type of map values. 
+
+   .. attribute:: param parSafe = false
+
+      .. warning::
+
+         'map.parSafe' is unstable and is expected to be replaced by a separate map type in the future
+
+   .. attribute:: const resizeThreshold = defaultHashTableResizeThreshold
+
+      
+      Fractional value that specifies how full this map can be
+      before requesting additional memory. The default value of
+      0.5 means that the map will not resize until the map is more
+      than 50% full. The acceptable values for this argument are
+      between 0 and 1, exclusive, meaning (0,1). This is useful
+      when you would like to reduce memory impact or potentially
+      speed up how fast the map finds a slot. To override the
+      default value of 0.5, the `defaultHashTableResizeThreshold`
+      config flag can be set at runtime. Note that this default
+      affects all hash-based data structures, including
+      associative domains and sets.
+      
+
+   .. method:: proc init(type keyType, type valType, resizeThreshold = defaultHashTableResizeThreshold, initialCapacity = 16)
+
+      
+      Initializes an empty map containing keys and values of given types.
+      
+      :arg keyType: The type of the keys of this map.
+      :arg valType: The type of the values of this map.
+      :arg resizeThreshold: Fractional value that specifies how full this map
+                            can be before requesting additional memory.
+      :arg initialCapacity: Integer value that specifies starting map size. The
+                            map can hold at least this many values before
+                            attempting to resize.
+      
+
+   .. method:: proc init(type keyType, type valType, param parSafe, resizeThreshold = defaultHashTableResizeThreshold, initialCapacity = 16)
+
+      
+      Initializes an empty map containing keys and values of given types.
+      
+      :arg keyType: The type of the keys of this map.
+      :arg valType: The type of the values of this map.
+      :arg parSafe: If `true`, this map will use parallel safe operations.
+      :arg resizeThreshold: Fractional value that specifies how full this map
+                            can be before requesting additional memory.
+      :arg initialCapacity: Integer value that specifies starting map size. The
+                            map can hold at least this many values before
+                            attempting to resize.
+      
+
+      .. warning::
+
+         'map.parSafe' is unstable and is expected to be replaced by a separate map type in the future
+
+   .. method:: proc init=(ref other: map(?kt, ?vt, ?ps))
+
+      
+      Initializes a map containing elements that are copy initialized from
+      the elements contained in another map.
+      
+      :arg other: The map to initialize from.
+      :type other: map
+      
+      :arg parSafe: If `true`, this map will use parallel safe operations.
+      :type parSafe: bool
+      
+
+   .. method:: proc ref clear()
+
+      
+      Clears the contents of this map.
+      
+      .. warning::
+      
+        Clearing the contents of this map will invalidate all existing
+        references to the elements contained in this map.
+      
+
+   .. method:: proc size
+
+      
+      The current number of keys contained in this map.
+      
+
+   .. method:: proc isEmpty(): bool
+
+      
+      Returns `true` if this map contains zero keys.
+      
+      :returns: `true` if this map is empty.
+      :rtype: `bool`
+      
+
+   .. method:: proc contains(const k: keyType): bool
+
+      
+      Returns `true` if the given key is a member of this map, and `false`
+      otherwise.
+      
+      :arg k: The key to test for membership.
+      :type k: keyType
+      
+      :returns: Whether or not the given key is a member of this map.
+      :rtype: `bool`
+      
+
+   .. method:: proc ref extend(ref m: map(keyType, valType, parSafe))
+
+      
+      Extends this map with the contents of the other, overwriting the values
+      for already-existing keys.
+      
+      :arg m: The other map
+      :type m: map(keyType, valType)
+      
+
+   .. method:: proc update(const ref k: keyType, updater) throws
+
+      
+      Update a value in this map in a parallel safe manner via an updater
+      object.
+      
+      The updater object passed to the `update()` method must define a
+      `this()` method that takes two arguments: the first has this map's
+      `keyType`, and the second has this map's `valType`.
+      
+      The updater object's `this()` method must return some sort of value.
+      Updater objects that do not need to return anything may
+      return `none`.
+      
+      If the updater object's `this()` method throws, the thrown error will
+      be propagated out of `update()`.
+      
+      :arg k: The key to update
+      :type k: `keyType`
+      
+      :arg updater: A class or record used to update the value at `i`
+      
+      :throws KeyNotFoundError: if `k` not in map
+      
+      :return: What the updater returns
+      
+
+   .. method:: proc ref this(k: keyType) ref where isDefaultInitializable(valType)
+
+      
+      If the key exists in the map, get a reference to the value mapped
+      to the given key. If the key does not exist in the map, the value
+      type is default initializable, and this proc is called in an attempt
+      to modify the map, then the mapping is added and a reference to
+      that value is returned. If the key does not exist in the map and
+      either the value type is not default initializable or this proc
+      is called without attempting to modify the map, then an error will
+      be thrown.
+      
+      :arg k: The key to access
+      :type k: keyType
+      
+      :throws KeyNotFoundError: if `k` is not in map and either `valType`
+              is not default initializable or this proc is not called
+              in an attempt to modify the map.
+      
+      :returns: Reference to the value mapped to the given key.
+      
+
+   .. method:: proc ref this(k: keyType) ref throws
+
+   .. method:: proc getBorrowed(k: keyType) where isClass(valType)
+
+      Get a borrowed reference to the element at position `k`.
+           
+
+      .. warning::
+
+         'map.getBorrowed' is deprecated. Please rely on '[]' accessors instead.
+
+   .. method:: proc getReference(k: keyType) ref
+
+      Get a reference to the element at position `k`. This method is not
+      available for maps initialized with `parSafe=true`.
+      
+
+      .. warning::
+
+         'map.getReference' is deprecated. Please rely on '[]' accessors instead.
+
+   .. method:: proc getValue(k: keyType) throws
+
+      Get a copy of the element stored at position `k`.
+      
+      :arg k: The key to lookup in the map
+      
+      :throws KeyNotFoundError: if `k` not in map
+      
+      :returns: A copy of the value at position `k`
+      
+
+      .. warning::
+
+         'map.getValue' is deprecated. Please rely on '[]' accessors instead.
+
+   .. method:: proc get(k: keyType, const sentinel: valType)
+
+      Get a copy of the element stored at position `k` or a sentinel
+       value if an element at position `k` does not exist.
+      
+      :arg k: The key to lookup in the map
+      :arg sentinel: The value to return if the map does not contain an
+                     entry at position `k`
+      
+      :returns: A copy of the value at position `k` or a sentinel value
+                if the map does not have an entry at position `k`
+      
+
+   .. method:: proc getValue(k: keyType, const sentinel: valType)
+
+      .. warning::
+
+         'map.getValue' is deprecated. Please use 'map.get' instead.
+
+   .. method:: proc ref getAndRemove(k: keyType)
+
+      Remove the element at position `k` from the map and return its value
+           
+
+   .. itermethod:: iter these() const ref
+
+      
+      Iterates over the keys of this map. This is a shortcut for :iter:`keys`.
+      
+      :yields: A reference to one of the keys contained in this map.
+      
+
+      .. warning::
+
+         'map.these' is deprecated. Consider 'map.keys' to iterate over keys or 'map.values' to iterate over values.
+
+   .. itermethod:: iter keys() const ref
+
+      
+      Iterates over the keys of this map.
+      
+      :yields: A reference to one of the keys contained in this map.
+      
+
+   .. itermethod:: iter items()
+
+      
+      Iterates over the key-value pairs of this map.
+      
+      :yields: A tuple whose elements are a copy of one of the key-value
+               pairs contained in this map.
+      
+
+      .. warning::
+
+         'map.items' is deprecated. Consider 'map.keys' to iterate over keys or 'map.values' to iterate over values.
+
+   .. itermethod:: iter values() ref
+
+      
+      Iterates over the values of this map.
+      
+      :yields: A reference to one of the values contained in this map.
+      
+
+   .. method:: proc ref readThis(ch: fileReader) throws
+
+      
+      Reads the contents of this map from a channel. The format looks like:
+      
+        .. code-block:: chapel
+      
+           {k1: v1, k2: v2, .... , kn: vn}
+      
+      :arg ch: A channel to read from.
+      
+
+   .. method:: proc writeThis(ch: fileWriter) throws
+
+      
+      Writes the contents of this map to a channel. The format looks like:
+      
+        .. code-block:: chapel
+      
+           {k1: v1, k2: v2, .... , kn: vn}
+      
+      :arg ch: A channel to write to.
+      
+
+   .. method:: proc ref add(in k: keyType, in v: valType): bool
+
+      
+       Adds a key-value pair to the map. If the key `k` is already present
+       in the map, makes no changes and returns `false`.
+      
+      :arg k: The key to add to the map
+      :type k: ``keyType``
+      
+      :arg v: The value that maps to ``k``
+      :type v: ``valType``
+      
+      :returns: `true` if `k` was not in the map and added with value `v`.
+                `false` otherwise.
+      :rtype: bool
+      
+
+   .. method:: proc ref set(k: keyType, in v: valType): bool
+
+      .. warning::
+
+         'map.set' is deprecated. Please use 'map.replace' instead.
+
+   .. method:: proc ref replace(k: keyType, in v: valType): bool
+
+      
+       Replaces the value associated with the key `k` with `v`. If the
+       key `k` is not in the map, makes no changes and returns `false`.
+      
+      :arg k: The key whose value needs to change
+      :type k: ``keyType``
+      
+      :arg v: The desired value to the key ``k``
+      :type v: ``valType``
+      
+      :returns: `true` if `k` was in the map and its value is updated with `v`.
+                `false` otherwise.
+      :rtype: bool
+      
+
+   .. method:: proc ref addOrReplace(in k: keyType, in v: valType)
+
+      If the map doesn't contain a value at position `k` add one and
+      set it to `v`. If the map already contains a value at position
+      `k`, update it to the value `v`.
+      
+
+   .. method:: proc ref addOrSet(in k: keyType, in v: valType)
+
+      .. warning::
+
+         'map.addOrSet' is deprecated. Please use 'map.addOrReplace' instead.
+
+   .. method:: proc ref remove(k: keyType): bool
+
+      
+      Removes the key `k` and its value from the map. If the key `k`
+      is not in the map, makes no changes and returns `false`.
+      
+      :arg k: The key to remove from the map
+      
+      :returns: `false` if `k` was not in the map.  `true` if it was and removed.
+      :rtype: bool
+      
+
+   .. method:: proc toArray(): [] (keyType, valType)
+
+      
+      Returns a new 0-based array containing a copy of key-value pairs as
+      tuples.
+      
+      :return: A new DefaultRectangular array.
+      :rtype: [] (keyType, valType)
+      
+
+   .. method:: proc keysToArray(): [] keyType
+
+      
+      Returns a new 0-based array containing a copy of keys. Array is not
+      guaranteed to be in any particular order.
+      
+      :return: A new DefaultRectangular array.
+      :rtype: [] keyType
+      
+
+   .. method:: proc valuesToArray(): [] valType
+
+      
+      Returns a new 0-based array containing a copy of values. Array is not
+      guaranteed to be in any particular order.
+      
+      :return: A new DefaultRectangular array.
+      :rtype: [] valType
+      
+
+.. method:: operator map. = (ref lhs: map(?kt, ?vt, ?), const ref rhs: map(kt, vt, ?))
+
+   
+   Replace the content of this map with the other's.
+   
+   .. warning::
+   
+     This will invalidate any references to elements previously contained in
+     `lhs`.
+   
+   :arg lhs: The map to assign to.
+   :arg rhs: The map to assign from.
+   
+
+.. method:: operator map.==(const ref a: map(?), const ref b: map(?)): bool
+
+   
+   Returns `true` if the contents of two maps are the same.
+   
+   :arg a: A map to compare.
+   :type a: ``map``
+   
+   :arg b: A map to compare.
+   :type b: ``map(a.keyType, a.valType)``
+   
+   :return: `true` if the contents of two maps are equal.
+   :rtype: `bool`
+   
+
+.. method:: operator map.!=(const ref a: map(?), const ref b: map(?)): bool
+
+   
+   Returns `true` if the contents of two maps are not the same.
+   
+   :arg a: A map to compare.
+   :type a: ``map``
+   
+   :arg b: A map to compare.
+   :type b: ``map(a.keyType, a.valType)``
+   
+   :return: `true` if the contents of two maps are not equal.
+   :rtype: `bool`
+   
+
+.. class:: KeyNotFoundError : Error
+
+   
+   A `KeyNotFoundError` is thrown at runtime if an attempt is made
+   to access a map value at a given key that is not in the current
+   state of the `map`. An example of this is calling `map.getValue()`.
+   
+
+
+   .. method:: proc init()
+
+   .. method:: proc init(k)
+

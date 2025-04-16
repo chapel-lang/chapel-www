@@ -1,0 +1,146 @@
+.. default-domain:: chpl
+
+.. module:: WeakPointer
+   :noindex:
+
+WeakPointer
+===========
+
+**Usage:**
+
+.. code-block:: chapel
+
+  use WeakPointer;
+
+or
+
+.. code-block:: chapel
+
+  import WeakPointer;
+
+
+This module contains the ``weak`` type, which is a smart pointer type designed
+to be used in tandem with :record:`~SharedObject.shared` objects.
+
+A ``weak`` provides a reference to a ``shared`` class object without
+requiring it to stay allocated. Such a pattern is useful for implementing graph
+or tree structures with bidirectional references, or for implementing cache-like
+data structures that maintain a list of objects but don't require them to stay
+allocated.
+
+A "strong" shared reference to the relevant class object can be obtained via
+the :proc:`~WeakPointer.weak.upgrade` method, or by casting the
+``weak`` to a ``shared t`` or a ``shared t?``. If the underlying object is
+not valid (i.e., its shared reference count has already dropped to zero
+causing it to be de-initialized) the upgrade attempt will fail.
+
+Weak pointers are implemented using task-safe reference counting.
+
+.. Warning::
+  The `weak` type is experimental; expect this API to change in the future
+
+
+.. record:: weak
+
+   .. attribute:: type classType
+
+      The shared class type referenced by this pointer 
+
+   .. method:: proc init(c: shared)
+
+      
+      Create a new weak reference to a shared class instance 'c'
+      
+
+      .. warning::
+
+         The `weak` type is experimental; expect this API to change in the future.
+
+   .. method:: proc init=(const ref src: weak)
+
+      
+      Copy-initialize a new ``weak`` from an existing ``weak``.
+      
+      Increments the weak-reference count.
+      
+
+   .. method:: proc upgrade(): this.classType?
+
+      
+      Attempt to recover a shared object from this ``weak``
+      
+      If the pointer is valid (i.e., at least one ``shared`` reference
+      to the data exists), a nilable `shared` object will be returned.
+      
+      If the pointer is invalid (or the object itself is ``nil``) then a
+      ``nil`` value will be returned.
+      
+
+   .. method:: proc deinit()
+
+      
+      When a ``weak`` is deinitialized, the weak reference count is
+      decremented.
+      
+      If there are no other references (weak or strong), the backing pointer
+      is freed.
+      
+
+   .. method:: proc getWeakCount(): int
+
+      
+      Get the number of ``weak`` variables currently pointing at the same
+      ``shared`` class as this one.
+      
+
+   .. method:: proc getStrongCount(): int
+
+      
+      Get the number of ``shared`` variables currently pointing at the same
+      ``shared`` class as this ``weak``.
+      
+      .. Warning
+        this value should not be used to predict whether this pointer
+        can successfully be cast to a ``shared`` class. Even if the value
+        is greater than zero, it is possible for all the other ``shared``
+        references to deinitialize the class instance before this weak
+        pointer can be upgraded.
+      
+
+.. function:: operator :(const ref x: weak, type t: shared class?)
+
+   
+   Cast a weak pointer to a nilable class type.
+   
+   If the referenced class has already been deinitialized, or is
+   itself ``nil``, this cast will return a ``nil`` value.
+   
+   Otherwise it will return a nilable :record:`~SharedObject.shared`
+   ``t``.
+   
+
+.. function:: operator :(const ref x: weak, type t: shared class) throws
+
+   
+   Cast a weak pointer to a non-nilable class type.
+   
+   If the referenced class has already been deinitialized, or is
+   itself ``nil``, this cast will throw a :class:`~Errors.NilClassError`.
+   
+   Otherwise it will return a :record:`~SharedObject.shared` ``t``.
+   
+
+.. function:: operator  = (ref lhs: weak, rhs: weak)
+
+   
+   Assign one existing ``weak`` to an other.
+   
+   Decrements the weak-reference count of the ``lhs`` pointer.
+   
+   This will result in the deinitialization of the ``lhs``'s backing
+   pointer if it is the last ``weak`` or ``shared`` that points
+   to its object.
+   
+
+.. method:: proc weak.writeThis(ch) throws
+

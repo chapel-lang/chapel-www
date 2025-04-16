@@ -1,0 +1,249 @@
+.. default-domain:: chpl
+
+.. module:: Zarr
+   :synopsis: Support for reading and writing of Zarr stores.
+
+Zarr
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use Zarr;
+
+
+or
+
+.. code-block:: chapel
+
+   import Zarr;
+
+Support for reading and writing of Zarr stores.
+
+Support is limited to v2 Zarr arrays stored on local filesystems. NFS
+is not supported. The module uses c-blosc to compress and decompress chunks.
+Zarr specification: https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html
+
+.. data:: config param zarrProfiling = false
+
+   Turns on/off profiling of Zarr IO 
+
+.. iterfunction:: iter zarrProfilingResults() throws
+
+   
+   Returns a map of profiling results for Zarr IO operations. The keys are
+   the names of the operations and the values are the total time spent in
+   each operation across all threads. Requires that zarrProfiling be set to
+   true.
+   
+
+.. function:: proc resetZarrProfiling()
+
+   
+   Resets the profiling timer for Zarr IO operations. Should only be
+   used when compiled with zarrProfiling set to true.
+   
+
+.. record:: zarrMetadataV2
+
+   .. attribute:: var zarr_format: int
+
+   .. attribute:: var chunks: list(int)
+
+   .. attribute:: var dtype: string
+
+   .. attribute:: var shape: list(int)
+
+   .. attribute:: var compressor: string
+
+.. record:: zarrMetadataV2Required
+
+   .. attribute:: var zarr_format: int
+
+   .. attribute:: var chunks: list(int)
+
+   .. attribute:: var dtype: string
+
+   .. attribute:: var shape: list(int)
+
+.. record:: zarrMetadataV2Optional
+
+   .. attribute:: var compressor: string
+
+.. record:: zarrMetadataV3
+
+   Unused until support is added for v3.0 stores 
+
+   .. attribute:: var zarr_format: int
+
+   .. attribute:: var node_type: string
+
+   .. attribute:: var shape: list(int)
+
+   .. attribute:: var data_type: string
+
+   .. attribute:: var dimension_names: list(string)
+
+.. function:: proc getLocalChunks(D: domain(?), localD: domain(?), chunkShape: ?dimCount*int): domain(dimCount)
+
+   Returns the indices of the chunks that contain elements present in a subdomain of the array. 
+
+.. function:: proc getChunkDomain(chunkShape: ?dimCount*int, chunkIndex: dimCount*int)
+
+   Returns the domain of a chunk for a store with a given chunk shape.
+   
+   :arg chunkShape: A tuple of the extents of the dimensions of each chunk in the store.
+   
+   :arg chunkIndex: A tuple of the indices of the chunk to get the domain for.
+   
+   :returns: The domain of the chunk.
+   
+
+.. function:: proc readChunk(param dimCount: int, chunkPath: string, chunkDomain: domain(dimCount), ref arraySlice: [] ?t) throws
+
+   
+   Reads a chunk from storage and fills `arraySlice` with its corresponding
+   values.
+   
+   :arg dimCount: Dimensionality of the array being read.
+   
+   :arg chunkPath: Relative or absolute path to the chunk being read.
+   
+   :arg chunkDomain: Domain of the chunk being read. Because boundary chunks
+     are padded with zeros, the chunk's domain may be larger in some
+     dimensions than the array's.
+   
+   :arg arraySlice: Reference to the portion of the calling locale's section
+     of the array that this chunk will update. The domain of this slice
+     should be a subset of the chunk's.
+   
+   :throws Error: If the decompression fails
+   
+
+.. function:: proc writeChunk(param dimCount, chunkPath: string, chunkDomain: domain(dimCount), ref arraySlice: [] ?t, bloscLevel: int(32) = 9, compressor: string = "blosclz") throws
+
+   
+   Updates a chunk in storage with a locale's contribution to that chunk.
+   The calling function is expected to manage synchronization among locales.
+   If the locale contributes the entire chunk, it will immediately compress
+   and write the chunk's data. If the contribution is partial, it decompresses
+   the chunk, updates the necessary values, then compresses and writes the
+   chunk to storage.
+   
+   :arg dimCount: Dimensionality of the array being written.
+   
+   :arg chunkPath: Relative or absolute path to the chunk being written.
+   
+   :arg chunkDomain: Domain of the chunk being updated. Because boundary
+     chunks are padded with zeros, the chunk's domain may be larger in
+     some dimensions than the array's.
+   
+   :arg arraySlice: The portion of the array that the calling locale
+     contributes to this chunk.
+   
+   :arg bloscLevel: Compression level to use. 0 indicates no compression,
+     9 (default) indicates maximum compression. Values outside of this range
+     will be clipped to a value between 0 and 9.
+   
+   :throws Error: If the compression fails
+   
+
+.. function:: proc readZarrArray(directoryPath: string, type dtype, param dimCount: int, bloscThreads: int(32) = 1, targetLocales: [] locale = Locales) throws
+
+   
+   Reads a v2.0 zarr store from storage using all locales, returning a
+   block distributed array. Each locale reads and decompresses the chunks
+   with elements in its subdomain. This method assumes a shared filesystem
+   where all nodes can access the store directory.
+   
+   :arg directoryPath: Relative or absolute path to the root of the zarr
+     store. The store is expected to contain a '.zarray' metadata file
+   
+   :arg dtype: Chapel type of the store's data
+   
+   :arg dimCount: Dimensionality of the zarr array
+   
+   
+
+.. function:: proc writeZarrArray(directoryPath: string, const ref A: [?domainType] ?dtype, chunkShape: ?dimCount*int, bloscLevel: int(32) = 9, compressor = "blosclz") throws
+
+   
+   Writes an array to storage as a v2.0 zarr store. The array metadata and
+   chunks will be stored within the `directoryPath` directory, which is created
+   if it does not yet exist. The chunks will have the dimensions given in the
+   `chunkShape` argument. This function writes chunks in parallel, and supports
+   distributed execution. It assumes a shared filesystem where all nodes can
+   access the store directory.
+   
+   :arg directoryPath: Relative or absolute path to the root of the zarr store.
+     The directory and all necessary parent directories will be created if it
+     does not exist.
+   
+   :arg A: The array to write to storage.
+   
+   :arg chunkShape: The dimension extents to use when breaking A into chunks.
+   
+   :arg bloscLevel: Compression level to use. 0 indicates no compression,
+     9 (default) indicates maximum compression.
+   
+   :arg compressor: Compression algorithm to use. Supported values are "blosclz" (default),
+     "lz4", "lz4hc", "zlib", and "zstd".
+   
+
+.. function:: proc readZarrArrayLocal(directoryPath: string, type dtype, param dimCount: int) throws
+
+   
+   Reads a v2.0 zarr store from storage using a single locale, returning a
+   locally allocated array. This method assumes a shared filesystem
+   where the current locale can access the store directory.
+   
+   :arg directoryPath: Relative or absolute path to the root of the zarr
+     store. The store is expected to contain a '.zarray' metadata file
+   
+   :arg dtype: Chapel type of the store's data
+   
+   :arg dimCount: Dimensionality of the zarr array
+   
+   
+
+.. function:: proc writeZarrArrayLocal(directoryPath: string, ref A: [?domainType] ?dtype, chunkShape: ?dimCount*int, bloscLevel: int(32) = 9, compressor = "blosclz") throws
+
+   
+   Writes an array to storage as a v2.0 zarr store using a single locale. The
+   array metadata and chunks will be stored within the `directoryPath`
+   directory, which is created if it does not yet exist. The chunks will
+   have the dimensions given in the`chunkShape` argument.
+   
+   :arg directoryPath: Relative or absolute path to the root of the zarr store.
+     The directory and all necessary parent directories will be created if it
+     does not exist.
+   
+   :arg A: The array to write to storage.
+   
+   :arg chunkShape: The dimension extents to use when breaking A into chunks.
+   
+   :arg bloscLevel: Compression level to use. 0 indicates no compression,
+     9 (default) indicates maximum compression.
+   
+   :arg compressor: Compression algorithm to use. Supported values are "blosclz" (default),
+     "lz4", "lz4hc", "zlib", and "zstd".
+   
+
+.. function:: proc updateZarrChunk(directoryPath: string, ref A: [?domainType] ?dtype, chunkIndex: ?dimCount*int) throws
+
+   
+   Updates a single chunk within a Zarr store with the data in `A`. The
+   Zarr store and the associated metadata file must already exist.
+   
+   :arg directoryPath: Relative or absolute path to the root of the zarr
+     store. This directory should exist and contain a '.zarray' metadata file.
+   
+   :arg A: The array to update the chunk with.
+   
+   :arg chunkIndex: The index of the chunk to update.
+   
+   :arg bloscThreads: The number of threads to use during compression (default=1)
+   
+
+.. function:: proc updateZarrChunk(directoryPath: string, ref A: [?domainType] ?dtype, chunkIndex: int) throws
+
