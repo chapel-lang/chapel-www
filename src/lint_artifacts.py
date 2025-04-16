@@ -36,12 +36,9 @@ valid_fields = required_fields | optional_fields
 valid_types = {"paper", "presentation", "poster", "video", "code", "misc"}
 
 def validate_artifact(artifact: dict):
-    required_fields_encountered = set()
     for field, value in artifact.items():
         if field not in valid_fields:
             raise ValueError(f"Unexpected field '{field}'")
-        if field in required_fields:
-            required_fields_encountered.add(field)
         if field == "type":
             for type_entry in value:
                 if type_entry not in valid_types:
@@ -49,6 +46,11 @@ def validate_artifact(artifact: dict):
         else:
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
+
+    fields_encountered = set(artifact.keys())
+    required_fields_encountered = keys_encountered & required_fields
+    if "extraLinkText" in fields_encountered and "extraLink" not in fields_encountered:
+        raise ValueError("Specified extraLinkText without extraLink")
 
     if len(required_fields_encountered) != len(required_fields):
         missing_keys = set(required_fields) - required_fields_encountered
