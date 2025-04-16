@@ -1,0 +1,1 @@
+This is the Chapel website's sources (in src/) and content (in chapel-lang.org)
