@@ -66,8 +66,8 @@ def validate_artifact(artifact: dict):
 
     required_fields_encountered = fields & required_fields
     if len(required_fields_encountered) != len(required_fields):
-        missing_keys = set(required_fields) - required_fields_encountered
-        raise ValueError(f"Missing required keys: {missing_keys}")
+        missing_fields = set(required_fields) - required_fields_encountered
+        raise ValueError(f"Missing required fields: {missing_fields}")
 
 
 def lint_artifacts_list(data):
