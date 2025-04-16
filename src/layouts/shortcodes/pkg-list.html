@@ -1,0 +1,42 @@
+{{ $version := .Get 0 }}
+{{ $OSes := .Site.Data.pkgs.pkgConfigs }}
+<table>
+  <tr>
+    <th>Operating System</th>
+    <th>Single-Locale Configuration</th>
+    <th>GASNet+UDP</th>
+    <th>Slurm+OFI</th>
+  </tr>
+  {{ range $OSes }}
+  {{ $basePath := "https://github.com/chapel-lang/chapel/releases/download/" }}
+  {{ $osPath := printf "%s%s%s" $basePath $version "/chapel-" }}
+  {{ $singlePath := printf "%s%s%s%s" $osPath $version "-1." .path }}
+  {{ $gasnetPath := printf "%s%s%s%s%s" $osPath "gasnet-udp-" $version "-1." .path }}
+  {{ $slurmPath := printf "%s%s%s%s%s" $osPath "ofi-slurm-" $version "-1." .path }}
+  {{ $isDeb := or (strings.Contains .name "Debian") (strings.Contains .name "Ubuntu") }}
+  {{ $x86Suffix := cond $isDeb  ".amd64.deb" ".x86_64.rpm"}}
+  {{ $armSuffix := cond $isDeb ".arm64.deb" ".aarch64.rpm" }}
+
+  <tr>
+    <td>{{ .name }}</td>
+    <td>
+      {{ if .singleLocale }}
+        <a href="{{ printf "%s%s" $singlePath $x86Suffix }}">[x86_64]</a>
+        <a href="{{ printf "%s%s" $singlePath $armSuffix }}">[arm64]</a>
+      {{ end }}
+    </td>
+    <td>
+      {{ if .gasnet }}
+      <a href="{{ printf "%s%s" $gasnetPath $x86Suffix }}">[x86_64]</a>
+      <a href="{{ printf "%s%s" $gasnetPath $armSuffix }}">[arm64]</a>
+      {{ end }}
+    </td>
+    <td>
+      {{ if .slurm }}
+      <a href="{{ printf "%s%s" $slurmPath $x86Suffix }}">[x86_64]</a>
+      <a href="{{ printf "%s%s" $slurmPath $armSuffix }}">[arm64]</a>
+      {{ end }}
+    </td>
+  </tr>
+  {{ end }}
+</table>

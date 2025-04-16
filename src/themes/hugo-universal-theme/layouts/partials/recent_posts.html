@@ -1,0 +1,69 @@
+{{ if isset .Site.Params "recent_posts" }}
+{{ if .Site.Params.recent_posts.enable }}
+<section class="bar background-white no-mb">
+    <div class="container">
+
+        <div class="col-md-12">
+            <div class="heading text-center">
+                <h2>{{ .Site.Params.recent_posts.title | markdownify }}</h2>
+            </div>
+
+            <p class="lead">
+              {{ .Site.Params.recent_posts.subtitle | markdownify }}
+            </p>
+
+            <!-- *** BLOG HOMEPAGE *** -->
+            {{ $posts := .Site.Data.rss }}
+
+            {{ range $fileName, $postData := .Site.Data.announcements }}
+                {{ $posts = $posts | append $postData }}
+            {{ end }}
+            
+            {{ $posts := sort $posts "date" "desc"}}
+            <div class="blog">
+                {{ range first 4 $posts }}
+                <div class="blog-post-row">
+                    <div class="blog-image">
+                        <div class="top">
+                            {{ if isset . "banner" }}
+                            <img src="{{ .banner | relURL }}" class="img-responsive" alt="" >
+                            {{ else }}
+                            <img src="{{ "img/chapel-logo-nowords.png" | relURL }}" class="img-responsive" alt="">
+                            {{ end }}
+                        </div>
+                    </div>
+                    <div class="blog-post-text">
+                        <h4><a href="{{ .url }}">{{ .title }}</a></h4>
+                        <p class="author-category">
+                            {{ if isset . "authors" }}
+                                {{ $comma := false }}
+                                {{ i18n "authorBy" }} 
+                                <!-- This is all one line to get the comma to not have a space before it -->
+                                {{ range $author := .authors }}{{ if $comma }}, {{ end }}{{ if $author.url }}<a href="{{ $author.url }}">{{ end }}{{ $author.name }}{{ if $author.url }}</a>{{ end }}{{ $comma = true }}{{ end }}
+                            {{ end }}
+                            {{ if .date }}
+                                {{ $createdAt := (.date | time).Format site.Params.date_format }}
+                                {{ range $index, $month := slice "January" "February" "March" "April" "May" "June" "July" "August" "September" "October" "November" "December" }}
+                                    {{ $createdAt = replace $createdAt $month (i18n $month) }}
+                                {{ end }}
+                                {{ i18n "publishedOn" }} {{ $createdAt }}
+                            {{ end }}
+                        </p>
+                        <p class="intro">{{ .description }}</p>
+                        <p class="read-more">
+                            <a href="{{ .url }}" class="btn btn-template-main">{{ i18n "continueReading" }}</a>
+                        </p>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+
+            <!-- *** BLOG HOMEPAGE END *** -->
+
+        </div>
+    </div>
+    <!-- /.container -->
+</section>
+<!-- /.bar -->
+{{ end }}
+{{ end }}
