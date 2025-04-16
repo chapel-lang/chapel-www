@@ -55,6 +55,8 @@ def validate_artifact(artifact: dict):
             for type_entry in value:
                 if type_entry not in valid_types:
                     raise ValueError(f"Invalid type '{type_entry}'")
+            if repeated_types := {x for x in value if value.count(x) > 1}:
+                raise ValueError(f"Repeated types '{repeated_types}'")
         else:
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
