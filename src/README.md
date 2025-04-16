@@ -98,8 +98,14 @@ Each of these content files begins with a metadata header, which contains toml e
 
 ## Adding New Elements to Resources pages
 
-To add new resources to the resources pages, you will need to add entries to `data/publications.toml` file, any relevant resource files to the `static/` subdirectory, and possibly update the body of the `resources.md` page to render your resources. In any case, you'll need to add information about your new resource to `data/publications.toml`.
-See comments in the `lint_artifacts.py` script for how this information should be formatted.
+To add new resources to the resources pages, you will need to add entries to
+`data/publications.toml` file, any relevant resource files to the `static/`
+subdirectory, and possibly update the body of the `resources.md` page to render
+your resources.
+
+In any case, you'll need to add information about your new resource to
+`data/publications.toml`. See comments in the `lint_artifacts.py` script for
+how this information should be formatted.
 
 ## Shortcodes
 
