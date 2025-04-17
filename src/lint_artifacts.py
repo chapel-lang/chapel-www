@@ -19,7 +19,7 @@ required_fields = {
     "type",             # any types of artifact this resource contains (see valid_types)
 }
 optional_fields = {
-    "venue",            # where the resource originally appeared
+    "venue",            # where the resource originally appeared (required for some types)
     "url",              # a link that will be attached to the title of the resource when rendered
     "slides",           # a link to a slide deck relevant to this resource. If this
                         # resource is included, the word "Slides" will appear within brackets
@@ -33,6 +33,7 @@ optional_fields = {
                         # nor a video, or when you have multiple decks or videos
     "extraLinkText",    # a name for the extra link
 }
+valid_fields = required_fields | optional_fields
 valid_types = {
     "paper",
     "presentation",
@@ -41,17 +42,24 @@ valid_types = {
     "code",
     "misc"
 }
+types_requiring_venue = {
+    "paper",
+    "presentation",
+    "poster",
+}
 
 
 # BEGIN SCRIPT BODY
 
-valid_fields = required_fields | optional_fields
-
 def validate_artifact(artifact: dict):
+    fields = set(artifact.keys())
     for field, value in artifact.items():
         if field not in valid_fields:
             raise ValueError(f"Unexpected field '{field}'")
         if field == "type":
+            has_types_requiring_venue = set(value) & types_requiring_venue
+            if "venue" not in fields and has_types_requiring_venue:
+                raise ValueError("Missing venue field for types requiring it: " + str(has_types_requiring_venue))
             for type_entry in value:
                 if type_entry not in valid_types:
                     raise ValueError(f"Invalid type '{type_entry}'")
@@ -60,8 +68,6 @@ def validate_artifact(artifact: dict):
         else:
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
-
-    fields = set(artifact.keys())
 
     if "extraLinkText" in fields and "extraLink" not in fields:
         raise ValueError("Specified extraLinkText without extraLink")
