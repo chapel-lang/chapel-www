@@ -14,12 +14,12 @@ import sys
 required_fields = {
     "title",            # the title of the resource
     "authors",          # the author(s) of the resource
-    "venue",            # where the resource originally appeared
     "date",             # some information about when the resource was created
     "description",      # some information about what the resource is
     "type",             # any types of artifact this resource contains (see valid_types)
 }
 optional_fields = {
+    "venue",            # where the resource originally appeared
     "url",              # a link that will be attached to the title of the resource when rendered
     "slides",           # a link to a slide deck relevant to this resource. If this
                         # resource is included, the word "Slides" will appear within brackets
