@@ -105,7 +105,8 @@ your resources.
 
 In any case, you'll need to add information about your new resource to
 `data/publications.toml`. See comments in the `lint_artifacts.py` script for
-how this information should be formatted.
+how this information should be formatted. This script should be run to validate
+any changes to the list.
 
 ## Shortcodes
 
