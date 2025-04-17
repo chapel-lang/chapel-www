@@ -1,0 +1,765 @@
+
+.. _gsoc-ideas:
+
+Project Ideas List
+==================
+
+This page will contain the project idea list for Google Summer of Code with
+Chapel. The project ideas for this year are currently being drafted and
+revised. Stay tuned for updates.
+
+.. The project ideas in this list have been compiled by Chapel contributors.
+.. Students may submit proposals based on existing ideas here or new ideas
+.. altogether.
+
+.. note::
+    If you are interested in applying for Chapel's Google Summer of Code 2021,
+    start here:
+
+    - :ref:`gsoc-apply`
+
+.. contents::
+
+Benchmarking and Performance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Bioinformatics Benchmarks
+-------------------------
+
+:Description:
+ K-mer counting is an algorithm that counts how often k-length strings
+ appear in genome sequences.  It is used in a number of bioinformatics and
+ metagenomics analyses.  It is important to optimize k-mer counting
+ computations in terms of their memory usage, because it can grow quite
+ significant.  Since the Chapel parallel programming language provides a
+ high-level interface to distributed parallelism and shared memory
+ parallelism, it is possible that a kmer counting implementation in Chapel
+ would be able to better scale to the large problem sizes with heavy
+ memory demands.  This project is to write a kmer counting benchmark in
+ Chapel and compare it with existing kmer counting tools in other
+ languages.
+
+ |
+
+:Expected Results:
+ Develop a kmer counting benchmark in Chapel and graphs comparing its
+ performance for various k values, number of nodes and threads, and input
+ problem sizes with existing kmer counting tools in other languages such
+ as `Jellyfish`_.
+
+ |
+
+ Some possible stretch goals include (1) implementing further
+ bioinformatics benchmarks in Chapel including those that use k-mer
+ counting like metagenome distance estimation, (2) experimenting with
+ domain mappings to improve the performance and scalability if k-mer
+ counting on a supercomputer, and (3) provide an approximation interface
+ to kmer counting (e.g., introducing a spacing parameter between kmers).
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point.
+ - Read about the `Map standard library module`_ and use it to implement
+   word count in strings.  For example, ``wordcount("hi there hi bye")``
+   would return a map containing ``hi:2``, ``there:1``, ``bye:1``.
+ - Read an introduction to `kmer counting`_ and try to implement kmer
+   counting in Chapel.
+
+ |
+
+:Skills required:
+ - Will need to know or learn Chapel programming language
+ - Experience programming with arrays
+ - Experience doing performance analysis
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Michelle Strout`_ (backup), `Engin Kayraklioglu`_ (backup), `Michael Ferguson`_
+
+ |
+
+.. _Jellyfish: https://www.cbcb.umd.edu/software/jellyfish/index.shtml
+.. _Map standard library module: https://chapel-lang.org/docs/main/modules/standard/Map.html
+.. _kmer counting: https://bioinfologics.github.io/post/2018/09/17/k-mer-counting-part-i-introduction/
+
+I/O Performance
+---------------
+
+:Description:
+ Investigate performance of I/O routines in Chapel, and make improvements.
+ The Chapel language includes an I/O system in its standard library. While
+ this I/O system is flexible and capable, to date, little work has been
+ done to analyze its performance and recommend usage. In addition, it is
+ missing some features that would work well with Chapel’s support for
+ parallel computing - in particular a way to read all of the lines in a
+ file in parallel (see the `file.lines issue`_).
+
+ |
+
+:Expected Results:
+ This project will begin by studying I/O performance in Chapel. Work will
+ involve writing test programs to measure performance and comparing
+ performance to other languages (such as C and Python).
+
+ |
+
+ A second phase of the project will add to and improve the implementation
+ of the I/O routines with performance in mind. This will include
+ implementing the parallel file.lines() feature described above and also
+ address shortcomings identified in the first phase.  The final phase of
+ the project will be to write a user-facing guide to writing performant
+ I/O code in Chapel.
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point.
+ - Write a few simple Chapel programs that exercise the I/O system. One
+   such program might be to read all the lines in a file and output them
+   with line numbers. Another might be to use the binary I/O facility to
+   read an entire file into an array. Look through the
+   `I/O Module Documentation`_.
+ - Write the same programs in C or C++ and compare performance between
+   the Chapel and C versions. Which is faster?
+ - Can you make your Chapel and C programs into performance tests? See
+   `writing a performance test`_.
+
+ |
+
+:Skills Required:
+ - Proficient in C or C++
+ - Experience with I/O operations such as fread, read, and mmap in C
+ - Able to learn Chapel
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Michael Ferguson`_, `Lydia Duncan`_ (backup), `Paul Cassella`_ (backup)
+
+ |
+
+.. _file.lines issue: https://github.com/chapel-lang/chapel/issues/4959
+.. _writing a performance test: https://github.com/chapel-lang/chapel/blob/main/doc/rst/developer/bestPractices/TestSystem.rst#a-performance-test
+
+Compiler
+~~~~~~~~~
+
+LLVM Stack Size Estimation
+--------------------------
+
+:Description:
+ Chapel currently uses contiguous stacks like most other programming
+ languages. At the same time, the Chapel tasking system can support as
+ many tasks as memory allows. In this project, we would like to see if it
+ is possible to safely and correctly estimate the stack size of a task.
+ That way, for sufficiently simple tasks, the task stack memory
+ requirement can be reduced. As a result more tasks can run concurrently.
+
+ |
+
+ More specifically, the goal of this project is to develop an LLVM
+ analysis pass that can estimate the stack space used by a function itself
+ and the stack space used in that function and in called functions. This
+ LLVM pass does not need to be completely general and can use specific
+ information about Chapel programs in order to get better estimates. See
+ also the `Stack size estimation`_ issue.
+
+ |
+
+:Expected Results:
+ By the end of the summer, the project will produce an LLVM analysis pass
+ that can hierarchically estimate the size of function stacks. This pass
+ will be demonstrated with some simple Chapel programs to show that the
+ analysis can establish small stack sizes for very simple Chapel tasks. A
+ bonus task would be to adjust the Chapel implementation to run the
+ analysis and use the result when creating tasks.
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point. You'll want to try writing some programs that create
+   tasks (see the `Task Parallelism Primer`_).
+ - Since this task involves writing an LLVM analysis, you should go
+   through the `LLVM tutorial`_ if you have not already.
+ - Familiarize yourself with the functions that the Chapel compiler calls
+   for creating tasks -- see `chpl-tasks.h`_.
+ - Build a Chapel compiler with LLVM support. See `CHPL_LLVM`_.
+ - Use ``chpl --llvm --savec=tmp program.chpl`` to compile a test program
+   so that you can inspect the generated LLVM IR. You'll want to use
+   ``llvm-dis-11 tmp/chpl__module-opt1.bc`` to make the LLVM IR readable.
+   You can also use ``chpl --llvm --llvm-print-ir someFunction`` to print
+   out the LLVM IR just for the function ``someFunction``.  Can you find
+   the calls to functions from `chpl-tasks.h`_?
+ - Learn about writing an LLVM analysis pass. See `Writing an LLVM
+   Pass`_.  Can you write an analysis pass that traverses the functions
+   called in the tasks created in your example program?
+
+ |
+
+:Skills Required:
+ - Experience with the LLVM
+ - C++ development experience
+
+ |
+
+:Difficulty: advanced
+
+ |
+
+:Mentor(s): `Michael Ferguson`_, `Mohammed Nafees`_
+
+ |
+
+.. _Stack size estimation: https://github.com/chapel-lang/chapel/issues/9984
+.. _LLVM tutorial: https://llvm.org/docs/tutorial/
+.. _chpl-tasks.h: https://github.com/chapel-lang/chapel/blob/main/runtime/include/chpl-tasks.h
+.. _CHPL_LLVM: https://chapel-lang.org/docs/usingchapel/chplenv.html#chpl-llvm
+.. _Writing an LLVM Pass: https://llvm.org/docs/WritingAnLLVMPass.html
+
+Libraries
+~~~~~~~~~
+
+Enhancing the Chapel Linear Algebra Module
+------------------------------------------
+
+:Description:
+ The Chapel programming language's own Linear Algebra library includes
+ native Chapel implementations and wrapper implementations around a subset
+ of LAPACK and BLAS, which do not necessarily exploit Chapel features as
+ well as they could.
+
+ |
+
+ This project aims to make the linear algebra module more feature complete
+ by extending the set of native library routines or even replacing some of
+ the existing ones.  That will also have the advantage of providing
+ examples of well written, highly readable, numerically robust, and
+ performant Chapel code from which others might learn. A very incomplete
+ list of candidate algorithms would include Singular Value Decomposition
+ (SVD) using a Jacobi technique, QR decomposition by various methods,
+ dense/sparse Cholesky decomposition, or linear Least Squares Solution.
+
+ |
+
+:Expected Results:
+ A contribution of a native linear algebra routine to the Linear Algebra
+ module. An initial goal is to reach parity with other modern linear
+ algebra libraries, such as Python’s scipy.linalg or even GSL.  For 2021,
+ GPU-acceleration of routines is not on the table.
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point.
+ - Write some programs with the `Linear Algebra Module`_. Can you
+   identify features that are missing?
+
+ |
+
+:Skills Required:
+ - Will need to know or learn Chapel programming language
+ - Strong linear algebra background
+ - Familiarity with any of the backend linear algebra libraries is a plus
+ - Experience with distributed programming is also helpful
+ - Ability to use Fortran might also be helpful
+
+ |
+
+:Difficulty: advanced
+
+ |
+
+:Mentor(s): `Damian McGuckin`_, `Garvit Dewan`_ (backup)
+
+ |
+
+.. _Linear Algebra Module: https://chapel-lang.org/docs/main/modules/packages/LinearAlgebra.html
+
+Go-Style Channels
+-----------------
+
+:Description:
+ Chapel already has good support for creating tasks and communicating in a
+ way that looks similar to shared memory programming. However in some
+ settings it is more natural to decompose an algorithm into tasks that
+ communicate through a channel. For example, one task might create work
+ items in a streaming manner and then distribute them among worker tasks.
+ The goal of this project is to create a Chapel library implementing
+ Go-style channels. After creating this library, the effort will proceed
+ by demonstrating this library with a few use cases and studying their
+ performance. See also the `Go Channels issue`_.
+
+ |
+
+:Expected Results:
+ A library implementing go-style channels in Chapel is implemented and its
+ performance is studied.
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point. You'll want to try writing some programs that create
+   tasks and use ``sync`` and ``atomic`` to communicate the tasks (see the
+   `Task Parallelism Primer`_, the `Sync/Single Primer`_, and the
+   `Atomics Primer`_).
+ - Make sure to familiarize yourself with Go's channels.
+   `Go by Example - Channels`_ is one resource to get started.
+
+ |
+
+:Skills required:
+ - Experience with Go channels or similar features in another language
+ - Will need to know or learn Chapel programming language
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Michael Ferguson`_, `Aniket Mathur`_
+
+ |
+
+.. _Go Channels issue: https://github.com/chapel-lang/chapel/issues/12660
+.. _Sync/Single Primer: https://chapel-lang.org/docs/primers/syncsingle.html
+.. _Atomics Primer: https://chapel-lang.org/docs/primers/atomics.html
+.. _Go by Example - Channels: https://gobyexample.com/channels
+
+
+Sockets Library
+---------------
+
+:Description:
+ Sockets allow communication between two different processes on the same
+ or different machine. HTTP client and servers used in web technologies
+ are built over socket libraries. So we would like to have a socket module
+ in Chapel. This will allow Chapel to apply in more use cases. While the
+ focus of this project will be on building a socket library that allows
+ socket programming in Chapel, it will also involve creating a simple HTTP
+ server module in Chapel.
+
+ |
+
+:Expected Results:
+ The project mainly focuses on building a sockets support library. The
+ library should be designed in a manner that allows for concurrency and
+ parallelism. The next goal will be to write a simple HTTP web server over
+ the sockets library. Work will involve writing tests and building
+ documentation for the library.
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point. Make sure to try out using some of the features of the
+   ``IO`` module (see the `I/O Module Documentation`_).
+ - Make sure you are familiar with how to call C functions from Chapel.
+   That will be important for this project. See the
+   `C Interoperability Technote`_.
+ - Make sure you are familiar with the C functions for socket
+   programming. The `Socket man page`_ as well as the pages for related
+   functions listed in the See Also section in it are documents that you
+   should become familiar with if you are not already.
+
+ |
+
+:Skills Required:
+ - Experience with sockets in some language
+ - Some experience working with web sockets and web servers
+ - Will need to know or learn Chapel programming language
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Aniket Mathur`_, `Krishna Kumar Dey`_ (backup), `Ankush Bhardwaj`_, `Michael Ferguson`_
+
+ |
+
+.. _C Interoperability Technote: https://chapel-lang.org/docs/technotes/extern.html
+.. _Socket man page: https://man7.org/linux/man-pages/man2/socket.2.html
+
+Gaussian Processes
+------------------
+
+:Description:
+ `Gaussian processes`_ provide a powerful, non-parametric way to interpolate data,
+ and are commonly used to build "emulators". This project would develop a Chapel
+ library to work with Gaussian processes.
+
+ |
+
+:Expected Results:
+ Implement a Gaussian processes mason package in Chapel that provides an
+ interpolation routine, given a set of covariance matrix hyperparameters.
+ Ideally, this implementation should scale out to large matrices, possibly by
+ calling out to third-party libraries such as ScaLAPACK.  If time permits,
+ perform hyperparameter optimization to find the best covariance matrix
+ parameters.
+
+ |
+
+:Skills required:
+ - Previous knowledge or experience with probabilistic modeling or inference
+ - Will need to know or learn Chapel programming language
+ - Experience with LAPACK or ScaLAPACK is a plus
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Nikhil Padmanabhan`_, `Garvit Dewan`_ (backup)
+
+ |
+
+.. _Gaussian processes: http://www.gaussianprocess.org/
+
+Matrix Exponentials
+-------------------
+
+:Description:
+ Simulating many systems requires being able to calculate a matrix exponential,
+ *e^M*. In many cases, it is sufficient to be able to calculate *e^M v*, i.e.
+ the action of a matrix exponential on a vector. This project is to implement
+ matrix exponential in Chapel.
+
+ Some useful reference implementations include:
+
+   - `expokit`_
+   - `Scipy`_
+   - `Scipy (e^M v implementation)`_
+
+ |
+
+:Expected Results:
+ Contribute matrix exponential implementation to Chapel's Linear Algebra module.
+ The initial implementation can be *e^M v* since this can scale out to large
+ matrices. This project will aim to implement local and distributed
+ implementations, starting with single node (local).
+
+ |
+
+:Skills required:
+ - Strong Linear Algebra background
+ - Will need to know or learn Chapel programming language
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Nikhil Padmanabhan`_, `Garvit Dewan`_ (backup)
+
+ |
+
+.. _expokit: https://www.maths.uq.edu.au/expokit/
+.. _Scipy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.expm.html
+.. _Scipy (e^M v implementation): https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.expm_multiply.html
+
+Nested Sampling Routines
+------------------------
+
+:Description:
+ The nested sampling algorithm is a computational approach to the
+ Bayesian statistics problems of comparing models and generating
+ samples from posterior distributions.
+
+ Some useful reference implementations and papers include:
+   - `Multinodal nested sampling`_
+   - `Dynamic nested sampling`_
+   - `MultiNest`_
+   - `PolyChordLite`_
+
+ |
+
+:Expected Results:
+ Implement a nested sampling library as a mason package in Chapel.
+
+ |
+
+:Skills required:
+ - Previous knowledge or experience with Bayesian statistics
+ - Will need to know or learn Chapel programming language
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Nikhil Padmanabhan`_, `Garvit Dewan`_ (backup)
+
+ |
+
+.. _Multinodal nested sampling: https://arxiv.org/abs/0704.3704
+.. _Dynamic nested sampling: https://arxiv.org/abs/1704.03459
+.. _MultiNest: https://github.com/farhanferoz/MultiNest
+.. _PolyChordLite: https://github.com/PolyChord/PolyChordLite
+
+Tools
+~~~~~
+
+Add Interspersed Sections to Chpldoc
+------------------------------------
+
+:Description:
+
+ Today, chpldoc only naturally supports documentation sections at the
+ beginning of the generated page - sections introduced after the first
+ symbol definition tend to result in all subsequent symbols being under
+ that section, with no way to end the section designation.  Documentation
+ writers would like to be able to start and end sections at any point in
+ their .chpl file.  See the `interspersed sections`_ issue for further
+ details.
+
+ |
+
+ There is some design effort required for this project.  Design
+ discussions should involve other members of the Chapel developer
+ community besides just the associated mentor.  It is okay for other GSoC
+ candidates to participate in this discussion, or to participate in a
+ discussion started by another candidate on this topic - demonstrating
+ your understanding of design decisions in the proposal can be an
+ appropriate substitute for contributing a particular idea to it.
+
+ |
+
+:Expected Results:
+
+ At the end of the summer, a .chpl file with sections in between code
+ blocks will appropriately group symbol definitions inside or outside the
+ section as specified.
+
+ |
+
+ A stretch goal would be to update the online documentation of Chapel’s
+ standard and package modules to make use of this feature, where
+ appropriate.  Could also resolve other chpldoc bugs or unimplemented
+ features.
+
+ |
+
+:Getting Started:
+ - Read through the `chpldoc documentation`_.
+ - Make a Chapel program with documentation comments and run ``chpldoc``
+   over that program.  View the generated webpage(s) in your browser of
+   choice (how to do this will vary from platform to platform – for me, I
+   point my browser at ``file:///<path to>/docs/index.html``).
+   Additionally, view the generated .rst file(s) that live in the
+   generated ``/<path to>/docs/source/modules/`` directory to get a sense
+   for how that looks.
+ - Expand the Chapel program to use a section, similar to how the IO
+   module is set up (see the `I/O Module Documentation`_ and the `I/O
+   Module Source`_ that it is generated from)
+ - What do subsequent sections look like?  What do nested sections look
+   like?
+
+ |
+
+:Skills required:
+ - Optional:
+
+   - Familiarity with C/C++
+
+ - Very Optional:
+
+   - Familiarity with Sphinx
+   - Familiarity with RST
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Lydia Duncan`_, `Aniket Mathur`_
+
+ |
+
+.. _interspersed sections: https://github.com/chapel-lang/chapel/issues/5946
+.. _I/O Module Source: https://github.com/chapel-lang/chapel/blob/main/modules/standard/IO.chpl
+
+Chpldoc Class/Record/Type View
+------------------------------
+
+:Description:
+ Today, chpldoc only allows the reader to view documentation on a module
+ basis.  Methods on a type can be defined at any point in a module or
+ even in a different module than where the type itself was originally
+ defined.  It would improve the reader’s experience to be able to reach a
+ page that summarizes all the methods and fields defined on a type,
+ clearly denoting symbols available in other modules.  See the
+ `class/record view issue`_ for more details.
+
+ |
+
+:Expected Results:
+ At the end of the summer, chpldoc run over a program containing a class
+ or record definition will have a page per type that summarizes all the
+ symbols defined directly on that type.  This page will be accessible by
+ clicking on a link to the type’s definition.
+
+ |
+
+ As a stretch goal, this page could include inherited methods, as
+ discussed the `documenting inheritance in chpldoc`_ issue. Could also
+ restore an alternative output style where symbols in a module are output
+ by their type (e.g. all enums are grouped together, all module-scoped
+ variables, etc) instead of in declaration order (see `issue #5911`_ for
+ details), or other related chpldoc issues.
+
+ |
+
+:Getting Started:
+ - Read through the `chpldoc documentation`_.
+ - Make a Chapel program with documentation comments and run ``chpldoc``
+   over that program.  View the generated webpage(s) in your browser of
+   choice (how to do this will vary from platform to platform – for me,
+   I point my browser at ``file:///<path to>/docs/index.html``).
+   Additionally, view the generated .rst file(s) that live in the
+   generated ``/<path to>/docs/source/modules/`` directory to get a sense
+   for how that looks.
+ - Expand the Chapel program to include a class, record, and type
+   alias.  How does this change the output?
+ - Take a look at other documentation tools, such as `Javadoc`_ and
+   `Doxygen`_ (for instance). How do these tools handle classes?  What
+   do you like or dislike about these approaches?  What do you find
+   useful?  Is there something you wish they did that we could try?
+
+ |
+
+:Skills required:
+ - Optional skills:
+
+   - Familiarity with general compiler AST representations
+   - Familiarity with C/C++
+
+ - Very optional skills:
+
+   - Familiarity with Sphinx
+   - Familiarity with RST formatting
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Lydia Duncan`_, `Michael Ferguson`_
+
+.. _class/record view issue: https://github.com/chapel-lang/chapel/issues/5953
+.. _documenting inheritance in chpldoc: https://github.com/chapel-lang/chapel/issues/5954
+.. _issue #5911: https://github.com/chapel-lang/chapel/issues/5911
+.. _Javadoc: https://www.oracle.com/java/technologies/javase/javadoc-tool.html
+.. _Doxygen: https://www.doxygen.nl/index.html
+
+Mason Checksumming and Other Improvements
+-----------------------------------------
+
+:Description:
+ This project will focus on extending mason to have the ability to verify
+ checksums of mason projects to make sure that all of the data has been
+ downloaded correctly and has not been corrupted or modified. The project
+ will involve adding checksums to the .toml files used by mason. These
+ checksums will apply to the mason project specified by the .toml file as
+ well as to dependencies. A verify step will check that all of the files
+ in the package, with the exception of the checksum itself, matches the
+ package checksum. See also the `Mason checksumming issue`_.
+
+ |
+
+ As time permits, this project will also include making other mason
+ improvements, possibly including:
+
+   - Adding a ‘mason bench’ feature for performance testing (see the
+     `Mason bench issue`_)
+   - Making improvements to the TOML support module (see the
+     `TOML improvements issue`_)
+   - Handling arrays of tables
+   - Improving memory management
+   - Improve parsing
+   - Better handle edge cases
+
+ |
+
+:Expected Results:
+ By the end of the summer, the checksumming feature and at least one other
+ mason improvement are implemented in mason.
+
+ |
+
+:Getting Started:
+ - Try out some programming in Chapel. `Learning Chapel`_ is a good
+   starting point. Make sure to try creating some mason projects and have
+   a look at the `Mason Documentation`_.
+ - Do the `File Deduplication Exercise`_ which involves creating
+   checksums of files. Try to understand not only the part the exercise
+   asks you to do but also the code provided. What are the key I/O
+   functions used? Can you learn more about them in the
+   `I/O Module Documentation`_?.
+
+ |
+
+:Skills Required:
+ - Will need to know or learn Chapel programming language
+ - Experience with TOML is a plus
+ - Experience with cryptographic hashing is a plus
+
+ |
+
+:Difficulty: intermediate
+
+ |
+
+:Mentor(s): `Michael Ferguson`_, `Ankush Bhardwaj`_ (backup)
+
+ |
+
+.. _Mason checksumming issue: https://github.com/chapel-lang/chapel/issues/17182
+.. _Mason bench issue: https://github.com/chapel-lang/chapel/issues/15695
+.. _TOML improvements issue: https://github.com/chapel-lang/chapel/issues/7104
+.. _File Deduplication Exercise: https://github.com/chapel-lang/chapel/tree/main/test/exercises/duplicates/forStudents
+.. _Mason Documentation: https://chapel-lang.org/docs/tools/mason/mason.html
+
+.. Profile pages ..
+
+.. _Aniket Mathur: https://github.com/Aniket21mathur
+.. _Ankush Bhardwaj: https://github.com/ankingcodes
+.. _Damian McGuckin: https://github.com/damianmoz
+.. _Engin Kayraklioglu: https://github.com/e-kayrakli
+.. _Garvit Dewan: https://github.com/dgarvit
+.. _Krishna Kumar Dey: https://github.com/krishnadey30
+.. _Lydia Duncan: https://github.com/lydia-duncan
+.. _Michael Ferguson: https://github.com/mppf
+.. _Michelle Strout: https://github.com/mstrout
+.. _Mohammed Nafees: https://github.com/mnafees
+.. _Nikhil Padmanabhan: https://github.com/npadmana/
+.. _Paul Cassella: https://github.com/cassella
+.. _Przemek Leśniak: https://github.com/coodie
+
+.. Other links ..
+
+.. _chpldoc documentation: https://github.com/chapel-lang/chapel/issues/5946
+.. _I/O Module Documentation: https://chapel-lang.org/docs/modules/standard/IO.html
+.. _Learning Chapel: https://chapel-lang.org/learning.html
+.. _Task Parallelism Primer: https://chapel-lang.org/docs/main/primers/taskParallel.html
+
