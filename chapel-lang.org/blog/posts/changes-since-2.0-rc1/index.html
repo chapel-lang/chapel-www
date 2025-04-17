@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A summary of breaking and other notable additions made since Chapel 1.32">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Changes to Chapel 2.0 Since its First Release Candidate</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Changes to Chapel 2.0 Since its First Release Candidate</h2>
+<div class="post-subscript">
+    <p>Posted on February 27, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/chapel-2.0">Chapel 2.0</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/lydia-duncan">Lydia Duncan</a>, <a href="../../authors/jeremiah-corrado">Jeremiah Corrado</a>, <a href="../../authors/jade-abraham">Jade Abraham</a>, <a href="../../authors/shreyas-khandekar">Shreyas Khandekar</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#newly-stabilized-features">Newly Stabilized Features</a>
+      <ul>
+        <li><a href="#changes-to-the-random-module">Changes to the <code>Random</code> Module</a></li>
+        <li><a href="#default-task-intent-for-arrays">Default Task Intent For Arrays</a></li>
+        <li><a href="#promoted-array-indexing">Promoted Array Indexing</a></li>
+        <li><a href="#class-memory-management">Class Memory Management</a></li>
+        <li><a href="#associative-domains">Associative Domains</a></li>
+      </ul>
+    </li>
+    <li><a href="#breaking-changes">Breaking Changes</a>
+      <ul>
+        <li><a href="#renamed-the-ioendian-enum-to-endianness">Renamed the <code>ioendian</code> enum to <code>endianness</code></a></li>
+        <li><a href="#altered-format-for-the-binary-serializerdeserializer">Altered Format for the Binary Serializer/Deserializer</a></li>
+      </ul>
+    </li>
+    <li><a href="#new-warnings">New Warnings</a>
+      <ul>
+        <li><a href="#adjustments-to-comparison-operators">Adjustments to Comparison Operators</a></li>
+        <li><a href="#added-checks-when-const-arguments-are-indirectly-modified">Added Checks When <code>const</code> Arguments are Indirectly Modified</a></li>
+        <li><a href="#addedextended-warnings-when-symbol-shadowing-might-be-surprising">Added/Extended Warnings When Symbol Shadowing Might Be Surprising</a></li>
+      </ul>
+    </li>
+    <li><a href="#whats-next">What&rsquo;s Next?</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>As you may be aware, <a href="../../posts/announcing-chapel-1.32/#chapel-20-release-candidate">the Chapel 1.32 release was considered a
+candidate for becoming the future Chapel 2.0 release.</a>  Our intention as a team was to have
+any breaking changes made for that release, so that users could rely on the
+presence of deprecation and unstable warnings to know about any features that
+were changing or subject to change in upcoming releases.  We made it a release
+candidate for 2.0 so that we could solicit feedback and have a chance to gain
+experience with the state of the language, enabling final tweaks and polish
+as required before the official 2.0 release.</p>
+<p>Since 1.32, we&rsquo;ve been hard at work responding to your feedback (both public and
+private), as well as performing a perusal of our own, to ensure that the 2.0
+release will be as good as it can be.  To that end, we have made some notable
+changes that we wanted to call to your attention before making the March
+release our official 2.0.  If any of these changes strike you as wrong or
+worrying, please don&rsquo;t hesitate to reach out.</p>
+<h3 id="newly-stabilized-features">
+  <a href="#newly-stabilized-features">Newly Stabilized Features</a>
+</h3>
+<p>These features were not originally intended to be stable for 2.0, but we were
+able to find the time to discuss and work on them, bringing them to a stable
+state.</p>
+<h4 id="changes-to-the-random-module">
+  <a href="#changes-to-the-random-module">Changes to the <code>Random</code> Module</a>
+</h4>
+<p>As of Chapel 1.32, the Random module was unstable as a whole. It contained an
+abstract <code>RandomStreamInterface</code> as well as two algorithms that implemented the
+interface:
+<a href="https://chapel-lang.org/docs/1.32/modules/standard/Random/PCGRandom.html"target="_blank" rel="noopener">PCG</a>
+and
+<a href="https://chapel-lang.org/docs/1.32/modules/standard/Random/NPBRandom.html"target="_blank" rel="noopener">NPB</a>.
+Both random stream types were designed to provide a notion of an iterable
+stream of pseudo-random values of a given type. There were also several symbols
+used to select between the two algorithms, as well as a variety of top-level
+procedures that mirrored the <code>RandomStream</code> methods.</p>
+<p>Feedback from users indicated that they were interested in a stable <code>Random</code>
+module with a simpler set of features. To accomplish this, several very
+significant changes to the module&rsquo;s design were made in Chapel 1.33 (the
+latest release as of this article&rsquo;s publication). Some more minor API
+changes on the remaining unstable symbols are slated for the upcoming
+release.</p>
+<p>For 1.33, the <a href="https://chapel-lang.org/docs/1.33/modules/standard/Random/PCGRandom.html#PCGRandom.PCGRandomStream"target="_blank" rel="noopener">PCG
+class</a>
+was deprecated and the <a href="https://chapel-lang.org/docs/1.33/modules/packages/NPBRandom.html#NPBRandom.NPBRandomStream"target="_blank" rel="noopener">NPB
+class</a>
+was moved to its own package module. Both types, as well as the <code>RandomStream</code>
+alias and interfaces, were replaced by a single <code>randomStream</code> record
+implemented using the more capable PCG algorithm. This type&rsquo;s interface is very
+similar, and it is still meant to represent a conceptual stream of random
+numbers that can be iterated over in parallel.  In many cases, switching to
+the new type involves
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">a very simple code change:</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+Beyond the obvious capitalization changes, the meaning of the type
+argument <code>real</code> also changes slightly. For <code>RandomStream</code> it meant
+that the stream would maintain enough internal state to generate values of
+<i>any</i> type with the same or smaller size as the stream's type. So in this
+case, <code>rs</code> could produce random values of any numeric type with 64
+or fewer bits. With the new <code>randomStream</code>, it will only be able to
+generate <code>real</code> values. Another <code>randomStream</code> would need
+to be created to generate values of other numeric types. This change resulted
+in various simplifications to the interface. <span class="sidenote-delimiter">]</span></span></span></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">rs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">RandomStream</span><span class="p">(</span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="nx">seed</span><span class="p">,</span><span class="w"> </span><span class="nx">parSafe</span><span class="o">=</span><span class="kc">false</span><span class="p">);</span><span class="w">  </span><span class="c1">// before 1.33
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">rs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">randomStream</span><span class="p">(</span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="nx">seed</span><span class="p">);</span><span class="w">  </span><span class="c1">// in 1.33 (note the capitalization)
+</span></span></span></code></pre></div><p>One significant difference with switching to a record is that the new type has
+value semantics. This means that assigning one <code>randomStream</code> to another will
+copy its internal state and seed. In the old design, reference semantics were
+used, meaning that the two variables pointed at the same underlying random
+stream. As a result, more care was necessary when accessing random stream
+variables from multiple tasks concurrently.</p>
+<p>Additionally, there is no longer a <code>parSafe</code> parameter available on the
+<code>randomStream</code> type. This makes the type lighter-weight but also means that
+separate locking or synchronization is needed when accessing a single random
+stream variable with concurrent tasks. In some cases it is useful to avoid the
+need for synchronization by constructing a random stream per task when
+executing concurrent operations. For example, the following code uses this
+strategy to fill an array with random values in parallel:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="kd">var</span><span class="w"> </span><span class="nx">rs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">randomStream</span><span class="p">(</span><span class="kt">int</span><span class="p">))</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rs</span><span class="p">.</span><span class="nx">getNext</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></div><p>Alternatively, the <code>fill</code> method can be used to accomplish the same thing (also
+executing in parallel under the hood):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">rs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">randomStream</span><span class="p">(</span><span class="nx">A</span><span class="p">.</span><span class="nx">idxType</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">rs</span><span class="p">.</span><span class="nx">fill</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>The <code>Random</code> module&rsquo;s top-level procedures were also modified slightly to accommodate
+these changes. Specifically, the default-valued arguments for selecting between
+the PCG and NPB algorithms were removed. In programs where this argument wasn&rsquo;t
+specified, no code changes are required. For example, the following code would
+remain the same between releases:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">shuffle</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>But this code would need to remove the <code>algorithm</code> argument:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">shuffle</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">algorithm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">RNG</span><span class="p">.</span><span class="nx">PCG</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>The NPB algorithm can still be used via the
+<a href="https://chapel-lang.org/docs/1.33/modules/packages/NPBRandom.html"target="_blank" rel="noopener"><code>NPBRandom</code></a>
+package module.</p>
+<p>In 1.33, the <code>Random</code> module
+was no longer unstable as a whole, but the following symbols remained unstable
+pending some name changes and interface improvements planned for the upcoming
+release:</p>
+<ul>
+<li><strong><code>permutation</code></strong>: to be replaced by new <code>permute</code> procedures</li>
+<li><strong><code>choice</code></strong>: to be replaced by a simplified <code>choose</code> / <code>sample</code> interface</li>
+<li><strong><code>getNext</code></strong>: to be renamed to <code>next</code></li>
+<li><strong><code>skipToNth</code></strong>: to be renamed to <code>skipTo</code></li>
+<li><strong><code>getNth</code></strong>: to be deprecated</li>
+<li><strong><code>iterate</code></strong>: to be renamed to <code>next</code> (overloading the single-value version)</li>
+<li><strong>default seed initialization</strong>: will use an improved algorithm for generating default seeds</li>
+</ul>
+<p>With the above changes coming in the March release, the module is expected to be
+fully stable. There are future plans to expand the parallel iteration
+capabilities, as well as to create a more formal random stream interface (or
+interfaces) making use of Chapel&rsquo;s newer <a href="https://chapel-lang.org/docs/1.33/technotes/interfaces.html"target="_blank" rel="noopener">interface
+features</a> — this may
+lead to the introduction of some other random number generator algorithms.
+We also expect to explore the addition of some other types like a global,
+parallel-safe random number generator. We welcome any feedback from users on
+the direction taken so far, as well as future goals for the module.</p>
+<h4 id="default-task-intent-for-arrays">
+  <a href="#default-task-intent-for-arrays">Default Task Intent For Arrays</a>
+</h4>
+<p>In 1.32, we made some big changes to the default
+<span class="sidenote"><label class="sidenote-label" for="sidenote-1">intent</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-1"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+Chapel uses intents to define how variables are passed to functions and
+parallel constructs. These are called <i>argument intents</i> for functions and
+<i>task intents</i> for parallel constructs. For example, a
+<code>const ref</code> argument intent causes a constant reference to the actual argument to be passed into the function, while an <code>in</code> task intent creates a
+task-private mutable copy of the original variable.
+
+See the primers on
+<a href="https://chapel-lang.org/docs/1.33/primers/procedures.html">procedures</a> and
+<a href="https://chapel-lang.org/docs/1.33/primers/taskParallel.html">task parallel constructs</a>
+for examples and more information.
+<span class="sidenote-delimiter">]</span></span></span>. This change meant that arrays, which previously had a
+special intent, were now always passed by <code>const</code> to functions and tasks unless
+an explicit intent was requested. This same change was also made to record
+methods, removing the special intent for the record receiver <code>this</code>.</p>
+<p>After receiving some feedback from users that this change created overly
+verbose code for parallel loops operating on arrays, we made an improvement.
+The default task intent for arrays was changed to be inferred from the array
+itself, so a <code>const</code> array has a default <code>const</code> task intent and a <code>var</code> array
+has a default <code>ref</code> task intent. Essentially, if an array is modifiable outside
+a parallel block, it is modifiable inside a parallel block.</p>
+<p>Consider the following code, where a procedure uses an explicit parallel loop to
+increment elements in an array:</p>
+<div class="highlight" file_name="modifyArrayExtraIntent.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">incArray</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">dom</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">dom</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">arr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">arr</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>This code explicitly uses a <code>ref</code> task intent on a parallel loop, and in 1.32
+this was required to prevent unstable warnings. Today, this code can remove the
+explicit <code>ref</code> task intent, since the <code>arr</code> has already been marked as
+modifiable by the <code>ref</code> argument intent on the procedure:</p>
+<div class="highlight" file_name="modifyArray.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">incArray</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">dom</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">dom</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">arr</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The result of this change has been a simplification of the default intent rules, while still being able to write concise and clear code.</p>
+<h4 id="promoted-array-indexing">
+  <a href="#promoted-array-indexing">Promoted Array Indexing</a>
+</h4>
+<p>Chapel provides some powerful array programming features that can greatly
+improve code readability and programmer productivity. Using promotion, arrays
+can be selectively updated based on a set of indices. For example, this program
+increments all values that have an even index:</p>
+<div class="highlight" file_name="promotedIndexing.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">indices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">arr</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">arr</span><span class="p">[</span><span class="nx">indices</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>However, this powerful syntax does have sharp edges. In the above example, if
+<code>indices</code> contained any duplicate elements, the increment would have caused an
+unsafe race condition. With duplicate elements, the above code requires explicit
+ordering or synchronization to be applied to the increment to prevent races.</p>
+<details>
+    <summary>How can I write this pattern without the race?</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Here is one way using <code>reduce</code> intents:</p>
+<div class="highlight" file_name="promotedIndexing-reduce.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">indices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="nx">expression</span><span class="w"> </span><span class="nx">containing</span><span class="w"> </span><span class="nx">duplicates</span><span class="o">..</span><span class="p">.;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">indices</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">arr</span><span class="p">)]</span><span class="w"> </span><span class="nx">arr</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Here is another way using <code>atomic</code> variables:</p>
+<div class="highlight" file_name="promotedIndexing-atomic.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="p">]</span><span class="w"> </span><span class="k">atomic</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">arr</span><span class="p">.</span><span class="nx">write</span><span class="p">([</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">arr</span><span class="p">.</span><span class="k">domain</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">indices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="nx">expression</span><span class="w"> </span><span class="nx">containing</span><span class="w"> </span><span class="nx">duplicates</span><span class="o">..</span><span class="p">.;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">arr</span><span class="p">[</span><span class="nx">indices</span><span class="p">].</span><span class="nx">add</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div>
+    </div>
+</details>
+
+<p>In the interest of improving the safety and consistency of Chapel code, we
+initially thought we wouldn&rsquo;t include this feature in 2.0. However, after the aforementioned changes
+to the default task intent for arrays, we felt that this feature should be reinstated for consistency and convenience, with
+some additional and optional safety rails. To achieve this, we added the
+compilation flag<br> <code>--warn-potential-races</code>, which warns for code patterns like
+this that may be unsafe.</p>
+<h4 id="class-memory-management">
+  <a href="#class-memory-management">Class Memory Management</a>
+</h4>
+<p>For the last few Chapel releases using stable features, it was not possible to escape the <a href="https://chapel-lang.org/docs/1.33/technotes/lifetimeChecking.html">lifetime checker</a>
+when using managed classes like <code>owned</code> and <code>shared</code>. These
+management strategies use the lifetime checker to ensure that memory is not
+accessed incorrectly. It is sometimes necessary to have pieces of code that a
+developer knows to be correct bypass the lifetime checker. To enable this,
+we have stabilized a cast to an <code>unmanaged</code> class. This cast does not affect
+the original lifetime of the object, it merely provides a view of the object
+that is not tracked by the lifetime checker.</p>
+<p>For example, the following code passes an <code>unmanaged</code> view of an <code>owned</code> class into a procedure that expects an <code>unmanaged</code> instance:</p>
+<div class="highlight" file_name="modifyArray.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">myOwnedObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">MyClass</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">unsafeApiCall</span><span class="p">(</span><span class="nx">myOwnedObject</span><span class="p">.</span><span class="nx">borrow</span><span class="p">():</span><span class="w"> </span><span class="k">unmanaged</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>This allows programs to get the benefits of the lifetime checker for the majority of the code and to opt-out when needed.</p>
+<h4 id="associative-domains">
+  <a href="#associative-domains">Associative Domains</a>
+</h4>
+<p>Associative domains have been stabilized to prioritize performance by
+default; however, some diligence is crucial for optimal use.</p>
+<p>Associative domains in Chapel have a <code>parSafe</code> setting that
+determines their behavior when
+<span class="sidenote"><label class="sidenote-label" for="sidenote-2">operated on by concurrent tasks.</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-2"></input><span class="sidenote-content sidenote-right" style="margin-top: -26.5rem"><span class="sidenote-delimiter">[note:</span>
+
+<code>parSafe</code> stands for "parallel safety". Setting
+<code>parSafe=true</code> allows for multiple tasks to modify
+an associative domain's index set concurrently without race conditions.
+It is important to note that <code>parSafe=true</code> does not protect the
+user against all race conditions. For example, iterating over an associative
+domain while another task modifies it represents a race condition and the
+behavior is undefined. </br></br>
+See the
+<a href="https://chapel-lang.org/docs/1.33/language/spec/domains.html?highlight=parsafe#parallel-safety-with-respect-to-domains-and-arrays">
+documentation</a> on parallel safety for domains for examples and more
+information.
+
+<span class="sidenote-delimiter">]</span></span></span> The default of <code>parSafe=true</code> <span class="sidenote"><label class="sidenote-label" for="sidenote-3">added overhead</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-3"></input><span class="sidenote-content sidenote-right" style="margin-top: 0.5rem"><span class="sidenote-delimiter">[note:</span> The setting <code>parSafe=true</code> adds
+overhead because it uses locking on the underlying data structure each time the
+domain is modified. This overhead is unnecessary, for example, when the domain
+is operated upon by a single task. <span class="sidenote-delimiter">]</span></span></span>
+to the operations and made programs slower by default, even when such safety
+guarantees were not needed.
+Because of this we have changed their default from
+<code>parSafe=true</code> to <code>parSafe=false</code>.
+With this change, associative domains have been stabilized, except for domains
+requesting <code>parSafe=true</code>.</p>
+<p>For example, a new associative domain, like <code>d1</code> below, will have its default
+<code>parSafe</code> value be <code>false</code>. It will also issue a warning to users, alerting
+them of the changing default. Domains with an explicit <code>parSafe</code> value
+like <code>d2</code> do not issue such warnings:</p>
+<div class="highlight" file_name="defaultAssociativeDomain.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">d1</span><span class="p">:</span><span class="w"> </span><span class="k">domain</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">                 </span><span class="c1">// warns
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">d2</span><span class="p">:</span><span class="w"> </span><span class="k">domain</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">parSafe</span><span class="o">=</span><span class="kc">false</span><span class="p">);</span><span class="w">  </span><span class="c1">// does not warn
+</span></span></span></code></pre></div><p>Domains like <code>d3</code> with <code>parSafe=true</code> will continue to generate unstable
+warnings when compiled with <code>--warn-unstable</code>:</p>
+<div class="highlight" file_name="assocDomainUnstable.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">d3</span><span class="p">:</span><span class="w"> </span><span class="k">domain</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">parSafe</span><span class="o">=</span><span class="kc">true</span><span class="p">);</span><span class="w">  </span><span class="c1">// generates unstable warning
+</span></span></span></code></pre></div><p>More information about the new warning, where it is issued, how it can be
+silenced, and how the transition can be made easier will be provided in
+the upcoming release notes.</p>
+<h3 id="breaking-changes">
+  <a href="#breaking-changes">Breaking Changes</a>
+</h3>
+<p>For the following features, we thought we had the correct behavior, but we realized we
+needed to change them before the official 2.0 release.  Some of these were
+motivated by feedback from users like you, while others were noticed as part of our
+own development work.</p>
+<h4 id="renamed-the-ioendian-enum-to-endianness">
+  <a href="#renamed-the-ioendian-enum-to-endianness">Renamed the <code>ioendian</code> enum to <code>endianness</code></a>
+</h4>
+<p>We&rsquo;ve renamed the <code>ioendian</code> enum, used to specify byte order for file I/O,
+to <code>endianness</code>.
+This change was made for the following reasons:</p>
+<ul>
+<li>Enhanced Clarity: The new name accurately reflects the property&rsquo;s independence from I/O,
+making code easier to understand and maintain.</li>
+<li>Adherence to Convention: <code>endianness</code> aligns with our <a href="https://chapel-lang.org/docs/1.33/developer/bestPractices/StandardModuleStyle.html"target="_blank" rel="noopener">established naming
+conventions.</a>
+promoting consistency across the codebase. <code>ioendian</code> did not align due to its
+failure to capitalize <code>endian</code>.</li>
+</ul>
+<p>Importantly, the constants within the <code>endianness</code> enum remain unchanged,
+reducing the number of updates needed for existing code.</p>
+<h4 id="altered-format-for-the-binary-serializerdeserializer">
+  <a href="#altered-format-for-the-binary-serializerdeserializer">Altered Format for the Binary Serializer/Deserializer</a>
+</h4>
+<p>The 1.32 release saw the introduction of serializers (for writing) and
+deserializers (for reading) as a way of controlling the formatting of file input
+and output.  <a href="https://chapel-lang.org/docs/1.33/technotes/ioSerializers.html"target="_blank" rel="noopener">Serializers and
+deserializers</a>
+replaced the old strategy for I/O, which had relied heavily on a single type
+(<code>iostyle</code>) to control everything needed for the widely-varying forms
+of input and output.  Each serializer/deserializer pair became responsible for
+a single particular format of I/O.</p>
+<p>When we added the binary serializer and deserializer to replace the old handling
+for binary I/O, we had originally made the formatting for certain types
+include additional meta-information.  In the case of strings and bytes, this
+would include their lengths.  In the case of classes, this would indicate whether
+the class value was <code>nil</code>.</p>
+<p>This change in default behavior was surprising to some users, so we moved this
+functionality to an alternative, unstable serializer/deserializer in the new
+<code>ObjectSerialization</code> module, restoring the old, &ldquo;unstructured&rdquo; behavior to the
+binary serializer and deserializer.</p>
+<p>This means that the binary deserializer no longer supports reading strings and
+bytes — Chapel strings and bytes <span class="sidenote"><label class="sidenote-label" for="sidenote-4">do not include a null-terminator,</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-4"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span> This enables the string or bytes to
+contain null characters. <span class="sidenote-delimiter">]</span></span></span> so without a length there is no way
+to determine when the string or bytes value ends.  Instead, a method such as
+<code>fileReader.readBinary</code> should be used.</p>
+<h3 id="new-warnings">
+  <a href="#new-warnings">New Warnings</a>
+</h3>
+<h4 id="adjustments-to-comparison-operators">
+  <a href="#adjustments-to-comparison-operators">Adjustments to Comparison Operators</a>
+</h4>
+<p>Comparison operators such as <code>&lt;</code>, <code>&gt;</code>, <code>!=</code>, etc. used to be arbitrarily
+chainable.  This meant that it was syntactically possible to write:</p>
+<div class="highlight" file_name="compOps.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w">
+</span></span></span></code></pre></div><p>However, such code would not necessarily behave as expected for someone coming
+from a math or Python perspective.  Instead of ensuring that <code>b</code> was both
+greater than <code>a</code> and less than <code>c</code>, what would happen is that the first portion
+(<code>a &lt; b</code>) would be evaluated and transformed into a boolean representing the
+outcome, and that resulting boolean would then be compared to <code>c</code> (using the
+numeric value of <code>0</code> for <code>false</code> and <code>1</code> for <code>true</code>).  This followed the
+precedent established by languages like C.</p>
+<p>This meant that if the code had defined <code>a</code>, <code>b</code>, and <code>c</code> like so:</p>
+<div class="highlight" file_name="compOps.chpl"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>then the expression would evaluate to <code>true</code>, which may not be what the user
+intended.</p>
+<p>To rectify this potential source of confusion, we&rsquo;ve changed such expressions to
+now be syntax errors.</p>
+<h4 id="added-checks-when-const-arguments-are-indirectly-modified">
+  <a href="#added-checks-when-const-arguments-are-indirectly-modified">Added Checks When <code>const</code> Arguments are Indirectly Modified</a>
+</h4>
+<p>When the <code>const</code> intent is used to declare an argument to a function, the actual
+intent is determined to be either <code>const in</code> or <code>const ref</code>.  For optimization
+purposes, it may be beneficial for the compiler to adjust which actual intent is
+selected in the future.</p>
+<p>In the case where the actual intent becomes <code>const ref</code>, it is possible for the
+contents of the argument to be modified by another part of the code while the
+function is executing.  This can happen when the function is called in parallel,
+or if the function modifies a variable with broader scope.  For instance,
+the following code, though serial, will cause the argument to be indirectly
+modified:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/indirectMod.chpl download="indirectMod.chpl">indirectMod.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">rec</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">globalRec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">rec</span><span class="p">(</span><span class="mi">15</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">takeRec</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">r</span><span class="p">:</span><span class="w"> </span><span class="nx">rec</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">r</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">globalRec</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">r</span><span class="p">);</span><span class="w">  </span><span class="c1">// By modifying globalRec, the argument r has been changed!
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">takeRec</span><span class="p">(</span><span class="nx">globalRec</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>producing:</p>
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">(x = 15)
+</span></span></span><span class="line"><span class="cl"><span class="go">(x = 3)
+</span></span></span></code></pre></div>
+
+<p>This behavior can be surprising, especially in the case where the argument&rsquo;s
+type is generic, and relying on it would mean that adjusting the actual intent
+in the future would break programs rather than being an optimization.  With that
+in mind, <code>const</code> intents should be considered an assertion on the part of the
+programmer that such indirect modifications will not occur.  An unstable warning
+will now be generated when compiling with <code>--warn-unstable</code> when we detect that an
+indirect modification has occurred:</p>
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">(x = 15)
+</span></span></span><span class="line"><span class="cl"><span class="go">(x = 3)
+</span></span></span><span class="line"><span class="cl"><span class="go">indirectMod.chpl:7: warning: The argument &#39;r&#39; was modified indirectly during this function, this behavior is unstable and may change in the future.
+</span></span></span><span class="line"><span class="cl"><span class="go">If this behavior is intentional, declaring the argument as &#39;const ref&#39; will silence this warning.  If not, declaring the argument as &#39;const in&#39; will prevent indirect modifications
+</span></span></span></code></pre></div>
+
+<p>If the indirect modification is intentional, the warning can be silenced by
+using an explicit <code>const ref</code> intent for the argument:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">takeRec</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">r</span><span class="p">:</span><span class="w"> </span><span class="nx">rec</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>If the indirect modification is not intentional, the modification can be
+prevented by using an explicit <code>const in</code> intent:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">takeRec</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">r</span><span class="p">:</span><span class="w"> </span><span class="nx">rec</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>producing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">(x = 15)
+</span></span></span><span class="line"><span class="cl"><span class="go">(x = 15)
+</span></span></span></code></pre></div><p>Due to concerns about the performance impact of such checks, only shallow
+indirect modifications will be noticed.  For instance, if a record contains a
+class field and the field&rsquo;s contents are modified, no warning will be generated.</p>
+<p>This warning will also trigger when arguments relying on a default intent of <code>const</code> are
+indirectly modified.</p>
+<h4 id="addedextended-warnings-when-symbol-shadowing-might-be-surprising">
+  <a href="#addedextended-warnings-when-symbol-shadowing-might-be-surprising">Added/Extended Warnings When Symbol Shadowing Might Be Surprising</a>
+</h4>
+<p>In scenarios where multiple symbols share the same name, it is not always easy
+to determine which one is being referenced.  The language has a particular set
+of rules to follow, but language constructs like <code>use</code> statements can affect
+what is considered the best candidate, leading to confusion on the part of the
+user.</p>
+<p>Our goal has been to simplify such rules when possible, adding warnings when
+the result may be surprising.  We recently added and extended some warnings
+along those lines.</p>
+<p>As an example, because of the order of <code>use</code> statements, the following code will
+not rely on the contents of the top level module <code>N</code>.  Instead, <code>M</code>&rsquo;s submodule named <code>N</code> will be used:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/shadowing.chpl download="shadowing.chpl">shadowing.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">module</span><span class="w"> </span><span class="nc">M</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">module</span><span class="w"> </span><span class="nc">N</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;In M.N.foo&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">module</span><span class="w"> </span><span class="nc">N</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;In N.foo&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">module</span><span class="w"> </span><span class="nc">Main</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="nx">M</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="nx">N</span><span class="p">;</span><span class="w">  </span><span class="c1">// This ends up using M.N instead of the top level N
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">foo</span><span class="p">();</span><span class="w">  </span><span class="c1">// and as a result this calls M.N.foo, which may be surprising
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Our recent work has added a warning to alert users to this potential for confusion, so compiling and running this program
+will now produce:</p>
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">shadowing.chpl:16: In function &#39;main&#39;:
+</span></span></span><span class="line"><span class="cl"><span class="go">shadowing.chpl:18: warning: potentially surprising shadowing for &#39;N&#39;
+</span></span></span><span class="line"><span class="cl"><span class="go">shadowing.chpl:17: note: it refers to a symbol found through the &#39;use&#39; of &#39;M&#39; here
+</span></span></span><span class="line"><span class="cl"><span class="go">shadowing.chpl:2: note: leading to &#39;N&#39; defined here
+</span></span></span><span class="line"><span class="cl"><span class="go">shadowing.chpl:9: note: but, there is a shadowed symbol &#39;N&#39; defined here
+</span></span></span><span class="line"><span class="cl"><span class="go">In M.N.foo
+</span></span></span></code></pre></div>
+
+<p>Such warnings are intended to help clarify behavior and to call attention to cases
+where a program is perhaps not behaving in a way the user would otherwise
+expect.</p>
+<h3 id="whats-next">
+  <a href="#whats-next">What&rsquo;s Next?</a>
+</h3>
+<p>With the above changes, the official 2.0 release is scheduled for this coming
+March.  This will mark a new chapter in Chapel&rsquo;s history, where users can rely
+on the stability of core language features.  Applications developed using these
+stable features will only require updates on your schedule, rather than because
+a new version of Chapel has been released.</p>
+<p>Though more remains to be stabilized, with the guidance of users like you we
+will continue to be hard at work making Chapel the language of the future.
+Thank you for all the feedback and support you have already provided.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Changes&#43;to&#43;Chapel&#43;2.0&#43;Since&#43;its&#43;First&#43;Release&#43;Candidate&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchanges-since-2.0-rc1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Changes&#43;to&#43;Chapel&#43;2.0&#43;Since&#43;its&#43;First&#43;Release&#43;Candidate&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchanges-since-2.0-rc1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Changes&#43;to&#43;Chapel&#43;2.0&#43;Since&#43;its&#43;First&#43;Release&#43;Candidate&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchanges-since-2.0-rc1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Changes&#43;to&#43;Chapel&#43;2.0&#43;Since&#43;its&#43;First&#43;Release&#43;Candidate&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchanges-since-2.0-rc1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A solution to day five of AoC 2022 featuring arrays, lists, strided ranges, zippered iteration, unbounded ranges, and references.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 5: Stacking Crates</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 5: Stacking Crates</h2>
+<div class="post-subscript">
+    <p>Posted on December 5, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#initial-declarations">Initial Declarations</a></li>
+    <li><a href="#reading-rearrangement-procedure-commands">Reading Rearrangement Procedure Commands</a></li>
+    <li><a href="#moving-crates-within-an-array-of-lists">Moving Crates within an Array of Lists</a></li>
+  </ul>
+
+  <ul>
+    <li><a href="#an-inherently-sequential-program">An Inherently Sequential Program?</a></li>
+    <li><a href="#reading-the-initial-state-of-the-stacks">Reading the Initial State of the Stacks</a></li>
+    <li><a href="#parsing-the-initial-state">Parsing the Initial State</a>
+      <ul>
+        <li><a href="#declaring-arrays-in-chapel">Declaring Arrays in Chapel</a></li>
+        <li><a href="#using-strided-ranges-to-populate-the-stacks-of-crates">Using Strided Ranges to Populate the Stacks of Crates</a></li>
+        <li><a href="#a-reference-variable-for-readabiliy">A Reference Variable for Readabiliy</a></li>
+        <li><a href="#zippered-iteration-unbounded-ranges-and-another-strided-range">Zippered iteration, Unbounded Ranges, and another Strided Range</a></li>
+        <li><a href="#converting-characters-to-crate-ids">Converting Characters to Crate IDs</a></li>
+      </ul>
+    </li>
+    <li><a href="#summary-and-tips-for-part-two">Summary and Tips for Part Two</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to day 5 of Chapel&rsquo;s Advent of Code 2022 series!  For more
+context, check out our introductory <a href="../../posts/aoc2022-day00-intro/">Advent of Code 2022: Twelve
+Days of Chapel</a> article for background and
+instructions on compiling this code.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>In brief, <a href="https://adventofcode.com/2022/day/5"target="_blank" rel="noopener">the challenge for
+today</a> is to read in an initial
+configuration of crates in stacks, followed by various commands that
+indicate how to move a subset of the crates in one stack to another.
+This problem is fairly sequential by nature since the list of moves
+needs to be processed in order.</p>
+<p><strong>For those who like to hear the punchline before the joke, here is our solution to part one of this challenge in Chapel:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day05-cratestacks.chpl" download="aoc2022-day05-cratestacks.chpl">aoc2022-day05-cratestacks.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Stacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">initStacks</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">num</span><span class="p">,</span><span class="w"> </span><span class="nx">from</span><span class="p">,</span><span class="w"> </span><span class="nx">to</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;move %i from %i to %i\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">num</span><span class="p">,</span><span class="w"> </span><span class="nx">from</span><span class="p">,</span><span class="w"> </span><span class="nx">to</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">num</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">crate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">from</span><span class="p">].</span><span class="nx">popBack</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">to</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">crate</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="nx">stack</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Stacks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">write</span><span class="p">(</span><span class="nx">stack</span><span class="p">.</span><span class="nx">last</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readInitState</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">line</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">line</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">initStacks</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">InitState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readInitState</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">param</span><span class="w"> </span><span class="nx">charsPerStack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">numStacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">InitState</span><span class="p">.</span><span class="nx">last</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">charsPerStack</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">enum</span><span class="w"> </span><span class="nx">crateID</span><span class="w"> </span><span class="p">{</span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">,</span><span class="w"> </span><span class="nx">D</span><span class="p">,</span><span class="w"> </span><span class="nx">E</span><span class="p">,</span><span class="w"> </span><span class="nx">F</span><span class="p">,</span><span class="w"> </span><span class="nx">G</span><span class="p">,</span><span class="w"> </span><span class="nx">H</span><span class="p">,</span><span class="w"> </span><span class="nx">I</span><span class="p">,</span><span class="w"> </span><span class="nx">J</span><span class="p">,</span><span class="w"> </span><span class="nx">K</span><span class="p">,</span><span class="w"> </span><span class="nx">L</span><span class="p">,</span><span class="w"> </span><span class="nx">M</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nx">N</span><span class="p">,</span><span class="w"> </span><span class="nx">O</span><span class="p">,</span><span class="w"> </span><span class="nx">P</span><span class="p">,</span><span class="w"> </span><span class="nx">Q</span><span class="p">,</span><span class="w"> </span><span class="nx">R</span><span class="p">,</span><span class="w"> </span><span class="nx">S</span><span class="p">,</span><span class="w"> </span><span class="nx">T</span><span class="p">,</span><span class="w"> </span><span class="nx">U</span><span class="p">,</span><span class="w"> </span><span class="nx">V</span><span class="p">,</span><span class="w"> </span><span class="nx">W</span><span class="p">,</span><span class="w"> </span><span class="nx">X</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="p">,</span><span class="w"> </span><span class="nx">Z</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">Stacks</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">numStacks</span><span class="p">]</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="nx">crateID</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">InitState</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">InitState</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// do a zippered iteration over the stack IDs and
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// offsets where crate names will be
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">offset</span><span class="p">,</span><span class="w"> </span><span class="nx">stackIdx</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="mi">1</span><span class="o">..&lt;</span><span class="nx">line</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">charsPerStack</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">char</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">[</span><span class="nx">offset</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">char</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34; &#34;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// blank means no crate here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">stackIdx</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">char</span><span class="p">:</span><span class="w"> </span><span class="nx">crateID</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">Stacks</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>For this problem, our general approach is to use an array of
+conceptual
+<a href="https://en.wikipedia.org/wiki/Stack_%28abstract_data_type%29"target="_blank" rel="noopener">stacks</a>
+that represent the state of the elves&rsquo; shipping dock.  The <em>stack</em>
+is a natural data structure for cases like this where elements can
+only be added to, or removed from, one end of a sequential list of
+items (in this case, our stack of crates).  Meanwhile, the array
+gives us the ability to directly access a given stack so that we can
+add crates to it, or remove them.</p>
+<p>As it turns out, Chapel&rsquo;s standard library doesn&rsquo;t currently support
+a <code>stack</code> data type (which we should really address&hellip; Recall that
+Chapel is an open-source project if you&rsquo;d like to help out in this
+regard! :D ); however, it does have a
+<a href="https://chapel-lang.org/docs/modules/standard/List.html"target="_blank" rel="noopener"><code>list</code></a>
+type that will serve the purpose just as well.</p>
+<p>For many of us on the team, the most challenging part of this
+program turned out to be creating the initial array of stacks by
+parsing the input&rsquo;s representation of the starting state:</p>
+<pre tabindex="0"><code>    [D]
+[N] [C]
+[Z] [M] [P]
+ 1   2   3
+</code></pre><p>We&rsquo;ll describe how to do this in the latter part of this article,
+using zippered iteration, strided ranges, unbounded ranges, and
+references.  But first, let&rsquo;s start with territory that should be a
+bit more familiar to those who&rsquo;ve been following this series.</p>
+<h3 id="initial-declarations">
+  <a href="#initial-declarations">Initial Declarations</a>
+</h3>
+<p>At the start of the program, we indicate which modules we will need:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>IO</code> is the module that we&rsquo;ll rely on for helping us read the input.
+Meanwhile, <code>List</code> provides the standard <code>list</code> datatype that we&rsquo;ll
+use for our stacks.</p>
+<p>Next, we declare and initialize our array of <code>Stacks</code> using a helper
+routine that we&rsquo;ve written to do all of the fancy parsing needed:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Stacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">initStacks</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As usual, we are leaning on Chapel&rsquo;s type inference here, where
+Chapel will infer <code>Stacks</code> to be an array of lists because that is
+what <code>initStacks()</code> returns.  As mentioned above, we&rsquo;ll look at the
+implementation of <code>initStacks()</code> a bit later in this article.  For
+now, understand that each list it returns will be storing the crates
+in its respective stack, from bottom to top.  Let&rsquo;s start by looking
+into how to move the crates between stacks now that they&rsquo;re set up.</p>
+<h3 id="reading-rearrangement-procedure-commands">
+  <a href="#reading-rearrangement-procedure-commands">Reading Rearrangement Procedure Commands</a>
+</h3>
+<p>With the <code>Stacks</code> in their initial state, we are ready to read in
+and execute the rearrangement procedure.  All of the steps of the
+procedure follow a very structured format in the input, making them
+a good match for the <code>readf()</code> routine.  See <a href="../../posts/aoc2022-day04-ranges/#first-solution-hand-coded-interval-arithmetic">yesterday&rsquo;s
+post</a>
+for a detailed description of <code>readf()</code> and its use in various
+examples.</p>
+<p>Specifically, in this case, we declare three <code>int</code> variables
+representing the stack number, the source, and the destination.  We
+then use a <code>readf()</code> to express the pattern we&rsquo;re expecting on each
+line, using <code>%i</code> to indicate where an <code>int</code> should be read:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">num</span><span class="p">,</span><span class="w"> </span><span class="nx">from</span><span class="p">,</span><span class="w"> </span><span class="nx">to</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;move %i from %i to %i\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">num</span><span class="p">,</span><span class="w"> </span><span class="nx">from</span><span class="p">,</span><span class="w"> </span><span class="nx">to</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that our format string ends with a newline character (<code>\n</code>).
+This is because the first thing in the string is a literal string
+(<code>&quot;move&quot;</code>), which must exactly match the input and will not skip
+over whitespace.  If we did not consume the newline, we would get a
+mismatch when trying to read the second line of input.</p>
+<p>Because these commands are the last thing to appear in the input
+stream, when we hit the end-of-file, <code>readf()</code> will return <code>false</code>
+and we&rsquo;ll exit this loop.</p>
+<h3 id="moving-crates-within-an-array-of-lists">
+  <a href="#moving-crates-within-an-array-of-lists">Moving Crates within an Array of Lists</a>
+</h3>
+<p>To execute the command, we need to remove the specified number of
+crates from one stack, adding them to another as we go.  We use the
+following for-loop over the range <code>1..num</code> to iterate for the
+specified number of crates to move, <code>num</code>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">num</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">crate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">from</span><span class="p">].</span><span class="nx">popBack</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">to</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">crate</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>For each crate, we index into the array of stacks using the <code>from</code>
+and <code>to</code> indices to access the stacks that we&rsquo;ll be adjusting.  To
+take the top crate off of a stack, we use the <code>.popBack()</code> method
+provided by lists, which removes and returns the final element in
+the list.  We store this into a local constant, <code>crate</code>.  Then, we
+use the list&rsquo;s <code>.pushBack()</code> method to add the crate to the end of the
+destination stack (equivalent to the <code>.push()</code> method on a true
+<code>stack</code> datatype).  Note that these two statements could also be
+written in one as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">to</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">from</span><span class="p">].</span><span class="nx">popBack</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></div><p>Once we exit this nested loop over commands and moves, we are done
+with the rearrangement procedure.</p>
+<h2 id="writing-out-the-top-crates">
+  <a href="#writing-out-the-top-crates">Writing out the Top Crates</a>
+</h2>
+<p>All that remains for the computation is to print out which crates
+are at the top of each stack.  Here, we do that by iterating over
+the <code>Stacks</code> array using a for-loop.  When using a <code>for</code> or <code>forall</code>
+loop to iterate over an array in this way, the loop index variable
+(<code>stack</code> in this case) will refer to the elements of the array.  In
+this case, it means that <code>stack</code> will refer to the lists in the
+<code>Stacks</code> array one at a time.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">stack</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Stacks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">write</span><span class="p">(</span><span class="nx">stack</span><span class="p">.</span><span class="nx">last</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Within the loop, we use the list&rsquo;s <code>.last</code> method to get the final
+element of each stack (the <code>top()</code> using typical stack operations).
+Because we want all of the crate IDs to be concatenated together in
+the output, we print them out using <code>write()</code>, which is similar to
+the <code>writeln()</code> routine we&rsquo;ve used to print output on previous days.
+However, where <code>writeln()</code> prints a newline character after all of
+its arguments have been printed, <code>write()</code> does not.  This will
+cause our crate names to come out adjacent to one another.</p>
+<p>Then, once we&rsquo;ve exited the loop, we use a final <code>writeln()</code> with no
+arguments to terminate the output with a linefeed (equivalently, we
+could have used <code>write(&quot;\n&quot;);</code>):</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="an-inherently-sequential-program">
+  <a href="#an-inherently-sequential-program">An Inherently Sequential Program?</a>
+</h3>
+<p>One of our goals in this blog series is to teach you how to use
+Chapel to write programs that execute in parallel.  However, today&rsquo;s
+challenge is not particularly well-suited to parallelism.  Even if
+we were to read all of the rearrangement commands into an array, we
+couldn&rsquo;t really execute the array of commands in parallel using a
+<code>forall</code> loop as we have on previous days, because each command must
+be completed before the next one in order to get a correct solution.</p>
+<p>Or must it&hellip;?</p>
+<p>There actually <em>are</em> approaches one could take to parallelize the
+rearrangement procedure, but they are more complex than what we&rsquo;ve
+seen up to this point, so let&rsquo;s push the discussion of such
+approaches into a sidebar:</p>
+<details>
+    <summary><strong>(How we could apply some parallelism to the rearrangement procedure&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The key to parallelizing this computation is to realize that it&rsquo;s
+not that each command must be completed before the <em>next one</em>, but
+that it must be completed before the next command that accesses the
+<em>same stacks</em>.  So while we wouldn&rsquo;t be able to simply use a
+<code>forall</code> to iterate over the commands and execute them in parallel,
+we could use parallel tasks to execute the commands in another way.</p>
+<p>Specifically, imagine having an array of locks, one per stack, which
+would say whether or not that stack&rsquo;s crates were currently being
+modified.  When looping over the commands using our serial <code>for</code>
+loop, we would check to see whether the <code>from</code> and <code>to</code> stack locks
+were being held.  If not, we could grab them for ourselves to
+indicate that we were going to modify those stacks&rsquo; crates.  Then,
+we could create an asynchronous task using Chapel&rsquo;s <code>begin</code>
+statement to move the specified number of crates between those
+stacks and release the crates&rsquo; locks when finished.</p>
+<p>Once that task was created (but not yet complete), the <code>for</code> loop
+could then go on to the next command, see whether its locks were
+free, and execute a distinct task to run it.  If, instead, the locks
+were held, the main task would wait until they were free before
+proceeding.</p>
+<p>Rather than the very structured data parallelism that we used in
+previous days, this is a very asynchronous task-based approach.  And
+in truth, it would not be terribly difficult to write in Chapel.</p>
+<p>So why didn&rsquo;t we do it?</p>
+<p>Primarily because it felt like overkill for this situation.  The
+time required to move a number of crates from one stack to another
+is very small, and relative to the time required to check the locks,
+take the locks, create a task, and release the locks, it is unlikely
+that using asynchronous tasks would result in any real speedup.  In
+addition, with such a small number of stacks, it is unlikely that
+very many tasks would be able to execute simultaneously, since the
+chances of them needing to access the same stacks would be high.</p>
+<p>But is that a good reason?  After all, yesterday we used data
+parallelism even though the problem size wasn&rsquo;t necessarily large
+enough to see benefits from it.</p>
+<p>So then, maybe it&rsquo;s just because we didn&rsquo;t think of it soon enough.
+Or that we had a sufficient number of serial Chapel concepts to
+teach today without it.  We&rsquo;ll keep an eye out for other
+opportunities to use Chapel&rsquo;s task parallelism and synchronization
+features in future articles, though.</p>
+
+    </div>
+</details>
+
+<p>Meanwhile, on with our sequential solution!</p>
+<h3 id="reading-the-initial-state-of-the-stacks">
+  <a href="#reading-the-initial-state-of-the-stacks">Reading the Initial State of the Stacks</a>
+</h3>
+<p>&ldquo;All&rdquo; that remains is to read in the initial state of the stacks.
+We start by defining an iterator that reads all of the initial input
+lines and yields them, similar to previous days&rsquo; approaches:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">readInitState</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">line</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">line</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This iterator uses the same <code>readLine()</code> routine we&rsquo;ve seen in
+previous days to read in lines one at a time, storing them in the
+string <code>line</code>.  In addition to exiting out of the loop if we reach
+the end-of-file (EOF), we&rsquo;ll also exit if we find an empty line.
+Such a line will only have the newline character in it, so will fail
+the <code>line.size &gt; 1</code> check.  For today&rsquo;s input format, since a blank
+line is used to separate the initial state from the commands, that&rsquo;s
+the reason we&rsquo;ll exit this iterator.</p>
+<h3 id="parsing-the-initial-state">
+  <a href="#parsing-the-initial-state">Parsing the Initial State</a>
+</h3>
+<p>The <code>readInitState()</code> iterator is called by the helper procedure
+<code>initStacks()</code> that we called at the start of the program:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">initStacks</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">InitState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readInitState</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This stores the array of lines representing the sketch of the
+initial state into <code>InitState</code> as an array of strings.  Now let&rsquo;s go
+through the rest of this procedure a few lines at a time.</p>
+<p>The next line declares a <code>param</code>—a compile-time
+constant—representing the number of characters of input that are
+used to represent each stack in the input configuration:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">29
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">param</span><span class="w"> </span><span class="nx">charsPerStack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This value is <code>4</code> to account for the opening bracket (<code>[</code>), the
+crate&rsquo;s letter (<code>A</code>–<code>Z</code>), the closing bracket (<code>]</code>), and the
+whitespace that follows (<code> </code> or <code>\n</code>).</p>
+<p>Next, we compute the number of stacks that the input represents:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">numStacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">InitState</span><span class="p">.</span><span class="nx">last</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">charsPerStack</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, we&rsquo;re using the <code>.last</code> method that is available on arrays to
+access the last line of input.  For the sample input, this will be
+the one that contains the numerical stack labels, like:</p>
+<pre tabindex="0"><code> 1   2   3
+</code></pre><p>We take the line&rsquo;s size using the <code>.size</code> query supported by strings
+and divide by <code>charsPerStack</code> to get the number of stacks
+represented by each line.  As mentioned on <a href="../../posts/aoc2022-day03-rucksacks/#chapel-params">day
+3</a>, using the
+<code>param</code> <code>charsPerStack</code> is equivalent to just typing <code>4</code> here, but
+results in more self-descriptive code (and code that is potentially
+more maintainable if the input format changes in the future, say to
+support 6 characters per stack and 3-character labels).</p>
+<p>As mentioned on <a href="../../posts/aoc2022-day02-rochambeau/#use-statements-and-enumerated-types">day
+2</a>,
+computing with <code>enum</code> values can be much faster than strings, so we
+declare an enum representing the possible crate IDs in order to
+support a faster execution:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">33
+</span><span class="lnt">34
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">enum</span><span class="w"> </span><span class="nx">crateID</span><span class="w"> </span><span class="p">{</span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">,</span><span class="w"> </span><span class="nx">D</span><span class="p">,</span><span class="w"> </span><span class="nx">E</span><span class="p">,</span><span class="w"> </span><span class="nx">F</span><span class="p">,</span><span class="w"> </span><span class="nx">G</span><span class="p">,</span><span class="w"> </span><span class="nx">H</span><span class="p">,</span><span class="w"> </span><span class="nx">I</span><span class="p">,</span><span class="w"> </span><span class="nx">J</span><span class="p">,</span><span class="w"> </span><span class="nx">K</span><span class="p">,</span><span class="w"> </span><span class="nx">L</span><span class="p">,</span><span class="w"> </span><span class="nx">M</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nx">N</span><span class="p">,</span><span class="w"> </span><span class="nx">O</span><span class="p">,</span><span class="w"> </span><span class="nx">P</span><span class="p">,</span><span class="w"> </span><span class="nx">Q</span><span class="p">,</span><span class="w"> </span><span class="nx">R</span><span class="p">,</span><span class="w"> </span><span class="nx">S</span><span class="p">,</span><span class="w"> </span><span class="nx">T</span><span class="p">,</span><span class="w"> </span><span class="nx">U</span><span class="p">,</span><span class="w"> </span><span class="nx">V</span><span class="p">,</span><span class="w"> </span><span class="nx">W</span><span class="p">,</span><span class="w"> </span><span class="nx">X</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="p">,</span><span class="w"> </span><span class="nx">Z</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Specifically, since executing the commands involves moving crates
+from one stack to the next, copying an enum around is a simple
+load/store instruction.  In contrast, copying strings around tends
+to be much more expensive since they have variable length and
+are typically stored on the heap.</p>
+<p>Note that <code>crateID</code> is an <em>abstract enum</em> because it does not
+associate integer values with the symbols.  In this program, we have
+no need of such values, so we just treat the enum as a set of names.</p>
+<h4 id="declaring-arrays-in-chapel">
+  <a href="#declaring-arrays-in-chapel">Declaring Arrays in Chapel</a>
+</h4>
+<p>Next, let&rsquo;s (finally!) declare our array of stacks.</p>
+<p>Though we&rsquo;ve computed on arrays throughout this series, all the
+arrays we&rsquo;ve used up until now have been defined by capturing the
+invocation of an iterator.  Here, we&rsquo;ll see our first explicit array
+declaration in this series.</p>
+<p>In Chapel, an array type is specified as a set of indices enclosed
+in square brackets, followed by the array&rsquo;s element type.  Here&rsquo;s
+our declaration for this program:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">36
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">Stacks</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">numStacks</span><span class="p">]</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="nx">crateID</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>For a dense 1D array like this one, a common way to specify the
+indices is using a range expression.  Chapel&rsquo;s rectangular arrays
+are defined in terms of both low and high bounds, so a programmer
+can use 0-based arrays, 1-based arrays, arrays indexed from <code>-3..3</code>
+or whatever is most natural for them.  Here we&rsquo;re indicating that we
+want to refer to our stacks as <code>1</code>, <code>2</code>, <code>3</code>, &hellip;, <code>numStacks</code>, to
+reflect the numbering given by the AoC problem statement.</p>
+<p>The element type of our array is <code>list(crateID)</code> indicating that it
+will be a list of our enumerated type representing the crate IDs.</p>
+<h4 id="using-strided-ranges-to-populate-the-stacks-of-crates">
+  <a href="#using-strided-ranges-to-populate-the-stacks-of-crates">Using Strided Ranges to Populate the Stacks of Crates</a>
+</h4>
+<p>Our last lines are also our most complex.  In them, we&rsquo;ll iterate
+over the lines in <code>InitState</code> representing the crates, converting
+the strings into initial values for our stacks.  Because we want to
+fill the stacks from the bottom upwards, we&rsquo;ll iterate over the
+lines of input backwards.  We do this in Chapel using a <em>strided
+range</em> (or, more precisely, a range with a stride other than the
+default of <code>1</code>).</p>
+<p>The <em>stride</em> of a range is the value that&rsquo;s used to count from one
+integer to the next.  By default, ranges like <code>1..n</code> have a stride
+of <code>1</code> in Chapel since they represent consecutive integers.  Chapel
+supports a <code>by</code> operator that can be applied to a range in order to
+count by a different stride.  For example <code>1..n by 2</code> would
+represent the odd integers between <code>1</code> and <code>n</code>: <code>1</code>, <code>3</code>, <code>5</code>, &hellip;</p>
+<p>The <code>by</code> operator is also how we count down in Chapel.  Users often
+mis-assume that writing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">10</span><span class="o">..</span><span class="mi">1</span><span class="w">
+</span></span></span></code></pre></div><p>will count down from <code>10</code> to <code>1</code>, and for good reason—it seems like
+it could/should.  However, in Chapel, when a range&rsquo;s low bound (to
+the left of <code>..</code>) exceeds its high bound (to the right of <code>..</code>), as
+in the loop above, it is considered an empty or <em>degenerate</em> range.
+As a result, it will not iterate at all, and control will skip to
+the statement that follows it.  Instead, to count downwards in
+Chapel, we write:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span></code></pre></div><p>The negative stride says to start at the high bound (<code>10</code>), applying
+the stride until we reach or exceed the low bound (<code>1</code>).</p>
+<p>In this program, since we want to iterate over all lines other than
+the last (which contained the stack labels), we write:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">38
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">InitState</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Since our <code>InitState</code> array uses Chapel&rsquo;s default 0-based indexing,
+this starts at the second-to-last line (the final one containing
+crates) and counts backwards until the initial line number (<code>0</code>).</p>
+<h4 id="a-reference-variable-for-readabiliy">
+  <a href="#a-reference-variable-for-readabiliy">A Reference Variable for Readabiliy</a>
+</h4>
+<p>Now, for line <code>i</code>, we need to search through that line looking for
+crates.  Let&rsquo;s start by coming up with a more concise and
+descriptive way of referring to the line than <code>InitState[i]</code> (the
+<code>i</code>th element of the <code>InitState</code> array).  We&rsquo;ll do this by using a
+<code>ref</code> declaration in Chapel to store a reference to the array
+element in question:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">InitState</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This is similar to saying <code>var line = InitState[i];</code> except that
+instead of creating a new string variable storing a copy of the
+string, the <code>ref</code> declaration simply creates a name that refers to
+an existing variable&rsquo;s value rather than copying it and creating a
+new one.  This is more efficient, particularly for string data like,
+which can be expensive to copy (well, expensive relative to copying
+an integer, or just referring to an existing string).  Any
+subsequent references to <code>line</code> will be like referring to
+<code>InitState[i]</code> directly.</p>
+<h4 id="zippered-iteration-unbounded-ranges-and-another-strided-range">
+  <a href="#zippered-iteration-unbounded-ranges-and-another-strided-range">Zippered iteration, Unbounded Ranges, and another Strided Range</a>
+</h4>
+<p>Now, let&rsquo;s parse the line into the crates it contains.  What we want
+to do is simultaneously iterate through:</p>
+<ol>
+<li>
+<p>the stacks in our <code>Stacks</code> array, ready to add new elements to
+them</p>
+</li>
+<li>
+<p>the characters in our <code>line</code> of input that correspond to crate IDs
+(or blank spaces for non-crate entries)</p>
+</li>
+</ol>
+<p>Chapel supports <em>zippered iteration</em>, which is a great way to
+iterate over multiple things simultaneously like this.  It is a way
+to to drive a <code>for</code> or <code>forall</code> loop using multiple iterand
+expressions simultaneously. As an example, the loop:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">MyArray</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>would associate the loop variables <code>a</code> and <code>i</code> to the corresponding
+values yielded by iterating over <code>MyArray</code> and the range <code>1..n</code>,
+respectively.  In the first iteration of the loop, <code>a</code> would be a
+reference to the first element of <code>MyArray</code> and <code>i</code> to <code>1</code>; in the
+second, <code>a</code> is the second <code>MyArray</code> element and <code>i</code> is <code>2</code>; and so
+on.  Generally speaking, the things zipped together must be of the
+same size, and if they are not, the program is erroneous.  For
+example, <code>MyArray</code> needs to have <code>n</code> elements for this loop to be
+correct.</p>
+<p>In practice, zippered iterations like this yield tuples of values,
+and the index declaration <code>(a, i)</code> is simply de-tupling that result
+into distinct index variables.</p>
+<p>Another way to write this loop would be:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">tup</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">MyArray</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>This time, we are storing the tuple of array values and indices into
+a single index variable, <code>tup</code>. So it will be a 2-tuple of MyArray&rsquo;s
+element type and an <code>int</code>.</p>
+<p>The other change here is that we&rsquo;ve used an <em>unbounded range</em> in the
+<code>zip()</code> expression—that is, one that has a missing bound.  In a
+zippered context like this, we say that the first iterand in the
+<code>zip()</code> is the <em>leader</em> and subsequent iterands are <em>followers</em>.
+When an unbounded range is used as a follower, as in this loop, it
+will automatically conform to the size of the leader.  Thus, this
+would be a way to associate integers with array elements without
+having to know how large the array was.</p>
+<p>Now we have all the tools necessary to iterate simultaneously over
+the characters in our <code>line</code> of input and the stacks.  We write this
+loop as:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// do a zippered iteration over the stack IDs and
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// offsets where crate names will be
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">offset</span><span class="p">,</span><span class="w"> </span><span class="nx">stackIdx</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="mi">1</span><span class="o">..&lt;</span><span class="nx">line</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">charsPerStack</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>In this <code>zip()</code> expression, the leader is the range <code>1..&lt;line.size by charsPerStack</code>.  This describes the characters in the input that
+will contain crate IDs (or be blank).  Specifically, since strings
+use 0-based indexing, we start at offset 1 to skip past the initial
+<code>[</code> at the start of the line.  Then, to make sure we don&rsquo;t go past
+the end of the line, we define the high bound of the range as
+<code>line.size</code>. We use an open-interval range (<code>..&lt;</code>) due to the
+0-based indexing.  Finally, we use the <code>by</code> operator to apply a
+stride of <code>charsPerStack</code> (<code>4</code>) to skip over the intervening
+characters (<code>]</code>, <code> </code>, <code>[</code>) and on to the next crate label.</p>
+<p>The follower iterand is the range <code>1..</code> which will count off the
+corresponding stacks.  Because the input format always extends lines
+out to their full length even when the tail end of the line is
+blank, we could have written this <code>1..numStacks</code> without problems.
+But here, we&rsquo;re using an unbounded range because we can, nothing is
+lost, and if a future version of the file format removed all
+trailing spaces on the line, the loop would still work correctly.</p>
+<p>We de-tuple the results of the zippering into an <code>offset</code> within the
+line where the crateID is and a <code>stackIdx</code> indicating the stack&rsquo;s
+index within our array.  As a visualization of this zippering, here
+is a simple diagram showing the offsets into the string, the first
+line of input, and the <code>offset</code> and <code>stackIdx</code> values that would be
+yielded by this loop:</p>
+<pre tabindex="0"><code>0..&lt;line.size::  0123456789...
+input:           [Z] [M] [P]
+offset:           1   5   9  (skipping through the raw offsets by 4)
+stackIdx:         1   2   3
+</code></pre><h4 id="converting-characters-to-crate-ids">
+  <a href="#converting-characters-to-crate-ids">Converting Characters to Crate IDs</a>
+</h4>
+<p>Now that we&rsquo;ve got our <code>offset</code> into the line and <code>stackIdx</code>, all
+that remains is to convert the character at that offset into one of
+our <code>enum</code> values.  Here&rsquo;s the code to do that:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">char</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">[</span><span class="nx">offset</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">char</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34; &#34;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// blank means no crate here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="nx">Stacks</span><span class="p">[</span><span class="nx">stackIdx</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">char</span><span class="p">:</span><span class="w"> </span><span class="nx">crateID</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We start by capturing the substring of <code>line</code> at <code>offset</code> into a
+variable named <code>char</code>—really a string storing a single letter.  Then
+we check to see whether the character is a blank, which would
+indicate a stack that has no more crates in it.  If it is not, we
+cast the character to a <code>crateID</code> and append it to the
+corresponding stack.  Piece of cake.</p>
+<p>All that remains is to return our array of stacks:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">Stacks</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>and do the actual computation from the top of this article (which
+seemed relatively simple by comparison, wouldn&rsquo;t you agree?).</p>
+<p>Even though this input parsing was tricky, Chapel&rsquo;s support for
+zippered iteration, strided ranges, unbounded ranges, references,
+and string-to-enum casts makes it not so bad.  There are plenty of
+places to make off-by-one errors or get an index wrong, but Chapel&rsquo;s
+execution-time bounds-checking made working through them not so bad
+in practice.</p>
+<details>
+    <summary><strong>(A Parting Note on Printing Enums&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Speaking of enums and strings, recall that way back at the top of
+the program, we printed out our crates using:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">stack</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Stacks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">write</span><span class="p">(</span><span class="nx">stack</span><span class="p">.</span><span class="nx">last</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></div><p>At the time, we hadn&rsquo;t really discussed what type we were storing in
+our stacks, and the computation itself didn&rsquo;t really care.  Now that
+we know we were storing stacks of enums, this demonstrates a nice
+property of Chapel enums: that they can be printed out.
+Specifically, if our final conceptual configuration was:</p>
+<pre tabindex="0"><code>        [D]
+        [N]
+        [Z]
+[M] [C] [P]
+ 1   2   3
+</code></pre><p>This loop would print out the values <code>crateID.M</code>, <code>crateID.C</code>, and
+<code>crateID.D</code> stored at the tops of the stacks, which would render as:</p>
+<pre tabindex="0"><code>MCD
+</code></pre><p>Pretty nice!</p>
+
+    </div>
+</details>
+
+<h3 id="summary-and-tips-for-part-two">
+  <a href="#summary-and-tips-for-part-two">Summary and Tips for Part Two</a>
+</h3>
+<p>And that&rsquo;s our solution to part one of day three!  If you understand
+the code in this post (available for download at the top of this
+post or <a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day05/bradc/day05.chpl"target="_blank" rel="noopener">at
+GitHub</a>),
+you have all the tools you need to complete part two.  As a hint, as
+you pop values from one stack, you can append them to a temporary
+list.  Then pop the values from the temporary list onto the
+destination stack to reverse their order.  Alternatively,
+<code>list.getAndRemove()</code> takes an integer argument and will return the
+element at that position in the list.  See the <a href="https://chapel-lang.org/docs/modules/standard/List.html"target="_blank" rel="noopener"><code>List</code> module
+documentation</a>
+for further information about using lists.</p>
+<p>Thank you for reading this blog post, and feel free to make comments
+or ask questions by creating a thread in the new <a href="https://chapel.discourse.group/c/blog/21"target="_blank" rel="noopener">Chapel Blog
+Discourse Category</a>.</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Feb 5, 2023</td>
+          <td style="text-align: left">Updated to reflect changes to the <code>list</code> interface</td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;5%3A&#43;Stacking&#43;Crates&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day05-cratestacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;5%3A&#43;Stacking&#43;Crates&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day05-cratestacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;5%3A&#43;Stacking&#43;Crates&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day05-cratestacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;5%3A&#43;Stacking&#43;Crates&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day05-cratestacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day04-ranges/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 4: Finding Overlaps in Cleanup Ranges
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day06-packets/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 6: Packet Detection
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A solution to day seven of AoC 2022, introducing classes and memory management.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 7: Traversing Directories</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 7: Traversing Directories</h2>
+<div class="post-subscript">
+    <p>Posted on December 7, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/daniel-fedorin">Daniel Fedorin</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#classes-in-chapel">Classes in Chapel</a>
+      <ul>
+        <li><a href="#memory-management-strategies">Memory Management Strategies</a></li>
+        <li><a href="#methods">Methods</a></li>
+      </ul>
+    </li>
+    <li><a href="#a-dir-class-to-represent-directories">A <code>Dir</code> Class to Represent Directories</a>
+      <ul>
+        <li><a href="#reading-the-file-system-with-the-frominput-type-method">Reading the File System with the <code>fromInput</code> Type Method</a></li>
+        <li><a href="#an-iterator-method-for-listing-directory-sizes">An Iterator Method for Listing Directory Sizes</a></li>
+      </ul>
+    </li>
+    <li><a href="#putting-it-all-together">Putting It All Together</a></li>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to day 7 of Chapel&rsquo;s Advent of Code 2022 series. We&rsquo;re over halfway
+through the twelve days of Chapel AoC! In case you haven&rsquo;t been following
+the series, check out the introductory <a href="../../posts/aoc2022-day00-intro/">Advent of Code 2022: Twelve
+Days of Chapel</a> article for more context.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>In today&rsquo;s puzzle, we are given a list of terminal-like commands (
+<a href="https://man7.org/linux/man-pages/man1/ls.1.html"target="_blank" rel="noopener"><code>ls</code></a> and <a href="https://man7.org/linux/man-pages/man1/cd.1p.html"target="_blank" rel="noopener"><code>cd</code></a>
+), as well as output corresponding to running these commands. The commands
+explore a fictional file system, which can have files (objects with size)
+as well as directories that group files and other (sub-)directories. The
+problem then asks to compute the sizes of each folder, and to total up the
+sizes of all folders that are smaller than a particular threshold.</p>
+<p>The tree-like nature of the file system does not make it amenable to
+representations based on arrays, lists, or maps alone. The trouble with
+these data types is that they&rsquo;re flat. Our input could have arbitrary
+levels of nested directories. However, arrays, lists, and maps cannot have
+such arbitrary nesting &mdash; we&rsquo;d need something like a list of lists of lists of&hellip;
+We could, of course, use the <code>map</code> and <code>list</code> data types to represent the
+file system with some sort of <a href="https://en.wikipedia.org/wiki/Adjacency_list"target="_blank" rel="noopener">adjacency list</a>.
+However, such an implementation would be somewhat clunky and hard to use.</p>
+<p>Instead, in this article I use a different tool from the repertoire of Chapel language
+features, one we haven&rsquo;t seen so far: classes. Specifically, I use a class, <code>Dir</code>, to represent
+directories in the file system, and build up a tree of these directories
+while reading the input. I then create an iterator over this tree that
+computes and yields the sizes of the folders. From there, it&rsquo;s easy to
+pick out all directory sizes smaller than the threshold and sum them up.</p>
+<p><strong>If you skip right to your favorite parts of a movie, here&rsquo;s a full solution for the day:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day07-dir-traversals.chpl" download="aoc2022-day07-dir-traversals.chpl">aoc2022-day07-dir-traversals.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Map</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">Dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">map</span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dirs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="k">owned</span><span class="w"> </span><span class="nx">Dir</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">type</span><span class="w"> </span><span class="nx">fromInput</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">):</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">Dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">newDir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Dir</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">line</span><span class="p">,</span><span class="w"> </span><span class="nx">stripNewline</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;$ cd ..&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s">&#34;$ cd &#34;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">param</span><span class="w"> </span><span class="nx">cdPrefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;$ cd &#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">dirName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">[</span><span class="nx">cdPrefix</span><span class="p">.</span><span class="nx">size</span><span class="o">..</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">newDir</span><span class="p">.</span><span class="nx">dirs</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">Dir</span><span class="p">.</span><span class="nx">fromInput</span><span class="p">(</span><span class="nx">dirName</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="nx">line</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s">&#34;$ ls&#34;</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="nx">line</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s">&#34;dir&#34;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">partition</span><span class="p">(</span><span class="s">&#34; &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">newDir</span><span class="p">.</span><span class="nx">files</span><span class="p">[</span><span class="nx">name</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">newDir</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">iter</span><span class="w"> </span><span class="nf">dirSizes</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">parentSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Compute sizes from files only.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">files</span><span class="p">.</span><span class="nx">values</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">subDir</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">dirs</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="c1">// Yield directory sizes from the dir.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="nx">subSize</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">subDir</span><span class="p">.</span><span class="nx">dirSizes</span><span class="p">(</span><span class="nx">size</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">yield</span><span class="w"> </span><span class="nx">subSize</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">parentSize</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">rootFolder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Dir</span><span class="p">.</span><span class="nx">fromInput</span><span class="p">(</span><span class="s">&#34;/&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">rootSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="nx">size</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">rootFolder</span><span class="p">.</span><span class="nx">dirSizes</span><span class="p">(</span><span class="nx">rootSize</span><span class="p">)]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100000</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">toDelete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rootSize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">40000000</span><span class="p">;</span><span class="w"> </span><span class="c1">// = 30000000 - (70000000 - rootSize)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">min</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="nx">size</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">rootFolder</span><span class="p">.</span><span class="nx">dirSizes</span><span class="p">()]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">toDelete</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>And now, on to the explanation train. Before the train departs, let&rsquo;s import
+a few of the modules we&rsquo;ll use today. <code>IO</code> is a permanent fixture in our
+solutions (we always need to read input!), and <code>List</code> is a familiar face.
+The only newcomer here is <code>Map</code>, which helps us associate keys with values,
+much like a dictionary in Python, a hash in Ruby, or a map in C++.
+We&rsquo;ll use maps and lists for storing the various files and directories
+on the file system.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Map</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>With that, our train&rsquo;s first stop: classes!</p>
+<h3 id="classes-in-chapel">
+  <a href="#classes-in-chapel">Classes in Chapel</a>
+</h3>
+<p>Like in most languages, classes in Chapel are a way to group together related
+pieces of data. Up until now, we&rsquo;ve used tuples for this purpose. Tuples,
+however, have a couple of limitations when it comes to solving today&rsquo;s
+Advent of Code problem:</p>
+<ul>
+<li>We can&rsquo;t name a tuple&rsquo;s elements. Whenever you make and use a tuple,
+it is up to <em>you</em> to remember the order of the elements within it, and
+what each element represents.</li>
+<li>Tuples are a statically constrained data structure. We can&rsquo;t nest tuples within tuples
+to a depth not known at compile time, just like we couldn&rsquo;t arbitrarily
+nest lists within lists.</li>
+</ul>
+<p>Classes have neither of these limitations. They do, however, need to be
+explicitly created within Chapel code. For example, one might create a
+class to store information about a person:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">person</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">firstName</span><span class="p">,</span><span class="w"> </span><span class="nx">lastName</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>We&rsquo;ve seen plenty of <code>var</code> statements used to create variables; when used
+within a class, <code>var</code> declares a <em>member variable</em> (also known as a <em>field</em>)
+for the class. Our <code>person</code> contains two pieces of data in its fields: the
+person&rsquo;s first name (<code>firstName</code>) and last name (<code>lastName</code>).</p>
+<p>With that class definition in hand, we can create instances of the <code>person</code> class
+using the <code>new</code> keyword.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">biggestCandyFan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">person</span><span class="p">(</span><span class="s">&#34;Daniel&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;Fedorin&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>As usual, we can rely on type inference to only write the type <code>person</code> once;
+Chapel figures out that <code>biggestCandyFan</code> is a <code>person</code>. Now, it&rsquo;s easy to get
+the various fields back out of a class:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;The biggest fan of candy is &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">biggestCandyFan</span><span class="p">.</span><span class="nx">firstName</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Believe it or not, we&rsquo;ve already seen enough of classes to see how to represent
+nested data structures. The key observation is that classes have names, which
+means that we can create fields that refer back to instances of the same class. Here&rsquo;s
+an example of what I mean, in the form of a modified <code>person</code> class:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">person</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">firstName</span><span class="p">,</span><span class="w"> </span><span class="nx">lastName</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">children</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="k">owned</span><span class="w"> </span><span class="nx">person</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The highlighted line is new. We&rsquo;ve added a list of children to our person.
+These children are themselves instances of <code>person</code>, which means they too
+can have children of their own. <em>Et voilà</em> - we&rsquo;ve got a nested data structure!</p>
+<h4 id="memory-management-strategies">
+  <a href="#memory-management-strategies">Memory Management Strategies</a>
+</h4>
+<p>You probably noticed that <code>children</code>&rsquo;s type is <code>list(owned person)</code> &mdash;
+note the <code>owned</code>. This keyword is an indication of the way that memory is
+allocated and maintained for classes: their <em>memory management</em>. To create
+a class, a Chapel program asks for some memory from the computer (<em>allocates</em> it).
+This memory is kept by the program until the instance of a class is no longer
+needed, at which point it&rsquo;s <em>deallocated</em>/<em>freed</em>. The challenge is knowing when
+a class is no longer needed! This is where <em>memory management strategies</em>,
+like <code>owned</code>, come in.</p>
+<p>We don&rsquo;t need to get too deep into the various memory management strategies
+in today&rsquo;s post.</p>
+<details>
+    <summary><strong>(If you&rsquo;re curious, here&rsquo;s a brief description of each strategy&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <ul>
+<li>
+<p>When using the <code>owned</code> strategy, a class instance has one &ldquo;owner&rdquo; variable.
+The instance is only around as long as this owner exists.
+As soon as the owner disappears, the class instance is deallocated.
+In some cases &mdash; though we won&rsquo;t be covering them today &mdash; ownership can
+be transferred from one variable to another, but no two values can
+own the same class instance at the same time.</p>
+<p>Other variables can still refer to an <code>owned</code> class instance, but they must <em>borrow</em> it,
+creating, for example, a <code>borrowed person</code>. Borrows do not affect the
+lifetime of a class nor when it is deallocated.</p>
+</li>
+<li>
+<p>When using the <code>shared</code> strategy, Chapel keeps track of how many places
+still have variables that refer to a particular instance of a class. This
+is typically called a <em>reference count</em>. Each time a variable is created
+or changed to refer to a class instance, the instance&rsquo;s reference count
+increases. When that variable goes out of scope and disappears, the
+reference count decreases. Finally, when the reference count reaches
+zero (no more variables refer to the class instance), there&rsquo;s no point
+in keeping it around anymore, and its memory is deallocated.</p>
+<p>As is the case with <code>owned</code>, other variables can borrow <code>shared</code> class instances.
+Such borrows do not affect the reference count at all, and therefore don&rsquo;t
+influence when the instance is freed.</p>
+</li>
+<li>
+<p>When using the <code>unmanaged</code> strategy, you&rsquo;re promising to manually free
+the memory later, using the <code>delete</code> keyword. This is very similar to
+how <code>new</code>/<code>delete</code> work in classic C++.</p>
+</li>
+</ul>
+
+    </div>
+</details>
+
+<p>So, the <code>owned</code> keyword in our <code>children</code> list means we&rsquo;ve opted for the
+<code>owned</code> memory management strategy. The implication of this is that
+when a &ldquo;parent&rdquo; person is deallocated, so are all of its children
+(since the person class, through its <code>children</code> list, owns each child).
+If we aren&rsquo;t planning on sharing our data, <code>owned</code> is the preferred strategy. This is because
+it precludes the need for some bookkeeping, which
+often makes a difference in terms of performance. The added benefit to using
+<code>owned</code>, in my personal view, is that it&rsquo;s easier to figure out when something
+will be deleted &mdash; there&rsquo;s no chance of some other variable, elsewhere in my program,
+preventing a class instance&rsquo;s deallocation.</p>
+<h4 id="methods">
+  <a href="#methods">Methods</a>
+</h4>
+<p>Remember how I said that classes can be used to group together pieces
+of related data? Well, they can do more than that. They can also group
+together operations on this data, in the form of <em>methods</em>. For instance,
+we could add the following definition <strong>inside</strong> the <code>class</code> declaration
+for our <code>person</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">person</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// ... as before
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">getGreeting</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&#34;Hello, &#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">firstName</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&#34;!&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Just like fields can be thought of as <code>var</code>s that are associated with a particular
+class instance, methods can be thought of as <em>procedures</em> associated with
+a particular class instance. Thus, methods behave pretty much exactly
+like the <code>proc</code>s we&rsquo;ve seen so far, with the notable difference of being able to
+access that class instance through the <code>this</code> keyword.
+For example, inside the body of a method like <code>getGreeting</code> above,
+<code>this.firstName</code> gets us the person&rsquo;s first name, and <code>this.lastName</code> would
+get us their last name.</p>
+<p>We can call methods using the dot syntax:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="c1">// Prints &#34;Hello, Daniel!&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">biggestCandyFan</span><span class="p">.</span><span class="nx">getGreeting</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></div><p>Methods are a powerful tool for abstraction; rather than writing external code
+that refers to the various fields of a class, we can put that logic
+inside of methods, and avoid exposing it to the rest of the world. A person
+writing <code>.getGreeting()</code> will not need to know how a name is represented
+in the <code>person</code> class.</p>
+<p>Another sort of method is a <em>type method</em> (sometimes referred to as
+a <em>static method</em> in other languages). Rather than being called on
+an instance of a person, like <code>biggestCandyFan</code> or <code>daniel</code>, it&rsquo;s called
+on the class itself. For instance:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">person</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// ... as before
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">type</span><span class="w"> </span><span class="nx">createBiggestCandyFan</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">person</span><span class="p">(</span><span class="s">&#34;Daniel&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;Fedorin&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">biggestCandyFan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">person</span><span class="p">.</span><span class="nx">createBiggestCandyFan</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></div><p>Methods like this have the benefit of being associated with a particular class.
+This means that another class can have its own <code>createBiggestCandyFan()</code>
+method, and there won&rsquo;t be any confusion or problems arising from trying
+to figure out which is which. Perhaps dogs (represented by a hypothetical
+<code>dog</code> class) have a biggest candy fan, too!</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">biggestCandyFan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">person</span><span class="p">.</span><span class="nx">createBiggestCandyFan</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">biggestCandyFanDog</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">dog</span><span class="p">.</span><span class="nx">createBiggestCandyFan</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></div><h3 id="a-dir-class-to-represent-directories">
+  <a href="#a-dir-class-to-represent-directories">A <code>Dir</code> Class to Represent Directories</a>
+</h3>
+<p>Back to the solution. The class I use for tracking directories is actually not too different
+from our modified <code>person</code> class above. Each directory
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">will have a name</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+Despite the recent media noise about ChatGPT, directories have not yet
+been granted personhood, and do not have both first and last names.
+<span class="sidenote-delimiter">]</span></span></span>
+as well as a collection of files and directories it contains.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">Dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">map</span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dirs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="k">owned</span><span class="w"> </span><span class="nx">Dir</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Since files have no
+additional information to them besides their size, I decided to represent
+them as a map &mdash; a directory&rsquo;s <code>files</code> field associates each file&rsquo;s name
+with that file&rsquo;s size. The subdirectories are represented just like
+the <code>children</code> field from our <code>person</code> record, as a list of owned <code>Dir</code>s.</p>
+<p>There are a few more things I want to add to <code>Dir</code>;
+the first is a way to read our directory from our puzzle input.</p>
+<h4 id="reading-the-file-system-with-the-frominput-type-method">
+  <a href="#reading-the-file-system-with-the-frominput-type-method">Reading the File System with the <code>fromInput</code> Type Method</a>
+</h4>
+<p>For reasons of abstraction and avoiding conflicts, I put
+the code for creating a directory from user input into a type method on <code>Dir</code>. Within
+this method, I include the now-familiar code for reading from the
+input using <code>readLine</code>, until we run out of lines.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">type</span><span class="w"> </span><span class="nx">fromInput</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">):</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">Dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">newDir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Dir</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">line</span><span class="p">,</span><span class="w"> </span><span class="nx">stripNewline</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Notice that I&rsquo;m accepting the name for the
+directory as a string formal and initializing a new variable <code>newDir</code> with that name.
+Notice also that I don&rsquo;t need to provide the <code>files</code> and <code>dirs</code>
+as arguments to <code>new Dir</code> &mdash; they have default values in the
+class definition. By default, <code>new</code> uses the <code>owned</code> memory management
+strategy. For the time being, the <code>newDir</code> variable owns our
+directory-under-construction.</p>
+<p>We&rsquo;re reading lines now; all that&rsquo;s left is to figure out what to do
+with them. The first case is that of <code>$ cd ..</code>. When we see that line,
+it means that we&rsquo;re done looking at the current directory; none
+of the subsequent <code>ls</code> lines will be meant for us. Thus, we break
+out of the input <code>while</code>-loop.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;$ cd ..&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>If the <code>cd</code> command is used, but its argument isn&rsquo;t <code>..</code>, we&rsquo;re being
+asked to descend into a sub-directory of our current <code>newDir</code>.
+In this case, we call the <code>fromInput</code> method again, recursively,
+to create a subdirectory of the current one. This
+call will keep consuming lines from the input until the sub-directory
+has been processed, at which point it will return it to us. We&rsquo;ll
+immediately append this sub-directory to the <code>newDir.dirs</code> list,
+which becomes the sub-directory&rsquo;s new owner.</p>
+<p>Recall that we need to give <code>fromInput</code> the name of the new
+sub-directory. We can figure out the name by slicing the string
+starting after the <code>$ cd</code> prefix. Since I want to get the rest of the
+characters after the prefix, I leave the end of my range unbounded, which
+makes the slice go until the characters run out at the end of the string.
+If you&rsquo;re feeling shaky on lists and <code>pushBack</code>, check out our <a href="../../posts/aoc2022-day05-cratestacks/#moving-crates-within-an-array-of-lists">day 5 article</a>.
+If you want a little refresher on slicing, we first covered it on <a href="../../posts/aoc2022-day03-rucksacks/#ranges-and-slicing">day 3</a>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s">&#34;$ cd &#34;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">param</span><span class="w"> </span><span class="nx">cdPrefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;$ cd &#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">dirName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">[</span><span class="nx">cdPrefix</span><span class="p">.</span><span class="nx">size</span><span class="o">..</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">newDir</span><span class="p">.</span><span class="nx">dirs</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">Dir</span><span class="p">.</span><span class="nx">fromInput</span><span class="p">(</span><span class="nx">dirName</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As it turns out, all that&rsquo;s left is to handle files. We already get
+directory names from <code>cd</code>, so there&rsquo;s no reason to worry about
+lines starting with <code>dir</code>. The <code>ls</code> command itself always precedes
+the list of files and directories; by itself, it provides us no
+additional information. Thus, our last case is a line that&rsquo;s neither
+<code>dir</code> nor <code>ls</code>. Such a line is a file, so its format will be a number
+followed by the file&rsquo;s name.</p>
+<p>I use the <code>partition</code> method on the line to split it into three
+pieces: the part before the space, the space itself, and the part
+after the space. After that, I can just update the <code>newDir</code> map,
+associating the file called <code>name</code> with its size. I use an integer cast
+to convert <code>size</code> (a string) to a number.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="nx">line</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s">&#34;$ ls&#34;</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="nx">line</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s">&#34;dir&#34;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">partition</span><span class="p">(</span><span class="s">&#34; &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">newDir</span><span class="p">.</span><span class="nx">files</span><span class="p">[</span><span class="nx">name</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>That&rsquo;s it for the loop! Once the loop stops running, we know we&rsquo;re done
+processing the directory. All that remains is to return it. Returning
+an <code>owned</code> value from a function or method transfers ownership to whatever
+code calls the function or method.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">newDir</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>One more thing: I have explicitly annotated the
+return type of <code>fromInput</code> to be <code>owned Dir</code> to let Chapel know
+that I&rsquo;m using the <code>owned</code> memory management strategy. This might just
+be the first return type annotation we&rsquo;ve written so far. Up until now,
+Chapel has been able to deduce the return types of our procedures
+and iterators automatically. However, here, because we are using
+recursion, it needs just a little bit of help: determining the types
+in the body of <code>fromInput</code> requires knowing the type of <code>fromInput</code> itself!
+The manual type annotation helps break that loop.</p>
+<h4 id="an-iterator-method-for-listing-directory-sizes">
+  <a href="#an-iterator-method-for-listing-directory-sizes">An Iterator Method for Listing Directory Sizes</a>
+</h4>
+<p>Let&rsquo;s recap. What we have now is a data structure, <code>Dir</code>, which represents
+the directory tree. We also have a type method, <code>Dir.fromInput</code> that
+converts our puzzle input into this data structure. What&rsquo;s left?</p>
+<p>The way I see it, the problem is composed of three pieces:</p>
+<ol>
+<li>Go through all of the directory sizes&hellip;</li>
+<li>&hellip; ignoring those that are above a certain threshold &hellip;</li>
+<li>&hellip; and sum them.</li>
+</ol>
+<p>Over the past week, we&rsquo;ve gotten really good at summing things! In
+Chapel, we can just use <code>+ reduce</code> to compute the sum of something
+iterable, so there&rsquo;s point number three. For point two, it turns out that
+those <a href="../../posts/aoc2022-day06-packets/#parallel-loop-expressions">loop expressions</a>
+from yesterday can be used to filter out elements like so:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="p">[</span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">iterable</span><span class="p">]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">someCondition</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span></code></pre></div><p>Putting these two pieces together, we might write something like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="k">for</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">directorySizes</span><span class="p">]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000000</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">size</span><span class="w">
+</span></span></span></code></pre></div><p>That <code>directorySizes</code> expression is the only &ldquo;fictional&rdquo; piece of the solution.
+Perhaps we can make our <code>Dir</code> tree support an iterator of directory sizes?
+Then, we&rsquo;d have our answer.</p>
+<p>In my solution, I do just that. Methods on classes don&rsquo;t have to be procedures &mdash;
+they can also be iterators. There&rsquo;s only one complication. We want our
+iterator method to yield the sizes of <em>all</em> of the various sub-directories
+within a <code>Dir</code> including sub-directories of sub-directories. That&rsquo;s because
+we have to sum them all up as per the problem statement. However, when
+<em>computing</em> the size of a directory, we don&rsquo;t want to include sub-sub-directories
+in our counting: the direct sub-directories already include the sizes of
+their own contents. To make this work, I added a <code>parentSize</code> formal to
+the iterator method, which represents a reference to the parent directory&rsquo;s
+size. When it&rsquo;s done yielding its own size, as well as the sizes of the
+sub-directories, the iterator method will add its own size to its parent&rsquo;s.</p>
+<p>Here&rsquo;s the implementation of the iterator method; I&rsquo;ll talk about it in
+more detail below.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">iter</span><span class="w"> </span><span class="nf">dirSizes</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">parentSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Compute sizes from files only.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">files</span><span class="p">.</span><span class="nx">values</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">subDir</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">dirs</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="c1">// Yield directory sizes from the dir.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="nx">subSize</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">subDir</span><span class="p">.</span><span class="nx">dirSizes</span><span class="p">(</span><span class="nx">size</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">yield</span><span class="w"> </span><span class="nx">subSize</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">parentSize</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first thing this method does is create a new variable, <code>size</code>,
+representing the current directory&rsquo;s size. It&rsquo;s initialized to the sum
+of all the file sizes. However, at this point, that&rsquo;s not the whole size &mdash;
+we also need to figure out how much data is stored in the subdirectories.</p>
+<p>I use a <code>for</code> loop over the <code>dirs</code> list to examine each sub-directory
+of the current folder in turn. Each of these sub-directories is its
+own full-fledged <code>Dir</code>, so we can call its <code>dirSizes</code>
+method. This gives us an iterator of all directory sizes from <code>subDir</code>.
+I simply yield them from the parent iterator, making it yield
+the sizes of all directories, including nested ones. Notice that I also
+provide <code>size</code> as the argument to the recursive call to <code>dirSizes</code>:
+the inner for-loop serves the double purpose of yielding directory sizes
+and finishing computing the current folder&rsquo;s size.</p>
+<p>Once all of the sub-directory sizes have been yielded, the <code>size</code> variable
+includes all the files in the folder, including nested ones. Thus, I use it to yield
+the size of the current folder. I also add <code>size</code> to <code>parentSize</code>.</p>
+<p>That concludes our <code>Dir</code> class!</p>
+
+
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">43
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="putting-it-all-together">
+  <a href="#putting-it-all-together">Putting It All Together</a>
+</h3>
+<p>With our <code>Dir</code> class complete, we can finally make use of it in our code.
+The first thing we need to do is read our file system from the input;
+this is accomplished using the <code>fromInput</code> method.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">45
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">rootFolder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Dir</span><span class="p">.</span><span class="nx">fromInput</span><span class="p">(</span><span class="s">&#34;/&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Next up, we can use that <code>+ reduce</code> expression I described above. I use
+a new variable, <code>rootSize</code>, to represent the size of the top-level directory.
+After the call to <code>dirSizes</code> completes, it will be set to the total size of
+the root directory, i.e., the total disk usage.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">47
+</span><span class="lnt">48
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">rootSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="nx">size</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">rootFolder</span><span class="p">.</span><span class="nx">dirSizes</span><span class="p">(</span><span class="nx">rootSize</span><span class="p">)]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100000</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I could&rsquo;ve omitted the argument to <code>dirSizes</code> &mdash; notice from the method&rsquo;s
+signature that I provide a default value for <code>parentSize</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">dirSizes</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">parentSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>However, knowing <code>rootSize</code> lets us easily compute the amount of space we need
+to free up (for part 2 of today&rsquo;s problem).</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">50
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">toDelete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rootSize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">40000000</span><span class="p">;</span><span class="w"> </span><span class="c1">// = 30000000 - (70000000 - rootSize)
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We can now re-use our <code>dirSizes</code> stream to check every directory size again,
+this time looking for the smallest folder that meets a certain threshold.
+A <code>min</code> reduction takes care of this:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">52
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="nx">min</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="nx">size</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">rootFolder</span><span class="p">.</span><span class="nx">dirSizes</span><span class="p">()]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">toDelete</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>And there&rsquo;s the solution to part 2, as well!</p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>This concludes today&rsquo;s description of my solution. This time, I introduced
+Chapel&rsquo;s classes &mdash; defining them, creating fields and adding methods. We got
+a little taste of memory management strategies and ownership, though I deliberately
+kept it light to avoid introducing too many new concepts.</p>
+<p>Admittedly, today&rsquo;s solution is (for the most part) serial. Although the
+<code>+ reduce</code> expression that computes the initial <code>size</code> of a directory from
+its <code>files</code> is eligible for parallelization, the <code>dirSizes</code> iterator is not. The main
+reason for this is that the interaction between recursive parallel iterators and
+reductions is, at the time of writing, unimplemented.
+Nevertheless, I think that using even a serial iterator has <em>yielded</em> an elegant
+solution (pun intended).</p>
+<p>If you wanted to write a parallel version, I&rsquo;d advise creating a new,
+non-iterator method on <code>Dir</code> that solves just part 1 of today&rsquo;s puzzle.
+This method could return a tuple of two elements, perhaps <code>sumSmallSizes</code>
+and <code>dirSize</code>; then, a simple <code>forall</code> loop over <code>dirs</code> (and judicious use of reduce intents,
+which are described in our <a href="../../posts/aoc2022-day04-ranges/#third-solution-parallel-approach">day 4 article</a>)
+will let you compute the answer in parallel.</p>
+<p>Thanks for reading! Please feel free
+to ask any questions or post any comments you have in the new <a href="https://chapel.discourse.group/c/blog/21"target="_blank" rel="noopener">Blog
+Category</a> of Chapel&rsquo;s
+Discourse Page.</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Feb 5, 2023</td>
+          <td style="text-align: left">Replaced <code>list.append()</code> with new <code>list.pushBack()</code> method</td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;7%3A&#43;Traversing&#43;Directories&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day07-dir-traversals%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;7%3A&#43;Traversing&#43;Directories&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day07-dir-traversals%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;7%3A&#43;Traversing&#43;Directories&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day07-dir-traversals%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;7%3A&#43;Traversing&#43;Directories&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day07-dir-traversals%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day06-packets/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 6: Packet Detection
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day08-treehouse/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 8: Hiding Treehouses
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

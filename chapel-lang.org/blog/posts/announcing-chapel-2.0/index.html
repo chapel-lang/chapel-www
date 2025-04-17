@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="This post announces Chapel 2.0, including a brief tour of what the language is capable of.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Chapel 2.0: Scalable and Productive Computing for All</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Chapel 2.0: Scalable and Productive Computing for All</h2>
+<div class="post-subscript">
+    <p>Posted on March 21, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/chapel-2.0">Chapel 2.0</a>
+        
+        <a class="button" href="../../tags/release-announcements">Release Announcements</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/daniel-fedorin">Daniel Fedorin</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#what-are-people-doing-with-chapel">What Are People Doing With Chapel?</a>
+      <ul>
+        <li><a href="#arkouda-interactive-data-analysis-at-scale">Arkouda: Interactive Data Analysis at Scale</a></li>
+        <li><a href="#champs-a-framework-for-computational-fluid-dynamics">CHAMPS: A Framework for Computational Fluid Dynamics</a></li>
+        <li><a href="#coral-biodiversity-computation">Coral Biodiversity Computation</a></li>
+      </ul>
+    </li>
+    <li><a href="#a-language-built-with-scalable-parallel-computing-in-mind">A Language Built with Scalable Parallel Computing in Mind</a></li>
+    <li><a href="#rich-tooling-support">Rich Tooling Support</a></li>
+    <li><a href="#conclusion-and-looking-forward">Conclusion and Looking Forward</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Today, the Chapel team is excited to announce the release of Chapel version 2.0.
+After years of hard work and continuous improvements, Chapel shines as an
+enjoyable and productive programming language for distributed and parallel
+computing. People with diverse application goals are leveraging Chapel to
+quickly develop fast and scalable software, including physical simulations,
+massive data and graph analytics, portions of machine learning pipelines, and
+more. The 2.0 release brings stability guarantees to Chapel&rsquo;s battle-tested
+features, making it possible to write performant and elegant code for laptops,
+GPU workstations, and supercomputers with confidence and convenience.</p>
+<p>In addition to <a href="https://github.com/chapel-lang/chapel/blob/main/CHANGES.md#version-20"target="_blank" rel="noopener">numerous usability and performance improvements</a> &mdash;
+including many <a href="../../posts/changes-since-2.0-rc1/">over the previous release candidate</a> &mdash;
+the 2.0 release of Chapel is <strong>stable</strong>: the core language and library features are
+designed to be backwards-compatible from here on. As Chapel continues
+to grow and evolve, additions or changes to the language should not require
+adjusting any existing code.</p>
+<p>Those new to Chapel might be wondering how the language came about.
+Chapel was pioneered by a small team at Cray Inc. who wanted to
+help anyone make full use of any parallel hardware available to them &mdash;
+from their multicore laptop to a large-scale supercomputer.</p>
+<h3 id="what-are-people-doing-with-chapel">
+  <a href="#what-are-people-doing-with-chapel">What Are People Doing With Chapel?</a>
+</h3>
+<p>As I mentioned earlier, Chapel is being used for a diverse set of production-grade
+applications; these applications have guided the language&rsquo;s development,
+pushing it to grow and support real-world computing workloads.</p>
+<h4 id="arkouda-interactive-data-analysis-at-scale">
+  <a href="#arkouda-interactive-data-analysis-at-scale">Arkouda: Interactive Data Analysis at Scale</a>
+</h4>
+<p><a href="https://github.com/Bears-R-Us/arkouda/blob/master/README.md"target="_blank" rel="noopener">Arkouda</a> is one exciting application
+of the Chapel language. It is an open-source data science
+library for Python written in Chapel. Arkouda enables users to interactively analyze massive
+datasets. Using Chapel enables Arkouda to scale easily; as a concrete example,
+its <code>argsort</code> operation, written in around 100 lines of Chapel code, was
+able to sort 256 TiB of data in 31 seconds, a rate of 8500 GiB/s! That
+throughput was achieved by scaling Arkouda to 8192 compute nodes
+on an <a href="https://www.hpe.com/us/en/compute/hpc/supercomputing/cray-exascale-supercomputer.html"target="_blank" rel="noopener">HPE Cray EX</a>
+using its <a href="https://www.hpe.com/us/en/compute/hpc/slingshot-interconnect.html"target="_blank" rel="noopener">Slingshot-11 network</a>.
+The scaling was made possible through Chapel&rsquo;s built-in support for multi-node execution.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.0/arkouda-argsort.png"
+    alt="Scaling results from Arkouda&rsquo;s argsort function"><figcaption>
+      <p>Scaling results from Arkouda&rsquo;s <code>argsort</code> function</p>
+    </figcaption>
+</figure>
+
+<p>Arkouda allows data scientists to iterate at the speed of thought, even with
+datasets spanning terabytes of data &mdash; scales that could never fit into the
+memory of a single machine.</p>
+<p>All the performance and scalability of Chapel does not come at the cost of
+convenience or ergonomics. David Bader, the NJIT professor leading development
+of the <a href="https://github.com/Bears-R-Us/arkouda-njit"target="_blank" rel="noopener">Arachne</a>
+Arkouda module for scalable graph algorithms, has this to say about the language:</p>
+<blockquote>
+<p>Chapel serves as a powerful tool for the rapid development of scalable graph
+analysis algorithms, <strong>standing alone in its capability to enable such
+advancements.</strong></p></blockquote>
+<h4 id="champs-a-framework-for-computational-fluid-dynamics">
+  <a href="#champs-a-framework-for-computational-fluid-dynamics">CHAMPS: A Framework for Computational Fluid Dynamics</a>
+</h4>
+<p>Another excellent example of Chapel&rsquo;s ergonomics is CHAMPS, a software framework
+focused on three-dimensional, unstructured computational fluid dynamics.
+CHAMPS is made up of over 125,000 lines of Chapel code, making it the largest
+project written in the language. The principal investigator of CHAMPS, Éric
+Laurendeau, has <a href="https://youtu.be/wD-a_KyB8aI?t=1904"target="_blank" rel="noopener">remarked on the productivity</a>
+gained by switching to Chapel:</p>
+<blockquote>
+<p><strong>We ask students at the master’s degree to do stuff that would take 2 years
+and they do it in 3 months.</strong> . . . So, if you want to take a summer internship
+and you say, . . . &ldquo;program a new turbulence model,&rdquo; well they manage.
+And before, it was impossible to do.</p></blockquote>
+<p>At the time of this quote, CHAMPS was 48k lines of code, a near threefold
+decrease from the 120k lines of its C-based predecessor. In addition to this,
+CHAMPS improved upon its predecessor by extending the fluid dynamics simulations
+to use distributed memory and be three-dimensional, unstructured,
+and multi-physics. Each of these advances represented a step up in complexity. Despite
+this, the Chapel-based CHAMPS proved to be easier to learn, program, and maintain.</p>
+<h4 id="coral-biodiversity-computation">
+  <a href="#coral-biodiversity-computation">Coral Biodiversity Computation</a>
+</h4>
+<p>One area particularly suited for parallel computing &mdash; and one at which
+Chapel excels &mdash; is image analysis. Scott Bachman, an oceanographer and
+climate scientist, learned Chapel from the ground up to develop software for
+coral reef biodiversity analysis. Scott made use of Chapel&rsquo;s parallel
+programming features to develop efficient algorithms for finding ideal
+spots for coral preservation. He did so by analyzing an intricate
+high-resolution satellite image of an ocean island. Below is how Scott described
+his experience:</p>
+<blockquote>
+<p>I have now written three major programs for my work using Chapel, and each
+time I was able to significantly increase performance and achieve excellent
+parallelism with a low barrier to entry. <strong>Chapel is my go-to language if I
+need to stand up a highly performant software stack quickly</strong>.</p></blockquote>
+<p>By making use of parallelism, Scott was able to greatly improve on existing,
+serial implementations in Matlab. From Scott&rsquo;s <a href="https://chapel-lang.org/presentations/Bachman-PAW-ATM.pdf"target="_blank" rel="noopener">presentation at SC23</a>:</p>
+<blockquote>
+<p>Previous performance (serial, MATLAB): ~ 10 days<br>
+Current performance (360x cores, Chapel): ~ 2 seconds<br>
+<strong>Roughly 5 orders of magnitude improvement</strong></p></blockquote>
+<p>It&rsquo;s also worth highlighting Chapel&rsquo;s portability. Scott wrote and tested his
+programs on a laptop. With only minor modifications &mdash; including tweaks to
+enable GPU support &mdash; his code was able to be executed on
+<a href="https://www.olcf.ornl.gov/frontier/"target="_blank" rel="noopener">Frontier</a>, the fastest system
+in the <a href="https://www.top500.org/lists/top500/2023/11/"target="_blank" rel="noopener">TOP500</a>, and the only one in that list to
+reach a computation speed of one exaflop. Scott&rsquo;s code distributed the problem
+across several of Frontier&rsquo;s nodes, and across each of the eight GPUs present
+in each node. By doing so, it was able to achieve a massive speedup:
+back-of-the-envelope estimations suggest that Scott&rsquo;s program would take 648
+hours to run on an 8-core CPU, whereas the 64-node version on Frontier ran
+in 20 minutes. In other words, what would&rsquo;ve taken an 8-core machine almost
+a month was sped up to less than the length of a lunch break.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.0/coral-reef-frontier.png"
+    alt="Scaling the Coral Reef Biodiversity program on Frontier"><figcaption>
+      <p>Scaling the Coral Reef Biodiversity program on Frontier</p>
+    </figcaption>
+</figure>
+
+<p>In addition to being a significant performance win, this use case highlights an
+essential aspect of Chapel: the tools that Chapel provides to developers can
+be used for programming diverse parallel hardware. Programs can be scaled from
+a laptop, to a GPU-enabled cloud instance, to a supercomputer, using the same
+language concepts and features. At the same time, Chapel programs are
+<em>vendor-neutral</em> &mdash; they work on a variety of processors, networks, and
+GPUs. As a concrete example, GPU-enabled Chapel programs work with both
+NVIDIA and AMD GPUs.</p>
+<h3 id="a-language-built-with-scalable-parallel-computing-in-mind">
+  <a href="#a-language-built-with-scalable-parallel-computing-in-mind">A Language Built with Scalable Parallel Computing in Mind</a>
+</h3>
+<p>Chapel was built specifically for parallel computing at scale, guided by
+experts and real-world high-performance use cases. Because of this, the
+language has many unique features. These features interconnect to form a
+consistent and general model for programming diverse parallel hardware,
+as I alluded to in the previous section. To get a taste of Chapel,
+take a look at the following serial program:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Dst</span><span class="p">,</span><span class="w"> </span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Inds</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">Space</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">initArrays</span><span class="p">(</span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Indices</span><span class="p">);</span><span class="w">  </span><span class="c1">// populate input arrays with data
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">Dst</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Src</span><span class="p">[</span><span class="nx">Inds</span><span class="p">[</span><span class="nx">i</span><span class="p">]];</span><span class="w">
+</span></span></span></code></pre></div><p>This program copies elements from an integer array <code>Src</code> to another
+integer array <code>Dst</code>. However, it reorders the numbers it copies &mdash;
+the third array, <code>Inds</code>, contains the destination indices for each source index.
+In other words, <code>destinationIndex = Inds[sourceIndex]</code>.</p>
+<p>When trying to improve the performance of a program like
+this, one important thing to consider is that today, even the CPUs of
+relatively cheap consumer laptops have multiple processor cores. This means that
+they support parallelism. To tweak the above program to allow it to make
+use of multiple CPU cores, it&rsquo;s only necessary to change the <code>for</code> to a <code>forall</code>.
+If you were to run this on your 8-core M1 Mac, the iterations of the loop would
+be divided between those cores, likely resulting in a noticeable speedup over
+the original for-loop.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Dst</span><span class="p">,</span><span class="w"> </span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Inds</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">Space</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">initArrays</span><span class="p">(</span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Indices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">Dst</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Src</span><span class="p">[</span><span class="nx">Inds</span><span class="p">[</span><span class="nx">i</span><span class="p">]];</span><span class="w">
+</span></span></span></code></pre></div><p>With just one more tweak &mdash; the addition of an <code>on</code> statement &mdash; the above
+program can be made to execute on a GPU:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line hl"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">Dst</span><span class="p">,</span><span class="w"> </span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Inds</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">Space</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">initArrays</span><span class="p">(</span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Indices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">Dst</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Src</span><span class="p">[</span><span class="nx">Inds</span><span class="p">[</span><span class="nx">i</span><span class="p">]];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In this case, iterations of the loop
+will be executed in a massively parallel fashion by the multiple threads of
+the GPU. I covered Chapel&rsquo;s GPU support in some detail in
+<a href="../../posts/intro-to-gpus/"><em>Introduction to GPU Programming in Chapel</em></a>.</p>
+<p>To scale the program to something like a cluster, cloud instance, or
+supercomputer, the programmer has to make use of several compute nodes at
+the same time. In this example, that can be achieved by asking Chapel to
+distribute the arrays across all compute nodes available to the program.
+When doing so, Chapel divides the iterations of the loop &mdash; as well as
+the array data itself &mdash; across the nodes&rsquo; memories and processors.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line hl"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Dst</span><span class="p">,</span><span class="w"> </span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Inds</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">Space</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">initArrays</span><span class="p">(</span><span class="nx">Src</span><span class="p">,</span><span class="w"> </span><span class="nx">Indices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Space</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">Dst</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Src</span><span class="p">[</span><span class="nx">Inds</span><span class="p">[</span><span class="nx">i</span><span class="p">]];</span><span class="w">
+</span></span></span></code></pre></div><p>With additional tweaks, the multi-node and multi-GPU versions of this program
+can be combined to distribute computations across all GPUs in an entire cluster.
+These are the exact sorts of changes that were made to Scott Bachman&rsquo;s Coral Reef
+software above to make it run on Frontier.</p>
+<p>The main takeaway is that the same tools &mdash; <code>forall</code> loops and <code>on</code> statements
+&mdash; interplay elegantly to fit a wide variety of use cases. Moreover, they
+don&rsquo;t sacrifice performance. The multi-node version of the program above (which is the
+<a href="https://github.com/jdevinney/bale/blob/master/src/bale_classic/apps/ig_src/README.md"target="_blank" rel="noopener">Bale IndexGather</a>
+benchmark, by the way), outperforms standard parallel computing technologies:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.0/bale-indexgather.png"
+    alt="Performance of Chapel&rsquo;s IndexGather benchmark, with the --auto-aggregation compiler flag"><figcaption>
+      <p>Performance of Chapel&rsquo;s IndexGather benchmark, with the <code>--auto-aggregation</code> compiler flag</p>
+    </figcaption>
+</figure>
+
+<p>The code presented up to this point is far from a complete picture of all
+of the unique features that Chapel brings to the table; there&rsquo;s just not
+enough space here to cover them all.
+Some other features to check out are:</p>
+<ul>
+<li><strong><code>sync</code> variables and <code>coforall</code> loops</strong> for explicit parallelism,
+covered in depth
+in one of our <a href="../../posts/aoc2022-day11-monkeys/">previous blog posts</a></li>
+<li><strong>reductions</strong>, for combining a set of elements into a scalar,
+covered in <a href="../../posts/aoc2022-day01-calories/">another blog post</a></li>
+<li><strong>promotion</strong>, for seamlessly applying scalar functions to multiple elements at once,
+covered in <a href="../../posts/aoc2022-day02-rochambeau/#argument-promotion">a third blog post</a></li>
+</ul>
+<p>And those are just the parallelism-specific features! Take a look at the
+<a href="../../series/advent-of-code-2022/">Advent of Code</a> series for a gentle
+introduction to Chapel, including its general-purpose features.</p>
+<h3 id="rich-tooling-support">
+  <a href="#rich-tooling-support">Rich Tooling Support</a>
+</h3>
+<p>Chapel&rsquo;s 2.0 release also brings improvements to developer tooling.
+Along with the latest version of the language, the Chapel team is publishing a
+<a href="https://marketplace.visualstudio.com/items?itemName=chpl-hpe.chapel-vscode"target="_blank" rel="noopener">Visual Studio Code extension for Chapel</a>.
+This extension provides support for a number of features, including:</p>
+<ul>
+<li>code diagnostics (syntax and semantic errors), including quick fixes</li>
+<li>documentation on hover</li>
+<li>go-to-definition, find references</li>
+<li>linting for common issues using <a href="https://chapel-lang.org/docs/2.0/tools/chplcheck/chplcheck.html"target="_blank" rel="noopener"><code>chplcheck</code></a></li>
+<li>and much more!</li>
+</ul>
+<p>The VSCode extension is an exciting development, bringing a large number
+of modern editor features to users of Chapel. Much like the features of
+Chapel itself, there&rsquo;s simply not enough room in this article to show all
+of them off. Stay tuned for another article that walks through what the
+new extension can do in more detail. In the meantime, as a little teaser,
+here&rsquo;s a demonstration of hover information and go-to-definition:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.0/lsp-hover.gif"
+    alt="Hovering and going-to-definition using Chapel&rsquo;s VSCode extension"><figcaption>
+      <p>Hovering and going-to-definition using Chapel&rsquo;s VSCode extension</p>
+    </figcaption>
+</figure>
+
+<p>Much of the extension&rsquo;s functionality is provided by a general tool
+that uses the <a href="https://microsoft.github.io/language-server-protocol/"target="_blank" rel="noopener">Language Server Protocol</a>.
+This new tool, the <a href="https://chapel-lang.org/docs/2.0/tools/chpl-language-server/chpl-language-server.html"target="_blank" rel="noopener">Chapel language server</a>, can also be used from other editors. For example, members of the Chapel
+team use it with Neovim on a daily basis.</p>
+<h3 id="conclusion-and-looking-forward">
+  <a href="#conclusion-and-looking-forward">Conclusion and Looking Forward</a>
+</h3>
+<p>Chapel has supported developers with various computing needs in creating
+performant and maintainable software since 2015, a track record of nearly 10 years.
+The 2.0 release represents the culmination of a concerted, multi-year effort to
+refine Chapel&rsquo;s core functionality based on these many years of experience. Chapel is now
+stable, but it is not finished: the language will continue to see performance
+improvements, new features, and better tooling. Whether you are working with
+a personal machine or a multi-node cluster, there has been no better time to
+get started with Chapel to get the most out of your
+computing hardware.</p>
+<details>
+    <summary id="try-chapel-instructions" ><strong>(This all sounds great, how can I try Chapel?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>If you&rsquo;d like to try Chapel 2.0, the three easiest
+ways to do so are GitHub Codespaces, Homebrew (on macOS and Linux), and Docker.
+For setting up Chapel on other platforms, please see the
+<a href="https://chapel-lang.org/download.html"target="_blank" rel="noopener">Download Chapel</a> page on the language&rsquo;s
+website.</p>
+<h4 id="github-codespaces">
+  <a href="#github-codespaces">GitHub Codespaces</a>
+</h4>
+<p>The <a href="https://github.com/chapel-lang/chapel-hello-world"target="_blank" rel="noopener">Chapel template on GitHub</a>
+includes a configuration file for <a href="https://github.com/features/codespaces"target="_blank" rel="noopener">GitHub Codespaces</a>.
+This means that if you have a GitHub account, you can deploy a cloud-based
+Chapel development environment in just a couple of clicks. On the template&rsquo;s
+page, simply click <strong>Use this template</strong>, then select <strong>Open in a codespace</strong>.</p>
+<p>By default, Chapel&rsquo;s Codespace comes pre-equipped with the Chapel compiler,
+<code>chpl</code>, as well as the
+<a href="https://marketplace.visualstudio.com/items?itemName=chpl-hpe.chapel-vscode"target="_blank" rel="noopener">Chapel VSCode extension</a>.
+This means that you will have access to tools such as
+<a href="https://chapel-lang.org/docs/2.0/tools/chpl-language-server/chpl-language-server.html"target="_blank" rel="noopener">the language server</a>
+and <a href="https://chapel-lang.org/docs/2.0/tools/chplcheck/chplcheck.html"target="_blank" rel="noopener"><code>chplcheck</code></a>
+out of the box, with no further setup on your part.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.0/codespace.png"
+    alt="Visual Studio Code with the Chapel extension running in a GitHub Codespace"><figcaption>
+      <p>Visual Studio Code with the Chapel extension running in a GitHub Codespace</p>
+    </figcaption>
+</figure>
+<p>Since the template comes with a <code>hello.chpl</code> file, you should be able to
+compile and run it using the following commands in the Codespace&rsquo;s <strong>Terminal</strong>
+tab:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">chpl hello.chpl
+</span></span><span class="line"><span class="cl">./hello
+</span></span></code></pre></div><p>The above should result in a single line of output:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Hello, world!
+</span></span></code></pre></div><p>From there, check out the <code>examples/</code> folder for more advanced
+versions of ‘Hello, World!’, or try your own Chapel programs.</p>
+<h4 id="homebrew">
+  <a href="#homebrew">Homebrew</a>
+</h4>
+<p>The Chapel 2.0 release is available from Homebrew under the <code>chapel</code> package:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">brew update
+</span></span><span class="line"><span class="cl">brew install chapel
+</span></span></code></pre></div><p>From there, you can use the <code>chpl</code> command to compile Chapel source files.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;writeln(&#34;Hello, world!&#34;);&#39;</span> &gt; hello.chpl
+</span></span><span class="line"><span class="cl">chpl hello.chpl
+</span></span><span class="line"><span class="cl">./hello
+</span></span></code></pre></div><p>The above should result in a single line of output:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Hello, world!
+</span></span></code></pre></div><h4 id="docker">
+  <a href="#docker">Docker</a>
+</h4>
+<p>The Chapel team maintains <a href="https://hub.docker.com/u/chapel"target="_blank" rel="noopener">Docker images</a>
+with the latest version of the language. To get started, pull the
+<a href="https://hub.docker.com/r/chapel/chapel/"target="_blank" rel="noopener"><code>chapel/chapel</code></a> image from DockerHub:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker pull chapel/chapel
+</span></span></code></pre></div><p>From there, you can start up the image and use the <code>chpl</code> compiler as normal.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;writeln(&#34;Hello, world!&#34;);&#39;</span> &gt; hello.chpl
+</span></span><span class="line"><span class="cl">docker run --rm -it -v <span class="s2">&#34;</span><span class="nv">$PWD</span><span class="s2">&#34;</span>:/myapp -w /myapp chapel/chapel /bin/bash
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># The following lines are from within a bash session in the Docker image</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">root@xxxxxxxxx:/myapp# chpl -o hello hello.chpl
+</span></span><span class="line"><span class="cl">root@xxxxxxxxx:/myapp# ./hello
+</span></span></code></pre></div><p>The above should print a single line:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Hello, world!
+</span></span></code></pre></div><p>You can find more instructions for using the image on <a href="https://hub.docker.com/r/chapel/chapel/"target="_blank" rel="noopener">its DockerHub page</a>.
+Also consider trying out other Chapel images, such as <a href="https://hub.docker.com/r/chapel/chapel-gasnet"target="_blank" rel="noopener"><code>chapel/chapel-gasnet</code></a>, which supports simulated <a href="https://chapel-lang.org/docs/usingchapel/multilocale.html"target="_blank" rel="noopener">multilocale execution</a>
+of Chapel programs.</p>
+
+    </div>
+</details>
+
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Chapel&#43;2.0%3A&#43;Scalable&#43;and&#43;Productive&#43;Computing&#43;for&#43;All&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.0%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Chapel&#43;2.0%3A&#43;Scalable&#43;and&#43;Productive&#43;Computing&#43;for&#43;All&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.0%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Chapel&#43;2.0%3A&#43;Scalable&#43;and&#43;Productive&#43;Computing&#43;for&#43;All&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.0%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Chapel&#43;2.0%3A&#43;Scalable&#43;and&#43;Productive&#43;Computing&#43;for&#43;All&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.0%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

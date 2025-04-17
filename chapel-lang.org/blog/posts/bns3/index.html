@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="Introduction to Chapel&rsquo;s distributed programming concepts used in Navier-Stokes Simulation">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Navier-Stokes in Chapel — Distributed Poisson Solver</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Navier-Stokes in Chapel — Distributed Poisson Solver</h2>
+<div class="post-subscript">
+    <p>Posted on October 28, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/math">Math</a>
+        
+        <a class="button" href="../../tags/differential-equations">Differential Equations</a>
+        
+        <a class="button" href="../../tags/how-to">How-to</a>
+        
+        <a class="button" href="../../tags/computational-fluid-dynamics">Computational Fluid Dynamics</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/jeremiah-corrado">Jeremiah Corrado</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#locality-and-locales">Locality and Locales</a></li>
+    <li><a href="#distributed-domains-and-arrays">Distributed Domains and Arrays</a></li>
+    <li><a href="#compiling-and-executing-multi-locale-programs">Compiling and Executing Multi-Locale Programs</a></li>
+    <li><a href="#the-stencil-distribution-and-distributed-poisson-solver">The Stencil Distribution and Distributed Poisson Solver</a>
+      <ul>
+        <li><a href="#the-poisson-stencil">The Poisson Stencil</a></li>
+        <li><a href="#the-stencil-distribution">The Stencil Distribution</a></li>
+      </ul>
+    </li>
+    <li><a href="#converting-the-poisson-solver-to-use-distributed-arrays">Converting the Poisson Solver to use Distributed Arrays</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>This is the third article in a series that&rsquo;s been leading up to implementing a 2D Navier-Stokes simulation in Chapel. So far, we&rsquo;ve ported a couple of the Python codes from the <a href="https://lorenabarba.com/blog/cfd-python-12-steps-to-navier-stokes/"target="_blank" rel="noopener">12 steps to Navier-Stokes</a> tutorial to demonstrate Chapel&rsquo;s productivity and performance for scientific computing. Several features and concepts were covered in the process; however, we haven&rsquo;t yet gone over one of the things that makes Chapel especially unique among other programming tools&mdash;namely, its distributed programming capabilities.</p>
+<p>This article will cover a series of topics that will inform our implementation of a distributed and parallel Navier-Stokes solver:</p>
+<ol>
+<li>Locality and Locales</li>
+<li>Distributed Domains and Arrays</li>
+<li>Compiling and Executing Multi-Locale Programs</li>
+<li>Using the Stencil Distribution to Minimize Inter-Locale Communication</li>
+</ol>
+<p>To demonstrate the above concepts in action, we&rsquo;ll modify the Poisson solver from the <a href="../../posts/bns2/">previous article</a> to run across multiple compute nodes. In the next and final article in this series, we&rsquo;ll expand on the distributed Poisson solver to write a full Navier-Stokes solver in Chapel, and compare its performance to an equivalent program written in C++, MPI, and OpenMP.</p>
+<h3 id="locality-and-locales">
+  <a href="#locality-and-locales">Locality and Locales</a>
+</h3>
+<p>Programs that run on a single computer only need to worry about a single pool of memory, which is accessible from each CPU core with a bandwidth and latency that is <span class="sidenote"><label class="sidenote-label" for="sidenote-0">more-or-less equivalent</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span> Cores within a particular NUMA-domain on the CPU have relatively slower access to memory pages that belong to other NUMA domains. This is particularly true for modern high-core-count processors that feature a chiplet architecture. However, over-network memory speeds are still much slower than a local memory access with a NUMA penalty. <span class="sidenote-delimiter">]</span></span></span>. In contrast, distributed-memory programs must consider the separate pools of memory on each of the computers they are running on, as well as the fact that the CPU cores local to a particular memory pool have much faster access to it than the CPU cores located on other computers. This is because accessing non-local memory requires sending messages over a network to retrieve/deposit data. Chapel&rsquo;s model for distributed programming has two fundamental features that give the programmer control over where memory is allocated and where computations are run (i.e., which computer&rsquo;s memory and which computer&rsquo;s CPU). Those are the <code>locale</code> type and the <code>on</code>-statement, respectively.</p>
+<p>A <a href="https://chapel-lang.org/docs/primers/locales.html#locales"target="_blank" rel="noopener">locale</a> is an abstraction for any unit of hardware that has memory and compute resources. In <span class="sidenote"><label class="sidenote-label" for="sidenote-1">most cases</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-1"></input><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span> It is possible to run a distributed Chapel program with multiple locales per compute node using a feature called <a href="https://chapel-lang.org/docs/usingchapel/multilocale.html#co-locales" target="_blank" rel="noopener">co-locales</a>. This can be useful for optimizing things like NUMA affinity or NIC usage. Additionally, the locale type is used to represent GPU hardware using a concept called sub-locales. See the articles on <a href=../../series/gpu-programming-in-chapel/> GPU programming </a> for more. For the purpose of this article, assume that each locale represents a single compute node. <span class="sidenote-delimiter">]</span></span></span>, the locale type is used to represent a single compute node in a cluster or supercomputer. Chapel programs have a globally accessible array of <code>locale</code> values, named <code>Locales</code>, which contains one entry for each of the compute nodes allocated to the program when it&rsquo;s launched. This array gives the program an abstract view of the hardware resources available to it.</p>
+<p>Programs begin execution on the first locale, meaning memory allocations and computations will occur on that compute node to start. From there, they can use <a href="https://chapel-lang.org/docs/language/spec/locales.html#the-on-statement"target="_blank" rel="noopener"><code>on</code> statements</a> to move program execution and memory allocation to one or more of the other locales. Additionally, Chapel&rsquo;s global namespace model allows for implicit communication across locale boundaries (where SPMD models like MPI require explicit communication). In other words, if a variable is within lexical scope, then it&rsquo;s accessible regardless of which locale it&rsquo;s allocated on. Chapel&rsquo;s compiler and runtime will automatically handle network communication as needed.</p>
+<p>For example, the following program allocates a variable <code>x</code> on locale 0, moves execution to locale 1 to allocate another variable <code>y</code>, and then prints their sum. At each step, <code>here</code>, an alias for the locale currently executing the code, is used to print out the locale&rsquo;s <code>id</code> (equivalent to its 0-based index in <code>Locales</code>).</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;x = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; (on loc &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;)&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">on</span><span class="w"> </span><span class="nx">Locales</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;y = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; (on loc &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;)&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;x + y = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">y</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>This will print:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">x = 5 (on loc 0)
+</span></span></span><span class="line"><span class="cl"><span class="go">y = 2 (on loc 1)
+</span></span></span><span class="line"><span class="cl"><span class="go">x + y = 7
+</span></span></span></code></pre></div><p>By composing these features with Chapel&rsquo;s various parallel programming features, one can write parallel and distributed applications that have very fine control over where data are allocated and where computations run. In this article, we&rsquo;ll use a higher-level abstraction provided by Chapel&rsquo;s standard library — implemented in terms of the lower-level features — that will handle many of the details involved in distributing data and computations for us.</p>
+<h3 id="distributed-domains-and-arrays">
+  <a href="#distributed-domains-and-arrays">Distributed Domains and Arrays</a>
+</h3>
+<p>Chapel&rsquo;s distributions specify patterns used to distribute domain and array indices across the memories of multiple locales. As a reminder, a Chapel <code>domain</code> represents a set of indices that can be iterated over and used to define arrays. Distributed domains have iterators that handle disseminating computations across multiple cores on multiple locales in parallel. As such, the kinds of data-parallel loops we&rsquo;ve discussed in this series so far (the <code>forall</code> loops) can become distributed data-parallel loops simply by modifying how the arrays are defined — the array distribution and its <span class="sidenote"><label class="sidenote-label" for="sidenote-2">parallel iterator</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-2"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span> Importantly, these iterators are not "magical." They are implemented in Chapel using the on-clauses, discussed above, and other related features provided by the language. This means that Chapel users can define their own distributed and parallel iterators using those same features. <span class="sidenote-delimiter">]</span></span></span> will handle the rest.</p>
+<p>To provide some background, in previous articles we&rsquo;ve discussed domain and array declarations that look something like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">dom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">dom</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Here, <code>A</code> is a 2D array defined over the indices <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">[</mo><mn>1</mn><mo separator="true">,</mo><mn>8</mn><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">[1, 8]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">[</span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">8</span><span class="mclose">]</span></span></span></span> along both axes. Its elements are <code>int</code> values, all of which get initialized to <code>1</code>. Note that there is nothing in this code to indicate that <code>A</code> should take advantage of multiple locales, so all its elements will be allocated on whichever locale runs the code.</p>
+<p>To distribute an array&rsquo;s elements across multiple compute nodes, we can define the array over a distributed domain. Chapel&rsquo;s standard library has multiple distributions; for now, let&rsquo;s focus on <code>blockDist</code>, which will distribute one rectangular block of contiguous indices to each locale, creating a grid-like distribution where each block is as equally-sized as possible.</p>
+<p>This distribution pattern is optimal for our finite-difference application (as opposed to something like a cyclic distribution) because it maximizes the number of array elements that are grouped together in memory, minimizing the amount of inter-locale communication needed to apply stencil operations. To create a block-distributed domain over a given set of indices, <code>blockDist</code> has a <a href="https://chapel-lang.org/docs/modules/dists/BlockDist.html#BlockDist.blockDist.createDomain"target="_blank" rel="noopener"><code>createDomain</code></a> type-method that takes a non-distributed domain and returns a block-distributed domain over the same set of indices:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="first">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">dom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">8</span><span class="p">},</span><span class="w"> </span><span class="nx">targetLocales</span><span class="o">=</span><span class="nx">Locales</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">dom</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>Here, <code>A</code> will be distributed across the program&rsquo;s entire <code>Locales</code> array, meaning that each locale will have one block of <code>A</code>&rsquo;s values in memory. Note that <code>Locales</code> is the default value for the <code>targetLocales</code> argument so it doesn&rsquo;t need to be specified explicitly here; however, doing so can be beneficial for clarity.</p>
+<p>We can then iterate over <code>A</code> with a data-parallel <code>forall</code> loop. This invokes <code>blockDist</code>&rsquo;s parallel iterator that will launch a task on each locale in parallel. Each of those tasks will typically launch one task per core on their respective compute nodes, each of which executes the body of the loop for a subset of array elements in that locale&rsquo;s memory:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="last">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">a</span><span class="p">.</span><span class="kt">locale</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>In this case, we set each value to the <code>id</code> of the locale where it&rsquo;s stored (the <code>.locale</code> query returns the locale where a value is allocated). Printing <code>A</code> will give us a picture of how it&rsquo;s laid out in memory across locales. Now let&rsquo;s talk about how to compile and run distributed programs so we can see what the output looks like.</p>
+<h3 id="compiling-and-executing-multi-locale-programs">
+  <a href="#compiling-and-executing-multi-locale-programs">Compiling and Executing Multi-Locale Programs</a>
+</h3>
+<p>A nice aspect of writing distributed programs in Chapel is that a single computer can be used to emulate multiple locales during development. This allows programmers to develop and debug a massive-scale program on their laptop with a smaller problem size, and then seamlessly launch the program on a supercomputer using the real problem size without making any changes to the code. See <a href="https://chapel-lang.org/docs/usingchapel/multilocale.html"target="_blank" rel="noopener">these docs</a> for information about how to configure Chapel for multi-locale execution. To emulate multiple locales on a single machine, you can set the following environment variables before building Chapel from source:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">CHPL_COMM=gasnet
+</span></span></span><span class="line"><span class="cl"><span class="go">CHPL_COMM_SUBSTRATE=smp
+</span></span></span><span class="line"><span class="cl"><span class="go">GASNET_SPAWNFN=L
+</span></span></span></code></pre></div><p>Alternatively, consider using the <code>chapel-gasnet</code> <a href="https://hub.docker.com/r/chapel/chapel-gasnet/"target="_blank" rel="noopener">docker image</a> to run the programs in this article. It&rsquo;s pre-configured to emulate multiple locales on a single machine.</p>
+<p>With Chapel set up, the above program can be compiled and run as follows. The <code>-nl</code> argument specifies the number of locales to use (<code>4</code> in this case):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">chpl datapar-example.chpl --fast
+</span></span></span><span class="line"><span class="cl"><span class="go">./datapar-example -nl 4
+</span></span></span></code></pre></div><p>Printing <code>A</code> shows us where each of the values are located. Changing the domain&rsquo;s size or the number of locales will change how the array is distributed.</p>
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">0 0 0 0 1 1 1 1
+</span></span></span><span class="line"><span class="cl"><span class="go">0 0 0 0 1 1 1 1
+</span></span></span><span class="line"><span class="cl"><span class="go">0 0 0 0 1 1 1 1
+</span></span></span><span class="line"><span class="cl"><span class="go">0 0 0 0 1 1 1 1
+</span></span></span><span class="line"><span class="cl"><span class="go">2 2 2 2 3 3 3 3
+</span></span></span><span class="line"><span class="cl"><span class="go">2 2 2 2 3 3 3 3
+</span></span></span><span class="line"><span class="cl"><span class="go">2 2 2 2 3 3 3 3
+</span></span></span><span class="line"><span class="cl"><span class="go">2 2 2 2 3 3 3 3
+</span></span></span></code></pre></div>
+
+<p>If you change the <code>forall</code> loop to the following and recompile the program, its output will show where each of the parallel tasks that execute the body of the loop run (remember that <code>here</code> is an alias for whichever locale the current task is executing on):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>This will produce exactly the same output, meaning that the parallel iterator is designed such that the locality of task execution coincides with the locality of the array&rsquo;s data. Each CPU works on the data it has the fastest access to.</p>
+<h3 id="the-stencil-distribution-and-distributed-poisson-solver">
+  <a href="#the-stencil-distribution-and-distributed-poisson-solver">The Stencil Distribution and Distributed Poisson Solver</a>
+</h3>
+<p>Using the above concepts, we could start writing a distributed data-parallel Navier-Stokes simulation. However, before we get to the full code, which will be featured in the next article in this series, let&rsquo;s start by considering how we&rsquo;d rewrite the Poisson solver from the previous article to be distributed. This will be a useful stepping stone, because the Poisson solver is used as a part of the full Navier-Stokes simulation.</p>
+<h4 id="the-poisson-stencil">
+  <a href="#the-poisson-stencil">The Poisson Stencil</a>
+</h4>
+<p>The kernel used in the Poisson Solver is based on this equation:</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi></mrow></msub><mo>=</mo><mfrac><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn><mo separator="true">,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn><mo separator="true">,</mo><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><msup><mi>y</mi><mn>2</mn></msup><mo>+</mo><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>p</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi><mo>+</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msub><mi>b</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi></mrow></msub><mi mathvariant="normal">Δ</mi><msup><mi>x</mi><mn>2</mn></msup><mi mathvariant="normal">Δ</mi><msup><mi>y</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><mo stretchy="false">(</mo><mi mathvariant="normal">Δ</mi><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mi mathvariant="normal">Δ</mi><msup><mi>y</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex"> p_{i,j} = \dfrac{(p_{i-1,j} + p_{i+1,j}) \Delta y^2 + (p_{i,j-1} + p_{i,j+1}) \Delta x^2 + b_{i,j} \Delta x^2 \Delta y^2}{2 (\Delta x^2 + \Delta y^2)} </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.4271em;vertical-align:-0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.4911em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">2</span><span class="mopen">(</span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">−</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">+</span><span class="mord mtight">1</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">b</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span><p>We can think of it as a 5-point stencil computation, meaning that the value of each point in <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">p</span></span></span></span> is computed in terms of the four surrounding points in <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">p</span></span></span></span> as well as the same point in <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">b</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">b</span></span></span></span>. If <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">p</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">b</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">b</span></span></span></span> are both represented by block-distributed 2D arrays with the same 4-locale layout as above, the 5-point stencil computation for a given point in <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">p</span></span></span></span> would look something like this:</p>
+<figure><img src="../../posts/bns3/stencil-local.png">
+</figure>
+
+<p>The blue lines represent boundaries between locales. So, for the above <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i,j</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.854em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">i</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.05724em;">j</span></span></span></span> pair, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">p_{i,j}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span> is computed using values stored in memory on the same locale. In other words, all of the teal boxes in the figure represent local memory accesses on locale 0. The picture is more complicated when computing the value one point to the right:</p>
+<figure><img src="../../posts/bns3/stencil-remote.png">
+</figure>
+
+<p>Here, the value <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi><mo>+</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">p_{i,j+1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span> belongs in a different locale&rsquo;s memory, and thus computing <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">p_{i,j}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.05724em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span> will involve retrieving that value over the network. This is something that Chapel&rsquo;s compiler and runtime will handle for us, but the memory access will be significantly slower than the other 4 neighboring points in the stencil.</p>
+<p>A downside of relying on the implicit communication is that an individual network operation will be kicked off for each array element along the locale borders. For a (realistically) large problem size, we&rsquo;ll end up with many single-element communication events over the system&rsquo;s network — this is typically bad for performance. Instead, we should try to maximize the network&rsquo;s efficiency by doing a small number of large communication operations (i.e., groups of elements should be communicated over the network in bulk instead of one at a time). To help facilitate this, Chapel provides the Stencil Distribution.</p>
+<h4 id="the-stencil-distribution">
+  <a href="#the-stencil-distribution">The Stencil Distribution</a>
+</h4>
+<p>The <a href="https://chapel-lang.org/docs/modules/dists/StencilDist.html"target="_blank" rel="noopener">Stencil Distribution</a> is essentially a variation on the Block Distribution. It distributes array elements across locales in exactly the same fashion, but also maintains local copies of neighboring locales&rsquo; elements on each locale. For our 2D case, you can think of these copies as a &ldquo;halo&rdquo; of neighboring elements around each block. This way, when applying a stencil operation to an array element along a locale boundary, no communication over the network is required.</p>
+<p>With stencil-distributed arrays, the same computation as above would look like this:</p>
+<figure><img src="../../posts/bns3/stencil-stencil.png">
+</figure>
+
+<p>The array access that had previously resulted in communication now accesses a halo element in local memory, represented with a dotted blue border. Note that in the above figure, the halo regions on the boundary are grayed out because they <span class="sidenote"><label class="sidenote-label" for="sidenote-3">are not used</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-3"></input><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span> <code>stencilDist</code> supports cyclic boundary conditions where these halos would contain elements from the neighboring locale on the other side of the domain, but we won't use them here since the Poisson Equation Solver uses Neumann boundary conditions. <span class="sidenote-delimiter">]</span></span></span>.</p>
+<p>Each time we compute an updated state in the finite-difference computations, those strips of elements need to be updated with their latest values from the neighboring locales. This is done by calling the <code>updateFluff</code> method provided by the Stencil Distribution. The following diagram shows what that looks like, where a whole group of elements is transferred in bulk instead of one at a time. Only one pair of edges is shown here, but in reality, all pairs of edges (and the corner elements) will be exchanged.</p>
+<figure><img src="../../posts/bns3/stencil-update.png" height="250px">
+</figure>
+
+<h3 id="converting-the-poisson-solver-to-use-distributed-arrays">
+  <a href="#converting-the-poisson-solver-to-use-distributed-arrays">Converting the Poisson Solver to use Distributed Arrays</a>
+</h3>
+<p>To see how <code>stencilDist</code>, and distributed arrays in general, look in code, let&rsquo;s modify the Poisson Solver from the previous article to use a 2D stencil-distributed array. This only requires three simple changes:</p>
+<ol>
+<li>
+<p>Import the <code>StencilDist</code> module</p>
+</li>
+<li>
+<p>Replace the <code>space</code> domain&rsquo;s definition with the following line (where <code>fluff</code> specifies how large the halo region should be along each dimension):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stencilDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">},</span><span class="w"> </span><span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)),</span><span class="w">
+</span></span></span></code></pre></div></li>
+<li>
+<p>Add calls to <code>pn.updateFluff()</code> before calls to <code>poissonKernel</code> to refresh the data in the halo regions.</p>
+</li>
+</ol>
+<p>With those adjustments, the code will be able to run efficiently on a cluster/supercomputer, taking advantage of the processing power and memory of multiple compute nodes. The full modified code can be downloaded below:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/nsPoissonStencil.chpl download="nsPoissonStencil.chpl">nsPoissonStencil.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span><span class="lnt">80
+</span><span class="lnt">81
+</span><span class="lnt">82
+</span><span class="lnt">83
+</span><span class="lnt">84
+</span><span class="lnt">85
+</span><span class="lnt">86
+</span><span class="lnt">87
+</span><span class="lnt">88
+</span><span class="lnt">89
+</span><span class="lnt">90
+</span><span class="lnt">91
+</span><span class="lnt">92
+</span><span class="lnt">93
+</span><span class="lnt">94
+</span><span class="lnt">95
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">surfPlot</span><span class="p">.</span><span class="nx">plot</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">StencilDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// set up simulation constants
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">xLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">yLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">nx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">31</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">ny</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">31</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">sourceMag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">100.0</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">maxIters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10000</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">tolerance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-4</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">dx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">xLen</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="nx">nx</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">dy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">yLen</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="nx">ny</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// simulation settings
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">makePlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">useTolerance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// define problem space
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stencilDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">},</span><span class="w"> </span><span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">spaceInner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">space</span><span class="p">.</span><span class="nx">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// define pressure and source arrays
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">space</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// set boundary conditions
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">p</span><span class="p">[</span><span class="o">..</span><span class="p">,</span><span class="w">    </span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                     </span><span class="c1">// p = 0 @ x = 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">p</span><span class="p">[</span><span class="o">..</span><span class="p">,</span><span class="w"> </span><span class="nx">nx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">j</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">]</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dy</span><span class="p">;</span><span class="w">  </span><span class="c1">// p = y @ x = xLen
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">p</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w">    </span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">];</span><span class="w">              </span><span class="c1">// dp/dy = 0 @ y = 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">p</span><span class="p">[</span><span class="nx">ny</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">[</span><span class="nx">ny</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">];</span><span class="w">           </span><span class="c1">// dp/dy = 0 @ y = yLen
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// set sink/source terms
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">b</span><span class="p">[</span><span class="mi">3</span><span class="o">*</span><span class="nx">ny</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nx">nx</span><span class="o">/</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sourceMag</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">b</span><span class="p">[</span><span class="nx">ny</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="o">*</span><span class="nx">nx</span><span class="o">/</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="nx">sourceMag</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// solve and plot
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">makePlots</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">plot</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">yLen</span><span class="p">,</span><span class="w"> </span><span class="nx">xLen</span><span class="p">),</span><span class="w"> </span><span class="nx">title</span><span class="o">=</span><span class="s">&#34;initial&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">varName</span><span class="o">=</span><span class="s">&#34;p&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">solvePoisson</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">makePlots</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">plot</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">yLen</span><span class="p">,</span><span class="w"> </span><span class="nx">xLen</span><span class="p">),</span><span class="w"> </span><span class="nx">title</span><span class="o">=</span><span class="s">&#34;solution&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">varName</span><span class="o">=</span><span class="s">&#34;p&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">solvePoisson</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">p</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="nx">useTolerance</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// temporary copy of p
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">pn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// solve until tolerance is met or maxIters is reached
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">deltaL1Norm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">deltaL1Norm</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">tolerance</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">maxIters</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">p</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">pn</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">pn</span><span class="p">.</span><span class="nx">updateFluff</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">poissonKernel</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">pn</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">neumannBC</span><span class="p">(</span><span class="nx">p</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">deltaL1Norm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">abs</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">pn</span><span class="p">)))</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">pn</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Converged in &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; iterations&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">solvePoisson</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">p</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="nx">useTolerance</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// temporary copy of p
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">pn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// solve for maxIters iterations
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">maxIters</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">p</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">pn</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">pn</span><span class="p">.</span><span class="nx">updateFluff</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">poissonKernel</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">pn</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">neumannBC</span><span class="p">(</span><span class="nx">p</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">poissonKernel</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">p</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">pn</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">spaceInner</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">p</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">dy</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">pn</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pn</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="w"> </span><span class="o">+</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">pn</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pn</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">])</span><span class="w"> </span><span class="o">-</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dy</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">b</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="mf">2.0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">neumannBC</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">p</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">p</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w">    </span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">];</span><span class="w">    </span><span class="c1">// dp/dy = 0 @ y = 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">p</span><span class="p">[</span><span class="nx">ny</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">[</span><span class="nx">ny</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">];</span><span class="w"> </span><span class="c1">// dp/dy = 0 @ y = yLen
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>Note that you&rsquo;ll need the <code>surfPlot</code> module provided in the <a href="../../posts/bns2/#running-and-generating-plots">previous article</a> to compile. Additionally, you&rsquo;ll want to run the program with a much larger problem size than the default in order to reap the benefits of using distributed memory — more on this in the next article.</p>
+<p>To show just how minor the above changes are, here is the entire diff between the previous article&rsquo;s shared-memory Poisson solver and the distributed one above:</p>
+<figure class="fullwide"><img src="../../posts/bns3/nsPoissonDiff.png">
+</figure>
+
+<!-- ```diff
+1a2
+> use StencilDist;
+20c21
+< const space = {0..<ny, 0..<nx},
+---
+> const space = stencilDist.createDomain({0..<ny, 0..<nx}, fluff=(1,1)),
+55d55
+>         pn.updateFluff();
+75d74
+>         pn.updateFluff();
+``` -->
+<p>Notably, only one line needed to change in our 92-line program, with just three new lines being added. Even more importantly, none of the science of the computation needed to change: the code for the kernel, boundary conditions, and termination conditions remained exactly the same.</p>
+<h3 id="conclusion">
+  <a href="#conclusion">Conclusion</a>
+</h3>
+<p>This article gave an overview of some of Chapel&rsquo;s distributed programming features, starting from the more foundational concepts (locales and on-clauses), and moving up to higher-level features like distributions and distributed arrays. We saw that these high-level features in particular can be used to concisely express multi-node stencil computations without modifying the program&rsquo;s mathematical kernels, but only changing how the relevant arrays are defined.</p>
+<p>Amazingly, we were able to convert the single-node Poisson solver from the previous article to use distributed data-parallelism by changing a total of only 4 lines of code. As we&rsquo;ll see in the next article, that is not something that can be said of other distributed-memory programming tools like MPI. And to demonstrate that these productivity benefits don&rsquo;t come at a performance cost, we&rsquo;ll also show a performance comparison with a MPI+OpenMP Navier-Stokes solver.</p>
+<p>The Chapel Team would like to express its sincere gratitude towards the <a href="https://lorenabarba.com/"target="_blank" rel="noopener">Barba Group</a> for creating and maintaining the CFD Python tutorials.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Poisson&#43;Solver&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Poisson&#43;Solver&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Poisson&#43;Solver&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Poisson&#43;Solver&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/bns2/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Navier-Stokes in Chapel — 2D Simulations and Performance
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/bns4/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+Navier-Stokes in Chapel — Distributed Cavity-Flow Solver
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

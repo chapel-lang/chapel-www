@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A summary of highlights from the September 2024 release of Chapel 2.2">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Announcing Chapel 2.2!</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Announcing Chapel 2.2!</h2>
+<div class="post-subscript">
+    <p>Posted on September 26, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/release-announcements">Release Announcements</a>
+        
+        <a class="button" href="../../tags/i/o">I/O</a>
+        
+        <a class="button" href="../../tags/parallel-i/o">Parallel I/O</a>
+        
+        <a class="button" href="../../tags/performance">Performance</a>
+        
+        <a class="button" href="../../tags/gpu-programming">GPU Programming</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>, <a href="../../authors/engin-kayraklioglu">Engin Kayraklioglu</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#library-improvements">Library Improvements</a>
+      <ul>
+        <li><a href="#sorting">Sorting</a></li>
+        <li><a href="#image-files">Image Files</a></li>
+        <li><a href="#custom-class-allocators">Custom Class Allocators</a></li>
+        <li><a href="#io">I/O</a></li>
+      </ul>
+    </li>
+    <li><a href="#array-optimizations">Array Optimizations</a>
+      <ul>
+        <li><a href="#optimized-array-slice-assignments">Optimized Array Slice Assignments</a></li>
+        <li><a href="#stencil-optimizations">Stencil Optimizations</a></li>
+        <li><a href="#domain-localization-optimization">Domain Localization Optimization</a></li>
+        <li><a href="#array-reuse-optimization">Array Reuse Optimization</a></li>
+      </ul>
+    </li>
+    <li><a href="#gpu-improvements">GPU Improvements</a></li>
+    <li><a href="#for-more-information">For More Information</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>The Chapel developer community is happy to announce the release of
+Chapel version 2.2!  In this blog, we&rsquo;ll summarize some of the key
+highlights, including <a href="#library-improvements">improvements to Chapel
+libraries</a>, <a href="#array-optimizations">key optimizations for array
+computing</a>, and <a href="#gpu-improvements">improved GPU
+support</a>.  Other notable improvements in Chapel
+2.2 not covered in this article include:</p>
+<ul>
+<li>complete support for <a href="https://chapel-lang.org/docs/2.2/language/spec/locales.html#remote-variable-declarations"target="_blank" rel="noopener">remote variable
+declarations</a>,
+introduced in <a href="../../posts/announcing-chapel-2.1/#remote-variable-declarations">Chapel 2.1</a>,</li>
+<li><a href="https://chapel-lang.org/install-pkg.html"target="_blank" rel="noopener">new Linux packages with multi-locale
+support</a>, including
+<a href="https://chapel-lang.org/docs/platforms/aws.html#getting-chapel"target="_blank" rel="noopener">AWS/EFA</a>-compatible options,</li>
+<li>and support for LLVM 18.</li>
+</ul>
+<p>For a more complete list of changes in Chapel 2.2, please refer to
+its
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.2/CHANGES.md"target="_blank" rel="noopener">CHANGES.md</a>
+file.  And thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/2.2/CONTRIBUTORS.md"target="_blank" rel="noopener">everyone who
+contributed</a>
+to Chapel 2.2!</p>
+<h3 id="library-improvements">
+  <a href="#library-improvements">Library Improvements</a>
+</h3>
+<p>Now that we are well past the <a href="../../posts/announcing-chapel-2.0/">Chapel 2.0 release</a>, our team has been putting
+more attention into adding and improving Chapel libraries.  Here are
+some of the notable library-based capabilities added in
+Chapel 2.2:</p>
+<h4 id="sorting">
+  <a href="#sorting">Sorting</a>
+</h4>
+<p>Chapel&rsquo;s <code>Sort</code> module was promoted to a standard module in this
+release, due to the many improvements that were made to its features
+and interfaces.  As examples, we have added a new stable-sort
+feature (in the sense of preserving the ordering of items with equal
+keys, not the stability of the routine itself), while also improving
+the mechanisms by which a user can specify comparators for a given
+type or call to <code>sort()</code>.  See the <a href="https://chapel-lang.org/docs/2.2/modules/standard/Sort.html"target="_blank" rel="noopener"><code>Sort</code> module&rsquo;s latest
+documentation</a>
+for details on these changes and others.</p>
+<h4 id="image-files">
+  <a href="#image-files">Image Files</a>
+</h4>
+<p>The <code>Image</code> module that was introduced in Chapel&rsquo;s June release has
+now been extended to support JPEG and PNG image formats.  In
+addition, where it could only be used to write images in
+Chapel 2.1, it can now read them as well.  Finally, new
+routines have been added to convert between color and pixel values.
+Learn more in the
+<a href="https://chapel-lang.org/docs/2.2/modules/packages/Image.html"target="_blank" rel="noopener"><code>Image</code></a>
+module documentation.</p>
+<h4 id="custom-class-allocators">
+  <a href="#custom-class-allocators">Custom Class Allocators</a>
+</h4>
+<p>This release includes a brand-new library-based capability in which
+users can create custom memory allocators, and then use them to
+allocate class objects.  Beyond the general capability, this new
+module also includes a couple of pre-defined allocators that support
+different memory allocation strategies.  To learn more about these
+capabilities, see the documentation for the
+<a href="https://chapel-lang.org/docs/2.2/modules/standard/Allocators.html"target="_blank" rel="noopener"><code>Allocators</code></a>
+module.</p>
+<h4 id="io">
+  <a href="#io">I/O</a>
+</h4>
+<p>Chapel 2.2 includes a number of I/O-related improvements, including:</p>
+<ul>
+<li>The
+<a href="https://chapel-lang.org/docs/2.2/modules/standard/IO.html#IO.fileReader.lines"target="_blank" rel="noopener"><code>lines()</code></a>
+iterator has been extended to support invocations within <code>forall</code>
+loops to read and process a file&rsquo;s lines using all of the
+processor cores of one or more compute nodes.  For example,
+running the following program on ten 32-core compute nodes would
+result in all 320 cores reading the file&rsquo;s lines in parallel:</li>
+</ul>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">infile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">openReader</span><span class="p">(</span><span class="s">&#34;file.txt&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="k">forall</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">infile</span><span class="p">.</span><span class="nx">lines</span><span class="p">(</span><span class="nx">targetLocales</span><span class="o">=</span><span class="nx">Locales</span><span class="p">,</span><span class="w"> </span><span class="nx">stripNewline</span><span class="o">=</span><span class="kc">true</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Locale &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; read: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">line</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><ul>
+<li>
+<p>Similar multi-locale support has been added to iterators within the
+<code>ParallelIO</code> module, such as
+<a href="https://chapel-lang.org/docs/2.2/modules/packages/ParallelIO.html#ParallelIO.readLines"target="_blank" rel="noopener"><code>readLines()</code></a>
+and
+<a href="https://chapel-lang.org/docs/2.2/modules/packages/ParallelIO.html#ParallelIO.readDelimited"target="_blank" rel="noopener"><code>readDelimited()</code></a>.</p>
+</li>
+<li>
+<p>A new
+<a href="https://chapel-lang.org/docs/2.2/modules/packages/PrecisionSerializer.html"target="_blank" rel="noopener"><code>PrecisionSerializer</code></a>
+module has been added, supporting serialization of data with
+specific precision/padding values.  This can be particularly
+useful when writing out arrays.  For example, the following
+example writes its array values out with less precision and more
+padding than normal:</p>
+</li>
+</ul>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="nx">PrecisionSerializer</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">1.123456789</span><span class="p">,</span><span class="w"> </span><span class="mf">2.123456789</span><span class="p">,</span><span class="w"> </span><span class="mf">3.123456789</span><span class="p">,</span><span class="w"> </span><span class="mf">4.123456789</span><span class="p">],</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="nx">fourPaddedDigits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">precisionSerializer</span><span class="p">(</span><span class="nx">precision</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nx">padding</span><span class="o">=</span><span class="mi">9</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="nx">stdout</span><span class="p">.</span><span class="nx">withSerializer</span><span class="p">(</span><span class="nx">fourPaddedDigits</span><span class="p">).</span><span class="nx">writeln</span><span class="p">(</span><span class="nx">arr</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="c1">// prints: &#39;    1.123     2.123     3.123     4.123&#39;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><ul>
+<li>
+<p>The
+<a href="https://chapel-lang.org/docs/2.2/modules/packages/Zarr.html"target="_blank" rel="noopener"><code>Zarr</code></a>
+module added in Chapel 2.0 has been extended to support a wide
+variety of compression algorithms, as well as to be more flexible
+with respect to which locales are involved in its operations.</p>
+</li>
+<li>
+<p>Finally, two new utility
+routines—<a href="https://chapel-lang.org/docs/2.2/modules/standard/JSON.html#JSON.fromJson"target="_blank" rel="noopener"><code>fromJson()</code></a>
+and
+<a href="https://chapel-lang.org/docs/2.2/modules/standard/JSON.html#JSON.toJson"target="_blank" rel="noopener"><code>toJson()</code></a>—have
+been added to the
+<a href="https://chapel-lang.org/docs/2.2/modules/standard/JSON.html"target="_blank" rel="noopener"><code>JSON</code></a>
+module to convert between Chapel values and JSON strings outside of
+a file I/O context.</p>
+</li>
+</ul>
+<h3 id="array-optimizations">
+  <a href="#array-optimizations">Array Optimizations</a>
+</h3>
+<p>Chapel 2.2 includes several new optimizations for key computational
+patterns involving arrays, described in the following sections.</p>
+<h4 id="optimized-array-slice-assignments">
+  <a href="#optimized-array-slice-assignments">Optimized Array Slice Assignments</a>
+</h4>
+<p>The first optimization greatly improves the performance of
+assignments between array slices, as in the following example:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">B</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">A</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">9</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="o">..</span><span class="mi">10</span><span class="p">];</span><span class="w">  </span><span class="c1">// copy between sub-arrays of A and B
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">A</span><span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">];</span><span class="w">             </span><span class="c1">// copy row 3 of B to row 10 of A
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Traditionally, for rank-preserving and rank-changing slices like
+these, Chapel has created a new pseudo-array, called an <em>array
+view</em>, that aliases the original array&rsquo;s data, permitting it to act
+like a normal array.  For an assignment like the above, once we&rsquo;ve
+created the array views, we&rsquo;d simply call the normal array
+assignment operator, passing them as arguments, and then destroy the
+views afterwards.</p>
+<p>The new optimization in Chapel 2.2, called <em>Array View Elision
+(AVE)</em>, avoids the creation of the array views by specializing the
+assignment to simply restrict it to the indices in question.  This
+eliminates the need to create and destroy the array views.  AVE
+helps address longstanding requests from Chapel users who had been
+replacing elegant slice assignments like the ones above with
+explicit loops to avoid the array view overheads.</p>
+<p>The result can have a profound impact on performance, particularly
+for small slices where the creation of the slice view can vastly
+outweigh the time required to perform the assignment of the array
+elements.  For example, on desktop systems, we saw a 30x improvement
+for 10-element array copies.  In a 2D shared-memory Poisson solver,
+the optimization improved the boundary update step, reducing the
+execution time of each timestep by ~18% for a 256x256 problem size.
+Meanwhile, a distributed-memory 2D heat equation solver saw an
+improvement of ~4x for various problem sizes between 4 million and
+270 million elements.</p>
+<h4 id="stencil-optimizations">
+  <a href="#stencil-optimizations">Stencil Optimizations</a>
+</h4>
+<p>Another pair of optimizations in Chapel 2.2 helps with stencil
+computations—like the aforementioned Poisson and heat equation
+solvers—when applied to
+<a href="https://chapel-lang.org/docs/2.2/modules/dists/StencilDist.html"target="_blank" rel="noopener">stencil-distributed</a>
+arrays.</p>
+<p>In the first optimization, the compiler recognizes stencil access
+patterns, like <code>A[i+1,j]</code>, and optimizes for the common case where
+these accesses don&rsquo;t require communicating with other locales.  This
+optimization is enabled by the fact that stencil-distributed arrays
+store extra rows and columns of <span class="sidenote"><label class="sidenote-label" for="sidenote-0"><em>fluff</em></label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Also known as <i>ghost cells</i>, <i>halos</i>, or <i>overlap
+regions</i> in the literature.<span class="sidenote-delimiter">]</span></span></span> elements that cache
+neighboring locales&rsquo; values.  This eliminates the overhead that&rsquo;s
+typically incurred when accessing a distributed array to determine
+whether the element is local or must be fetched from a remote
+locale&rsquo;s memory.  The resulting performance matches the use of
+explicit <code>A.localAccess(i+1,j)</code> calls, which permit programmers to
+assert that a given access is local to the current locale; yet using
+the more convenient <code>A[i+1,j]</code> syntax.</p>
+<p>The second optimization reduced overheads in the <code>.updateFluff()</code>
+method for such arrays, which refreshes the fluff values to match
+the array values they are caching.  The effect of these two
+optimizations can be seen when zooming in on one of our <a href="https://chapel-lang.org/perf/16-node-xc/?startdate=2024/06/16&amp;enddate=2024/09/24&amp;configs=gnuugniqthreads&amp;graphs=2dheatsolvers5pointstencil"target="_blank" rel="noopener">nightly
+performance
+graphs</a>
+that tracks the performance of the distributed 2D heat equation
+solver mentioned above:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.2/StencilPerf.png"
+    alt="Impact of new optimizations on a 5-point stencil"><figcaption>
+      <p>Impact of new optimizations on a 5-point stencil</p>
+    </figcaption>
+</figure>
+
+<p>As can be seen, once the compiler began optimizing stencil accesses,
+the performance of the version using normal array accesses <span class="sidenote"><label class="sidenote-label" for="sidenote-1">began matching</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-1"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Note that the original
+optimization also introduced an unintentional performance regression
+for stencils on block-distributed arrays, which we fixed upon
+noticing it.<span class="sidenote-delimiter">]</span></span></span> the one using explicit
+<code>.localAccess()</code> calls.  Then, when <code>.updateFluff()</code> was optimized,
+both versions improved further.</p>
+<h4 id="domain-localization-optimization">
+  <a href="#domain-localization-optimization">Domain Localization Optimization</a>
+</h4>
+<p>A third array-based optimization in Chapel 2.2 applies when copying
+a local array from one locale to another.  For example:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">Locales</span><span class="p">.</span><span class="nx">last</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">localA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">A</span><span class="p">;</span><span class="w">  </span><span class="c1">// make a local copy of A on this locale
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// compute with &#39;localA&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Traditionally, patterns like this have been unnecessarily expensive
+in Chapel, requiring communication back to <code>A</code>&rsquo;s locale for each
+operation performed on <code>localA</code>.  The reason for this was that even
+though <code>localA</code> was local, the domain describing its indices, <code>D</code>,
+was stored back on the original locale and needed to be accessed for
+things like bounds queries.</p>
+<p>The optimization applied in Chapel 2.2 is a simple one: In cases
+like this where the domain is sufficiently constant, we now make a
+local copy of the domain as well, essentially transforming the
+original code into the following (which performance-minded
+programmers have used in the past to avoid these excess
+communications):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">Locales</span><span class="p">.</span><span class="nx">last</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">localD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">D</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">localA</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">localD</span><span class="p">]</span><span class="w"> </span><span class="nx">A</span><span class="p">.</span><span class="nx">eltType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">A</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// ...compute with &#39;localA&#39;...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In the example shown above, <code>D</code> is declared to be <code>const</code>, trivially
+enabling this optimization to fire.  In practice, the optimization
+can eliminate an arbitrary amount of communication, since each
+operation on <code>localA</code> would result in communication back to the
+original locale.  This is also a good reminder of the importance of
+declaring domains to be <code>const</code> when their index sets won&rsquo;t be
+changing over the domain&rsquo;s lifetime.</p>
+<h4 id="array-reuse-optimization">
+  <a href="#array-reuse-optimization">Array Reuse Optimization</a>
+</h4>
+<p>The final optimization applies when initializing one array using
+another where the two arrays have the same index sets, but distinct
+domains.  A common case where this comes up is when declaring and
+assigning between arrays using anonymous domains, as in the
+following example:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">genTriple</span><span class="p">():</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">trip</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">1.2</span><span class="p">,</span><span class="w"> </span><span class="mf">3.4</span><span class="p">,</span><span class="w"> </span><span class="mf">5.6</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">trip</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">myTriple</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">genTriple</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myTriple</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Prior to this optimization, the declaration of <code>myTriple</code> would
+result in a new array allocation and a copy of <code>genTriple()</code>&rsquo;s
+returned <code>trip</code> array into it.  However, with the new optimization,
+<code>myTriple</code> can simply re-use, or <em>steal</em>, <code>trip</code>&rsquo;s buffer, <span class="sidenote"><label class="sidenote-label" for="sidenote-2">reducing both memory utilization and execution time</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-2"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+In fact, this optimization also eliminates a second array allocation
+and copy for this program—used to store the array being returned by
+<code>genTriple()</code> into a temporary variable.  With this optimization,
+<code>trip</code> can similarly be stolen by that temporary array, further
+reducing array memory allocations and copies.<span class="sidenote-delimiter">]</span></span></span>.</p>
+<p>For a single, small array like this, the benefits may be minimal;
+but for the large arrays that are commonly used in Chapel, the
+impact can be significant.  For example, the green lines on the
+following graph from our <a href="https://chapel-lang.org/perf/chapcs/?startdate=2024/08/27&amp;enddate=2024/09/24&amp;graphs=arrayreturnperformanceserialparallel40000000elementarray"target="_blank" rel="noopener">nightly
+trackers</a>
+capture the improvement that took place for computations like the
+one above when using a 40-million-element array once this
+optimization was added on September 10th:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.2/ArrayRetPerf.png"
+    alt="Impact of Chapel 2.2&rsquo;s new array re-use optimization"><figcaption>
+      <p>Impact of Chapel 2.2&rsquo;s new array re-use optimization</p>
+    </figcaption>
+</figure>
+
+<p>In data-intensive cases, such as recursive procedures returning big
+arrays, this optimization can significantly reduce a program&rsquo;s
+overall memory footprint, allowing it to run to completion rather
+than running out of memory.</p>
+<h3 id="gpu-improvements">
+  <a href="#gpu-improvements">GPU Improvements</a>
+</h3>
+<p>Chapel 2.2 introduces new GPU programming improvements as well,
+such as new GPU-oriented attributes.</p>
+<p>The <code>@assertOnGpu</code> attribute has been an important debugging tool for many users
+since the early days of Chapel&rsquo;s GPU support, to ensure that a
+parallel computation executes on a GPU as expected. As powerful as
+it is, it does have its limitations. Most importantly,
+<code>@assertOnGpu</code> requires that code is always executed on the GPU, meaning
+the same code can&rsquo;t be used on the CPU.
+This significantly hinders code reuse between CPUs and
+GPUs. To address this limitation, Chapel 2.2 introduces
+<a href="https://chapel-lang.org/docs/2.2/modules/standard/GPU.html#GPU.@gpu.assertEligible"target="_blank" rel="noopener"><code>@gpu.assertEligible</code></a>
+to assert that a statement is suitable for GPU execution,
+without requiring it to be executed on a GPU.
+This is a much more light-handed approach;
+for example, the code below can be run on a CPU or a GPU:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nx">here</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">on</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">Arr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">1</span><span class="nx">_000_000</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">@</span><span class="nx">gpu</span><span class="p">.</span><span class="nx">assertEligible</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">foreach</span><span class="w"> </span><span class="nx">elem</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Arr</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">elem</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">Arr</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Another attribute we introduced with Chapel 2.2 is
+<a href="https://chapel-lang.org/docs/2.2/modules/standard/GPU.html#GPU.@gpu.itersPerThread"target="_blank" rel="noopener"><code>@gpu.itersPerThread</code></a>. By
+default, Chapel uses a GPU thread per iteration for a
+GPU-eligible loop. However, in some applications this leads to
+suboptimal performance, where mapping multiple iterations to a
+single GPU thread can be preferable. Here&rsquo;s a quick example of how this
+attribute can be used in such scenarios:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">foreach</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// will run using 1000 GPU threads
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">@</span><span class="nx">gpu</span><span class="p">.</span><span class="nx">itersPerThread</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">foreach</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// will run using 100 GPU threads
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The <code>@gpu.itersPerThread</code> attribute currently divides the iteration space into
+blocks. In future releases, we plan to add more knobs to
+control thread-to-iteration mapping.</p>
+<p>Chapel 2.2 also features many improvements for high-end HPC
+systems with GPUs. Chapel&rsquo;s
+<a href="https://chapel-lang.org/docs/2.2/usingchapel/multilocale.html#co-locales"target="_blank" rel="noopener"><em>co-locales</em></a>,
+<a href="../../posts/announcing-chapel-1.32/#support-for-co-locales">first introduced in Chapel
+1.32</a>,
+can now be used with GPUs. This enables
+significantly better affinity in systems with multiple GPUs
+per node, such as Frontier or Perlmutter. Chapel 2.2 is also the
+first release to support ROCm 6, which is key for
+enabling Chapel programs to target AMD&rsquo;s MI300A APUs that will power El
+Capitan. Last but not least, we have resolved a user-reported
+performance bug where GPU kernels running on multiple GPUs per
+node were unnecessarily synchronized, creating arbitrary slowdowns.</p>
+<p>For more information about Chapel on GPUs, please refer to our
+ongoing <a href="https://chapel-lang.org/blog/series/gpu-programming-in-chapel/"target="_blank" rel="noopener">GPU Programming in
+Chapel</a> blog
+series or the <a href="https://chapel-lang.org/docs/2.2/technotes/gpu.html"target="_blank" rel="noopener">GPU
+Programming</a> tech
+note.</p>
+<h3 id="for-more-information">
+  <a href="#for-more-information">For More Information</a>
+</h3>
+<p>If you have questions about Chapel 2.2 or its new features, please
+reach out on Chapel&rsquo;s <a href="https://chapel.discourse.group/"target="_blank" rel="noopener">Discourse
+community</a> or one of our other
+<a href="https://chapel-lang.org/community.html"target="_blank" rel="noopener">community forums</a>.  As
+always, we&rsquo;re interested in feedback on how we can make the Chapel
+language, libraries, implementation, and tools more useful to you.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;2.2%21&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;2.2%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Announcing&#43;Chapel&#43;2.2%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;2.2%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

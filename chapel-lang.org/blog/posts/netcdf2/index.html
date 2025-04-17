@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="Exploring distributed file IO in Chapel using distributed domains, arrays, and hyperslabs while handling unknown dataset shapes">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>NetCDF in Chapel, Part 2: Reading a Dataset in Parallel</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>NetCDF in Chapel, Part 2: Reading a Dataset in Parallel</h2>
+<div class="post-subscript">
+    <p>Posted on May 3, 2023.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/user-experiences">User Experiences</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+        <a class="button" href="../../tags/i/o">I/O</a>
+        
+        <a class="button" href="../../tags/parallel-i/o">Parallel I/O</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/scott-bachman">Scott Bachman</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#recap-of-part-1">Recap of Part 1</a></li>
+    <li><a href="#preparing-for-distributed-io">Preparing for Distributed I/O</a></li>
+    <li><a href="#executing-the-distributed-io">Executing the Distributed I/O</a></li>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>This blog post is a follow-up to the first episode in this series, which focused
+on Chapel&rsquo;s C interoperability features for reading files in NetCDF format. In
+the previous post we used Chapel&rsquo;s <code>extern</code> keyword to interface with the NetCDF
+C library, and were able to learn some information about our dataset that we
+will need to store it in a Chapel array. We had not run into any trouble
+regarding the fact that the dataset&rsquo;s shape was unknown beforehand, but in this
+post we will highlight some complications that arise (and how to handle them!).
+Finally, we will take advantage of Chapel&rsquo;s task parallel features to store our
+dataset in an array that is distributed across <em>locales</em>, where a locale in Chapel
+is a group of processors and their memory, such as a compute node in a cluster or
+supercomputer. Storing the data in distributed arrays will set us up for fast,
+parallel computations further down the road.</p>
+<p><strong>The combined code from Part 1 and this post can be seen here:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/netcdf2.chpl" download="netcdf2.chpl">netcdf2.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">require</span><span class="w"> </span><span class="s">&#34;netcdf.h&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;-lnetcdf&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;myFile.nc&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">datName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;test1D&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_open</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">mode</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ncidp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">ndims</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Open the file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">nc_open</span><span class="p">(</span><span class="nx">filename</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ncid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the dataset ID
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">datid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the number of dimensions for this dataset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ndimsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ndims</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the IDs of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimids</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimidsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimids</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the size of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_size_t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">lenp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">dimids</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimlens</span><span class="p">[</span><span class="nx">i</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Close the NetCDF file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Create the domain and distributed array to hold the data
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// else if etc. etc.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;Can&#39;t yet handle &gt;4 dimensions&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">CreateDomain</span><span class="p">(</span><span class="kd">param</span><span class="w"> </span><span class="nx">numDims</span><span class="p">,</span><span class="w"> </span><span class="nx">indicesArr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">1</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">2</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">3</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// else if etc. etc.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">inline</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">tuplify</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">isTuple</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="p">;</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="nx">x</span><span class="p">,);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">DistributedRead</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">(</span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dist_array</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//      int nc_get_vara_double(int ncid, int varid, const size_t* startp, const size_t* countp, float* ip)	
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_get_vara_double</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">startp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">),</span><span class="w"> </span><span class="nx">countp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">),</span><span class="w"> </span><span class="nx">ip</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">))):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Determine where to start reading file, and how many elements to read
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// Start specifies a hyperslab.  It expects an array of dimension sizes
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tuplify</span><span class="p">(</span><span class="nx">D</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">().</span><span class="nx">first</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Count specifies a hyperslab.  It expects an array of dimension sizes
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">D</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">().</span><span class="nx">shape</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Create arrays of c_size_t for compatibility with NetCDF-C functions.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">start_c</span><span class="p">,</span><span class="w"> </span><span class="nx">count_c</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">dom_in</span><span class="p">.</span><span class="nx">rank</span><span class="p">]</span><span class="w"> </span><span class="nx">c_size_t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">start_c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">start</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">count_c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">count</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_open</span><span class="p">(</span><span class="nx">filename</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ncid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_get_vara_double</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">start_c</span><span class="p">),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">count_c</span><span class="p">),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dist_array</span><span class="p">[</span><span class="nx">start</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">dist_array</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<h3 id="recap-of-part-1">
+  <a href="#recap-of-part-1">Recap of Part 1</a>
+</h3>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">require</span><span class="w"> </span><span class="s">&#34;netcdf.h&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;-lnetcdf&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;myFile.nc&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">datName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;test1D&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_open</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">mode</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ncidp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">ndims</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Open the file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">nc_open</span><span class="p">(</span><span class="nx">filename</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ncid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the dataset ID
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">datid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the number of dimensions for this dataset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ndimsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ndims</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the IDs of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimids</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimidsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimids</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the size of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_size_t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">lenp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">dimids</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimlens</span><span class="p">[</span><span class="nx">i</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Close the NetCDF file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The above code block is a concise, combined version of the code that was
+presented in Part 1. Here, we have created all the infrastructure we need to
+know the ID and shape of the dataset we want to read. We have stored the
+variable ID in <code>datid</code>, the number of dimensions in <code>ndims</code>, and the length of
+each dimension in an array, <code>dimlens</code>. Thus far, the code has been agnostic to
+the shape of the dataset; once <code>ndims</code> is known, it would have simply allocated
+enough heap space for the <code>dimids</code> and <code>dimlens</code> arrays to handle whatever the
+shape is. Creating the arrays to store the dataset will be a different story,
+however.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Create the domain and distributed array to hold the data
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// else if etc. etc.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;Can&#39;t yet handle &gt;4 dimensions&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This block follows immediately after the for-loop calling <code>nc_inq_dimlen()</code>,
+where we now call two procedures, <code>CreateDomain()</code> and <code>DistributedRead()</code> (described
+below). The biggest thing to notice here is that I have used branching logic
+at this step, depending on how many dimensions our dataset has. This is because
+in Chapel the <em>dimensionality</em> of <span class="sidenote"><label class="sidenote-label" for="sidenote-0">domains</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>In Chapel, a <i>domain</i> is a language feature representing an index set.  In practice, domains are used to declare arrays and specify iteration spaces.  As an example <code>{1..100, 1..100}</code> is a domain value representing a 2D 100&times;100 index set. <span class="sidenote-delimiter">]</span></span></span> and arrays has to be known at compile-time (contrast this to an interpreted language like Python, which allows arrays
+of any rank to be created interactively).  This constraint is one reason that Chapel is
+able to achieve such high performance and optimization for array operations.
+In practice, this means that I have to create a different set of instructions
+for each possible dimension of the dataset (essentially telling the compiler to
+prepare for each potential incoming array rank). This clearly would become a
+pain if the NetCDF file contained data with a large number of dimensions, as a
+lot of boilerplate code would need to be written to handle all possible cases
+(though this logic could be hidden from the user by pushing it into a library
+routine, instead of calling directly into C as is done here).
+Here, we are assuming that we&rsquo;re only interested in reading &ldquo;typical&rdquo; climate
+science datasets, which tend to have no more than 4 dimensions. An <code>else</code>
+statement halts the program and returns an error message if the user reads a
+dataset with more than 4 dimensions.</p>
+<details>
+    <summary><strong>Sidebar: reducing boilerplate code #1</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>There are some obvious repetitions in the previous code block, namely its
+reliance on repeated lines of very similar (i.e. boilerplate) code, which
+causes us to stop at the <code>ndims==4</code> case to keep the program size from
+sprawling. Here is an alternative pattern that semantically achieves the same
+result, except in a much more concise way:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">maxDims</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">maxDims</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;Current build can&#39;t read &#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">numdims</span><span class="p">:</span><span class="kt">string</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&#34;-dimensional arrays.\n&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="s">&#34;Recompile with -smaxDims=&#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">numdims</span><span class="p">:</span><span class="kt">string</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&#34; to support them.&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">maxDims</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">ndims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">dom_in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">CreateDomain</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DistributedRead</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The <code>for</code> loop here allows us to handle datasets with up to 4 dimensions,
+which, of course, is an arbitrary choice — we could substitute larger integers,
+if desired, though this would incur extra compile time. Note that an
+error message has also been included to handle the case when <code>ndims</code> is greater
+than <code>maxDims</code>. In practice one would probably use the largest dimensionality
+that he or she would expect to encounter in the NetCDF file.</p>
+
+    </div>
+</details>
+
+<h3 id="preparing-for-distributed-io">
+  <a href="#preparing-for-distributed-io">Preparing for Distributed I/O</a>
+</h3>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">CreateDomain</span><span class="p">(</span><span class="kd">param</span><span class="w"> </span><span class="nx">numDims</span><span class="p">,</span><span class="w"> </span><span class="nx">indicesArr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">1</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">2</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numDims</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="mi">3</span><span class="p">]};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// else if etc. etc.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The procedure <code>CreateDomain()</code> takes as input an integer literal to represent
+the number of dimensions, as well as our array <code>dimlens</code> to inform the shape of
+the domain we need to create. We then create and return a domain, stored
+in the variable <code>dom_in</code> back at the callsite.
+The range of each dimension <code>i</code> is from <code>0</code> to <code>dimlens[i]-1</code>,
+which is expressed in <code>CreateDomain()</code> using the <code>..&lt;</code> operator. We will use
+<code>dom_in</code> to create our distributed array in the next step.</p>
+<details>
+    <summary><strong>Sidebar: reducing boilerplate code #2</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The above code block suffers from the same repetitive patterns that we encountered
+previously, so here is another alternative pattern to tidy this up. I have
+chosen to put this code in the Sidebar to keep the main discussion at an
+introductory level, and to keep the more advanced syntax here from derailing
+the tutorial:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">CreateDomain</span><span class="p">(</span><span class="kd">param</span><span class="w"> </span><span class="nx">numDims</span><span class="p">,</span><span class="w"> </span><span class="nx">indicesArr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">indices</span><span class="p">:</span><span class="w"> </span><span class="nx">numDims</span><span class="o">*</span><span class="kt">range</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numDims</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">indices</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">indicesArr</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{(</span><span class="o">..</span><span class="p">.</span><span class="nx">indices</span><span class="p">)};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div>
+    </div>
+</details>
+
+<h3 id="executing-the-distributed-io">
+  <a href="#executing-the-distributed-io">Executing the Distributed I/O</a>
+</h3>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">81
+</span><span class="lnt">82
+</span><span class="lnt">83
+</span><span class="lnt">84
+</span><span class="lnt">85
+</span><span class="lnt">86
+</span><span class="lnt">87
+</span><span class="lnt">88
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">inline</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">tuplify</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">isTuple</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="p">;</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="nx">x</span><span class="p">,);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">DistributedRead</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">dom_in</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">(</span><span class="nx">dom_in</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dist_array</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>After we have created our domain in the previous code block, our program
+calls <code>DistributedRead()</code> to actually perform the parallelized reading of the
+dataset. This procedure takes as input arguments the domain, <code>dom_in</code>, as well
+as <code>filename</code> and <code>datid</code>, since we have to open up the NetCDF file
+<em>on each locale</em> where we wish to do the reading. Note that I also include here the
+definition of another procedure, <code>tuplify()</code>, which will be used shortly.</p>
+<p>Our first task inside <code>DistributedRead()</code> is to use the <code>BlockDist</code> module to create
+a block-distributed version of <code>dom_in</code>, which we call <code>D</code>. Essentially <code>D</code> is a
+partitioning of <code>dom_in</code> that is evenly distributed across our locales, in
+preparation for having each locale read only its own chunk of the dataset. We
+then create a distributed array using this domain called <code>dist_array</code>, which
+contains elements of type <code>real(64)</code> (note that this only specifies the type
+that our dataset will be stored as, <em>not</em> its type in the NetCDF file. That is,
+the data type of the incoming dataset does not have to be <code>real(64)</code>, thanks to
+NetCDF cleverly distinguishing between <em>internal</em> and <em>external</em> types; see
+<a href="https://docs.unidata.ucar.edu/nug/current/md_types.html"target="_blank" rel="noopener">https://docs.unidata.ucar.edu/nug/current/md_types.html</a> for details). Since
+<code>dist_array</code> will be used to store the incoming dataset, there is no need to
+assign values to it at this time, so all elements initially have a value
+of zero.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">90
+</span><span class="lnt">91
+</span><span class="lnt">92
+</span><span class="lnt">93
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//      int nc_get_vara_double(int ncid, int varid, const size_t* startp, const size_t* countp, float* ip)	
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_get_vara_double</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">startp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">),</span><span class="w"> </span><span class="nx">countp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">),</span><span class="w"> </span><span class="nx">ip</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">))):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We now use a <code>coforall</code> loop and an on-clause, <code>on loc</code>, to create a
+task-parallel reading of our NetCDF file. The code block inside the curly
+braces of the <code>coforall</code> loop executes on each locale, so our objective here is
+to make the program read in only the part of the dataset from the NetCDF file
+that should be stored on that particular locale, and to store it to the
+corresponding part of <code>dist_array</code>.</p>
+<p>The first line inside the loop creates an <code>extern</code> declaration of the function
+we need for reading, <code>nc_get_vara_double()</code>. As in Part 1, the corresponding C
+version of this function declaration is in the commented text on line 91. This
+function has two arguments that we need to construct carefully that lets us do
+the distributed read: <code>startp</code> and <code>countp</code>. These are pointers to variables
+<code>start</code> and <code>count</code>, respectively, which represent <em>hyperslabs</em>, which is a
+really just a concise way of saying &ldquo;rectilinear chunks of the dataset&rdquo;.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Determine where to start reading file, and how many elements to read
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// Start specifies a hyperslab.  It expects an array of dimension sizes
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tuplify</span><span class="p">(</span><span class="nx">D</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">().</span><span class="nx">first</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Count specifies a hyperslab.  It expects an array of dimension sizes
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">D</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">().</span><span class="nx">shape</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Create arrays of c_size_t for compatibility with NetCDF-C functions.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">start_c</span><span class="p">,</span><span class="w"> </span><span class="nx">count_c</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">dom_in</span><span class="p">.</span><span class="nx">rank</span><span class="p">]</span><span class="w"> </span><span class="nx">c_size_t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">start_c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">start</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">count_c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">count</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>start</code> is a tuple that represents which element of the dataset to start
+reading at, and <code>count</code> is another tuple that represents the size of the chunk
+that we want to read. Notice that the assignment <code>start</code> uses a
+procedure, <code>tuplify()</code> (shown earlier), to ensure that it always has the
+tuple type (this is mainly used as a guardrail against the <code>ndims=1</code> case,
+for which the <code>first</code> method would return a scalar instead. Tuples
+are needed here to be compatible with the way we have to loop over these arrays,
+i.e. <code>start[i]</code>; the compiler would not allow a scalar to be indexed like this).
+For <code>start</code> we use the <code>localSubdomain().first</code> method to specify the first
+element of <code>D</code> that belongs to this locale, and for <code>count</code> we use
+<code>localSubdomain().shape</code> to obtain the size of the chunk to read. We then convert
+the elements of <code>start</code> and <code>count</code> into the <code>c_size_t</code> type that is required
+by <code>nc_get_vara_double()</code>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_open</span><span class="p">(</span><span class="nx">filename</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ncid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_get_vara_double</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">start_c</span><span class="p">),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">count_c</span><span class="p">),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dist_array</span><span class="p">[</span><span class="nx">start</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">dist_array</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now it is time to open our file again, except this time it is opened on each
+locale since it is inside the <code>coforall</code> loop and <code>on</code>-clause. Here, we avoid
+a &ldquo;gotcha&rdquo; that is crucial to point out! Notice that we passed <code>filename</code>
+into the <code>DistributedRead()</code> procedure as a Chapel string, and then inside the
+<code>nc_open()</code> statement we used the <code>c_str()</code> method to cast it into a <code>c_ptrConst(c_char)</code>.
+Why could we not just pass it into <code>DistributedRead()</code> as a C string in the first
+place?  It turns out that C pointer types like  <code>c_ptrConst(c_char)</code>
+can only point to local memory, so a routine like <code>nc_open()</code> can&rsquo;t
+accept a pointer to remote data, which is what would happen if one created a
+pointer to local data on one locale and then referenced it on another locale.
+Essentially this means that if <code>filename</code> is already a C string <em>before</em>
+entering the <code>coforall</code> loop its string data will <em>not</em> be broadcast to each other locale,
+and the actual argument inside <code>nc_open()</code> will have a pointer to arbitrary memory
+instead. So be careful when playing with C interoperability in a distributed
+environment!</p>
+<p>Finally, we can call the <code>nc_get_vara_double()</code> function to perform the read,
+keeping in mind that we need to point to <code>dist_array[start]</code> so that the local
+reading occurs at the correct part of <code>dist_array</code>. After the <code>coforall</code> loop
+terminates, the <code>DistributedRead()</code> procedure returns the now-filled <code>dist_array</code>
+to us, with the distributed dataset stored within. Note that if we wanted to do
+operations on/with this array once it is returned, we would have to declare a
+variable in <code>main()</code> to receive it, e.g. <code>var myArray = DistributedRead(...);</code></p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>In this post we have built upon the C interoperability lessons from Part 1 and
+added some distributed task parallelism on top. We got to use some elegant Chapel syntax
+to specify where to start reading the dataset on each locale, and which part of
+<code>dist_array</code> to put that chunk in. Hopefully this has been a good use case to
+demonstrate these features of Chapel, and will help users get started with
+their own codes that interoperate with C.</p>
+<p>Of course for succinctness we have omitted some details that may have caught
+the reader&rsquo;s attention. Here, we hard-coded a <code>real(64)</code> type to store our input
+dataset, but what if we want our dataset to be stored using another type, like
+32-bit float or even an integer? Is there a way to handle all possible data
+types succinctly, without a load of boilerplate code? Is the default <code>blockDist</code>
+distribution always the best one to use?  What if we want to do arithmetic
+along one axis of our dataset, but that axis is split across multiple locales?
+Wouldn&rsquo;t it be better if we kept that axis all on a single locale, and how do
+we do that? Lastly, NetCDF has a <code>_FillValue</code> attribute that tells the user
+which parts of the dataset contain values that should be ignored; how can we
+deal with that in Chapel, and in particular, this code?</p>
+<p>For answers to these questions, stay tuned for future articles on these topics!</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Apr 4, 2024</td>
+          <td style="text-align: left">Replaced used of deprecated <code>c_string</code> with <code>c_ptrConst(c_char)</code></td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Apr 4, 2024</td>
+          <td style="text-align: left">Replaced used of deprecated <code>Block</code> with <code>blockDist</code></td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;2%3A&#43;Reading&#43;a&#43;Dataset&#43;in&#43;Parallel&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;2%3A&#43;Reading&#43;a&#43;Dataset&#43;in&#43;Parallel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;2%3A&#43;Reading&#43;a&#43;Dataset&#43;in&#43;Parallel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;2%3A&#43;Reading&#43;a&#43;Dataset&#43;in&#43;Parallel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf2%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/netcdf1/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+NetCDF in Chapel, Part 1: Interfacing with the C Library
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+    </nav>
+
+
+    </body>
+</html>

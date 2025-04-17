@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="This blog post compares the performance of standard library sort routines in several programming languages.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Comparing Standard Library Sorts: The Impact of Parallelism</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Comparing Standard Library Sorts: The Impact of Parallelism</h2>
+<div class="post-subscript">
+    <p>Posted on January 30, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/sorting">Sorting</a>
+        
+        <a class="button" href="../../tags/performance">Performance</a>
+        
+        <a class="button" href="../../tags/language-comparison">Language Comparison</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/michael-ferguson">Michael Ferguson</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#background">Background</a></li>
+    <li><a href="#the-benchmark">The Benchmark</a></li>
+    <li><a href="#measuring-chapels-sort-performance">Measuring Chapel&rsquo;s Sort Performance</a></li>
+    <li><a href="#pythons-sort-performance">Python&rsquo;s Sort Performance</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#parallel-sorting">Parallel Sorting</a></li>
+    <li><a href="#in-conclusion">In Conclusion</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Computing hardware is parallel. Everything from the Raspberry Pi to a
+supercomputer uses parallelism. The Chapel language and standard
+library make it easy to use that parallel hardware effectively.</p>
+<p>The Chapel standard library <code>sort</code> routine is at least <strong>10 times</strong>
+faster than any other standard library <code>sort</code> measured in this
+benchmarking experiment.  The reason: Chapel&rsquo;s standard library <code>sort</code>
+routine is parallel but the others are not.  Chapel is designed for
+parallel computing and its standard library is built to leverage that
+parallelism.</p>
+<figure class="fullwide"><img src="../../posts/std-sort-performance/graph.png"><figcaption>
+      <h4>Sorting 1 GiB of random 64-bit ints on a PC</h4>
+    </figcaption>
+</figure>
+
+<h3 id="background">
+  <a href="#background">Background</a>
+</h3>
+<p>Sorting is an essential building block for many data processing tasks.
+It&rsquo;s used to create the indexes that make searching fast, as well as in many
+other algorithms, such as finding repeated or unique items in a data set.</p>
+<p>As a concrete example, sorting is fundamental to the data science
+workhorse
+<a href="https://bears-r-us.github.io/arkouda/usage/groupby.html"target="_blank" rel="noopener">GroupBy</a> in the
+<a href="https://pandas.pydata.org/pandas-docs/stable/index.html"target="_blank" rel="noopener">Pandas</a> and
+<a href="https://github.com/Bears-R-Us/arkouda"target="_blank" rel="noopener">Arkouda</a> data analysis
+tools.</p>
+<details>
+    <summary>What is Arkouda?</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        Arkouda is an open-source Python library created to
+scale data science operations for datasets that are too large to work
+with common Python data science tools on a single machine. Arkouda’s
+Python front-end offers data scientists a familiar interface based on
+Pandas and NumPy to perform interactive, high-performance data analysis
+on large distributed datasets. This is achieved by running the Arkouda
+back-end server on a supercomputer, a cluster, or the cloud, where data
+is loaded in memory. With this model, Arkouda users are able to run
+operations such as &lsquo;GroupBy&rsquo; and &lsquo;argsort&rsquo; on datasets of tens to hundreds of
+terabytes that complete within the human thought loop (i.e., seconds to a
+few minutes). Arkouda’s interactivity and Python interface make
+exploratory data and graph analysis (EDA) utilizing large-scale resources
+accessible to data scientists without a steep learning curve.
+    </div>
+</details>
+
+<p>For some applications, sorting can be the long pole in the tent,
+performance-wise. In fact, sorting is one of the first functions in
+Arkouda that needed a bit of optimization. After optimization, Arkouda&rsquo;s
+custom sort routine has exceeded a rate of 1 GB/s per node on a large
+system with over 8000 nodes. Arkouda&rsquo;s sort is focused on scaling well for
+really massive problem sizes. However, it has high constant overhead and is
+awkward to use when sorting variable-length data like strings.</p>
+<p>This post is focused on the general-purpose <code>sort</code> implementations in
+standard libraries for a variety of languages. Why focus on standard
+library <code>sort</code> routines? For one thing, the standard library is more
+likely to be used than other implementations. More importantly, we can
+use the standard library <code>sort</code> to understand what a programming language
+has to offer.</p>
+<h3 id="the-benchmark">
+  <a href="#the-benchmark">The Benchmark</a>
+</h3>
+<p>This post compares sorting performance across a number of languages and
+their standard libraries. The benchmark is simple: sort 1GiB of 64-bit
+integers — that is, <code>128*1024*1024</code> integers.</p>
+<p>Here are the details of the benchmark system, which is my PC:</p>
+<ul>
+<li>CPU: AMD Ryzen 9 7950X (4.5GHz, with 16 cores and 32 threads)</li>
+<li>Memory: 64 GiB of DDR5 memory (5200MT/s CL40)</li>
+<li>Motherboard: Gigabyte X670 Aorus Elite AX</li>
+<li>OS: Ubuntu 23.10</li>
+</ul>
+<figure class="small"><img src="../../posts/std-sort-performance/pc.jpg"><figcaption>
+      <h4>The Test Computer and Pawallel Computing Consultant</h4>
+    </figcaption>
+</figure>
+
+<p>Even though this system is relatively inexpensive, parallelism matters
+for achieving performance on it.</p>
+<p>For compilers and interpreters, I used the default versions available in
+Ubuntu 23.10, except for the version of Chapel. I used a pre-release
+version of the March 2024 release of Chapel because I recently improved
+its <code>sort</code> implementation to be more parallel.</p>
+<details>
+    <summary>software versions</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <ul>
+<li>C and C++: <code>gcc</code> and <code>g++</code> 13.2.0</li>
+<li>C#: <code>mcs</code> and <code>mono</code> 6.8.0.105</li>
+<li>Chapel: 1.34, pre-release</li>
+<li>Go: <code>go</code> 1.21.1</li>
+<li>Java: <code>javac</code> and <code>java</code> 17.0.9</li>
+<li>Julia: <code>julia</code> 1.10.0</li>
+<li>NodeJS: <code>node</code> 18.13.0</li>
+<li>Python: <code>python3</code> 3.11.6</li>
+<li>Python NumPy: 1.24.2</li>
+<li>Rust: <code>cargo</code> and <code>rustc</code> version 1.71.1</li>
+</ul>
+
+    </div>
+</details>
+
+<h3 id="measuring-chapels-sort-performance">
+  <a href="#measuring-chapels-sort-performance">Measuring Chapel&rsquo;s Sort Performance</a>
+</h3>
+<p>Here is the program I&rsquo;m using to measure Chapel&rsquo;s sort performance on
+this system:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/sort-random.chpl download="sort-random.chpl">sort-random.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">Time</span><span class="p">,</span><span class="w"> </span><span class="nx">Sort</span><span class="p">,</span><span class="w"> </span><span class="nx">Random</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// This &#39;config const&#39; makes it easy to change the number of elements when
+</span></span></span><span class="line"><span class="cl"><span class="c1">// running the program! For example:
+</span></span></span><span class="line"><span class="cl"><span class="c1">//   ./sort-random --n 500_000
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="o">*</span><span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// Declare an array storing n elements, starting from 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">uint</span><span class="p">;</span><span class="w"> </span><span class="c1">// note: uint in Chapel defaults to 64 bits
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// Set the elements to random values
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">fillRandom</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// set up timing for the sort
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">timer</span><span class="p">:</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">timer</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// run the sort itself
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">sort</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// finish timing the sort and print the result
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">elapsed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">timer</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Sorted &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; elements in &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">elapsed</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; seconds&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">n</span><span class="o">/</span><span class="nx">elapsed</span><span class="o">/</span><span class="mi">1</span><span class="nx">_000_000</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; million elements sorted per second&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>To run this Chapel program, we need to compile it first. Since we&rsquo;re
+interested in benchmarking performance, we need to make sure to throw
+<code>--fast</code> to enable more optimization and turn off execution-time safety
+checks:</p>
+<pre tabindex="0"><code>$ chpl sort-random.chpl --fast
+</code></pre><p>Now we can run it:</p>
+<pre tabindex="0"><code>$ ./sort-random
+Sorted 134217728 elements in 0.246093 seconds
+545.394 million elements sorted per second
+</code></pre><p>This is a pretty straightforward program. Probably the most complicated
+thing about it is timing and printing the performance! But, because Chapel
+is designed for parallelism, it&rsquo;s quite parallel. The <code>fillRandom(A)</code> call
+generates random values in parallel and stores them into the array <code>A</code>.
+And the <code>sort(A)</code> call runs a parallel sort. It&rsquo;s important to note that
+you don&rsquo;t have to know anything at all about parallel computing in order
+to make use of these parallel routines.</p>
+<h3 id="pythons-sort-performance">
+  <a href="#pythons-sort-performance">Python&rsquo;s Sort Performance</a>
+</h3>
+<p>Let&rsquo;s look at a Python version of our sort benchmark:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">random</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">time</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">n</span> <span class="o">=</span> <span class="mi">128</span><span class="o">*</span><span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">array</span> <span class="o">=</span> <span class="p">[</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mh">0xffffffffffffffff</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl"><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">array</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">elapsed</span> <span class="o">=</span> <span class="n">stop</span><span class="o">-</span><span class="n">start</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span> <span class="p">(</span><span class="s2">&#34;Sorted&#34;</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="s2">&#34;elements in&#34;</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&#34;seconds&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span> <span class="p">(</span><span class="n">n</span><span class="o">/</span><span class="n">elapsed</span><span class="o">/</span><span class="mi">1_000_000</span><span class="p">,</span> <span class="s2">&#34;million elements sorted per second&#34;</span><span class="p">)</span>
+</span></span></code></pre></div><pre tabindex="0"><code>$ python3 python-sort-random.py
+Sorted 134217728 elements in 56.063706398010254 seconds
+2.394021669690456 million elements sorted per second
+</code></pre><p>That&rsquo;s quite a bit slower. The Chapel code is about <strong>200x</strong> faster while
+being similarly easy to write or read. Often, optimizing a program makes
+it more complex and harder to maintain, but that&rsquo;s not the case here. The
+performance of the Chapel version <em>comes for free</em>.</p>
+<p>You might be curious about a version using NumPy. Since NumPy isn&rsquo;t in
+the Python standard library, the main graph of this post doesn&rsquo;t include
+it. But, it is common enough readers are likely to be curious about it.
+A NumPy version improves upon the performance of the Python version, but
+the Chapel benchmark still sorts about <strong>25x</strong> faster.</p>
+<details>
+    <summary>(click to see the NumPy version)</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">numpy</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">random</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">time</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">n</span> <span class="o">=</span> <span class="mi">128</span><span class="o">*</span><span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">array</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mh">0xffffffffffffffff</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">uint64</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">array</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">elapsed</span> <span class="o">=</span> <span class="n">stop</span><span class="o">-</span><span class="n">start</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span> <span class="p">(</span><span class="s2">&#34;Sorted&#34;</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="s2">&#34;elements in&#34;</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&#34;seconds&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span> <span class="p">(</span><span class="n">n</span><span class="o">/</span><span class="n">elapsed</span><span class="o">/</span><span class="mi">1_000_000</span><span class="p">,</span> <span class="s2">&#34;million elements sorted per second&#34;</span><span class="p">)</span>
+</span></span></code></pre></div><pre tabindex="0"><code>$ python3 numpy-sort-random.py
+Sorted 134217728 elements in 6.323578834533691 seconds
+21.22496319125867 million elements sorted per second
+</code></pre>
+    </div>
+</details>
+
+<h3 id="results">
+  <a href="#results">Results</a>
+</h3>
+<p>This chart shows the complete results:</p>
+<figure class="fullwide"><img src="../../posts/std-sort-performance/graph.png"><figcaption>
+      <h4>Sorting 1GiB of random 64-bit ints on a PC</h4>
+    </figcaption>
+</figure>
+
+<p>In making this chart, I made 5 measurements for each language. The chart
+shows the average of these.</p>
+<p>Note that NodeJS crashed with an out-of-memory-error for this problem
+size, so I halved the problem size for the NodeJS measurement here.</p>
+<p>The fastest alternative to Chapel here is Rust. But, the Chapel sort is
+still quite a bit faster — about <strong>10x</strong> faster.</p>
+<p>The code and commands I used to benchmark each of these are available in <a href="https://github.com/chapel-lang/chapel/tree/main/test/library/standard/Sort/performance/comparison"target="_blank" rel="noopener">the Chapel test directory</a>.</p>
+<h3 id="parallel-sorting">
+  <a href="#parallel-sorting">Parallel Sorting</a>
+</h3>
+<p>Most of the performance gain from the Chapel <code>sort</code> comes from it being
+parallel. None of the benchmarks in other languages made use of the 16
+cores of my system. According to the <code>top</code> command, they were all running
+in 1 thread.</p>
+<p>Many of these languages support some form of parallelism. So, why don&rsquo;t
+they have a parallel <code>sort</code>? In some cases, making the <code>sort</code> parallel by
+default might cause problems for existing applications by creating
+unwanted threads (C, C++, Rust). In other cases, the <code>sort</code> probably
+could be parallel but currently isn&rsquo;t (Julia, Python). If you&rsquo;re reading
+this and have more insight into the situation with a particular language,
+please let me know.</p>
+<p>Chapel&rsquo;s <code>sort</code> implementation enables the use of common parallel
+hardware — including laptops, workstations, and of course clusters and
+supercomputers. The <code>sort</code> implementation uses multi-core CPUs today but
+we expect to extend it to support distributed memory and GPUs.</p>
+<details>
+    <summary>an aside about hardware threads</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>If you are curious about hardware parallelism, note that we can actually
+get slightly more performance for the Chapel benchmark by using more of
+the parallelism available in the hardware. The CPU on my system has 16
+cores and 32 hardware threads. These additional threads can sometimes
+help with memory-bound applications (like sorting). However, by default,
+Chapel will only use 1 thread per core because that configuration has
+shown to provide better performance for most applications. We can request
+1 Chapel thread per hardware thread like this:</p>
+<pre tabindex="0"><code>$ CHPL_RT_NUM_THREADS_PER_LOCALE=MAX_LOGICAL ./chapel-sort-random
+Sorted 134217728 elements in 0.238736 seconds
+562.201 million elements sorted per second
+</code></pre><p>See also
+<a href="https://chapel-lang.org/docs/usingchapel/tasks.html#controlling-the-number-of-threads"target="_blank" rel="noopener">Chapel&rsquo;s documentation about controlling the number of threads</a>.</p>
+
+    </div>
+</details>
+
+<p>By the way, the Chapel implementation also supports generating the random
+array values in parallel. That allows the array-generation step to be
+about <strong>900x</strong> faster than Python. But, Chapel&rsquo;s random number generator
+is a subject for another post.</p>
+<p>Why can the Chapel standard library include parallel routines to sort
+or generate random numbers? A key factor here is that Chapel supports
+composable parallelism. Library functions can create new tasks, where the
+number of tasks is only limited by memory. In contrast, for many programming
+systems, threads are heavy-weight objects and subject to an operating
+system limit.  Since Chapel is designed to support nested parallelism,
+you can even call the parallel <code>sort</code> from within a parallel loop.</p>
+<p>In such a nested parallelism scenario, the Chapel library can limit
+parallelism when the cores are already busy. If we are curious about the
+performance of this benchmark on just 1 core, we can use a command-line
+flag to request that Chapel use one core for data-parallel operations:</p>
+<pre tabindex="0"><code>$ ./sort-random --dataParTasksPerLocale=1
+Sorted 134217728 elements in 2.10068 seconds
+63.8924 million elements sorted per second
+</code></pre><p>Even without parallelism, the Chapel <code>sort</code> is faster than the other
+languages measured in this post. One reason is that it uses a radix sort,
+which is rare for a standard library. Chapel&rsquo;s great support for generic
+programming makes using a radix sort convenient. That&rsquo;s the subject for
+the next post in this series.</p>
+<h3 id="in-conclusion">
+  <a href="#in-conclusion">In Conclusion</a>
+</h3>
+<p>We need a parallel language because the world of computing hardware is
+parallel. Anything less leaves a lot of performance on the floor, whether
+in the server room or your home study.  Chapel is a parallel language
+that is ready to help you solve problems where performance is
+critical. As the example in this post showed, you can even benefit from
+this parallel language if you are new to parallel computing.</p>
+<p>Give Chapel a try and let us know what you think!</p>
+<p> </p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p><em>(If you have any comments, questions, or observations about this post, please direct them to <a href="https://chapel.discourse.group/t/comparing-standard-library-sorts-the-impact-of-parallelism/30411"target="_blank" rel="noopener">this Discourse thread</a>).</em></p></blockquote></blockquote></blockquote>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Comparing&#43;Standard&#43;Library&#43;Sorts%3A&#43;The&#43;Impact&#43;of&#43;Parallelism&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fstd-sort-performance%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Comparing&#43;Standard&#43;Library&#43;Sorts%3A&#43;The&#43;Impact&#43;of&#43;Parallelism&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fstd-sort-performance%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Comparing&#43;Standard&#43;Library&#43;Sorts%3A&#43;The&#43;Impact&#43;of&#43;Parallelism&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fstd-sort-performance%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Comparing&#43;Standard&#43;Library&#43;Sorts%3A&#43;The&#43;Impact&#43;of&#43;Parallelism&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fstd-sort-performance%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

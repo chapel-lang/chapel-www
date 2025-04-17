@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A parallel solution to day eleven of AoC 2022, using Chapel&rsquo;s task parallel features.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 11: Monkeying Around</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 11: Monkeying Around</h2>
+<div class="post-subscript">
+    <p>Posted on December 17, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#todays-task-and-my-approach-to-it">Today&rsquo;s Task and My Approach to it</a></li>
+    <li><a href="#data-parallelism-vs-task-parallelism">Data Parallelism vs. Task Parallelism</a></li>
+    <li><a href="#tasks-threads-and-processors">Tasks, Threads, and Processors</a></li>
+    <li><a href="#using-modules-and-configuring-rounds">Using Modules and Configuring Rounds</a></li>
+    <li><a href="#defining-our-monkeys-as-classes">Defining our Monkeys as Classes</a>
+      <ul>
+        <li><a href="#constant-monkey-fields">Constant Monkey Fields</a></li>
+        <li><a href="#variable-monkey-fields">Variable Monkey Fields</a></li>
+        <li><a href="#monkey-methods-for-item-lists">Monkey Methods for Item Lists</a></li>
+        <li><a href="#creating-our-troop-of-monkeys">Creating our Troop of Monkeys</a></li>
+      </ul>
+    </li>
+    <li><a href="#simulating-monkeys-using-task-parallelism">Simulating Monkeys Using Task Parallelism</a>
+      <ul>
+        <li><a href="#chapels-sync-variables">Chapel&rsquo;s <code>sync</code> variables</a></li>
+        <li><a href="#tracking-turns-using-a-sync-variable">Tracking Turns Using a <code>sync</code> variable</a></li>
+        <li><a href="#declaring-a-barrier-for-coordinating-monkeys">Declaring a Barrier for Coordinating Monkeys</a></li>
+        <li><a href="#chapels-coforall-loops">Chapel&rsquo;s <code>coforall</code> Loops</a></li>
+        <li><a href="#creating-monkey-tasks-with-coforall-loops">Creating Monkey Tasks with <code>coforall</code> Loops</a></li>
+      </ul>
+    </li>
+    <li><a href="#printing-the-program-output">Printing the Program Output</a></li>
+    <li><a href="#processing-a-monkeys-items-using-a-secondary-method">Processing a Monkey&rsquo;s Items Using a Secondary Method</a></li>
+    <li><a href="#using-a-class-hierarchy-to-represent-monkeys-operations">Using A Class Hierarchy to Represent Monkeys&rsquo; Operations</a></li>
+    <li><a href="#reading-the-input-using-an-iterator-and-initializer">Reading the Input using an Iterator and Initializer</a></li>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to part 11 in our &lsquo;Twelve Days of Chapel&rsquo; Advent of Code
+2022 series.  If you&rsquo;re new to the series, take a look at the
+<a href="../../posts/aoc2022-day00-intro/">introductory article</a> for
+background on what we&rsquo;re doing.</p>
+<h3 id="todays-task-and-my-approach-to-it">
+  <a href="#todays-task-and-my-approach-to-it">Today&rsquo;s Task and My Approach to it</a>
+</h3>
+<p><a href="https://adventofcode.com/2022/day/11"target="_blank" rel="noopener">Today&rsquo;s challenge</a> involves
+simulating a troop of monkeys as they inspect and throw our precious
+items amongst themselves using a fairly obtuse pattern defined by
+an input file.  Our goal is to count the number of items each
+monkey inspects and to multiply the two highest counts together.</p>
+<p>Using the description on the AoC site, the problem statement for
+this challenge sounds inherently sequential: It talks in terms of
+each monkey taking a turn, one after another, until each has had a
+turn, completing a round.  It also talks about having the monkeys
+inspect the items one at a time.  If implemented literally, there
+would be no way to compute this algorithm in parallel.  So is there
+anything unique that Chapel can bring to the table today?</p>
+<p>As it turns out, yes.  As is often the case in parallel programming,
+there <em>is</em> a parallel approach to the problem if we focus on <em>what</em>
+we are being asked to compute rather than <em>how</em> we are being told to
+compute it.  Specifically, since the operations that determine where
+a monkey throws a given item only depend on that item&rsquo;s value and
+not on its relationship to other items (like its order in a list),
+we can inspect and throw the items in any order we wish as long we
+we keep accurate counts of those items.  As an example, each monkey
+could inspect the items it is holding in parallel using a <code>forall</code>
+loop due to the independence of the items&rsquo; values.</p>
+<p>Throwing the items is another matter, however.  If a monkey uses a
+parallel loop to inspect its items, since there are only two monkeys
+it will throw the items to, it&rsquo;s quite likely that it will throw
+multiple items at another monkey simultaneously.  For that reason,
+it is essential that we have some <em>parallel-safe</em> way of catching
+those thrown items.  In this program, I use Chapel&rsquo;s standard <code>list</code>
+collection in its parallel-safe mode to accomplish this.</p>
+<p>There&rsquo;s actually another way to execute this program in parallel
+beyond using a <code>forall</code> loop to process each monkey&rsquo;s items.
+Namely, we can simulate the monkeys themselves in parallel.  We can
+create a task per monkey and have those tasks execute for the
+duration of the rounds of the game, inspecting items and throwing
+them to other monkeys&rsquo; tasks.  In this approach, each monkey
+performs its work sequentially, but all of the monkeys execute
+concurrently in a loosely synchronous fashion.  I ended up taking
+this approach for today&rsquo;s article for two reasons:</p>
+<ol>
+<li>
+<p>The monkeys&rsquo; item lists are not very large in practice.  As a
+result, spinning up the tasks required to implement a <code>forall</code>
+loop only to have each task compute a small number of items felt
+like too much overhead.  The Chapel program would spend most of
+its time creating and destroying tasks rather than computing with
+them.  If the monkeys&rsquo; item lists had been much longer, the
+<code>forall</code>-based approach may have seemed more viable.</p>
+</li>
+<li>
+<p>Creating a task per monkey permits me to introduce you to some of
+Chapel&rsquo;s <em>task-parallel</em> constructs.  Task parallelism is
+well-suited for this type of simulation, and we have not used it
+yet in this series.  Up until now, we&rsquo;ve been using high-level
+<em>data-parallel</em> constructs such as promotion and <code>forall</code> loops.
+In contrast, Chapel&rsquo;s <em>task parallel</em> features can be considered
+a lower-level and more explicit way of doing parallel computing.
+That said, you may still find that these features feel very
+high-level compared to how threading and synchronization are
+expressed in conventional performance-oriented languages.</p>
+</li>
+</ol>
+<p>For these two reasons, my approach is to execute each monkey as a
+distinct, independent task, inspecting and throwing its items at its
+own pace.  The key to adhering to the turn and round structure
+described in AoC&rsquo;s sequential version of the algorithm is to have
+each monkey throw items differently depending on whether the target
+monkey precedes it or follows it in the turn order.</p>
+<p>Specifically, I give each monkey <em>two</em> lists of items, one
+representing those it must process in this round, and a second
+representing those intended for the next round.  When one monkey
+throws an item to another whose turn precedes it, it will throw it
+into the list for the next round; whereas when the monkey throws an
+item to another whose turn follows it, it will throw it into its
+list for this round.  This can be viewed as a form of <a href="https://en.wikipedia.org/wiki/Multiple_buffering"target="_blank" rel="noopener">double
+buffering</a>.</p>
+<p>That&rsquo;s the high-level idea anyway.  There will definitely be
+additional details to cover as we go.</p>
+<p><strong>If you like eating the icing of your cupcake first, here&rsquo;s my approach to today&rsquo;s challenge:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day11-monkeys.chpl" download="aoc2022-day11-monkeys.chpl">aoc2022-day11-monkeys.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span><span class="lnt">118
+</span><span class="lnt">119
+</span><span class="lnt">120
+</span><span class="lnt">121
+</span><span class="lnt">122
+</span><span class="lnt">123
+</span><span class="lnt">124
+</span><span class="lnt">125
+</span><span class="lnt">126
+</span><span class="lnt">127
+</span><span class="lnt">128
+</span><span class="lnt">129
+</span><span class="lnt">130
+</span><span class="lnt">131
+</span><span class="lnt">132
+</span><span class="lnt">133
+</span><span class="lnt">134
+</span><span class="lnt">135
+</span><span class="lnt">136
+</span><span class="lnt">137
+</span><span class="lnt">138
+</span><span class="lnt">139
+</span><span class="lnt">140
+</span><span class="lnt">141
+</span><span class="lnt">142
+</span><span class="lnt">143
+</span><span class="lnt">144
+</span><span class="lnt">145
+</span><span class="lnt">146
+</span><span class="lnt">147
+</span><span class="lnt">148
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">,</span><span class="w"> </span><span class="nx">Collectives</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">numRounds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">Monkey</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">id</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">op</span><span class="p">:</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">divisor</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">targetMonkey</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">items</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">parSafe</span><span class="o">=</span><span class="kc">true</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numInspected</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">currentItems</span><span class="p">()</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">items</span><span class="p">[</span><span class="nx">current</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">nextItems</span><span class="p">()</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">items</span><span class="p">[</span><span class="nx">next</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">swapItems</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">current</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">Monkeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readMonkeys</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numMonkeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Monkeys</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">canFinishTurn</span><span class="p">:</span><span class="w"> </span><span class="k">sync</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">barrier</span><span class="p">(</span><span class="nx">numMonkeys</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">coforall</span><span class="w"> </span><span class="nx">monkey</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Monkeys</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">numRounds</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">monkey</span><span class="p">.</span><span class="nx">processItems</span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">bar</span><span class="p">.</span><span class="nx">barrier</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">monkey</span><span class="p">.</span><span class="nx">swapItems</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">bar</span><span class="p">.</span><span class="nx">barrier</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">max</span><span class="p">,</span><span class="w"> </span><span class="nx">loc</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">Monkeys</span><span class="p">.</span><span class="nx">numInspected</span><span class="p">,</span><span class="w"> </span><span class="nx">Monkeys</span><span class="p">.</span><span class="k">domain</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">Monkeys</span><span class="p">[</span><span class="nx">loc</span><span class="p">].</span><span class="nx">numInspected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">max2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">Monkeys</span><span class="p">.</span><span class="nx">numInspected</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">max</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">max2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">Monkey.processItems</span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">.</span><span class="nx">readXX</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">popBack</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numInspected</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">op</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">item</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="nx">item</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nx">divisor</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">target</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Monkeys</span><span class="p">[</span><span class="nx">target</span><span class="p">].</span><span class="nx">nextItems</span><span class="p">().</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Monkeys</span><span class="p">[</span><span class="nx">target</span><span class="p">].</span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">canFinishTurn</span><span class="p">.</span><span class="nx">writeFF</span><span class="p">((</span><span class="nx">id</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nx">numMonkeys</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">):</span><span class="w"> </span><span class="nx">item</span><span class="p">.</span><span class="kd">type</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;We should never end up calling &#39;.apply&#39; on the base class&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">SquareOp</span><span class="p">:</span><span class="w"> </span><span class="nx">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">override</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">item</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">AddOp</span><span class="p">:</span><span class="w"> </span><span class="nx">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">override</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">MulOp</span><span class="p">:</span><span class="w"> </span><span class="nx">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">override</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">opStringsToOp</span><span class="p">(</span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">operation</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;+&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">AddOp</span><span class="p">(</span><span class="nx">operand</span><span class="p">:</span><span class="kt">int</span><span class="p">):</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// operation is &#34;*&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">operand</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;old&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">SquareOp</span><span class="p">():</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">MulOp</span><span class="p">(</span><span class="nx">operand</span><span class="p">:</span><span class="kt">int</span><span class="p">):</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readMonkeys</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">do</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Monkey</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nx">stdin</span><span class="p">.</span><span class="nx">matchNewline</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">Monkey.init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;Monkey &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">read</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; Starting items:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">tempItems</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">do</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">read</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">tempItems</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">val</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nx">stdin</span><span class="p">.</span><span class="nx">matchLiteral</span><span class="p">(</span><span class="s">&#34;,&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; Operation: new = old %s %s&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">opStringsToOp</span><span class="p">(</span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; Test: divisible by &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">divisor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">read</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; If true: throw to monkey %i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="kc">true</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; If false: throw to monkey %i\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="kc">false</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">targetMonkey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">init</span><span class="w"> </span><span class="k">this</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">tempItems</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">items</span><span class="p">[</span><span class="nx">current</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<h3 id="data-parallelism-vs-task-parallelism">
+  <a href="#data-parallelism-vs-task-parallelism">Data Parallelism vs. Task Parallelism</a>
+</h3>
+<p>The <code>forall</code> loops that we&rsquo;ve used up to now in this series are
+considered to be part of Chapel&rsquo;s <em>data-parallel</em> features.  They
+are typically used to perform the same computation many times in
+parallel for the items of a data set—like the elements of an array
+or collection, or the indices of a range or domain.  Promotion is
+another form of data parallelism, since it is defined in terms of
+forall-loops.</p>
+<p>As mentioned on <a href="../../posts/aoc2022-day03-rucksacks/#forall-loops-and-task-intents">day 3</a>, a key
+property of the forall-loop is that its iterations can be executed
+in any order.  This means that <code>forall</code> is not appropriate for
+computations in which parallel tasks must interact with each
+other—like monkeys throwing items to one another.  The reason is
+that the synchronization between distinct tasks tends to rely on
+them running simultaneously or in a given order—two things that
+<code>forall</code> does not guarantee.</p>
+<p>In contrast, <em>task-parallel</em> features in Chapel are those in which
+the programmer explicitly defines tasks that are to be executed in
+parallel, including what those tasks should compute and how they
+should coordinate and synchronize with one another.  Parallel tasks
+can be created in Chapel using one of three language constructs:</p>
+<ul>
+<li>the <code>coforall</code> loop</li>
+<li>the <code>begin</code> statement</li>
+<li>the <code>cobegin</code> statement</li>
+</ul>
+<p>All coarse-grained parallelism within Chapel is implemented using
+one of these three features.  Sometimes this is done by using them
+directly; other times, it&rsquo;s done indirectly—for example, by
+executing a <code>forall</code> loop whose iterand&rsquo;s parallel iterator uses
+them.</p>
+<p>In this article, I&rsquo;ll be creating tasks using the <code>coforall</code> loop.
+But before getting there, let&rsquo;s talk a bit more about how tasks are
+executed in Chapel.</p>
+<h3 id="tasks-threads-and-processors">
+  <a href="#tasks-threads-and-processors">Tasks, Threads, and Processors</a>
+</h3>
+<p>In this series, we&rsquo;ve talked a bit about tasks, threads, and
+processors in passing, like when introducing <code>forall</code> on <a href="../../posts/aoc2022-day03-rucksacks/#forall-loops-and-task-intents">day 3</a>.
+Now that we&rsquo;re doing a task-parallel computation with explicit
+synchronization, let&rsquo;s get a bit more precise and introduce some
+terminology that I&rsquo;ll be using today.</p>
+<p>Chapel&rsquo;s specification is intentionally vague about precisely how
+tasks are executed.  This is done to permit the language to map to
+various parallel architectures without making too many assumptions
+about what they will or will not be able to handle.  In practice,
+the details of tasks&rsquo; implementations are controlled primarily by
+the (set or inferred) value of the <code>CHPL_TASKS</code> environment
+variable.  In this discussion and article, I&rsquo;ll be focusing on
+Chapel&rsquo;s preferred configuration, <code>CHPL_TASKS=qthreads</code>, which is
+the default on most platforms.</p>
+<p>All Chapel tasks are ultimately implemented by the hardware&rsquo;s
+processors, such as the multiple <em>cores</em> of a modern CPU.  These
+cores execute <em>system threads</em>, typically <a href="https://en.wikipedia.org/wiki/Pthreads"target="_blank" rel="noopener"><em>POSIX threads</em>
+(<em>pthreads</em>)</a>, which serve
+as vehicles for computation.  In Chapel&rsquo;s default configuration, its
+runtime creates a pthread per core, <em>pinning it</em> to that core for
+performance reasons.  When Chapel features like <code>forall</code> or
+<code>coforall</code> loops introduce new tasks, they can be mapped down to the
+pthreads in a variety of ways that aren&rsquo;t necessary to understand
+here.  Whatever mapping is used, some key properties include:</p>
+<ul>
+<li>each pthread can only execute one task at a time</li>
+<li>there can be more tasks than there are pthreads or cores</li>
+<li>when there are, they will necessarily need to take turns running</li>
+</ul>
+<p>In the default configuration, tasks run using <a href="https://en.wikipedia.org/wiki/Cooperative_multitasking"target="_blank" rel="noopener"><em>cooperative
+multitasking</em></a>.
+This means that a task keeps running on its thread and core until it
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">yields</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Note that
+this is a different use of the term 'yield' than we've seen
+previously in this series.  Iterators use the `yield` statement to
+return one or more values back to their callsites.  This use of
+'yield' differs, referring to having a task get out of the way so
+that another task can use its processor.<span class="sidenote-delimiter">]</span></span></span> those
+resources, permitting another task to take a turn with them.  This
+is done for performance reasons, since switching between tasks too
+frequently can add overheads that could slow down execution.</p>
+<p>Many low-level, high-latency Chapel operations have such task yields
+built into them to help ensure that tasks make progress and don&rsquo;t
+get stuck waiting for resources.  For example, some Chapel
+operations are said to <em>block</em> a task, meaning that the task will be
+stuck until some external event occurs.  This is an obvious time for
+that task to yield its processor since it can&rsquo;t immediately proceed
+anyway.  Moreover, by yielding, it may permit a task to run whose
+actions will un-block it.  This is ultimately to its benefit as well
+as to the program&rsquo;s as a whole.</p>
+<p>Despite the fact that task yields are built into several Chapel
+features, when doing explicit task-parallel programming, a user can
+definitely create problems for themselves if they are not aware of
+how their tasks use the system resources.  For example, if each of
+the tasks currently running on the cores&rsquo;s pthreads were to reach an
+infinite loop in the program, like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">while</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>they would effectively <em>starve</em> the other tasks in the program since
+they are not yielding their processors, and therefore are preventing
+other tasks from getting the chance to run.</p>
+<p>In practice, such errors are often caused by cases that are not as
+simple or obvious as this one.  More likely, the tasks are waiting
+for something to happen without yielding the processor, thereby
+preventing other tasks that would cause that &ldquo;something&rdquo; to occur
+from running.  In one of my early drafts of today&rsquo;s program, I had
+such a bug, in which I had 8 tasks running on my 4-core laptop.  The
+tasks that were running were all waiting on events from the ones
+that were not; yet they were also not yielding, so my program would
+get stuck.  This is a condition known as <em>livelock</em> in that tasks
+are running, yet no computational progress is being made.</p>
+<p>Now that we&rsquo;ve covered that background material, let&rsquo;s start looking
+at some code:</p>
+<h3 id="using-modules-and-configuring-rounds">
+  <a href="#using-modules-and-configuring-rounds">Using Modules and Configuring Rounds</a>
+</h3>
+<p>My program starts, as most in this series have, with a <code>use</code>
+statement indicating the modules whose features I&rsquo;ll be relying on
+today:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">,</span><span class="w"> </span><span class="nx">Collectives</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>IO</code> is a module we&rsquo;ve used daily in this series, and here I&rsquo;ll need
+it once again to read and parse our input file.  As seen in some
+previous articles, the <code>List</code> module provides the <code>list</code> collection
+that I&rsquo;ll use for maintaining the monkeys&rsquo; items.  I&rsquo;m also using
+the <code>Collectives</code> module, which is new in this article.  It provides a
+way for a number of tasks to synchronize with one another using
+<em>barrier synchronization</em>.  I&rsquo;ll explain these barriers in more
+detail once we reach their use cases in today&rsquo;s code.</p>
+<p>I also declare a <code>config const</code> here at the outset to specify the
+number of rounds in our monkey simulation.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">numRounds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As we&rsquo;ve seen in other programs, this allows me to change the number
+of rounds for a given execution of the program from its default of
+<code>20</code> using the command-line flag Chapel provides for <code>config</code>s.  For
+example, I could run 10,000 rounds, as in part two, using:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./day11 --numRounds<span class="o">=</span>10000<span class="sb">`</span>
+</span></span></code></pre></div><p>This <code>config</code> permits me to change how my program runs with no edits
+to the program text, no need to recompile, and no manual argument
+parsing.</p>
+<h3 id="defining-our-monkeys-as-classes">
+  <a href="#defining-our-monkeys-as-classes">Defining our Monkeys as Classes</a>
+</h3>
+<p>Next, I&rsquo;ll define a class named <code>Monkey</code> that stores all of the
+state that I need to associate with each of our monkeys.</p>
+<h4 id="constant-monkey-fields">
+  <a href="#constant-monkey-fields">Constant Monkey Fields</a>
+</h4>
+<p>I start by declaring my <code>Monkey</code> class and its constant fields,
+which will be invariant across the monkey&rsquo;s lifetime:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">Monkey</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">id</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">op</span><span class="p">:</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">divisor</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">targetMonkey</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first field is the monkey&rsquo;s <code>id</code>, as given in the input file,
+numbered from 0.</p>
+<p>Next, I declare an <code>op</code> field, which is an <code>owned</code> instance of an
+parent class named <code>MathOp</code>.  We&rsquo;ll look at <code>MathOp</code> and its
+subclasses a bit later in the article, but for now, know that they
+will implement the monkey&rsquo;s individual operations, like adding six
+to an item&rsquo;s value, or squaring it.  We saw classes on <a href="../../posts/aoc2022-day07-dir-traversals/#memory-management-strategies">day 7</a> and learned that <code>owned</code> is a memory management strategy in
+which a single variable <em>owns</em> a class object at any given time.
+When that owner is de-allocated, so is the class.  In this case,
+each monkey has its own unique math operation, so having it &lsquo;own&rsquo;
+the class representing that operation is a natural approach.</p>
+<p>The third field is <code>divisor</code>.  This represents the integer value the
+monkey will use to check an item&rsquo;s divisibility when determining who
+to throw it to next.  For example, in the sample input, the first
+monkey&rsquo;s divisor is <code>23</code>.</p>
+<p>Finally, I declare <code>targetMonkey</code>, which is a 2-tuple storing the
+<code>id</code>s of the two monkeys that this one will throw items to,
+depending on whether or not their worry level is divisible by
+<code>divisor</code>.</p>
+<h4 id="variable-monkey-fields">
+  <a href="#variable-monkey-fields">Variable Monkey Fields</a>
+</h4>
+<p>Next, let&rsquo;s look at the variable fields in my <code>Monkey</code> class:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">items</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">parSafe</span><span class="o">=</span><span class="kc">true</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numInspected</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first is <code>items</code>, which is a 2-element array of lists.  Its
+elements are used to implement the double-buffering strategy
+mentioned above: one of the lists will store the items that the
+monkey needs to process in the current round, and the other will
+store those that it needs to process in the next one.  Because our
+items are represented as integers, I declare the list types as
+<code>list(int, ...)</code> to indicate that they store <code>int</code> values.  I also
+provide an additional argument to the type signature,
+<code>parSafe=true</code>.  This opts in to an implementation of the list that
+is designed to support concurrent operations.  For example, this
+makes it safe for multiple monkeys to add items to a list
+simultaneously, or for a monkey to remove items from its list
+while others are adding new ones.</p>
+<p>Next up are two integers, <code>current</code> and <code>next</code>.  These are used to
+indicate which of the two lists represents the items to be processed
+in the current round, and which stores the items for the next.  From
+one round to the next, we will swap the values of these two
+variables so that list <code>0</code> will store the first round&rsquo;s items, list
+<code>1</code> will store the second round&rsquo;s, then back to list <code>0</code> for round
+three, and so on.</p>
+<p>The final field in <code>Monkey</code> is used to store the number of items
+that monkey inspects.  This will be used to compute our final result
+at the end of the program.</p>
+<h4 id="monkey-methods-for-item-lists">
+  <a href="#monkey-methods-for-item-lists">Monkey Methods for Item Lists</a>
+</h4>
+<p>Before getting to the parallel simulation, I also define a few
+methods to help manage and abstract away the monkey&rsquo;s item lists.
+The first two methods hide the details of the double-buffering,
+returning the lists representing the current, and next, rounds&rsquo;
+items, respectively:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">currentItems</span><span class="p">()</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">items</span><span class="p">[</span><span class="nx">current</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">nextItems</span><span class="p">()</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">items</span><span class="p">[</span><span class="nx">next</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that these methods have a <code>ref</code> keyword after their argument
+list.  This indicates that they will return a reference to the
+expression being returned rather than its value.  In this case,
+rather than returning a copy of the list in question, they permit
+the callsite to refer directly to the original list.  The callsites
+could simply refer to <code>items[current]</code> and <code>items[next]</code> directly,
+but by creating these methods, I give myself the ability to change
+the representation of the double-buffered lists without modifying
+the simulation code at the callsites.</p>
+<p>The final list-related method will be used between rounds to swap
+the current and next list indices such that the &rsquo;next&rsquo; list of items
+becomes the &lsquo;current&rsquo; one and the &lsquo;current&rsquo; becomes the next:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">swapItems</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">current</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This method uses an operator that we haven&rsquo;t seen yet, the <em>swap
+operator</em> (<code>&lt;=&gt;</code>).  It can be considered a shorthand for the typical
+way of swapping two values:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">tmp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">current</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tmp</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Besides being a more concise way of expressing the swap, using the
+swap operator can also enable optimized swap implementations for
+more complex data types, such as arrays.</p>
+<h4 id="creating-our-troop-of-monkeys">
+  <a href="#creating-our-troop-of-monkeys">Creating our Troop of Monkeys</a>
+</h4>
+<p>Now that I&rsquo;ve defined a class representing a single monkey, let&rsquo;s
+create a whole troop of them.  Here, I&rsquo;m using the time-honored
+technique in this series of invoking an iterator, <code>readMonkeys()</code>,
+which reads the input file, yielding an unknown number of <code>Monkey</code>
+objects back to me, which I then store in an array named <code>Monkeys</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">28
+</span><span class="lnt">29
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">Monkeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readMonkeys</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numMonkeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Monkeys</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Though the fields within my <code>Monkey</code> classes will change as the
+program runs, the identities of those classes will not, so I declare
+<code>Monkeys</code> to be <code>const</code>.  I then query the size of the <code>Monkeys</code>
+array and store the result in another constant, <code>numMonkeys</code>, as a
+convenience.</p>
+<p>The I/O for today&rsquo;s puzzle is the most challenging we&rsquo;ve seen yet
+for AoC 2022.  I&rsquo;ll show how I approached it towards the end of this
+article because I&rsquo;d rather focus on task-parallel programming in
+Chapel than teaching you to become a master of parsing input data
+(not that I&rsquo;m a master myself).</p>
+<h3 id="simulating-monkeys-using-task-parallelism">
+  <a href="#simulating-monkeys-using-task-parallelism">Simulating Monkeys Using Task Parallelism</a>
+</h3>
+<p>Now that I&rsquo;ve defined how a single monkey is represented and have
+created a troop of monkeys, I&rsquo;m ready to set the parallel simulation
+in motion using task-parallel concepts.</p>
+<h4 id="chapels-sync-variables">
+  <a href="#chapels-sync-variables">Chapel&rsquo;s <code>sync</code> variables</a>
+</h4>
+<p>In Chapel, when tasks need to coordinate with one another, the
+safest way to do so is by accessing <code>sync</code> or <code>atomic</code> variables
+that are declared in a scope that is visible to the tasks in
+question.  In today&rsquo;s article, I&rsquo;ve decided to use <code>sync</code> or
+<a href="https://chapel-lang.org/docs/builtins/ChapelSyncvar.html"target="_blank" rel="noopener"><em>synchronization</em>
+variables</a>.
+We&rsquo;ll see examples of <code>atomic</code> variables in our day 12 article.</p>
+<p>In Chapel, the <code>sync</code> variable has several unique properties.  The
+most significant is that, in addition to its normal value, it stores
+a full/empty bit which says whether that value is valid or not.
+Reads and writes to synchronization variables are done through
+methods, and these methods indicate what state the full/empty bit
+must be in for the operation to proceed.  If the bit is not in that
+state, the task attempting the read or write will <em>block</em>, allowing
+other tasks to execute instead.  Though this is a very important
+property of <code>sync</code> variables, it isn&rsquo;t one I&rsquo;ll be using today
+because I don&rsquo;t want my monkeys to spend their time blocking when
+they could be processing items thrown to them from another monkey.</p>
+<p>I do rely on some other properties of <code>sync</code> variables.  One is that
+certain methods on <code>sync</code> variables cause the task performing the
+call to <em>yield</em> its processor to another task.  This is crucial when
+you want to simulate more monkeys than there are processors on your
+system, since a monkey that fails to yield will hog its thread and
+processors, potentially preventing other monkeys from making crucial
+progress.  This relates to the bug in an early draft of my program
+that I mentioned earlier:</p>
+<p>In my program, I was running eight monkey tasks on four processors
+without performing any operations that would yield the processors.
+As a result, I ended up in a livelock situation: The monkeys that
+were running were waiting for more items to inspect, or to be told
+that it was safe to end their turn; but the monkeys who could give
+them those items or information were not running on a processor.  As
+a result, the monkeys whose tasks were running would wait forever
+(or, really, until I killed the program).  Using synchronization
+variables to coordinate between the monkeys fixed this problem since
+the <code>sync</code> variable accesses I used caused the monkeys&rsquo; tasks to
+yield.</p>
+<p>Another key property of <code>sync</code> variables is that accesses to them
+imply a <em>memory fence</em>.  At a high level, this means that all memory
+operations that were started before a read or write to the <code>sync</code>
+variable are guaranteed to be written to memory before the <code>sync</code>
+operation is performed.  This is important due to Chapel&rsquo;s <a href="https://chapel-lang.org/docs/language/spec/memory-consistency-model.html"target="_blank" rel="noopener"><em>memory
+consistency
+model</em></a>
+which is a very advanced topic that I won&rsquo;t be covering in today&rsquo;s
+article.  Suffice it to say, these memory fences make <code>sync</code>
+variables a very safe way to coordinate between tasks.</p>
+<h4 id="tracking-turns-using-a-sync-variable">
+  <a href="#tracking-turns-using-a-sync-variable">Tracking Turns Using a <code>sync</code> variable</a>
+</h4>
+<p>Given that long introduction, here is my <code>sync</code> variable for this
+program, <code>canFinishTurn</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">canFinishTurn</span><span class="p">:</span><span class="w"> </span><span class="k">sync</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This variable is used to keep track of the monkeys&rsquo; turns within a
+round.  Specifically, a challenge in my task-per-monkey model is
+that when a monkey is processing the items in its list and has
+emptied it, it&rsquo;s not obvious whether its turn for this round is over
+or whether, once it waits a bit longer, some other monkey will throw
+it another item to process.  This synchronization variable is
+designed to answer that question.</p>
+<p>Specifically, remember that—due to the problem statement&rsquo;s
+sequential nature—a monkey only needs to process items during the
+current round if they were thrown to it by a monkey whose turn
+preceded it—that is, a monkey with a lower ID.  As a result, from
+the start of a round, monkey 0 knows that nobody else can throw
+items for it to process in this round since it is the first monkey.
+If any items <em>are</em> thrown to it, they will be stored in its list of
+items for the <em>next</em> round.  Thus, when monkey 0&rsquo;s list of current
+items is empty, it knows that it&rsquo;s done with its turn and this
+round.</p>
+<p>Recursively, once monkey 0 is done with its turn, no other monkeys
+can throw items for monkey 1 to handle during this round,
+because only monkey 0 preceded it in the turn order.  And once
+monkey 1 is finished, nobody will be able to throw new items to
+monkey 2.  And so on.</p>
+<p>So, the synchronized <code>canFinishTurn</code> variable is essentially a
+shared way for the monkeys to know whether or not it is OK for them
+to finish their turn when their item list is empty—that is, whether
+it is guaranteed that no new items will show up needing to be
+processed in this round.  Since this is initially true only for
+monkey 0, I initialize <code>canFinishTurn</code> to 0.  As we will see a bit
+later on, when each monkey finishes its turn, it increments the
+value of this synchronization variable, permitting the monkey that
+follows it to end its turn once its item list is empty, and so
+forth.</p>
+<p>One final note on this declaration: Recall that <code>sync</code> variables
+store a full/empty bit in addition to their value (the <code>int</code>
+represented by a <code>sync int</code> in this case).  When a <code>sync</code> variable
+has an explicit initializer, like the <code>= 0</code> in my declaration, that
+causes its full/empty bit to be initialized to the &lsquo;full&rsquo; state.
+If it does not have an initializer, as in this declaration:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">canFinishTurn</span><span class="p">:</span><span class="w"> </span><span class="k">sync</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>its full/empty bit is set to &rsquo;empty&rsquo;.  Since I initialized
+<code>canFinishTurn</code> in my program, it will be &lsquo;full&rsquo; to start out (and,
+in fact, will remain &lsquo;full&rsquo; for the duration of the program).</p>
+<h4 id="declaring-a-barrier-for-coordinating-monkeys">
+  <a href="#declaring-a-barrier-for-coordinating-monkeys">Declaring a Barrier for Coordinating Monkeys</a>
+</h4>
+<p>A common form of synchronization in parallel programming is <em>barrier
+synchronization</em>.  This introduces a point in the program where all
+tasks participating in the barrier must pause and wait for all other
+participating tasks to also reach the barrier.  Only after all the
+tasks have arrived can they all proceed past the barrier.</p>
+<p>We&rsquo;ll use barriers a bit later in our computation, but to do so,
+we need to declare a variable representing the barrier now:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">33
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">barrier</span><span class="p">(</span><span class="nx">numMonkeys</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This declares an instance of the <code>barrier</code> type defined by the
+<code>Collectives</code> module we <code>use</code>d at the program&rsquo;s outset.  It takes an
+integer argument indicating the number of tasks that will
+participate in the barrier.  Because I will create a task per
+monkey and will want them all to participate in the barrier
+synchronization, I passed in <code>numMonkeys</code> as that value.</p>
+<h4 id="chapels-coforall-loops">
+  <a href="#chapels-coforall-loops">Chapel&rsquo;s <code>coforall</code> Loops</a>
+</h4>
+<p>At last, we are ready to create our monkey tasks.  To do this, I&rsquo;m
+using Chapel&rsquo;s <em>coforall loop</em>.  The <code>coforall</code> is similar to the
+<code>for</code> and <code>forall</code> loops that we&rsquo;ve seen before, in that it can
+iterate over one or more iterand expressions, binding the values
+yielded by those expressions to loop index variables.  However,
+where the <code>for</code> loop executes its iterations sequentially using a
+single task and the <code>forall</code> loop executes them using whatever tasks
+its parallel iterator specifies (typically equal to the number of
+processor cores available to the loop), the <code>coforall</code> loop creates
+a distinct task for every one of its iterations.</p>
+<p>As a simple example of <code>coforall</code> loop, consider this code:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">coforall</span><span class="w"> </span><span class="nx">tid</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">4</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Hello from task &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">tid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After the coforall&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Because iterating over this range yields four indices, the
+<code>coforall</code> will create four tasks, one for each iteration.  Each
+task gets its own <code>tid</code> variable with a unique value from <code>1</code>
+through <code>4</code>.  Each task executes its own copy of the loop body,
+printing a unique greeting.  Because the tasks are all executing
+concurrently and not synchronizing, the messages could appear on the
+console in any order.</p>
+<p>One other property of the <code>coforall</code> loop is that the task which
+encounters the loop and spawns the per-iteration tasks will not
+proceed past the loop until those tasks have all completed executing
+their loop bodies.  Thus, in the example above, though the order of
+the per-task messages is nondeterministic, the message &ldquo;After the
+coforall&rdquo; is guaranteed to print only after the four tasks have
+printed their messages and completed running.  Here is the output
+from a sample compile and run of this program:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chpl hello-coforall.chpl
+</span></span><span class="line"><span class="cl">$ ./hello-coforall
+</span></span><span class="line"><span class="cl">Hello from task <span class="m">2</span>
+</span></span><span class="line"><span class="cl">Hello from task <span class="m">1</span>
+</span></span><span class="line"><span class="cl">Hello from task <span class="m">3</span>
+</span></span><span class="line"><span class="cl">Hello from task <span class="m">4</span>
+</span></span><span class="line"><span class="cl">After the coforall
+</span></span></code></pre></div><p>Running again, we might see the first four lines printed in a
+completely different order, but the fifth will always be last.</p>
+<details>
+    <summary><strong>(When should I use <code>coforall</code> vs. <code>forall</code>&hellip;?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The reason Chapel has both <code>coforall</code> and <code>forall</code> loops essentially
+comes down to a question of efficiency.  If you want to increment
+all of the elements in an array <code>A</code>, you <em>could</em> write:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">coforall</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">a</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>However, imagine that <code>A</code> was declared over the domain <code>{1..1000, 1..1000}</code>.  Since <code>A</code> has a million elements, this loop has a
+million iterations, and the use of the <code>coforall</code> to drive it would
+create a million tasks.  That&rsquo;s a lot of parallelism if you&rsquo;re only
+running on a 4-core laptop—far more than you need.</p>
+<p>Moreover, even if you had a million cores, creating tasks only to
+have each perform a single <code>+ 1</code> operation means that your program
+will spend most of its time creating and destroying tasks rather
+than doing useful work.  It would be a bit like going to the grocery
+store to buy one item at a time—you&rsquo;d spend far more time in travel
+than doing the actual work of shopping.  This is why Chapel has
+<code>forall</code> loops: to create a number of tasks based on the number
+of available processors, and then have them each do a portion of the
+total work, amortizing the cost of creating the tasks.</p>
+<p>Specifically, rewriting the above <code>coforall</code> as a <code>forall</code>, like so:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">a</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>says &ldquo;Here are a bunch of independent increment operations that I
+want to perform in parallel.  Please defer to <code>A</code>&rsquo;s parallel
+iterator method to decide how to make that happen.&rdquo;  In practice,
+most parallel iterators on standard Chapel types, like ranges,
+domains, and arrays, will query the number of processor cores
+available, create a number of tasks equal to those cores, and divide
+up the work between those tasks.  For example, on my 4-core laptop,
+4 tasks would be created by default, and the million iterations of
+this loop would be divided into equal-sized chunks of 250,000
+elements, each of which would be executed by one of the tasks.</p>
+<p>To summarize, use a <code>forall</code> loop whenever the iterations of your
+loop are independent, particularly when the number of iterations far
+exceeds the number of processors available for you to run on.  Use a
+<code>coforall</code> loop when you literally want to create a task per
+iteration; or when you must do so because the tasks need to
+synchronize or coordinate with one another in a way that breaks the
+<code>forall</code> loop&rsquo;s assumption that the iterations can be executed in
+any order.</p>
+
+    </div>
+</details>
+
+<h4 id="creating-monkey-tasks-with-coforall-loops">
+  <a href="#creating-monkey-tasks-with-coforall-loops">Creating Monkey Tasks with <code>coforall</code> Loops</a>
+</h4>
+<p>Now that you know about <code>coforall</code> loops, we can create our tasks!
+This has been a lot of build-up to what is a very simple loop
+structure in Chapel:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">coforall</span><span class="w"> </span><span class="nx">monkey</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Monkeys</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, I am iterating over my <code>Monkeys</code> array, creating a distinct
+task for each monkey.  If <code>Monkeys</code> has 8 elements, this loop will
+create 8 tasks.  Each task or iteration will have its own <code>monkey</code>
+loop index variable referring to its unique <code>Monkey</code> object from the
+<code>Monkeys</code> array.</p>
+<p>What those tasks do is governed by the body of the loop, which is
+as follows:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">numRounds</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">monkey</span><span class="p">.</span><span class="nx">processItems</span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">bar</span><span class="p">.</span><span class="nx">barrier</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">monkey</span><span class="p">.</span><span class="nx">swapItems</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">bar</span><span class="p">.</span><span class="nx">barrier</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Though this loop&rsquo;s body is short, it&rsquo;s also a bit dense because of
+the barrier, so let&rsquo;s go through it step by step.</p>
+<p>We start with a sequential <code>for</code> loop representing the rounds of the
+simulation.  Each of our monkey tasks takes a turn in each of the
+rounds, and this loop essentially counts off those rounds.  Because
+I didn&rsquo;t need to refer to the round number within the loop, I didn&rsquo;t
+bother giving it an index variable.</p>
+<p>Within each round:</p>
+<ul>
+<li>
+<p>First, the monkey processes its items using a call to its
+<code>.processItems()</code> method.  This is a procedure that I define a bit
+later in the file, so we&rsquo;ll come back to it then.  For now, all
+you need to know is that the monkey will process its current items
+until it runs out and <code>canFinishTurn</code> says it&rsquo;s OK for its turn to
+end.  It will also increment its <code>numInspected</code> field as it
+inspects items.  Once it&rsquo;s done with its turn, it returns here.</p>
+</li>
+<li>
+<p>Next, it enters our barrier synchronization, by calling
+<code>bar.barrier()</code>.  If it is the first monkey to arrive, it must
+wait for all the other <code>numMonkeys-1</code> monkeys before proceeding.
+All subsequent monkeys but the last act similarly.  When the last
+monkey arrives, all monkeys can go on to the next statement.</p>
+<p>The reason I need a barrier here is that a monkey&rsquo;s next action
+will be to swap its lists of <code>current</code> and <code>next</code> items.  But if
+monkey 0 performs that swap while monkeys <code>1</code>–<code>7</code> are still
+executing, those monkeys may simultaneously be throwing it items
+for the next round.  Depending on the timing, they could end up in
+the wrong list.  So we need to make sure all monkeys are done
+throwing items before any of them swap their lists.</p>
+</li>
+<li>
+<p>Next, each monkey calls the <code>.swapItems()</code> method that we saw
+earlier.  Recall that this swaps the indices of the <code>current</code>
+and <code>next</code> item lists, setting us up for the next round.  The
+empty <code>current</code> list will be ready to catch new items for the next
+round, and the (potentially) non-empty <code>next</code> list becomes the
+list of items to process in the coming round.</p>
+</li>
+<li>
+<p>Finally, the monkeys enter our barrier again.  This time, it&rsquo;s
+because if a monkey were to go on to the next round and start
+throwing items, they could land in the wrong list if the receiving
+monkey had not yet swapped its lists.  Once all monkeys have
+reached this call to <code>barrier()</code>, we know their swaps are
+complete, and that it is safe to go on and start throwing items
+around again.</p>
+</li>
+</ul>
+<p>After <code>numRounds</code> iterations through this loop, we are done with our
+simulation.  And then we reach the end of the <code>coforall</code> loop, which
+waits for all the monkey tasks to finish before going on to the end
+of the program&rsquo;s execution.</p>
+<h3 id="printing-the-program-output">
+  <a href="#printing-the-program-output">Printing the Program Output</a>
+</h3>
+<p>When we are done simulating our monkeys, we can read their
+<code>numInspected</code> fields to see how many items they each inspected.
+These fields are incremented in the <code>processItems()</code> method, which
+we haven&rsquo;t seen yet, but will in just a bit.  For now, you&rsquo;ll have
+to trust me that the values have been properly incremented by the
+time we reach this point.</p>
+<p>The AoC instructions ask us to find the two monkeys who inspected
+the most items and multiply their values together.  There are a few
+ways one might approach this in Chapel.  I did it using reductions.
+Specifically, I started with a <code>maxloc</code> reduction (introduced on
+<a href="../../posts/aoc2022-day06-packets/#the-maxloc-reduction">day 6</a>) to find the largest value and its index within the <code>Monkeys</code>
+array:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">45
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">max</span><span class="p">,</span><span class="w"> </span><span class="nx">loc</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">Monkeys</span><span class="p">.</span><span class="nx">numInspected</span><span class="p">,</span><span class="w"> </span><span class="nx">Monkeys</span><span class="p">.</span><span class="k">domain</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The value itself will be stored in <code>max</code> and its location in <code>loc</code>.
+I then zero out that monkey&rsquo;s <code>numInspected</code> field and run a second
+<code>max</code> reduction to find the second largest value, <code>max2</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">47
+</span><span class="lnt">48
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">Monkeys</span><span class="p">[</span><span class="nx">loc</span><span class="p">].</span><span class="nx">numInspected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">max2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">Monkeys</span><span class="p">.</span><span class="nx">numInspected</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Finally, I multiply these two values together and print them out:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">50
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="nx">max</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">max2</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>(I could then store <code>max</code> back into <code>Monkeys[loc]</code>&rsquo;s <code>numInspected</code>
+field to restore the original results for posterity, if desired; but
+I didn&rsquo;t bother doing that here).</p>
+<h3 id="processing-a-monkeys-items-using-a-secondary-method">
+  <a href="#processing-a-monkeys-items-using-a-secondary-method">Processing a Monkey&rsquo;s Items Using a Secondary Method</a>
+</h3>
+<p>Now let&rsquo;s look at my method for how a monkey processes its items.
+This is what&rsquo;s known as a <em>secondary method</em> in Chapel because I
+have declared it outside of the <code>Monkey</code> class, yet within the same
+module that defines <code>Monkey</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">52
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">Monkey.processItems</span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As you can see, I associate the method with the <code>Monkey</code> class by
+qualifying the method name <code>processItems</code> with the <code>Monkey.</code> prefix.</p>
+<p>For all intents and purposes, this secondary method is equivalent to
+declaring the procedure as a <em>primary method</em> directly within the
+Monkey class&rsquo;s scope, as I did for <code>currentItems()</code>, <code>nextItems()</code>,
+and <code>swapItems()</code> above.  So, I could have declared <code>processItems()</code>
+earlier as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">Monkey</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="o">..</span><span class="p">.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">processItems</span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In this case, I used a secondary method simply so I could walk you
+through the code in what felt like a more logical order to me.  In
+practice, developers may choose between primary and secondary
+methods for similar reasons, or just due to personal style
+preferences.  Again, the key is that either approach is equivalent
+in Chapel.</p>
+<p>As we saw at the callsite, I&rsquo;m passing our <code>sync</code> variable,
+<code>canFinishTurn</code> into this routine so that the monkey can tell when
+it&rsquo;s OK to stop processing items and complete its turn.</p>
+<p>The body of <code>processItems()</code> is dominated by a while-loop that
+continues running as long as <code>canFinishTurn</code> does not store our ID
+yet:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">54
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="nx">canFinishTurn</span><span class="p">.</span><span class="nx">readXX</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As long as it does not, monkeys preceding us are still running and
+could throw more items to us.  The loop also runs as long as there
+are more items in our current list that need processing, by checking
+the size of <code>currentItems()</code>.</p>
+<p>The <code>.readXX()</code> call on <code>canFinishTurn</code> is one of several methods
+supported for reading or writing synchronization variables.  Because
+of their full/empty bits, <code>sync</code> variables can&rsquo;t simply be accessed
+like normal variables.  Instead, methods must be used that say what
+state the full/empty bit must be in for the read or write to start,
+as well as what state the operation should leave it in.</p>
+<p>For example, a common way to read a <code>sync</code> variable is using the
+<code>readFE()</code> method, which says that the full/empty bit must start in
+the &lsquo;full&rsquo; state (<code>F</code>) for the operation to proceed.  If it isn&rsquo;t,
+the task performing the read will block, yielding its processor.
+Once the variable is &lsquo;full&rsquo;, the task can perform the read, and will
+leave the full/empty bit in its &rsquo;empty&rsquo; state (<code>E</code>).  If multiple
+tasks are attempting a <code>readFE()</code> on a single variable
+simultaneously, only one will succeed since whichever one performs
+the read will leave it &rsquo;empty&rsquo; blocking other tasks from reading.
+This is a very common approach for writing producer-consumer
+parallelism in Chapel, and an efficient use of resources since any
+blocked task(s) will not consume CPU resources until the variable
+becomes &lsquo;full&rsquo;.</p>
+<p>In this program, we don&rsquo;t really want our monkeys to block, though,
+since additional items may arrive that they&rsquo;ll need to process
+before ending their turn.  This is why I&rsquo;ve taken the approach of
+keeping <code>canFinishTurn</code> in its &lsquo;full&rsquo; state at all times.  And since
+I don&rsquo;t care what state the full/empty bit is in, I use <code>.readXX()</code>
+to get its value.  The first <code>X</code> in <code>.readXX()</code> indicates that the
+read does not care whether the full/empty bit is in its &lsquo;full&rsquo; or
+&rsquo;empty&rsquo; state.  The second <code>X</code> indicates that the operation won&rsquo;t
+change the bit&rsquo;s setting as it performs the read.  So this is
+essentially a way of &ldquo;peeking&rdquo; at the <code>sync</code> variable&rsquo;s integer
+value without changing anything about its full/empty bit.  This read
+also gives other tasks the opportunity to run and implies a memory
+fence for other loads and stores.</p>
+<details>
+    <summary><strong>(An aside about a subtle bug that I hit along the way&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>While preparing my code for this article, at one point I swapped the
+order of my tests in this <code>while</code> loop as follows, thinking it might
+give me a slight boost in performance:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">canFinishTurn</span><span class="p">.</span><span class="nx">readXX</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>For my first few runs, I got the right answer; then, on a subsequent
+run, did not.  Running some more, I found that I was getting
+incorrect results in about one out of every ten runs.  It turns out
+that I had introduced a subtle race condition into my code.
+Specifically, my mental model was &ldquo;If my current list of items has
+size 0 and I can finish my turn, I should exit this loop.&rdquo;  But what
+I failed to consider was the potential for a subtle race.  Imagine I
+am monkey 3:</p>
+<ul>
+<li>
+<p>I check the size of my list of current items and find it to be 0
+because I&rsquo;d already cleared it out on previous iterations of this
+loop.</p>
+</li>
+<li>
+<p>Meanwhile, monkey 2 is running in parallel and finds some new
+items for me, so it throws them into my <code>current</code> list because it
+precedes me in the turn order.</p>
+</li>
+<li>
+<p>Then, monkey 2 decides it is done and sets <code>canFinishTurn</code> to my
+ID, <code>3</code>.</p>
+</li>
+<li>
+<p>Then, I go to read <code>canFinishTurn</code>, see that it stores my ID and
+decide it is safe for me to proceed.</p>
+</li>
+<li>
+<p>Yet, it actually is not, because I&rsquo;ve ignored the fact that new
+items have shown up in my list since I checked its size.</p>
+</li>
+</ul>
+<p>If this scenario may seem hard to imagine (&ldquo;How could those changes
+slip in so fast?!?&rdquo;), welcome to the world of modern parallel
+computing where multicore processors can keep these monkeys running
+continuously, causing operations to overlap with one another in time
+in just this way.</p>
+<p>When I restored these expressions to the original order, the code
+became correct again: I only consider proceeding once monkey 2 has
+given me the go-ahead, but then will only actually proceed once I&rsquo;ve
+verified that it hasn&rsquo;t thrown me any new items since I last checked
+my current item list&rsquo;s size.</p>
+<p>This was a great reminder that while Chapel makes parallel
+programming far more straightforward than conventional techniques,
+parallel programming is still inherently challenging by nature.
+Race conditions between tasks can be subtle and difficult to
+anticipate, even for an experienced parallel programmer.  It&rsquo;s worth
+noting that such challenges often arise when using Chapel&rsquo;s
+task-parallel features: Because the coordination and synchronization
+between tasks is under the programmer&rsquo;s control, it is also their
+burden to make sure all the tasks are executing and synchronizing
+correctly.  In contrast, the data-parallel features tend to provide
+a simpler model of parallelism to the programmer, and one that
+handles many common cases.  All the details of creating and
+coordinating tasks still exist, yet they are hidden within
+abstractions like parallel iterators.</p>
+
+    </div>
+</details>
+
+<p>Whenever a monkey enters the main <code>while</code> loop in <code>processItems()</code>,
+it either has more items that it needs to process in the current
+round, or it&rsquo;s not allowed to end its turn yet.  The body of the
+while-loop checks for items and processes them if there are any:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">popBack</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numInspected</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This inner while-loop exists to make sure we don&rsquo;t remove items from
+our list when it&rsquo;s empty.  It also serves as a means of processing
+as many items as possible before going back to check the
+synchronized <code>canFinishTurn</code> variable again (since reading a <code>sync</code>
+is a bit more heavyweight than reading a typical variable and could
+also cause us to yield our processor to another monkey).</p>
+<p>Each time through this loop, the monkey removes an item from its
+current list with the <code>.popBack()</code> method and increments its
+<code>numInspected</code> count to track the item (see, I said you could trust
+me that it would!).</p>
+<p>Next, it processes the item:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">60
+</span><span class="lnt">61
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="nx">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">op</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">item</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first line here applies the monkey&rsquo;s operator, which will add
+to, multiply, or square its item&rsquo;s value.  Then we divide the item&rsquo;s
+value by 3 to reflect our relief that the monkey didn&rsquo;t break it, as
+indicated by the AoC instructions.</p>
+<p>All that remains is to throw the item to the appropriate target
+monkey.  We do this by seeing whether or not the item&rsquo;s value modulo
+<code>divisor</code> is <code>0</code>, using the result to index into our
+<code>targetMonkey()</code> tuple, storing the monkey&rsquo;s ID in a constant,
+<code>target</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">63
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="nx">item</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nx">divisor</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that this indexing expression relies on Chapel&rsquo;s support for
+implicitly converting <code>bool</code> values to <code>int</code>s, where <code>false</code>
+converts to <code>0</code> and <code>true</code> to <code>1</code>.  Thus, this is essentially
+shorthand for:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nx">divisor</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>We&rsquo;ve actually used these conversions on previous days, such as <a href="../../posts/aoc2022-day08-treehouse/#computing-visibility-in-parallel-via-promotion">day
+8</a>):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">visible</span><span class="p">(</span><span class="nx">ForestSpace</span><span class="p">,</span><span class="w"> </span><span class="nx">Forest</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></div><p>In this expression, <code>visible()</code> returns <code>true</code> or <code>false</code>, and we
+relied on the implicit conversion of these values into integers in
+order to add them up and get the number of visible trees using
+<code>+ reduce</code>.</p>
+<p>You might also notice that I&rsquo;m indexing into <code>targetMonkey</code> using
+parentheses rather than square brackets.  Chapel permits indexing
+expressions (and subroutine calls) to be written with either square
+brackets or parentheses, and my personal style is to typically use
+square brackets when indexing into arrays and parentheses for
+tuples.</p>
+<p>Then, we &ldquo;throw&rdquo; the item to the target monkey&rsquo;s <code>items</code> lists using
+the <code>list.pushBack()</code> method.  If the target monkey&rsquo;s ID is less than
+ours, we know that we have to throw the item to its list of items
+for the next round.  Conversely, if the monkey&rsquo;s ID is greater than
+ours, it will need to handle the item in this round, so we append to
+its current item list:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">target</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Monkeys</span><span class="p">[</span><span class="nx">target</span><span class="p">].</span><span class="nx">nextItems</span><span class="p">().</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Monkeys</span><span class="p">[</span><span class="nx">target</span><span class="p">].</span><span class="nx">currentItems</span><span class="p">().</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Each monkey continues this process until its current list of items
+is empty (i.e., its size is 0) and the <code>sync</code> variable indicates
+that it&rsquo;s OK for it to end its turn (i.e., all of the monkeys
+preceding it have finished their turns, so no other items will be
+thrown to it in this round).</p>
+<p>When a monkey exits the main <code>while</code> loop in <code>processItems()</code>, it
+finishes its turn by updating the value in <code>canFinishTurn</code>.  This
+signals to the next monkey that its predecessors are done, so nobody
+will be throwing it any more items this round:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">73
+</span><span class="lnt">74
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">canFinishTurn</span><span class="p">.</span><span class="nx">writeFF</span><span class="p">((</span><span class="nx">id</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nx">numMonkeys</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that I&rsquo;m using the <code>.writeFF()</code> method here to state that this
+write should only occur when the <code>sync</code> variable is &lsquo;full&rsquo; and that
+it should leave it &lsquo;full&rsquo;.  As mentioned previously,
+<code>canFinishTurn()</code> starts out &lsquo;full&rsquo;, and none of our operations—most
+notably the <code>readXX()</code> earlier—will change this state.  So there is
+no chance of the full/empty bit being in the &rsquo;empty&rsquo; state or of
+this task blocking.</p>
+<p>Also, note that the last monkey resets the value to <code>0</code> for the next
+round, due to the use of modular arithmetic.</p>
+<details>
+    <summary><strong>(a note on the performance characteristics of this simulation&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Before going on, it&rsquo;s worth pausing to consider whether applying
+parallelism to this problem is worthwhile or not.  On the plus side,
+giving each monkey its own task permits multiple monkeys to process
+their item lists simultaneously.  On an 8-core processor, all 8
+monkeys could be executing simultaneously throughout the program&rsquo;s
+execution.  Since we only create the monkey tasks once, for a
+long-running simulation of 10,000 rounds, the cost of creating and
+tearing down the tasks is amortized by the long execution time.</p>
+<p>However, this program also has a fairly staggered, asynchronous
+execution pattern.  While all monkeys with non-empty lists will have
+parallel work to do at the start of a round, monkey <code>0</code> will
+necessarily finish first since nobody can throw it new work; and
+monkey <code>7</code> may continue receiving work right up until monkey <code>6</code>
+finishes its turn.  So unlike a well-balanced <code>forall</code> loop, our
+monkeys will necessarily have workloads that are skewed in time, with
+the smaller IDs finishing earlier and higher ones finishing later.
+This is not terrible, but it does mean that processor utilization
+will vary per task, and that we won&rsquo;t see &ldquo;perfect speedup&rdquo; since not
+everyone can execute simultaneously the entire time.</p>
+<p>In addition, by changing from a serial implementation to a parallel
+one, we&rsquo;ve added synchronization overheads: The monkeys must access
+a <code>sync</code> variable to determine when their turns are over, which is
+more expensive than a normal variable access.  The monkeys also have
+to interact with parallel-safe lists which add overheads relative to
+non-parallel-safe lists.  And finally, they must enter and wait at
+the barrier synchronizations before proceeding.  The combination of
+these operations adds a fair amount of overhead that would not be at
+all present or necessary in a simpler sequential version.</p>
+<p>As in many of these AoC 2022 codes, the use of parallelism may not
+be justified from a performance perspective.  The AoC site describes
+these challenges as having solutions that can run in 15 seconds on
+10-year-old computers, presumably using serial approaches.  However,
+it is not difficult to imagine that with a large enough set of
+items, or potentially a large number of monkeys and cores, the
+benefits of having multiple monkeys processing their long lists of
+tasks simultaneously would outweigh the additional overheads of
+coordinating between them.</p>
+<p>And this is the promise of parallel computing: to apply it to
+computationally intensive problems where the overheads of
+introducing parallelism and coordinating between tasks are
+outweighed by being able to do multiple things simultaneously for
+long enough periods to outweigh those costs.  Fortunately for the
+parallel programming community, the world is full of such problems
+even if our AoC monkey simulation may not be one of them.</p>
+<p>As we&rsquo;ve mentioned before in this series, our goal in writing these
+articles is not to suggest that this is the right or best way to
+solve these AoC problems, but to use the problems to teach you
+Chapel&rsquo;s parallel features in a simple, well-defined setting in
+hopes that you can take the lessons and apply them to large,
+well-motivated, real-world problems that take hours or days to run
+without parallelism.</p>
+
+    </div>
+</details>
+
+<h3 id="using-a-class-hierarchy-to-represent-monkeys-operations">
+  <a href="#using-a-class-hierarchy-to-represent-monkeys-operations">Using A Class Hierarchy to Represent Monkeys&rsquo; Operations</a>
+</h3>
+<p>I&rsquo;ve left the representation of the monkey&rsquo;s operations quite
+vague so far, so let&rsquo;s clear that up.  To represent the
+operators, I used a little class hierarchy, consisting of a
+base class, <code>MathOp</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span><span class="lnt">80
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">):</span><span class="w"> </span><span class="nx">item</span><span class="p">.</span><span class="kd">type</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;We should never end up calling &#39;.apply&#39; on the base class&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The <code>MathOp</code> class has three subclasses, representing the three
+operations a monkey might do.  The first represents squaring the
+item&rsquo;s value:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">82
+</span><span class="lnt">83
+</span><span class="lnt">84
+</span><span class="lnt">85
+</span><span class="lnt">86
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">SquareOp</span><span class="p">:</span><span class="w"> </span><span class="nx">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">override</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">item</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The other two add a value to the item or multiply the item by a
+value, respectively, where the other value is stored as a field
+within the class:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">AddOp</span><span class="p">:</span><span class="w"> </span><span class="nx">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">override</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">MulOp</span><span class="p">:</span><span class="w"> </span><span class="nx">MathOp</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">override</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This is the first time we&rsquo;ve seen subclasses in this series.  If
+you&rsquo;ve used <a href="https://en.wikipedia.org/wiki/Object-oriented_programming"target="_blank" rel="noopener"><em>object-oriented
+programming (OOP)</em></a>
+in C++, Java, Smalltalk, or any other OOP language, the concept is
+likely familiar to you.  If not, you can think of a subclass as
+being a specialization of its parent class.  In this case, <code>MathOp</code>
+represents an abstract mathematical operation, while <code>SquareOp</code>,
+<code>AddOp</code>, and <code>MulOp</code> represent specific kinds of math operations.</p>
+<p>Chapel subclasses are declared by specifying a parent class
+constraint after the class name, like <code>: MathOp</code> here.  The reason I
+use a class hierarchy is to declare the monkeys&rsquo; <code>op</code> fields using a
+well-defined type, but to permit different monkeys to have different
+flavors of operations.  All the compiler needs to know is that they
+are <code>MathOp</code>s, but at execution time, each monkey will store an
+instance of one of the specific child classes.</p>
+<p>Chapel&rsquo;s class hierarchies support <a href="https://en.wikipedia.org/wiki/Dynamic_dispatch"target="_blank" rel="noopener"><em>dynamic
+dispatch</em></a>, which is
+specified by using the <code>override</code> keyword as a prefix on the child
+class methods that are meant to replace their parent&rsquo;s.  I use
+<code>override</code> on the declarations of <code>apply()</code> in my subclasses to
+indicate that when I &lsquo;apply&rsquo; a monkey&rsquo;s operation, it should use the
+<code>apply()</code> method of the specific sub-class.  We saw such a call in
+<code>processItems()</code> above:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="nx">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">op</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>For this call, the Chapel program will execute the appropriate
+<code>override</code> method in the child class that the monkey is storing.
+Again, this is similar to dynamic dispatch in virtually any OOP
+language.</p>
+<p>To create instances of these class-based operations, I wrote the
+following little helper routine, which takes the two strings
+uniquely identifying the operator from the input (like <code>* 19</code>, <code>+ 6</code>, or <code>* old</code>) and converts them to an instance of the appropriate
+class.  When present, it stores the numerical operand into the
+class&rsquo;s <code>val</code> field:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">opStringsToOp</span><span class="p">(</span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">operation</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;+&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">AddOp</span><span class="p">(</span><span class="nx">operand</span><span class="p">:</span><span class="kt">int</span><span class="p">):</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// operation is &#34;*&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">operand</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;old&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">SquareOp</span><span class="p">():</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">MulOp</span><span class="p">(</span><span class="nx">operand</span><span class="p">:</span><span class="kt">int</span><span class="p">):</span><span class="w"> </span><span class="nx">MathOp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="reading-the-input-using-an-iterator-and-initializer">
+  <a href="#reading-the-input-using-an-iterator-and-initializer">Reading the Input using an Iterator and Initializer</a>
+</h3>
+<p>To read in the monkeys, I use an iterator that runs a loop, creating
+monkeys until it fails to find a newline (<code>\n</code>) in the console&rsquo;s
+input channel, <code>stdin</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span><span class="lnt">118
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">readMonkeys</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">do</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Monkey</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nx">stdin</span><span class="p">.</span><span class="nx">matchNewline</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This iterator uses a different pattern than we&rsquo;ve seen before.  The
+<code>Monkey</code> class&rsquo;s initializer (defined below) does all the heavy
+lifting of reading a monkey&rsquo;s description from the input file.  The
+loop simply yields those monkeys back to the callsite as they are
+created.  The call to <code>matchNewline()</code> returns <code>true</code> if a <code>\n</code> is
+found next in the input and <code>false</code> otherwise (indicating we&rsquo;ve
+reached the end of the file).</p>
+<p>Speaking of the initializer, here it comes.  Initializers can be a
+tricky bit of code to write in Chapel, as they must initialize a
+record or class&rsquo;s fields in the same order that they were declared,
+and must also follow certain rules and constraints.  Up until now,
+our uses of classes in this series have relied on the compiler&rsquo;s
+default initializer in all cases.  For this program, however, I
+wanted the initializer to read in the input file directly and save
+the values to their appropriate constant fields at
+initialization-time.</p>
+<p>I&rsquo;m already way over my target word-count, so am not able to teach
+you the intricacies of initializers today.  Instead, let me walk you
+through what I did at a high level:</p>
+<p>First, the initializer&rsquo;s declaration is made using the <code>proc</code>
+keyword and the method name <code>init()</code>.  Like <code>processItems()</code>, it is
+declared as secondary method since we&rsquo;ve long since left the scope
+of the <code>Monkey</code> class:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">120
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">Monkey.init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Initializers can take arguments like normal procedures, but are
+called using <code>new Monkey(...)</code> rather than <code>&lt;something&gt;.init()</code>
+since the whole point of them is to create something out of nothing.</p>
+<p>Next, I read in the monkey&rsquo;s ID:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">122
+</span><span class="lnt">123
+</span><span class="lnt">124
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;Monkey &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">read</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, I&rsquo;ve used <code>readf()</code> to read in the fixed formatting from the
+file, as we&rsquo;ve seen in previous days&rsquo; examples.  However, I&rsquo;m using
+a <code>read()</code> procedure that we have not seen.  It takes a type
+argument, reads a value of the given type from <code>stdin</code>, and returns
+it.  Here, I use the routine to read an <code>int</code> and initialize the
+<code>id</code> field with its value.</p>
+<p>Next, I read in the monkey&rsquo;s items list into a temporary list
+named <code>tempItems</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">126
+</span><span class="lnt">127
+</span><span class="lnt">128
+</span><span class="lnt">129
+</span><span class="lnt">130
+</span><span class="lnt">131
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; Starting items:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">tempItems</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">do</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">read</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">tempItems</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">val</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nx">stdin</span><span class="p">.</span><span class="nx">matchLiteral</span><span class="p">(</span><span class="s">&#34;,&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I use <code>tempItems</code> here because an object&rsquo;s fields must be
+initialized in order.  The array of item lists is next in our input
+file format, yet the field is declared later in my class.  So I
+store the values here for now, and will put off setting up the
+<code>items</code> field until later.</p>
+<p>Next, I read the monkey&rsquo;s operation and use my <code>opStringsToOp()</code>
+helper to convert it into the appropriate <code>MathOp</code> subclass.  I use
+this to initialize the <code>op</code> field:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">133
+</span><span class="lnt">134
+</span><span class="lnt">135
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; Operation: new = old %s %s&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">opStringsToOp</span><span class="p">(</span><span class="nx">operation</span><span class="p">,</span><span class="w"> </span><span class="nx">operand</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then I read and initialize the divisor:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">137
+</span><span class="lnt">138
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; Test: divisible by &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">divisor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">read</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then I read and store the target monkeys:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">140
+</span><span class="lnt">141
+</span><span class="lnt">142
+</span><span class="lnt">143
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; If true: throw to monkey %i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="kc">true</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34; If false: throw to monkey %i\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">(</span><span class="kc">false</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">targetMonkey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetMonkey</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Finally, I copy <code>tempItems</code> into the <code>items</code> field using the
+current items list:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">145
+</span><span class="lnt">146
+</span><span class="lnt">147
+</span><span class="lnt">148
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">init</span><span class="w"> </span><span class="k">this</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">tempItems</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">items</span><span class="p">[</span><span class="nx">current</span><span class="p">].</span><span class="nx">pushBack</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I do this after an <code>init this;</code> statement, which ensures that all
+remaining fields are initialized, permitting me to write arbitrary
+code like the loop and indexing expressions here.  When Chapel
+reaches an <code>init this;</code> statement, any fields that had initializers
+at their declaration point (like <code>current = 0</code> and <code>next = 1</code>) are
+initialized with those values.  Fields that don&rsquo;t are initialized to
+their type&rsquo;s default value, as with normal variable declarations in
+Chapel.</p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>And <em>that</em> is my program for day 11!  We covered a lot of new ground
+here, mostly in the task parallelism realm, where we saw <code>coforall</code>
+loops, synchronization variables, and barriers for the first time.
+However, we also got a quick taste of some fancy IO, class
+hierarchies, dynamic dispatch, and our first user-defined class
+initializer.  You can download my full solution at the top of this
+article or from
+<a href="https://github.com/chapel-lang/chapel/blob/0568b92d7c27c442b855c61687dce0f86fb4d96a/test/studies/adventOfCode/2022/day11/bradc/day11.chpl"target="_blank" rel="noopener">GitHub</a>.</p>
+<p>You have all of the Chapel knowledge you need for part 2 of today&rsquo;s
+challenge, though it does require some good mathematical reasoning
+(or a good memory depending on what math courses you&rsquo;ve taken).</p>
+<p>In particular, once we no longer divide the item values by 3 on each
+iteration and run for 10,000 rounds, the item values will blow up
+well beyond what an <code>int</code> in Chapel can store (the <code>int</code> type in
+Chapel is 64 bits, and signed, so can store values up to <code>2**63</code>).
+Chapel also has a <a href="https://chapel-lang.org/docs/modules/standard/BigInteger.html"target="_blank" rel="noopener"><code>bigint</code>
+type</a>,
+but it can be very memory intensive, particularly since the values
+in part two can grow to such ridiculous magnitudes.  In practice,
+writing the program using <code>bigint</code> bogs down due to excessive memory
+usage and operation times (believe me, I tried).</p>
+<details>
+    <summary><strong>(a further hint on the part two math&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        A key insight for part two is to notice that all of the monkeys'
+<code>divisor</code> values are prime.  As a result, since all their
+comparisons are done using modular arithmetic, we can safely reduce
+items&rsquo; values by the product of the monkeys&rsquo; divisors without
+changing the results of the <code>%</code> operations..
+    </div>
+</details>
+
+<p>This is the penultimate article in this series.  Thanks for reading
+this far, and please feel free to ask any questions or post any
+comments you have in the <a href="https://chapel.discourse.group/c/blog/"target="_blank" rel="noopener">Blog
+Category</a> of Chapel&rsquo;s
+Discourse Page.</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Apr 26, 2023</td>
+          <td style="text-align: left">Updated to reflect <code>barrier</code>-related name changes in Chapel 1.30</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Feb 5, 2023</td>
+          <td style="text-align: left">Updated to reflect changes to <code>list</code> method names, <code>init this;</code> syntax, and new handling of returns after halt()s</td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;11%3A&#43;Monkeying&#43;Around&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day11-monkeys%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;11%3A&#43;Monkeying&#43;Around&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day11-monkeys%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;11%3A&#43;Monkeying&#43;Around&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day11-monkeys%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;11%3A&#43;Monkeying&#43;Around&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day11-monkeys%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day10-crt/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 10: Scan Lines
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day12-summit/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 12: On the Summit
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

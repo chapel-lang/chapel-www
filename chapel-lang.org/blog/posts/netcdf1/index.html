@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="An introduction to C interoperability in Chapel using the NetCDF library">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>NetCDF in Chapel, Part 1: Interfacing with the C Library</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>NetCDF in Chapel, Part 1: Interfacing with the C Library</h2>
+<div class="post-subscript">
+    <p>Posted on April 26, 2023.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/user-experiences">User Experiences</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+        <a class="button" href="../../tags/i/o">I/O</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/scott-bachman">Scott Bachman</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#basic-c-interoperability">Basic C interoperability</a></li>
+    <li><a href="#the-problem">The problem</a></li>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>This blog series demonstrates the use of Chapel&rsquo;s C interoperability features for
+reading (and later, writing) files written in the Network Common Data
+Format (NetCDF), which is presently the most commonly used format for storing
+climate and earth system model data. NetCDF files can contain multiple arrays of
+data (&ldquo;datasets&rdquo;) arranged in a hierarchical format, and they contain all metadata for
+each dataset within the file itself. Here, the capability to read NetCDF files is
+provided using the <span class="sidenote"><label class="sidenote-label" for="sidenote-0"><code>extern</code> keyword,</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span> Other options for interoperability can be found in Chapel's
+<a href = "https://chapel-lang.org/docs/language/spec/interoperability.html">language specification</a> and <a href = "https://chapel-lang.org/docs/technotes/extern.html">technical notes</a><span class="sidenote-delimiter">]</span></span></span> which makes the Chapel compiler aware of
+external C functions and constants we want to use. We will use functions
+from the NetCDF C library, for which full documentation can be found
+at <a href="https://docs.unidata.ucar.edu/netcdf-c/current/modules.html"target="_blank" rel="noopener">https://docs.unidata.ucar.edu/netcdf-c/current/modules.html</a>.</p>
+<h3 id="basic-c-interoperability">
+  <a href="#basic-c-interoperability">Basic C interoperability</a>
+</h3>
+<p>Chapel allows the user to refer to external C functions, variables, and types.
+Here, we will do this <em>explicitly</em> by writing a declaration for each C function,
+variable, or type that we wish to use. When there are any additional library
+or header dependencies that are needed, these can be specified on the Chapel
+compiler&rsquo;s command line or by using the <a href="https://chapel-lang.org/docs/technotes/extern.html#expressing-dependencies"target="_blank" rel="noopener">&lsquo;require&rsquo;</a>
+statement. As an example, the compilation instruction used for this program
+on the author&rsquo;s laptop is:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chpl -I/opt/local/include -L/opt/local/lib -lnetcdf <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --ldflags<span class="o">=</span><span class="s2">&#34;-Wl,-rpath,/opt/local/lib&#34;</span> read_netcdf_parallel.chpl
+</span></span></code></pre></div><p>Akin to how compile flags are invoked in C, <code>-I</code> and <code>-L</code> indicate the paths to
+the header and static libraries where NetCDF is installed, <code>-l</code> indicates the
+library to be linked, and <code>-ldflags</code> specifies the library location for the linker.
+The program described here and in Part 2 of this series is
+<code>read_netcdf_parallel.chpl</code>.</p>
+<p><strong>The full code from this post can be seen here:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/netcdf1.chpl" download="netcdf1.chpl">netcdf1.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">require</span><span class="w"> </span><span class="s">&#34;netcdf.h&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;-lnetcdf&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;myFile.nc&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">datName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;test1D&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">ndims</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Open the file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_open(const char* path, int mode, int* ncidp)	
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_open</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">mode</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ncidp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_open</span><span class="p">(</span><span class="nx">filename</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ncid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the dataset ID
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_varid(int ncid, const char* datName, int* varid)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">datid</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the number of dimensions for this dataset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_varndims(int ncid, int varid, int* ndimsp)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ndimsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ndims</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimids</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the IDs of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_vardimid(int ncid, int varid, int* dimidsp)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimidsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimids</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_size_t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the size of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_dimlen(int ncid, int dimid, size_t* lenp)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">lenp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">dimids</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimlens</span><span class="p">[</span><span class="nx">i</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Close the NetCDF file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_close(int ncid)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<h3 id="the-problem">
+  <a href="#the-problem">The problem</a>
+</h3>
+<p>In this demonstration we perform the very typical task of reading in a dataset
+from a file whose name is known, <em>but whose size is unknown</em>. This is set up
+so that I can specify the file and dataset at runtime from the command line,
+e.g.,</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./read_netcdf_parallel --filename<span class="o">=</span>myFile.nc ‑‑datName<span class="o">=</span>myDataset
+</span></span></code></pre></div><p>This post will cover the first
+part of the problem, which will be to read the NetCDF metadata to get
+information about the dataset and the shape of the array we will need to make.
+The distributed reading of the dataset will be shown in Part 2.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">require</span><span class="w"> </span><span class="s">&#34;netcdf.h&#34;</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;-lnetcdf&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;myFile.nc&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">datName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;test1D&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Above, I am declaring a pair of <em>configuration constants</em> to
+specify the NetCDF filename and dataset name, respectively.
+Because these are <code>config</code> declarations, their default values can
+be overridden on the executable&rsquo;s command line using flags like
+<code>--filename=&quot;someOtherFile.nc&quot;</code> or <code>--datName=&quot;someOtherData&quot;</code>.
+Also, I have elected to use a standard module, <code>CTypes</code>, which will
+come in handy shortly, and the <code>BlockDist</code> module, which will be
+needed in Part 2 of this series.  We then enter the <code>main()</code>
+procedure which defines the program&rsquo;s main computation itself.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">ndims</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Open the file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_open(const char* path, int mode, int* ncidp)	
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_open</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">mode</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ncidp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_open</span><span class="p">(</span><span class="nx">filename</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">NC_NOWRITE</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ncid</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, I start by declaring some integer variables that will be used to access
+and store some information about the NetCDF file and my desired dataset.  Note
+that I declare these using the <code>c_int</code> type, rather than the standard Chapel
+<code>int</code> type.  This is necessary because the C specification allows compilers to
+determine how many bits are used in the representation of various types, so
+Chapel and C integer types are not necessarily equivalent. To make life easier,
+the <code>CTypes</code> module mentioned earlier defines a set of type aliases that
+describe certain C types using their Chapel equivalents.  In this case, the
+module will guarantee that each <code>c_int</code> variable is assigned the correct number
+of bits, and thus is understood correctly by the C functions we use.</p>
+<p>At the bottom of this code box, we use our first C function, <code>nc_open()</code>, which
+simply opens the file for reading or writing. For comparison against our Chapel
+definition of this function, in the commented text on line 11, I have placed
+the documentation for the original C version. To make <code>nc_open()</code> accessible in
+Chapel we use an <code>extern</code> declaration, and match the formal argument types
+against those on line 11. Thus the arguments are a <code>c_ptrConst(c_char)</code> for
+<code>path</code>, a C integer for <code>mode</code>, and a C pointer to a C integer for <code>ncidp</code>. We
+also use <code>extern</code> to declare the <code>NC_NOWRITE</code> constant, which tells <code>nc_open()</code>
+that we are only interested in reading from the file.</p>
+<p>The call to <code>nc_open()</code> assigns the integer ID handle of our NetCDF file to the
+variable <code>ncid</code>. In the function call we use the <code>c_str()</code> method to convert
+<code>filename</code>, which is a Chapel string, into a C string. We also use the
+<code>c_ptrTo()</code> method to construct a C pointer type that points to <code>ncid</code>, as is
+expected by the function declaration.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the dataset ID
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_varid(int ncid, const char* datName, int* varid)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">),</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datName</span><span class="p">.</span><span class="nx">c_str</span><span class="p">(),</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">datid</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now that the file is open, we need to find out the integer ID of our desired
+dataset, which requires a new function, <code>nc_inq_varid()</code>. Our strategy is again
+to match the formal argument types of our <code>extern</code> declaration against the C
+version on line 20. The function takes as input arguments the file ID, which
+has been stored in <code>ncid</code>, and our dataset name converted into a C string.
+It then assigns the integer dataset ID into <code>datid</code>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the number of dimensions for this dataset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_varndims(int ncid, int varid, int* ndimsp)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">ndimsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_varndims</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">ndims</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now that we know the ID of our dataset, we must query how many
+dimensions it has. Here, we employ a function, <code>nc_inq_varndims()</code>, that stores
+the number of dimensions for our dataset in <code>ndims</code>. As before, we match the
+formal argument types in our <code>extern</code> definition against the C version on
+line 27. When we call the function, recall that the actual arguments, <code>ncid</code>,
+<code>datid</code>, and <code>ndims</code>, all have the <code>c_int</code> type from our earlier declarations,
+and we are using the <code>c_ptrTo()</code> method to create a C pointer to <code>ndims</code>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimids</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the IDs of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_vardimid(int ncid, int varid, int* dimidsp)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">varid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimidsp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_int</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_inq_vardimid</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">datid</span><span class="p">,</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimids</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>NetCDF stores dimensions in a similar fashion to variables, in that each
+has a unique integer identifier. The next step is to get the unique ID for each
+dimension, which we store in an <em>array</em> of <code>c_int</code> called <code>dimids</code>. The square
+brackets tell the compiler that this is an array, where the range <code>0..&lt;ndims</code>
+specifies the indices for which the array is defined: from <code>0</code> to <code>ndims-1</code>
+(or &ldquo;from <code>0</code> to <code>ndims</code>, excluding <code>ndims</code>&rdquo;).</p>
+<p>Note that the C definition on line 36 expects its formal argument, <code>dimidsp</code>,
+to point to an array, but in C this simply means that it points to the address
+of the first <em>element</em> of the array, hence its type is <code>int*</code>. So in our
+<code>extern</code> definition we can tell Chapel that the formal argument <code>dimidsp</code> is a
+C pointer to a single C integer. In the call to <code>nc_inq_vardimid()</code> we can then
+simply use the <code>c_ptrTo()</code> method to point at our array <code>dimids</code>, which causes
+the compiler to create a C pointer to its first element.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dimlens</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="p">]</span><span class="w"> </span><span class="nx">c_size_t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Get the size of each dimension
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_inq_dimlen(int ncid, int dimid, size_t* lenp)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">dimid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">,</span><span class="w"> </span><span class="nx">lenp</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_size_t</span><span class="p">)):</span><span class="w"> </span><span class="nx">c_int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ndims</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">nc_inq_dimlen</span><span class="p">(</span><span class="nx">ncid</span><span class="p">,</span><span class="w"> </span><span class="nx">dimids</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span><span class="w"> </span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">dimlens</span><span class="p">[</span><span class="nx">i</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Close the NetCDF file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//      int nc_close(int ncid)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">nc_close</span><span class="p">(</span><span class="nx">ncid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Finally, we can query the size of each dimension of our dataset,
+which we store in an array of the <code>c_size_t</code> type called <code>dimlens</code>. We use a
+function called <code>nc_inq_dimlen()</code>, and the formal arguments of our <code>extern</code>
+definition again match those of the C version on line 45.</p>
+<p>Note that <code>nc_inq_dimlen()</code> only expects a single <code>dimid</code>, and it returns a single
+dimension size that is stored at the address pointed to by <code>lenp</code>. This means
+that we must loop over each dimension of our dataset individually in order to
+fill our array <code>dimlens</code>. This is accomplished by a simple <code>for</code> loop, where
+we are simply iterating over each element of our arrays <code>dimids</code> and <code>dimlens</code>.
+We finish this part of our program by calling <code>nc_close()</code>, which closes the
+NetCDF file to further reading.</p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>In this post we have demonstrated some of Chapel&rsquo;s C interoperability features
+by showcasing their utility for reading NetCDF datasets. Thus far, we have opened
+a NetCDF file and stored information about our dataset&rsquo;s ID, its dimensions,
+and their sizes. In a follow-up post this information will be used to actually
+read the dataset into a distributed array that is stored across our cluster&rsquo;s
+compute nodes. This will employ a bit more of the C interoperability that has been
+discussed here, but will focus more on the nuances of how to do this without
+knowing the dataset&rsquo;s size or shape <em>a priori</em>.</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Apr 4, 2024</td>
+          <td style="text-align: left">Replaced used of deprecated <code>c_string</code> with <code>c_ptrConst(c_char)</code></td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;1%3A&#43;Interfacing&#43;with&#43;the&#43;C&#43;Library&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;1%3A&#43;Interfacing&#43;with&#43;the&#43;C&#43;Library&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;1%3A&#43;Interfacing&#43;with&#43;the&#43;C&#43;Library&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;NetCDF&#43;in&#43;Chapel%2C&#43;Part&#43;1%3A&#43;Interfacing&#43;with&#43;the&#43;C&#43;Library&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnetcdf1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/netcdf2/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+NetCDF in Chapel, Part 2: Reading a Dataset in Parallel
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

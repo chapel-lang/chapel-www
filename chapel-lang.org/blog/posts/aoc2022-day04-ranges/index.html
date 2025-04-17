@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A couple of succinct solutions to day four of AoC 2022.  Learn about formatted IO, ranges, and parallel reductions in Chapel as well as some general problem-solving approaches.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 4: Finding Overlaps in Cleanup Ranges</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 4: Finding Overlaps in Cleanup Ranges</h2>
+<div class="post-subscript">
+    <p>Posted on December 4, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/michelle-strout">Michelle Strout</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#first-solution-hand-coded-interval-arithmetic">First Solution: Hand-coded Interval Arithmetic</a></li>
+    <li><a href="#second-solution-range-based-approach">Second Solution: Range-based Approach</a></li>
+    <li><a href="#third-solution-parallel-approach">Third Solution: Parallel Approach</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to day 4 of Chapel&rsquo;s Advent of Code 2022 series!
+For more context, check out our introductory <a href="../../posts/aoc2022-day00-intro/">Advent of
+Code 2022: Twelve Days of Chapel</a> blog
+article for context or instructions on compiling this code.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>In brief, <a href="https://adventofcode.com/2022/day/4"target="_blank" rel="noopener">the challenge for
+today</a> is to read in a series of
+range pairs representing work assignments and determine how many of those assignments
+are subsets of one another for part 1 and how many overlap at all for part 2.
+An example range pair is <code>24-42,30-42</code>.  The first elf in the pair
+is assigned to clean up the range of sections <code>24-42</code> in camp, and the second
+elf is assigned the range of sections <code>30-42</code>.  The second range is a subset of
+the first range, so would be counted for both part 1 and part 2 of this challenge.</p>
+<p><strong>Here is the recommended, parallelized approach that we get to at the end of
+this blog.</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day04-ranges.chpl" download="aoc2022-day04-ranges.chpl">aoc2022-day04-ranges.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Chapel iterator that reads in all lines from standard input
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// and yields 2-tuples of ranges.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// Assumes that all lines are in the format &#34;%i-%i,%i-%i&#34;.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">iter</span><span class="w"> </span><span class="nf">readSections</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%i-%i,%i-%i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">s1</span><span class="o">..</span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="o">..</span><span class="nx">e2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Creates an array with all elements yielded
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// by the `readSections` iterator.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sections</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readSections</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Parallel reduction to add up the number of subsets and the number of overlaps.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">r1</span><span class="p">,</span><span class="nx">r2</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">sections</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">r1</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">r2</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">r2</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">r1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">intersection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">r1</span><span class="p">[</span><span class="nx">r2</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">intersection</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumSubset = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumOverlap = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>Chapel&rsquo;s formatted IO made the code to read in the data for this challenge very
+succinct.  In this post, I discuss how Chapel&rsquo;s formatted IO works, especially
+within the context of the day 4 challenge.  I also talk about some general
+problem-solving strategies and how they can be applied to this AoC challenge,
+including examples that show how the Chapel range feature is an excellent
+conceptual fit to solve this problem.  I wrap up showing how to parallelize a
+Chapel solution to day 4.</p>
+<h3 id="first-solution-hand-coded-interval-arithmetic">
+  <a href="#first-solution-hand-coded-interval-arithmetic">First Solution: Hand-coded Interval Arithmetic</a>
+</h3>
+<p>Here is a succinct solution for both parts in Chapel.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%i-%i,%i-%i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Check if the second section assignment is a subset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// of the first or vice versa.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">s1</span><span class="o">&lt;=</span><span class="nx">s2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">e2</span><span class="o">&lt;=</span><span class="nx">e1</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="nx">s2</span><span class="o">&lt;=</span><span class="nx">s1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">e1</span><span class="o">&lt;=</span><span class="nx">e2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumSubset</span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Partial overlap: if both starts are less than
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// the other end, then we have overlap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">s1</span><span class="o">&lt;=</span><span class="nx">e2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="o">&lt;=</span><span class="nx">e1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumSubset = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumOverlap = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p><a href="https://chapel-lang.org/docs/main/modules/standard/IO/FormattedIO.html"target="_blank" rel="noopener">Formatted IO</a>
+is what makes reading/parsing the input so easy.  The call to</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%i-%i,%i-%i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>does all of the work!  See <a href="../../posts/aoc2022-day01-calories/">the blog post for day
+1</a> for more information about the <code>use IO;</code>
+statement that enables us to use the <code>readf</code> procedure.  The procedure <code>readf</code>
+will try to read the given formatted string (e.g., <code>&quot;%i-%i,%i-%i&quot;</code>) from
+standard input into the provided variables, much like <code>scanf</code> works in the C
+programming language.  The <code>%i</code>s indicate integer values of any number of
+digits. The <code>-</code> and <code>,</code> are the dash and comma characters respectively and will
+be matched directly.  Whitespace is just ignored between calls to <code>readf</code>.
+Since <code>readf</code> returns false when it can&rsquo;t match the format or when it sees an
+end-of-file (EOF), we can use <code>readf</code> in a <code>while</code> loop to gather all of our
+input.</p>
+<details>
+    <summary><strong>(More examples of using Chapel&rsquo;s formatted IO for AOC 2022&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>For the day 1 challenge of calorie counting, <code>readf</code> could have been used to
+read in the integers.  However, this approach wouldn&rsquo;t have been that helpful for the
+challenge, because the empty line between groups of integers would just be ignored.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">num</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">num</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;num = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">num</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Here is how <code>readf</code>
+was used to read in the &ldquo;character space character&rdquo;
+format used for the rock, paper, and scissors
+<a href="../../posts/aoc2022-day02-rochambeau/">challenge from day 2</a>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%s %s&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;abc = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;, xyz = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The <code>%s</code> format character will read characters into the given variable
+until a whitespace character is reached.</p>
+<p>The <code>readf</code> procedure can also be used for the day 3 input, but it isn&rsquo;t as exciting
+or necessary since iterating over the strings provided by <code>stdin.lines()</code> or <code>readLine()</code> also
+works.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%s&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">line</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;line = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">line</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div>
+    </div>
+</details>
+
+<p>Once we are able to read in the problem input, we can work on solving the
+problem.  My go-to approach for solving any programming problem is to think
+about how the current problem is similar to problems I have seen in the past.
+<a href="../../posts/aoc2022-day03-rucksacks/">Yesterday&rsquo;s advent of code problem</a> involved
+determining what item showed up in two different compartments of a rucksack.
+Putting the items in the first compartment into a set and then checking if any
+of the items in the second compartment are in that set was an approach that
+worked well.  We could do that approach here, but it would be inefficient
+because today&rsquo;s problem has more structure.  Specifically, the set of sections
+each elf has been assigned to clean is being specified with a range <code>a-b</code>,
+where we know all of the integers between <code>a</code> and <code>b</code>, inclusive,
+are in the set.  Because of that, we can avoid putting all of
+those integers explicitly into a set to check for subsetting and partial
+overlap.  Instead, we can rely on the mathematical properties of the range.</p>
+<p>Finding out how to leverage existing structure in problems is an important
+problem-solving technique.  You can start out considering the whole space of
+possible inputs and solutions to a problem, and then use the structure of the
+problem to prune that space. In other words, some of the possibilities are
+going to result in the same answer, so we don&rsquo;t have to code the answer for all
+possibilities.</p>
+<p>For today&rsquo;s problems, we are comparing two ranges/intervals
+for each pair of elves to determine if one range is a subet of another for part
+1 and to determine if there is any overlap for part 2.  The code above reads
+the start and end of the ranges into variables so that <em>[s1,e1]</em> is the first
+range and <em>[s2,e2]</em> is the second range.  The <em>[s1,e1]</em> notation indicates a
+set with the numbers <em>s1</em> through <em>e1</em> including <em>s1</em> and <em>e1</em>.  There are 48
+possibilities for the relationships between the <code>s1</code>, <code>e1</code>, <code>s2</code>, and <code>e2</code>
+values, assuming that <em>s1&lt;=e1</em> and <em>s2&lt;=e2</em> (e.g., s1&lt;e1&lt;s2&lt;e2, s1==e1&lt;s2&lt;e2,
+&hellip;).  To solve part 1, we can check if the second range is a subset of the
+first with <code>(s1&lt;=s2 &amp;&amp; e2&lt;=e1)</code>, or if the first range is a subset of the second
+with <code>(s2&lt;=s1 &amp;&amp; e1&lt;=e2)</code>.  To solve part 2, we can just check if the start of
+the first range is less than or equal to the end of the second range and the
+second range start is less than or equal to the first range end, <code>s1&lt;=e2 &amp;&amp; s2&lt;=e1</code>.  Deriving this condition takes some reasoning about all possible 48
+input conditions and which groups of them end up with the same answer.</p>
+<h3 id="second-solution-range-based-approach">
+  <a href="#second-solution-range-based-approach">Second Solution: Range-based Approach</a>
+</h3>
+<p>This solution uses Chapel ranges to reason about whether there are subsets or overlap.</p>
+<p>There are lots of applications that involve reasoning about overlapping
+ranges/intervals (i.e., interval arithmetic).
+In Chapel, there is a built-in abstraction called a &lsquo;range&rsquo; that makes computing
+on ranges/intervals even easier.
+Chapel ranges were developed with High Performance Computing (HPC) applications
+in mind, like Adaptive Mesh Refinement (AMR), where it is important to determine
+the intersections/overlaps of grids that model physical phenomena.</p>
+<p>The code below shows the creation of a range representing each elf&rsquo;s cleanup
+assignment.  Then we can use the <code>contains()</code> method to determine if one range
+is a superset of another one, and the range slicing operator to determine if
+there is any overlap.  Determining whether one range contains a specific
+index—or an entire range of indices as is done here—is a common operation to want
+to do in interval computations. The range&rsquo;s built-in <code>contains</code> method supports
+such queries out of the box.  Then the expression <code>r1[r2]</code> <em>slices</em> the <code>r1</code>
+range with the <code>r2</code> range.  This is equivalent to range intersection and is
+discussed in
+more depth in the
+<a href="https://chapel-lang.org/docs/main/primers/ranges.html?highlight=slicing#range-slicing-intersection"target="_blank" rel="noopener">Chapel range documentation</a>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%i-%i,%i-%i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Initialize a Chapel range for each elf
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">r1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">s1</span><span class="o">..</span><span class="nx">e1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">r2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">s2</span><span class="o">..</span><span class="nx">e2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Check if the second section assignment is a subset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// of the first or vice versa.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">r1</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">r2</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">r2</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">r1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Partial overlap occurs if the intersection of the ranges is non-empty
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">intersection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">r1</span><span class="p">[</span><span class="nx">r2</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">intersection</span><span class="p">.</span><span class="nx">size</span><span class="o">&gt;</span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumSubset = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumOverlap = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><h3 id="third-solution-parallel-approach">
+  <a href="#third-solution-parallel-approach">Third Solution: Parallel Approach</a>
+</h3>
+<p>Now let&rsquo;s look at creating a parallel solution.  This means that distinct
+portions of the computation will be computed simultaneously to reduce overall
+execution time.  Parallelization is important because today&rsquo;s computing
+processors all have multiple cores, perhaps even dozens or hundreds, so without
+parallel computations, a large amount of a system&rsquo;s processing power may go
+unutilized.  The Chapel programming language was designed from the ground up to
+express parallelism (and locality, which is critical for high performance).</p>
+<p>The example problem has quite a bit of inherent parallelism: we could
+potentially read the lines of input in parallel, and determining if each pair is
+a subset or overlaps can both be done in parallel.  In the provided solutions,
+reading the input file in parallel is out of scope for this blog article.  With
+Chapel, it is easy to expose the parallelism available for determining the
+subsets and overlaps.  To do this, we create an array using an iterator (see
+the <a href="../../posts/aoc2022-day02-rochambeau/">day 2 blog post</a> where it talks about
+iterators).  This is a super-powerful way to create an array without having to
+compute how many entries will be in the array ahead of time.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Chapel iterator that reads in all lines from standard input
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// and yields 2-tuples of ranges.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// Assumes that all lines are in the format &#34;%i-%i,%i-%i&#34;.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">iter</span><span class="w"> </span><span class="nf">readSections</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%i-%i,%i-%i&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">s1</span><span class="o">..</span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="o">..</span><span class="nx">e2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Creates an array with all elements yielded
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// by the `readSections` iterator.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sections</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readSections</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Once we have an array, Chapel has built in ways to do a parallel <code>forall</code>
+loop over that array.</p>
+<p>When parallelizing computations, we do have to ask the question &ldquo;Is this loop
+actually parallel?&rdquo;.  The below <code>forall</code> loop isn&rsquo;t fully parallel.  Fully
+parallel is when all of the iterations of the loop can be executed at the same
+time and you will get the same answer.  But the loop does have a common pattern
+called a <em>reduction</em>.  We can&rsquo;t overlap (aside: parallel computing requires
+reasoning about intervals/ranges as well!!) the increments to the sum variables
+because if one iteration reads between the read and write of another then we
+have problems.  However, addition is associative and commutative.  Associative
+means the expressions being added up can all be evaluated in parallel, but then
+the summation of the results needs to happen in order.  Commutative means we
+can do the additions in any order.  Chapel can leverage reduction parallelism
+for associative and commutative operators such as addition.
+The second phrase of the <code>forall</code> loop</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>indicates that summations are being done on the <code>sumSubset</code> and <code>sumOverlap</code>
+variables.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Parallel reduction to add up the number of subsets and the number of overlaps.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">r1</span><span class="p">,</span><span class="nx">r2</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">sections</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumSubset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">r1</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">r2</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">r2</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">r1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">intersection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">r1</span><span class="p">[</span><span class="nx">r2</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sumOverlap</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">intersection</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumSubset = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumSubset</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;sumOverlap = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">sumOverlap</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>A challenge to parallelizing AoC codes, particularly during these
+early days, is that the computations are simple enough that the
+running time tends to be dominated by the overheads of reading the
+input from, and writing the results to, the console.  In addition, if
+the problem size is not big enough, the overheads of creating
+parallelism and computing the reduction can also weigh down a parallel
+execution.  In contrast, in the real-world HPC problems for which
+Chapel was designed, the computational intensity and data set sizes
+tend to require parallelism to be accomplished in any
+reasonable time at all.  All that said, with a big enough dataset, and
+compiling the code using the Chapel compiler&rsquo;s <code>--fast</code> flag, today&rsquo;s
+parallel solution can be shown to outperform the serial range-based
+approach on my laptop.  Parallelism for the win!</p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>That wraps up this fourth day of introducing Chapel through AoC 2022.
+The full code for these solutions can be browsed and downloaded from
+<a href="https://github.com/mstrout/adventOfCode2022"target="_blank" rel="noopener">https://github.com/mstrout/adventOfCode2022</a>.
+Thank you for reading this blog post, and feel free to make comments or ask
+questions by creating a thread in the
+<a href="https://chapel.discourse.group/c/blog/21"target="_blank" rel="noopener">Chapel Blog Discourse Category</a>.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;4%3A&#43;Finding&#43;Overlaps&#43;in&#43;Cleanup&#43;Ranges&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day04-ranges%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;4%3A&#43;Finding&#43;Overlaps&#43;in&#43;Cleanup&#43;Ranges&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day04-ranges%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;4%3A&#43;Finding&#43;Overlaps&#43;in&#43;Cleanup&#43;Ranges&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day04-ranges%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;4%3A&#43;Finding&#43;Overlaps&#43;in&#43;Cleanup&#43;Ranges&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day04-ranges%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day03-rucksacks/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 3: Rucksack Comparisons
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day05-cratestacks/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 5: Stacking Crates
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>
