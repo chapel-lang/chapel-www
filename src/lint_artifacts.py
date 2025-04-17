@@ -94,10 +94,10 @@ def lint_artifacts_list(data):
 
 def main():
     parser = argparse.ArgumentParser(description="Lint Chapel artifacts list")
-    parser.add_argument("filename", type=str, help="Path to the artifacts list file")
+    parser.add_argument("artifacts_filename", type=str, help="Path to the artifacts list file")
     args = parser.parse_args()
 
-    filename = args.filename
+    filename = args.artifacts_filename
     print("Linting artifacts list at", filename)
     print()
 
