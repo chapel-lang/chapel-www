@@ -32,6 +32,9 @@ optional_fields = {
     "extraLink",        # link to an external resource that is neither a slide deck
                         # nor a video, or when you have multiple decks or videos
     "extraLinkText",    # a name for the extra link
+    "linkList",         # a list of several links to be displayed
+    "linkListTexts",    # respective text to display for each link
+    "linkListLabel",    # a label for what the list of links are
 }
 valid_fields = required_fields | optional_fields
 valid_types = {
@@ -65,12 +68,22 @@ def validate_artifact(artifact: dict):
                     raise ValueError(f"Invalid type '{type_entry}'")
             if repeated_types := {x for x in value if value.count(x) > 1}:
                 raise ValueError(f"Repeated types '{repeated_types}'")
+        elif field == "linkList" or field == "linkListTexts":
+            if not isinstance(value, list):
+                raise ValueError(f"Field '{field}' must be a list")
+            for item in value:
+                if not isinstance(item, str):
+                    raise ValueError(f"Field '{field}' must be a list of strings")
         else:
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
 
-    if "extraLinkText" in fields and "extraLink" not in fields:
-        raise ValueError("Specified extraLinkText without extraLink")
+    if ("extraLinkText" in fields) != ("extraLink" in fields):
+        raise ValueError("Must specify extraLink and extraLinkText together")
+    if (("linkList" in fields) != ("linkListTexts" in fields)) or (("linkList" in fields) != ("linkListLabel" in fields)):
+        raise ValueError("Must specify linkList, linkListTexts, and linkListLabel together")
+    if "linkList" in fields and len(artifact["linkList"]) != len(artifact["linkListTexts"]):
+        raise ValueError("Mismatch between linkList and linkListTexts lengths")
 
     required_fields_encountered = fields & required_fields
     if len(required_fields_encountered) != len(required_fields):
