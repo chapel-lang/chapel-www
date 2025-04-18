@@ -30,9 +30,11 @@ optional_fields = {
                         # `slides` field, this will cause the word "Video" to appear
                         # within brackets following the name of the resource
     "extraLink",        # link to an external resource that is neither a slide deck
-                        # nor a video, or when you have multiple decks or videos
+                        # nor a video, or when you have multiple decks or videos.
+                        # If present, extraLinkText must also be present.
     "extraLinkText",    # a name for the extra link
-    "linkList",         # a list of several links to be displayed
+    "linkList",         # a list of several links to be displayed. If present,
+                        # linkListTexts and linkListLabel must also be present.
     "linkListTexts",    # respective text to display for each link
     "linkListLabel",    # a label for what the list of links are
 }
@@ -78,7 +80,7 @@ def validate_artifact(artifact: dict):
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
 
-    if ("extraLinkText" in fields) != ("extraLink" in fields):
+    if ("extraLink" in fields) != ("extraLinkText" in fields):
         raise ValueError("Must specify extraLink and extraLinkText together")
     if (("linkList" in fields) != ("linkListTexts" in fields)) or (("linkList" in fields) != ("linkListLabel" in fields)):
         raise ValueError("Must specify linkList, linkListTexts, and linkListLabel together")
