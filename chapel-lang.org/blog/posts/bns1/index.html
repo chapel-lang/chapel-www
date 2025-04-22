@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A starting point for applying Chapel to scientific computing problems using the CFD Python tutorial.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Navier-Stokes in Chapel — Introduction</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Navier-Stokes in Chapel — Introduction</h2>
+<div class="post-subscript">
+    <p>Posted on April 10, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/math">Math</a>
+        
+        <a class="button" href="../../tags/differential-equations">Differential Equations</a>
+        
+        <a class="button" href="../../tags/how-to">How-to</a>
+        
+        <a class="button" href="../../tags/computational-fluid-dynamics">Computational Fluid Dynamics</a>
+        
+        <a class="button" href="../../tags/language-comparison">Language Comparison</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/jeremiah-corrado">Jeremiah Corrado</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#where-were-going">Where We&rsquo;re Going</a></li>
+    <li><a href="#porting-1d-diffusion-to-chapel">Porting 1D Diffusion to Chapel</a>
+      <ul>
+        <li><a href="#quick-rundown-of-the-math">Quick Rundown of the Math</a></li>
+        <li><a href="#simulation-constants">Simulation Constants</a></li>
+        <li><a href="#arrays-and-initial-conditions">Arrays and Initial Conditions</a></li>
+        <li><a href="#loops-and-stencil-computations">Loops and Stencil Computations</a></li>
+      </ul>
+    </li>
+    <li><a href="#compiling-and-running">Compiling and Running</a>
+      <ul>
+        <li><a href="#compiling">Compiling</a></li>
+        <li><a href="#running">Running</a></li>
+      </ul>
+    </li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>The <a href="https://lorenabarba.com/blog/cfd-python-12-steps-to-navier-stokes/"target="_blank" rel="noopener">CFD Python: 12 steps to Navier-Stokes</a> tutorial created by the <em>Lorena A. Barba Group</em> is a basic introduction to writing computational fluid dynamics software in Python. It covers everything from simple 1D convection to a fully functional 2D Navier-Stokes simulation and is widely used as a teaching tool for students in various sub-fields of computational physics.</p>
+<p>This blog post aims to offer a starting point for using the Chapel Programming Language in scientific computing applications by translating portions of the CFD Python tutorial into Chapel. It aims to show how easy that translation process is (even for a Chapel beginner) and how practical it can be to use Chapel&rsquo;s parallel programming features to fully take advantage of parallel hardware, like a multi-core laptop.</p>
+<p>I don&rsquo;t assume that you&rsquo;ve gone through the entire CFD Python tutorial; however it may be useful as a reference on occasion, especially if you&rsquo;re interested in learning more about the math and theory behind the code discussed below.</p>
+<h3 id="where-were-going">
+  <a href="#where-were-going">Where We&rsquo;re Going</a>
+</h3>
+<p>The next posts in this series will leverage the material here and use the more complex examples in the CFD Python tutorial to explore advanced Chapel topics. In those posts, we&rsquo;ll see some more realistic and exciting results like those from a 2D cavity-flow simulation depicted below.</p>
+<p>In this series&rsquo; third and fourth posts, we&rsquo;ll explore using Chapel for multi-node (or distributed memory) execution of larger CFD simulations. This will be especially useful for scientists/researchers/students who are interested in using Chapel to expand the size of their simulations beyond the limits of a single computer. They&rsquo;ll also be useful for those who have achieved scale with other CFD stacks like C++/MPI, but would prefer to work with a friendlier and more productive language.</p>
+<figure><img src="../../posts/bns1/cavity_flow_example.png"><figcaption>
+      <h4>2D Cavity Flow Example</h4>
+    </figcaption>
+</figure>
+
+<h3 id="porting-1d-diffusion-to-chapel">
+  <a href="#porting-1d-diffusion-to-chapel">Porting 1D Diffusion to Chapel</a>
+</h3>
+<p>The first four steps of the CFD Python tutorial all adhere to a similar code structure. Here, we&rsquo;ll focus on <a href="https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/04_Step_3.ipynb"target="_blank" rel="noopener"><strong>step 3</strong></a> specifically, noting that the same process could be used to translate any of the first four steps into Chapel.</p>
+<h4 id="quick-rundown-of-the-math">
+  <a href="#quick-rundown-of-the-math">Quick Rundown of the Math</a>
+</h4>
+<p>Step 3 covers the process of creating a 1D diffusion simulation using the <em>Finite Difference</em> (FD) method. The diffusion behavior is defined by a partial differential equation that operates on a fluid&rsquo;s scalar density, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex"> u </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">u</span></span></span></span>, as a function of space (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex"> x </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span>) and time (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi></mrow><annotation encoding="application/x-tex"> t </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span></span></span></span>). The intensity of that change is mediated by the fluid&rsquo;s viscosity ( <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ν</mi></mrow><annotation encoding="application/x-tex"> \nu </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.06366em;">ν</span></span></span></span> ). These quantities have the following relationship:</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>u</mi></mrow><mrow><mi mathvariant="normal">∂</mi><mi>t</mi></mrow></mfrac><mo>=</mo><mi>ν</mi><mfrac><mrow><msup><mi mathvariant="normal">∂</mi><mn>2</mn></msup><mi>u</mi></mrow><mrow><mi mathvariant="normal">∂</mi><msup><mi>x</mi><mn>2</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex"> \dfrac{\partial u}{\partial t} = \nu \dfrac{\partial^2 u}{\partial x^2 } </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.05556em;">∂</span><span class="mord mathnormal">t</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.05556em;">∂</span><span class="mord mathnormal">u</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1771em;vertical-align:-0.686em;"></span><span class="mord mathnormal" style="margin-right:0.06366em;">ν</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.4911em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.05556em;">∂</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord" style="margin-right:0.05556em;">∂</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">u</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span><p>Or, to think about this relationship conceptually: the rate at which the fluid&rsquo;s density (at a particular point in space) changes over time is directly proportional to its concavity (its second derivative with respect to <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex"> x </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span>). This means that adjacent regions of fluid with significant differences in density will change quickly, and those with small differences in density will change more slowly.</p>
+<p>To simulate this behavior, we&rsquo;ll use the Finite Difference Method. Here, the fluid&rsquo;s density is represented by an array of numbers where each element is a discrete point in space, and the fluid&rsquo;s evolution in time is divided into discrete steps. So, for our purposes, the diffusion equation is discretized as follows, with the derivatives being replaced by &ldquo;finite differences&rdquo; over finite spatial and temporal intervals (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow><annotation encoding="application/x-tex"> \Delta t </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">Δ</span><span class="mord mathnormal">t</span></span></span></span>, and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mi>x</mi></mrow><annotation encoding="application/x-tex"> \Delta x </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">Δ</span><span class="mord mathnormal">x</span></span></span></span> respectively):</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mfrac><mrow><msubsup><mi>u</mi><mi>i</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msubsup><mo>−</mo><msubsup><mi>u</mi><mi>i</mi><mi>n</mi></msubsup></mrow><mrow><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow></mfrac><mo>=</mo><mi>ν</mi><mfrac><mrow><msubsup><mi>u</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><mi>n</mi></msubsup><mo>−</mo><mn>2</mn><msubsup><mi>u</mi><mi>i</mi><mi>n</mi></msubsup><mo>+</mo><msubsup><mi>u</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mi>n</mi></msubsup></mrow><mrow><mi mathvariant="normal">Δ</mi><msup><mi>x</mi><mn>2</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex"> \dfrac{u_i^{n+1} - u_i^n}{\Delta t} = \nu \dfrac{u_{i+1}^n - 2u_i^n + u_{i-1}^n}{\Delta x^2 } </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.2172em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.5312em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord mathnormal">t</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8542em;"><span style="top:-2.4231em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.1031em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2769em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-2.4413em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2587em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord mathnormal" style="margin-right:0.06366em;">ν</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.707em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-2.4413em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.317em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-2.4413em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2587em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-2.4413em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.317em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span><p>Here, the &ldquo;<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow></mrow><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4617em;vertical-align:-0.15em;"></span><span class="mord"><span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>&rdquo; subscripts represent discrete points in space and the &ldquo;<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mrow></mrow><mi>n</mi></msup></mrow><annotation encoding="application/x-tex">^n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6644em;"></span><span class="mord"><span></span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span></span></span></span></span></span></span></span>&rdquo; superscripts represent discrete states in time.</p>
+<p>With the mathematical background established, we&rsquo;ll get into the tutorial&rsquo;s <a href="https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/04_Step_3.ipynb"target="_blank" rel="noopener">original Python code</a>, and how it can be translated into Chapel.</p>
+<h4 id="simulation-constants">
+  <a href="#simulation-constants">Simulation Constants</a>
+</h4>
+<p>To get started, we define some constants that dictate the behavior of our simulation. By reusing these throughout the program, we&rsquo;ll be able to easily tune the simulation&rsquo;s behavior by changing the values here. The Python CFD code defines the following constants:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">nx</span> <span class="o">=</span> <span class="mi">41</span>                     <span class="c1"># Number of Finite Difference points</span>
+</span></span><span class="line"><span class="cl"><span class="n">dx</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">nx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>           <span class="c1"># Spatial step-size (Delta-x)</span>
+</span></span><span class="line"><span class="cl"><span class="n">nt</span> <span class="o">=</span> <span class="mi">20</span>                     <span class="c1"># Number of time steps</span>
+</span></span><span class="line"><span class="cl"><span class="n">nu</span> <span class="o">=</span> <span class="mf">0.3</span>                    <span class="c1"># The fluid&#39;s viscosity</span>
+</span></span><span class="line"><span class="cl"><span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.2</span>                 <span class="c1"># A simulation stability parameter</span>
+</span></span><span class="line"><span class="cl"><span class="n">dt</span> <span class="o">=</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">nu</span>     <span class="c1"># Temporal step-size (Delta-t)</span>
+</span></span></code></pre></div><p>This can be translated quite directly into Chapel, with the primary difference being the need for the <code>const</code> keyword. Whenever declaring a new variable in Chapel, either <code>var</code> or <code>const</code> is needed (where <code>const</code> designates that the variable&rsquo;s value cannot be changed once set):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">nx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span><span class="p">;</span><span class="w">                   </span><span class="c1">// Number of Finite Difference points
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">dx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="nx">nx</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">         </span><span class="c1">// Spatial step-size (Delta-x)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">nt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">                   </span><span class="c1">// Number of time steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">nu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.3</span><span class="p">;</span><span class="w">                  </span><span class="c1">// The fluid&#39;s viscosity
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">sigma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="p">;</span><span class="w">               </span><span class="c1">// A simulation stability parameter
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">dt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sigma</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">nu</span><span class="p">;</span><span class="w">   </span><span class="c1">// Temporal step-size (Delta-t)
+</span></span></span></code></pre></div><p>Although valid, the above can be modified further to take advantage of some additional features in Chapel:</p>
+<ol>
+<li>The <code>config</code> keyword can be added before <code>const</code> to make the variables command-line configurable (more on this later)</li>
+<li>The repetition of the <code>const</code> keyword isn&rsquo;t necessary and can be condensed by combining multiple declarations into a single statement</li>
+</ol>
+<p>With those incorporated, we have the following start to our program:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="first">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">nx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span><span class="p">,</span><span class="w">           </span><span class="c1">// Number of Finite Difference points
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">nt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w">           </span><span class="c1">// Number of time steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">nu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.3</span><span class="p">,</span><span class="w">          </span><span class="c1">// The fluid&#39;s viscosity
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">sigma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="p">;</span><span class="w">       </span><span class="c1">// A simulation stability parameter
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">dx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="nx">nx</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span><span class="w">      </span><span class="c1">// Spatial step-size (Delta-x)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="nx">dt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sigma</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">nu</span><span class="p">;</span><span class="w">  </span><span class="c1">// Temporal step-size (Delta-t)
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>Given that <code>dx</code> and <code>dt</code> are defined by the other constants, they are separated onto their own lines, and are not marked as configurable.</p>
+<h4 id="arrays-and-initial-conditions">
+  <a href="#arrays-and-initial-conditions">Arrays and Initial Conditions</a>
+</h4>
+<p>Next, we define a 1D array of floating-point values to represent the state of our simulated fluid at any one time. Each entry in this array represents the density of the fluid at that one point in space. As we progress forward in simulated time, a new array will be computed to represent the fluid&rsquo;s state at that next time step.</p>
+<p>In Python, we use a NumPy array to hold these values:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">u</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">nx</span><span class="p">)</span> <span class="c1"># an array with &#39;nx&#39; elements all set to 1</span>
+</span></span></code></pre></div><p>We also want to set up some initial conditions. Think of this as the simulation&rsquo;s input. Without it, we&rsquo;d only be simulating a perfectly uniform fluid, which would not change over time.</p>
+<p>Following the tutorial, we&rsquo;ll use a square-wave as an initial condition for <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">u</span></span></span></span>:</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>u</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mrow><mo fence="true">{</mo><mtable rowspacing="0.36em" columnalign="left left" columnspacing="1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mn>2</mn></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mtext>if </mtext><mn>0.5</mn><mo>≤</mo><mi>x</mi><mo>≤</mo><mn>1.0</mn></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mn>1</mn></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mtext>otherwise</mtext></mstyle></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
+u(x) = \begin{cases}
+2 &amp;\text{if } 0.5 \le x \le 1.0 \\
+1 &amp;\text{otherwise}
+\end{cases}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">u</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3em;vertical-align:-1.25em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">2</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord text"><span class="mord">if </span></span><span class="mord">0.5</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord">1.0</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord text"><span class="mord">otherwise</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span><p>This is done by setting a sub-region of the array to <code>2</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">u</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">/</span> <span class="n">dx</span><span class="p">):</span><span class="nb">int</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">dx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">2</span> <span class="c1"># Set u = 2 between x = 0.5 and 1.0</span>
+</span></span></code></pre></div><p>The array creation translates into Chapel as follows:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="middle">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">u</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>Here, we are creating a variable <code>u</code>, whose type is <code>[0..&lt;nx] real</code>, and assigning the value <code>1</code> to it. The square-braces designate that the variable is an array, the <code>0..&lt;nx</code> portion of the expression means that the array will be defined over the indices <code>0</code> though <code>nx</code> (non-inclusive), and the <code>real</code> means that the array has an element type of 64-bit real numbers.</p>
+<details>
+    <summary><strong>more on defining arrays&hellip;</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>One benefit of this syntax for defining arrays, is that it allows us to use any range of indices. For example, let&rsquo;s say we have a preference towards 1-indexing (maybe we are porting an application from Matlab or Fortran). The above would be rewritten as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">u</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">nx</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>In other words, the range <code>1..nx</code> dictates that <code>u</code>&rsquo;s indices are the integers <code>1</code> through <code>nx</code> (inclusive).</p>
+<p>With one-indexing, the expression to set initial conditions would also change:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">u</span><span class="p">[((</span><span class="mf">0.5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="p">):</span><span class="kt">int</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="o">..</span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">):</span><span class="kt">int</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>For more on this topic, see the introductory documentation about <a href="https://chapel-lang.org/docs/primers/ranges.html"target="_blank" rel="noopener">Ranges</a> and <a href="https://chapel-lang.org/docs/primers/arrays.html"target="_blank" rel="noopener">Arrays</a> in Chapel.</p>
+
+    </div>
+</details>
+
+<p>The initial conditions can then be set with the following expression, which is nearly identical to the Python code:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">u</span><span class="p">[(</span><span class="mf">0.5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="p">):</span><span class="kt">int</span><span class="o">..&lt;</span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">):</span><span class="kt">int</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>However, since Chapel&rsquo;s range expressions allow for an inclusive upper-bound (by omitting the <code>&lt;</code>), we&rsquo;ll use a slightly simplified expression instead:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="middle">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">u</span><span class="p">[(</span><span class="mf">0.5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="p">):</span><span class="kt">int</span><span class="o">..</span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="p">):</span><span class="kt">int</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<h4 id="loops-and-stencil-computations">
+  <a href="#loops-and-stencil-computations">Loops and Stencil Computations</a>
+</h4>
+<p>With our simulation parameters and initial conditions in place, we can set up a finite difference simulation. For this purpose, the discretized differential equation from above rearranges into a more useful form:</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msubsup><mo>=</mo><msubsup><mi>u</mi><mi>i</mi><mi>n</mi></msubsup><mo>+</mo><mfrac><mrow><mi>ν</mi><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow><mrow><msup><mi mathvariant="normal">Δ</mi><mn>2</mn></msup><mi>x</mi></mrow></mfrac><mo stretchy="false">(</mo><msubsup><mi>u</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><mi>n</mi></msubsup><mo>−</mo><mn>2</mn><msubsup><mi>u</mi><mi>i</mi><mi>n</mi></msubsup><mo>+</mo><msubsup><mi>u</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mi>n</mi></msubsup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex"> u_i^{n+1} = u_i^n + \dfrac{\nu \Delta t}{\Delta ^2x} (u_{i+1}^n - 2u_i^n + u_{i-1}^n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.1311em;vertical-align:-0.267em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8641em;"><span style="top:-2.433em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.267em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.9614em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7144em;"><span style="top:-2.453em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:2.0463em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7401em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.06366em;">ν</span><span class="mord">Δ</span><span class="mord mathnormal">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7144em;"><span style="top:-2.453em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3053em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.9614em;vertical-align:-0.247em;"></span><span class="mord">2</span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7144em;"><span style="top:-2.453em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0553em;vertical-align:-0.3053em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7144em;"><span style="top:-2.453em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3053em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span><p>Here, the state of any value in the array with spatial index <code>i</code> at the next time step <code>n+1</code> (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msubsup></mrow><annotation encoding="application/x-tex">u^{n+1}_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.1311em;vertical-align:-0.2769em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8542em;"><span style="top:-2.4231em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.1031em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2769em;"><span></span></span></span></span></span></span></span></span></span>) is defined in terms of its current state (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mi>n</mi></msubsup></mrow><annotation encoding="application/x-tex">u^n_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9231em;vertical-align:-0.2587em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-2.4413em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2587em;"><span></span></span></span></span></span></span></span></span></span>) as well as the state of the two adjacent entries.</p>
+<p>To implement the equation above, our program will need a temporary copy of <code>u</code>. We&rsquo;ll call this one <code>un</code> to represent the state of the fluid at the current time step <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>u</mi><mi>n</mi></msup></mrow><annotation encoding="application/x-tex">u^{n}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6644em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span></span></span></span></span></span></span></span></span></span></span></span>. The array <code>u</code> will be used to represent the state of the fluid at the next time step (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>u</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msup></mrow><annotation encoding="application/x-tex">u^{n+1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span></span></span></span></span></span></span></span>). This way, at the end of our simulation, <code>u</code> will contain the results from the final time step.</p>
+<p>At each iteration through time, we&rsquo;ll take the results from the previous iteration (<code>u</code>) and store them in <code>un</code>. Think of this as swapping <code>u</code> and <code>un</code>. We&rsquo;ll then apply the finite difference equation to all the sets of three adjacent points in <code>un</code> and store the results in <code>u</code>. This process is summarized in the following figure:</p>
+<figure><img src="../../posts/bns1/stencil_diagram.jpg"><figcaption>
+      <h4>1D Stencil Loop Structure</h4>
+    </figcaption>
+</figure>
+
+<p>It is also notable that the outer elements of <code>u</code> are never updated, meaning that we have an implicit Dirichlet boundary condition (the fluid at the edges of our domain must maintain their initial density of 1).</p>
+<p>In Python, the finite difference computation is implemented as follows, where the outer <code>for</code> loop corresponds to the time-arrow in the above diagram, and the inner <code>for</code> loop corresponds to the space-arrow:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">un</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">nx</span><span class="p">)</span>  <span class="c1"># temporary copy of u</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nt</span><span class="p">):</span>  <span class="c1"># simulate &#39;nt&#39; time steps</span>
+</span></span><span class="line"><span class="cl">    <span class="n">un</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>    <span class="c1"># copy the results of the previous iteration into &#39;un&#39;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># apply FD equation:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">un</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">nu</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">/</span> <span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">un</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">un</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">un</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+</span></span></code></pre></div><p>The translation into Chapel is quite straightforward:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="last">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">un</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">u</span><span class="p">;</span><span class="w">       </span><span class="c1">// temporary copy of &#39;u&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">for</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">nt</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// simulate &#39;nt&#39; time steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">u</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">un</span><span class="p">;</span><span class="w">     </span><span class="c1">// swap &#39;u&#39; and &#39;un&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// apply FD equation
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..&lt;</span><span class="p">(</span><span class="nx">nx</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">u</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">nu</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dt</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>You&rsquo;ll notice a couple of minor differences:</p>
+<ol>
+<li>The swap operator <code>&lt;=&gt;</code> is used to populate <code>un</code> with the previous iteration&rsquo;s <code>u</code> values. Not only does it look cleaner (in my opinion), it&rsquo;s also more performant than an explicit copy because it uses a pointer-swap under the hood</li>
+<li>Unlike Python, Chapel does not use indentation to designate code blocks. For multi-line code blocks, like the outer loop, curly braces are used. For single-line blocks, like the inner loop, the <code>do</code> keyword <em>can</em> be used in place of curly-braces. Similar keywords are allowed in other control-flow operators (i.e., <code>if condition then doSomething();</code>).</li>
+</ol>
+<p>And there is one <em>minor-looking</em> difference with significant implications.</p>
+<p>Rather than a traditional <code>for</code> loop, the inner loop uses <code>forall</code> — a Chapel feature that results in parallel iteration. It can be used in any order-independent loop like this one, where the order of execution doesn&rsquo;t affect the meaning of the program. By using <code>forall</code>, we indicate to the compiler that the iterations in the range <code>1..&lt;(nx-1)</code> can be split up and executed by separate tasks in parallel. This simple change allows our program to fully take advantage of the hardware, as Chapel&rsquo;s runtime will automatically generate enough tasks to saturate all CPU cores by default.</p>
+<p>Note that this works by simply invoking the range type&rsquo;s parallel iterator, which is implemented in terms of Chapel&rsquo;s lower-level parallel programming features. This means that user-defined types can also implement their own parallel iterators which can then be invoked by a <code>forall</code> loop. More information about <code>forall</code> loops can be found in the <a href="https://chapel-lang.org/docs/primers/forallLoops.html"target="_blank" rel="noopener">documentation</a>.</p>
+<h3 id="compiling-and-running">
+  <a href="#compiling-and-running">Compiling and Running</a>
+</h3>
+<p>And finally, we are ready to put things together and test our program. If you don&rsquo;t already have Chapel set up on your system but you&rsquo;d like to follow along, there are several ways to get started — take a look at this <a href="../../posts/announcing-chapel-2.0/#try-chapel-instructions">&ldquo;how can I try Chapel&rdquo;</a> section for details.</p>
+<p>Combining the code segments from above, along with some calls to an external plotting function, we have the following Chapel source file:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/nsStep3.chpl download="nsStep3.chpl">nsStep3.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">plotUtil</span><span class="p">.</span><span class="nx">simplePlot</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// setup simulation constants
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">nx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span><span class="p">,</span><span class="w">           </span><span class="c1">// Number of Finite Difference points
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">nt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w">           </span><span class="c1">// Number of time steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">nu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.3</span><span class="p">,</span><span class="w">          </span><span class="c1">// The fluid&#39;s viscosity
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">sigma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="p">;</span><span class="w">       </span><span class="c1">// A simulation stability parameter
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">dx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="nx">nx</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span><span class="w">      </span><span class="c1">// Spatial step-size (Delta-x)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="nx">dt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sigma</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">nu</span><span class="p">;</span><span class="w">  </span><span class="c1">// Temporal step-size (Delta-t)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// define initial conditions
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">u</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">u</span><span class="p">[(</span><span class="mf">0.5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="p">):</span><span class="kt">int</span><span class="o">..</span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="p">):</span><span class="kt">int</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// plot initial conditions
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;&#39;u&#39; initial conditions:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">simplePlot</span><span class="p">(</span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">minY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">maxY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nx">minX</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">maxX</span><span class="o">=</span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// run FD simulation
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">un</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">u</span><span class="p">;</span><span class="w">       </span><span class="c1">// temporary copy of &#39;u&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">for</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">nt</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// simulate &#39;nt&#39; time steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">u</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">un</span><span class="p">;</span><span class="w">     </span><span class="c1">// swap &#39;u&#39; and &#39;un&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// apply FD equation
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..&lt;</span><span class="p">(</span><span class="nx">nx</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">u</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">nu</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">dt</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">dx</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">un</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// plot results
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;&#39;u&#39; after &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">nt</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; iterations:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">simplePlot</span><span class="p">(</span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">minY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">maxY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nx">minX</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">maxX</span><span class="o">=</span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Where <code>simplePlot</code> is a helper function (for demonstration purposes) that creates an ASCII plot in the terminal output. It is imported from the following file (which you may find useful as an example of formatted IO in Chapel):</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/plotUtil.chpl download="plotUtil.chpl">plotUtil.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">simplePlot</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">minY</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">maxY</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">numY</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">minX</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">maxX</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="nx">d</span><span class="p">.</span><span class="nx">rank</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">deltaY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">maxY</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">minY</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">numY</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">steps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="o">..</span><span class="p">(</span><span class="nx">numY</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">deltaY</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">minY</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">yLevels</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">val</span><span class="p">,</span><span class="w"> </span><span class="nx">vi</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">d</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="nx">numY</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">steps</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nx">steps</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">yLevels</span><span class="p">[</span><span class="nx">vi</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">si</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">steps</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;%{##.###}-|&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">steps</span><span class="p">[</span><span class="nx">si</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">l</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">yLevels</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">l</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">si</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">write</span><span class="p">(</span><span class="s">&#34;.&#34;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">write</span><span class="p">(</span><span class="s">&#34; &#34;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">writeln</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;       |&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">l</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..#</span><span class="nx">d</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="nx">size</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">write</span><span class="p">(</span><span class="s">&#34;-&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34; x: %{##.###}&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">minX</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">l</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..#</span><span class="nx">d</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="nx">size</span><span class="o">-</span><span class="mi">5</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">write</span><span class="p">(</span><span class="s">&#34; &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;%{##.###}&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">maxX</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;\n&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>In upcoming posts in this series, we&rsquo;ll discuss how to use external tools to generate high quality visualizations. For now, <code>simplePlot</code> should get the job done!</p>
+<p>Overall, our code is very similar in length and composition to the full Python code. This means that we get the benefits of a high performance compiled language without the typical complexity associated with HPC libraries/languages. Not only that, but as we&rsquo;ll see in upcoming posts, modifying this program to run across multiple compute nodes is an almost trivial process requiring only a few lines of changes, which is not something that can be said about other high-productivity and high-performance tools.</p>
+<h4 id="compiling">
+  <a href="#compiling">Compiling</a>
+</h4>
+<p>In your terminal, navigate to a directory with <code>nsStep3.chpl</code> and <code>plotUtil.chpl</code> present. Use the following command to compile:
+<div class="terminal-command"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">chpl nsStep3.chpl --fast</span></span></code></pre></div></div>
+
+</p>
+<p>The <code>--fast</code> flag ensures that performance optimizations are enabled. Without it, your program will do some extra work like bounds-checking, which can be useful during development but tends to slow things down noticeably.</p>
+<p>Also, note that we did not have to point the compiler to <code>plotUtil.chpl</code>; it was automatically included because <code>chpl</code> searches the surrounding directory for imported modules.</p>
+<h4 id="running">
+  <a href="#running">Running</a>
+</h4>
+<p>Run the resultant binary by calling it in your terminal:
+<div class="terminal-command"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">./nsStep3</span></span></code></pre></div></div>
+
+</p>
+<p>This will produce the following output:
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">&#39;u&#39; initial conditions:
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.125-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.000-|          ...........                    
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.875-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.750-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.625-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.500-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.375-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.250-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.125-|..........           ....................
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.000-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 0.875-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go">       |-----------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go"> x:  0.000                                     2.000
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">&#39;u&#39; after 20 iterations:
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.125-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.000-|             .....                       
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.875-|            .     .                      
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.750-|           .       .                     
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.625-|          .         .                    
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.500-|         .           .                   
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.375-|        .             .                  
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.250-|       .               .                 
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.125-|.......                 .................
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.000-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go"> 0.875-|                                         
+</span></span></span><span class="line"><span class="cl"><span class="go">       |-----------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go"> x:  0.000                                     2.000
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span></code></pre></div>
+</p>
+<p>As you can see in the upper plot, our initial conditions match the square wave specified in the code. And in the second plot, we can see that the fluid&rsquo;s density has clearly spread out into the surrounding area.</p>
+<p>Running again with some command line arguments to increase the number of iterations and the number of simulated points (making use of the <code>config</code> constants discussed above),
+<div class="terminal-command"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">./nsStep3 --nt<span class="o">=</span><span class="m">100</span> --nx<span class="o">=</span><span class="m">60</span></span></span></code></pre></div></div>
+
+</p>
+<p>we get similar results, except the plot is clearly wider to accommodate more points, and the diffusion has progressed further due to the increased number of time-steps:
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">&#39;u&#39; initial conditions:
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.125-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.000-|              ................                              
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.875-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.750-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.625-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.500-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.375-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.250-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.125-|..............                ..............................
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.000-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 0.875-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go">       |------------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go"> x:  0.000                                                        2.000
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">&#39;u&#39; after 100 iterations:
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.125-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 2.000-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.875-|                   ......                                   
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.750-|                ...      ...                                
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.625-|              ..            ..                              
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.500-|            ..                ..                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.375-|          ..                    ..                          
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.250-|       ...                        ...                       
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.125-|.......                              .......................
+</span></span></span><span class="line"><span class="cl"><span class="go"> 1.000-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go"> 0.875-|                                                            
+</span></span></span><span class="line"><span class="cl"><span class="go">       |------------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go"> x:  0.000                                                        2.000
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span></code></pre></div>
+</p>
+<h3 id="conclusion">
+  <a href="#conclusion">Conclusion</a>
+</h3>
+<p>The goal of this tutorial was to provide a window into the world of scientific computing with Chapel. With a simplified fluid-dynamics example, we provided a brief introduction to the language and highlighted some of the unique features that Chapel offers. These included the <code>config</code> keyword, which is especially useful for iteratively tuning a simulation, the powerful array syntax that allows a high degree of flexibility, and <code>forall</code> loops — one of the many powerful parallelism abstractions in Chapel.</p>
+<p>We have also set the stage for the later posts in this series where we will use some of the more complex <a href="https://lorenabarba.com/blog/cfd-python-12-steps-to-navier-stokes/"target="_blank" rel="noopener">CFD Python</a> steps to explore some other more advanced Chapel features.</p>
+<p>The Chapel Team would like to express its sincere gratitude towards the <a href="https://lorenabarba.com/"target="_blank" rel="noopener">Barba Group</a> for creating and maintaining the CFD Python tutorials.</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Apr 16, 2024</td>
+          <td style="text-align: left">Fixed error in &ldquo;Cavity Flow Example&rdquo; figure due to improper boundary conditions</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Apr 16, 2024</td>
+          <td style="text-align: left">Removed incorrect note about the Poisson equation</td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Introduction&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Introduction&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Introduction&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Introduction&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/bns2/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+Navier-Stokes in Chapel — 2D Simulations and Performance
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

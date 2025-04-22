@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A solution to day nine of AoC 2022, covering select-statements, arrays, and math functions">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 9: Elvish String Theory</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 9: Elvish String Theory</h2>
+<div class="post-subscript">
+    <p>Posted on December 9, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/jeremiah-corrado">Jeremiah Corrado</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#reading-instructions">Reading Instructions</a></li>
+    <li><a href="#setting-up-the-stringrope">Setting up the String/Rope</a></li>
+    <li><a href="#executing-the-instructions">Executing the Instructions</a></li>
+    <li><a href="#moving-the-tail">Moving the Tail</a></li>
+    <li><a href="#tracking-unique-positions">Tracking Unique Positions</a></li>
+    <li><a href="#conclusion-and-tips-for-part-two">Conclusion and Tips for Part Two</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to Day 9 of our &lsquo;Twelve Days of Chapel AoC&rsquo; series! If you&rsquo;re not familiar
+with this series, take a look at the <a href="../../posts/aoc2022-day00-intro/">introductory article</a>
+for some background.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>If you&rsquo;re anything like me, or the protagonist of <a href="https://adventofcode.com/2022/day/9"target="_blank" rel="noopener">todays AoC Problem</a>,
+nothing puts your fear of rickety bridges at ease like writing a quantum
+rope simulation in Chapel. And that&rsquo;s exactly what we&rsquo;re going to do in this
+article!</p>
+<p>The goal of our simulation is to track the behavior of a rope&rsquo;s tail given some
+movements applied to its head. Each line of our input contains a direction
+(up, down, left, or right) and a distance (the number of spaces to move in that
+direction through a 2D grid). We are tasked with computing the resultant movement
+of the tail according to the following rules. If the tail is:</p>
+<ul>
+<li>adjacent to the head or overlapping with it, it doesn&rsquo;t move</li>
+<li>in the same row or column as the head, but more than 1 space away,
+it moves 1 position towards the head</li>
+<li>in a different row and column, and more than 1 space away, it moves
+diagonally towards the head</li>
+</ul>
+<p>With this in mind, I&rsquo;ll use the following approach: store the positions of
+the rope&rsquo;s <em>head</em> and <em>tail</em> in two separate two-element arrays. As
+instructions are read from the input, we&rsquo;ll update the position of the head,
+and then apply the above rules to compute the tail&rsquo;s new position.</p>
+<p>Per the problem statement, we also want to keep track of the number of unique
+grid-spaces visited by the tail. I use a set to keep track of all the places it&rsquo;s
+been. After all the instructions have been applied, the size of the set will give
+us the answer to the AoC problem. (See <a href="../../posts/aoc2022-day03-rucksacks/#the-set-type">Day 3&rsquo;s post</a>
+for more on sets.)</p>
+<p><strong>For those who like to eat the cookie dough before it goes in the oven, here&rsquo;s the
+full code:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day09-elvish-string-theory.chpl" download="aoc2022-day09-elvish-string-theory.chpl">aoc2022-day09-elvish-string-theory.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Set</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readCommands</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dir</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%s %i\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">dir</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">dir</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">head</span><span class="p">,</span><span class="w"> </span><span class="nx">tail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">param</span><span class="w"> </span><span class="nx">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">visited</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="nx">tail</span><span class="p">.</span><span class="kd">type</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">dir</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readCommands</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">amt</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;U&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;D&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;L&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;R&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">delta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">tail</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="p">[</span><span class="nx">Y</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">])</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">visited</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">tail</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">visited</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<h3 id="reading-instructions">
+  <a href="#reading-instructions">Reading Instructions</a>
+</h3>
+<p>To start out, I <code>use</code> a couple of modules from Chapel&rsquo;s standard library. The
+<code>IO</code> module will give us access to a procedure used for reading the input, and
+the <code>Set</code> module will give us access to the <code>set</code> container type.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Set</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Like in many of the previous articles from this series, I&rsquo;ll define an iterator
+to read the raw text input and parse out the useful information:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">readCommands</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">dir</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%s %i\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">dir</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">dir</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, <code>readf</code> parses each line of input, looking for a string and an
+integer—denoted by <code>%s</code> and <code>%i</code> respectively (the full list of format
+specifiers can be found in the <a href="https://chapel-lang.org/docs/modules/standard/IO/FormattedIO.html#formatted-i-o-for-c-programmers"target="_blank" rel="noopener">documentation</a>).</p>
+<p>Whenever <code>readf</code> encounters some text that matches the given format, it sets the
+variables <code>dir</code> and <code>amt</code> to the parsed values, and returns <code>true</code>. The iterator
+then yields both values in a two-tuple, and waits for the next iteration
+before parsing the next line.</p>
+<h3 id="setting-up-the-stringrope">
+  <a href="#setting-up-the-stringrope">Setting up the String/Rope</a>
+</h3>
+<p>Now that we can read the input, we&rsquo;ll want to set up some variables to
+keep track of the rope&rsquo;s head and tail positions, as well as a variable
+to hold a collection of the tail&rsquo;s past positions.</p>
+<p>According to the problem statement, the head and tail start in the same
+position, and don&rsquo;t need to have any specific coordinates. So I define the
+variables <code>head</code> and <code>tail</code> to both have a starting value of <code>[0, 0]</code> (a
+two-element array of zeros):</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">head</span><span class="p">,</span><span class="w"> </span><span class="nx">tail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I&rsquo;m using the convention that the first element of these arrays
+denotes the x-position, and the second denotes the y-position. As such,
+I define a set of <code>param</code>s that can be used to index into the arrays
+by name:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">param</span><span class="w"> </span><span class="nx">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>With these <code>param</code>s defined, the following two lines are equivalent:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">head</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">head</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Lastly, I initialize a <code>set</code> of arrays to keep track of the locations the
+tail has visited:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">visited</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="nx">tail</span><span class="p">.</span><span class="kd">type</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The set initializer takes a single <em>type</em> as an argument designating the
+type of the values it stores. In this case, I simply query <code>tail</code>&rsquo;s type
+because the set will be storing values of that type later on.</p>
+<h3 id="executing-the-instructions">
+  <a href="#executing-the-instructions">Executing the Instructions</a>
+</h3>
+<p>To start executing instructions, we can consume values from our <code>readCommands</code>
+iterator in a for-loop. The tuple generated by the iterator is immediately
+de-tupled into it&rsquo;s components <code>dir</code> and <code>amt</code>. Again, these represent the
+direction to move the head and how many spaces it needs to move in that
+direction:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">dir</span><span class="p">,</span><span class="w"> </span><span class="nx">amt</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readCommands</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that we aren&rsquo;t using a parallel loop here, such as a <code>forall</code> loop. This
+is for a couple of reasons:</p>
+<ol>
+<li><code>readCommands</code> is a serial iterator. To make a parallel iterator that reads
+from <code>stdin</code> would be more trouble than it&rsquo;s worth for a such a small input
+size</li>
+<li>This problem is inherently serial anyway. In order to get the correct answer
+we have to apply the movements to the head of the rope one-by-one in order.</li>
+</ol>
+<p>Next, the <code>amt</code> portion of the command is handled with another for-loop:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">amt</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>You&rsquo;ll probably notice that this loop looks a bit different than most
+used in this series so far because it has no index variable (i.e., it
+doesn&rsquo;t look like: <code>for i in 1..amt</code>). This is because we don&rsquo;t actually
+need to know which iteration is currently being executed. We only want
+to execute the code in the loop <code>amt</code> times. As such, I&rsquo;ve omitted an
+index variable from this inner loop.</p>
+<p>Next, we want to update <code>head</code>&rsquo;s position based on the value of <code>dir</code>.
+With the syntax we&rsquo;ve learned so far in this series, we might use the
+following code to do this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;U&#34;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;D&#34;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;L&#34;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;R&#34;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></div><p>It checks <code>dir</code> against each of the four possibilities and then updates
+<code>head</code> by adding or subtracting an array that represents a movement along
+the given dimension. As in previous posts, this uses promoted operations on
+the array.</p>
+<p>As you&rsquo;ll notice, it looks a bit repetitive, as each line is re-checking the value
+of the same variable. To make this code look cleaner, we can use a
+<em>select statement</em> instead of the cascaded <em>if-then-else</em> construct.</p>
+<p>Select statements work similarly to <em>switch</em> or <em>match</em> statements in other
+languages, and achieve the same effect as above. In the following code, I
+check the value of <code>dir</code> against each of the possibilities and execute the
+relevant code whenever there is a match:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;U&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;D&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;L&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;R&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><details>
+    <summary>more on <em>select statements</em>&hellip;</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Most languages that support this flavor of control-flow construct also
+support a catch-all check that can run some code if none of the other options
+were encountered. Chapel is no different. It has the <code>otherwise</code> keyword that
+can be placed after the <code>when</code> expressions.</p>
+<p>There are a couple of ways we could have used this in our select statement:</p>
+<ol>
+<li>If we didn&rsquo;t have total trust in the input, we could use <em>otherwise</em> to
+check for an unknown direction string. If encountered, we could stop the
+program and indicate what the problem was as follows:</li>
+</ol>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;U&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;D&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;L&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;R&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">otherwise</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;unknown direction: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">dir</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><ol start="2">
+<li>Alternatively, if we do trust the input, as with Advent of Code, we could
+replace the last when-expression with an otherwise-expression because we know
+that <code>&quot;R&quot;</code> is the only possibility remaining:</li>
+</ol>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="nx">dir</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;U&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;D&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">when</span><span class="w"> </span><span class="s">&#34;L&#34;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">otherwise</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>More information about select-statements can be found in the
+<a href="https://chapel-lang.org/docs/language/spec/statements.html#the-select-statement"target="_blank" rel="noopener">Language Specification</a>.</p>
+
+    </div>
+</details>
+
+<h3 id="moving-the-tail">
+  <a href="#moving-the-tail">Moving the Tail</a>
+</h3>
+<p>And lastly, we&rsquo;ll update the position of <code>tail</code> according to the given rules.</p>
+<p>Because the rules pertain to the relative positions of the head and tail,
+and not their absolute locations, I create a new variable <code>delta</code> to store
+the relative position:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">delta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">head</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">tail</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that the code above produces a new two-element array because the
+subtraction operation is between two arrays of the same size, and thus
+becomes a promoted operation. The first element of <code>delta</code> will contain
+the difference in the distance between head and tail in the x direction,
+and the second element will contain the distance in the y direction.</p>
+<p>I then use <code>delta</code> to apply the rules for the tail&rsquo;s movement. Here, there are
+three conditionals, each of which executes a single line, so I use the <code>then</code>
+syntax rather than wrapping the body of the conditionals in curly-braces:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="p">[</span><span class="nx">Y</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">])</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first two conditionals check for the simpler cases where the tail is either
+on the same row or same column as the head, and is more than one space away.</p>
+<p>The expressions: <code>abs(delta[X]) &gt; 1</code> and <code>abs(delta[Y]) &gt; 1</code> check whether the
+tail is far enough away from the head in either direction. The expressions:
+<code>delta[Y] == 0</code> and <code>delta[X] == 0</code> check that the column or row is the same.</p>
+<p>In these cases, we want the tail to move one unit towards the head along the
+relevant direction. To do this, I use the <a href="https://chapel-lang.org/docs/modules/standard/AutoMath.html#AutoMath.sgn"target="_blank" rel="noopener"><code>sgn</code></a>
+procedure (which is automatically included from the <code>AutoMath</code> module). It
+returns <code>1</code> if the argument is positive and <code>-1</code> if the argument is negative.</p>
+<p>For example, the first branch could have also been written more explicitly as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">abs</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">])</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">tail</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>If neither of the above conditions is met, I then check for the diagonal
+case where the tail is neither on the same row nor same column as the head,
+and is at least 2 positions away in any direction. Here, <code>sgn</code> is used again,
+except in a promoted fashion. The code:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">tail</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>is essentially shorthand for these lines:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">tail</span><span class="p">[</span><span class="nx">X</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">X</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">tail</span><span class="p">[</span><span class="nx">Y</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">sgn</span><span class="p">(</span><span class="nx">delta</span><span class="p">[</span><span class="nx">Y</span><span class="p">]);</span><span class="w">
+</span></span></span></code></pre></div><p>The promotion doesn&rsquo;t make our code that much shorter when working with
+two-element arrays; however, if this problem were extended to higher dimensions,
+such promotions really come in handy for making code more succinct.</p>
+<p>Finally, if none of the above conditions were met, this means the tail and
+head either overlapped or were within a distance of one from each other. Per
+the rules, we do not move the tail.</p>
+<h3 id="tracking-unique-positions">
+  <a href="#tracking-unique-positions">Tracking Unique Positions</a>
+</h3>
+<p>At the end of each iteration, we add the tails position to the <code>visited</code> set.
+If the current position has already been visited, the set will not be modified.
+Otherwise, the new position will be added to the set.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="nx">visited</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">tail</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>At the end of the program, we print out the size of the set, giving us the
+total number of unique positions the tail has visited:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="nx">visited</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="conclusion-and-tips-for-part-two">
+  <a href="#conclusion-and-tips-for-part-two">Conclusion and Tips for Part Two</a>
+</h3>
+<p>And with that, we&rsquo;ll conclude our discussion. As a review, we introduced one
+new concept: select-statements, which are useful for cleaning up repeated
+<em>if-then-else</em> expressions. We also discussed creating named <code>param</code>s for
+indexing into arrays, as well as some promoted math operations on arrays. The
+full code can be downloaded from the top of this article or found on
+<a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day09/jeremiah/day9a.chpl"target="_blank" rel="noopener">GitHub</a>.</p>
+<p>In part two, we are asked to extend this two-element rope/string into a
+10-element rope. Much of the logic described above can be reused; however
+rather than using a pair of variables to represent the rope, we could
+use an array of two-element arrays. The array&rsquo;s first element would be
+treated as the rope&rsquo;s head and each subsequent pair of elements would
+be updated according to the rules used for this problem.</p>
+<p>Thanks for reading! Feel free to check out the other AoC 2022 articles or
+to post any questions or comments you have in the <a href="https://chapel.discourse.group/c/blog/"target="_blank" rel="noopener">Blog
+Category</a> on Chapel&rsquo;s
+Discourse Page. We&rsquo;ll be back with the final three installments of our
+&lsquo;Twelve Days of Chapel AoC&rsquo; series starting on Monday 12/12 after
+a brief hiatus over the weekend.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;9%3A&#43;Elvish&#43;String&#43;Theory&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day09-elvish-string-theory%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;9%3A&#43;Elvish&#43;String&#43;Theory&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day09-elvish-string-theory%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;9%3A&#43;Elvish&#43;String&#43;Theory&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day09-elvish-string-theory%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;9%3A&#43;Elvish&#43;String&#43;Theory&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day09-elvish-string-theory%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day08-treehouse/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 8: Hiding Treehouses
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day10-crt/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 10: Scan Lines
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

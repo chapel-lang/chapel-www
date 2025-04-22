@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A summary of highlights from the March 2023 release of Chapel 1.30.0">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Announcing Chapel 1.30.0!</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Announcing Chapel 1.30.0!</h2>
+<div class="post-subscript">
+    <p>Posted on March 23, 2023.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/release-announcements">Release Announcements</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#highlights-of-chapel-1300">Highlights of Chapel 1.30.0</a>
+      <ul>
+        <li><a href="#attributes">@Attributes</a></li>
+        <li><a href="#gpus-improved-performance-features-and-amd-support">GPUs: Improved Performance, Features, and AMD Support</a></li>
+        <li><a href="#runtime-improvements-for-hpe-cray-ex">Runtime Improvements for HPE Cray EX</a></li>
+        <li><a href="#and-so-much-more">And so much more&hellip;</a></li>
+      </ul>
+    </li>
+    <li><a href="#for-more-information">For More Information</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>The Chapel developer community is pleased to announce the release of
+Chapel version 1.30.0!  To obtain a copy, please refer to the
+<a href="https://chapel-lang.org/download.html"target="_blank" rel="noopener">Downloading Chapel</a> page on
+the Chapel website.</p>
+<h3 id="highlights-of-chapel-1300">
+  <a href="#highlights-of-chapel-1300">Highlights of Chapel 1.30.0</a>
+</h3>
+<h4 id="attributes">
+  <a href="#attributes">@Attributes</a>
+</h4>
+<p>Chapel 1.30.0 makes good on a longstanding intention to add a
+generalized attribute capability to the language.  These attributes
+are designed to convey information to the compiler—or other tools—in
+a way that is integrated with the source code, extensible, and
+independent of keyword-based language features.</p>
+<p>At present, a small set of attributes is supported.  In particular,
+there are a few attributes that can be used to characterize the
+stability of a feature, as well as a <code>chpldoc</code> attribute for
+suppressing the documentation for a particular declaration.  As an
+example, the attributes on the following procedure will generate a
+deprecation warning for any calls to <code>foo()</code> while also ensuring
+that <code>chpldoc</code> does not generate documentation for <code>foo()</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="err">@</span><span class="nx">deprecated</span><span class="p">(</span><span class="s">&#34;foo() is deprecated; please use &#39;newFoo()&#39; instead&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">@</span><span class="nx">chpldoc</span><span class="p">.</span><span class="nx">nodoc</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;In foo()&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Future versions of Chapel will expand upon this initial set of
+attributes.  To learn more about the current support, refer to the
+<a href="https://chapel-lang.org/docs/1.30/technotes/attributes.html"target="_blank" rel="noopener">Attributes in
+Chapel</a>
+technical note.</p>
+<h4 id="gpus-improved-performance-features-and-amd-support">
+  <a href="#gpus-improved-performance-features-and-amd-support">GPUs: Improved Performance, Features, and AMD Support</a>
+</h4>
+<p>Chapel&rsquo;s emerging support for GPUs saw significant performance
+improvements in this release, reducing the time required to launch
+and execute kernels.  These improvements have eliminated much of the
+performance gap between Chapel-generated GPU kernels and hand-coded
+ones—particularly for less computationally intensive kernels.  For
+example, the following graph shows the performance of a GPU Stream
+Triad for various problem sizes, comparing Chapel 1.30 with 1.29 and
+a hand-coded CUDA version:</p>
+<figure><img src="../../posts/announcing-chapel-1.30/gpu-stream.png">
+</figure>
+
+<p>In addition, Chapel 1.30 adds support for programming AMD GPUs using
+Chapel code, bringing them to a similar level of feature parity as
+NVIDIA GPUs in a single-locale setting.</p>
+<p>Finally, this release adds a few new capabilities to the <a href="https://chapel-lang.org/docs/1.30/modules/standard/GPU.html"target="_blank" rel="noopener">&lsquo;GPU&rsquo;
+module</a>,
+including routines to create shared arrays, synchronize between GPU
+threads, and set the block sizes of GPU kernels.</p>
+<p>For further details about GPU support in Chapel, please refer to the
+<a href="https://chapel-lang.org/docs/1.30/technotes/gpu.html"target="_blank" rel="noopener">GPU
+Programming</a>
+technical note.</p>
+<h4 id="runtime-improvements-for-hpe-cray-ex">
+  <a href="#runtime-improvements-for-hpe-cray-ex">Runtime Improvements for HPE Cray EX</a>
+</h4>
+<p>Chapel 1.30.0 contains a pair of new prototype execution modes that
+can result in significant performance boosts on Slingshot 11-based
+HPE Cray EX systems.</p>
+<p>The first of these supports optionally dedicating a core per locale
+to handling incoming active messages.  This execution mode can be
+increasingly attractive as the number of cores per socket grows, as
+a means of maximizing network responsiveness in cases where giving
+up a core for computation is reasonable.</p>
+<p>The second mode enables a departure from Chapel&rsquo;s traditional model
+of mapping each locale to its own compute node.  It adds initial
+support for creating multiple locales per node.  For compute nodes
+with multiple NICs, this permits each locale to bind to its own NIC,
+permitting the Chapel program to take full advantage of the
+available network resources.  On compute nodes with multiple
+sockets, creating a locale per socket can also result in a reduction
+of the NUMA-related overheads that are incurred when a single locale
+spans multiple sockets.</p>
+<p>In both cases, these features are currently intended for early
+adopters on HPE Cray EX systems.  Please contact us if you have
+access to such a system and are interested in trying them out.  In
+future releases, we expect to extend these features to other
+platforms, and to refine how they are exposed to end-users.</p>
+<h4 id="and-so-much-more">
+  <a href="#and-so-much-more">And so much more&hellip;</a>
+</h4>
+<p>Beyond the highlights mentioned here, Chapel 1.30.0 contains
+numerous improvements to Chapel&rsquo;s features and interfaces,
+including:</p>
+<ul>
+<li>
+<p>significant improvements to the capabilities and interfaces in the
+<a href="https://chapel-lang.org/docs/1.30/modules/standard/IO.html"target="_blank" rel="noopener">standard <code>IO</code>
+module</a></p>
+</li>
+<li>
+<p>improved correctness, performance, and compile times for uses
+of Chapel&rsquo;s <a href="https://chapel-lang.org/docs/1.30/modules/standard/BigInteger.html"target="_blank" rel="noopener"><code>bigint</code>
+type</a></p>
+</li>
+<li>
+<p>a refinement of the <code>weak</code> class reference type introduced in
+Chapel 1.29.0, currently available in the <a href="https://chapel-lang.org/docs/1.30/builtins/WeakPointer.html"target="_blank" rel="noopener"><code>WeakPointer</code>
+module</a></p>
+</li>
+<li>
+<p>improved handling of passing tuples into subroutines and yielding
+them from iterators</p>
+</li>
+</ul>
+<p>Most of these language and library changes were motivated by
+feedback from users and/or our work towards a forthcoming Chapel 2.0
+release in which the core language and library features will be
+considered stable.</p>
+<p>For a more complete list of changes in Chapel 1.30.0, please refer
+to its
+<a href="https://github.com/chapel-lang/chapel/blob/release/1.30/CHANGES.md"target="_blank" rel="noopener">CHANGES.md</a>
+file.</p>
+<h3 id="for-more-information">
+  <a href="#for-more-information">For More Information</a>
+</h3>
+<p>For questions about any of the changes in this release, please reach
+out to the team on <a href="https://chapel.discourse.group/"target="_blank" rel="noopener">Discourse</a>.</p>
+<p>As always, we’re interested in feedback on how we can help make the
+Chapel language, libraries, implementation, and tools more useful to
+you in your work.</p>
+<p>Thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/1.30/CONTRIBUTORS.md"target="_blank" rel="noopener">everyone who
+contributed</a>
+to Chapel 1.30.0!</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;1.30.0%21&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.30%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;1.30.0%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.30%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Announcing&#43;Chapel&#43;1.30.0%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.30%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;1.30.0%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.30%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

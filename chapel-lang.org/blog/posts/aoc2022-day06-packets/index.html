@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A parallel solution to day six of AoC 2022, introducing configs, parallel loop expressions, range translation, and named, unbounded, and counted ranges.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 6: Packet Detection</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 6: Packet Detection</h2>
+<div class="post-subscript">
+    <p>Posted on December 6, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#starting-out-using-standard-modules">Starting Out: Using Standard Modules</a></li>
+    <li><a href="#a-config-declaration-for-the-marker-length">A <code>config</code> Declaration for the Marker Length</a></li>
+    <li><a href="#helper-routines-for-identifying-the-marker">Helper Routines for Identifying the Marker</a></li>
+    <li><a href="#reading-the-input-buffer">Reading the Input Buffer</a></li>
+    <li><a href="#a-named-range-for-the-sliding-window">A Named Range for the Sliding Window</a></li>
+    <li><a href="#finding-the-marker-sequentially">Finding the Marker Sequentially</a>
+      <ul>
+        <li><a href="#specifying-the-window-using-an-unbounded-counted-range">Specifying the Window Using an Unbounded, Counted Range</a></li>
+        <li><a href="#getting-the-windows-sub-buffer-via-slicing">Getting the Window&rsquo;s Sub-Buffer via Slicing</a></li>
+      </ul>
+    </li>
+    <li><a href="#finding-the-marker-in-parallel">Finding the Marker in Parallel</a>
+      <ul>
+        <li><a href="#parallel-loop-expressions">Parallel Loop Expressions</a></li>
+        <li><a href="#range-translations">Range Translations</a></li>
+        <li><a href="#the-maxloc-reduction">The <code>maxloc</code> Reduction</a></li>
+        <li><a href="#putting-it-all-together">Putting it All Together</a></li>
+      </ul>
+    </li>
+    <li><a href="#printing-the-result-ignoring-part-of-it-with-_">Printing the Result (ignoring part of it with <code>_</code>)</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to day 6 of Chapel&rsquo;s Advent of Code 2022 series.  We&rsquo;re now
+just about halfway through our twelve days of Chapel AoC!  For more
+context, check out our introductory <a href="../../posts/aoc2022-day00-intro/">Advent of Code 2022: Twelve
+Days of Chapel</a> article for background and
+instructions on compiling this code.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>In brief, <a href="https://adventofcode.com/2022/day/6"target="_blank" rel="noopener">the challenge for
+today</a> is to read in a
+datastream buffer (a line of characters) and to find its packet
+header, which is a window of 4 consecutive characters that are all
+unique.</p>
+<p>My approach today will be to start with a serial solution and work
+towards a parallel one.  Specifically, I&rsquo;ll read the datastream in
+as a <code>bytes</code> value and use <em>slicing</em> to look at a 4-byte sliding
+window of the value.  To see whether the bytes in that window are
+unique, I&rsquo;ll put them into a set and check its resulting size.  If
+it&rsquo;s <code>4</code>, we&rsquo;ll know we&rsquo;ve found our header and can stop executing,
+printing the offset.</p>
+<p>For the parallel solution, I&rsquo;ll take a similar approach, but using a
+<code>maxloc</code> reduction to find the header.  Along the way, we&rsquo;ll see
+some other features for the first time in this series, including
+<em>configurable declarations</em> (<code>config</code>), named ranges, the <code>#</code>
+operator, and a shorthand parallel loop expression.  Oh, and we&rsquo;ll
+write a single code that will work for both parts one and two, so,
+no homework for you tonight!  (But this <em>will</em> be on the test&hellip;)</p>
+<p><strong>If you want to live your life like Merlin, here&rsquo;s my complete solution for today:</strong></p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day06-packets.chpl" download="aoc2022-day06-packets.chpl">aoc2022-day06-packets.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Set</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">markerLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">uniqueChars</span><span class="p">(</span><span class="nx">window</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">s</span><span class="p">:</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">window</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">s</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">ch</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">isMarker</span><span class="p">(</span><span class="nx">window</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">uniqueChars</span><span class="p">(</span><span class="nx">window</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">markerLen</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">buffer</span><span class="p">:</span><span class="w"> </span><span class="kt">bytes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">readLine</span><span class="p">(</span><span class="nx">buffer</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">inds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">buffer</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="nx">markerLen</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">loc</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">([</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">inds</span><span class="p">]</span><span class="w"> </span><span class="nx">isMarker</span><span class="p">(</span><span class="nx">buffer</span><span class="p">[</span><span class="nx">i</span><span class="o">..#</span><span class="nx">markerLen</span><span class="p">]),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                                 </span><span class="nx">inds</span><span class="o">+</span><span class="nx">markerLen</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">loc</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<h3 id="starting-out-using-standard-modules">
+  <a href="#starting-out-using-standard-modules">Starting Out: Using Standard Modules</a>
+</h3>
+<p>In this article, I&rsquo;ll be taking a bottom-up approach to walking
+through the code.  Though this isn&rsquo;t my preferred style of coding in
+Chapel, it allows me to start with the code that is common between
+my serial and parallel solutions.</p>
+<p>I start out with a <code>use</code> statement in order to access the standard
+modules I want to use today:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Set</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The <code>IO</code> module will be familiar to readers of this series.  For
+those just joining us, it will provide the routine I&rsquo;ll use to read
+our datastream.  Meanwhile, the <code>Set</code> module provides the <code>set</code>
+datatype that I&rsquo;ll use to count unique values.</p>
+<h3 id="a-config-declaration-for-the-marker-length">
+  <a href="#a-config-declaration-for-the-marker-length">A <code>config</code> Declaration for the Marker Length</a>
+</h3>
+<p>Our next declaration uses a very common Chapel feature, but one that
+we have not yet seen in this series—the <em>config</em> declaration:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">markerLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This statement declares a constant (<code>const</code>) named <code>markerLen</code>,
+which I&rsquo;ve initialized to <code>4</code>.  This represents the window size as
+well as the number of unique characters the window must contain.
+Like all constants in Chapel, it cannot be modified once it has been
+initialized.</p>
+<p>The <code>config</code> keyword here means that the initial value of this
+constant can be overridden when running the program using a
+command-line flag.  To illustrate this, let&rsquo;s assume we were to save
+this code into a file named <code>day06.chpl</code> and compile it as usual:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chpl day06.chpl
+</span></span></code></pre></div><p>If we ran the program as-is: <code>./day06</code>, it would use the value of
+<code>4</code> for this constant, as indicated in the source code.  However, we
+can also run it using a flag to specify a new initial value, like
+this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./day06 --markerLen<span class="o">=</span><span class="m">14</span>
+</span></span></code></pre></div><p>This overrides the value of <code>4</code> from the source, causing <code>markerLen</code>
+to be initialized to <code>14</code> for this program&rsquo;s execution.  The goal of
+Chapel&rsquo;s <code>config</code> declarations is to reduce the degree to which many
+programs need to do argument command-line parsing for common cases,
+by having the compiler implement flags on the generated executable
+that can set the values of such constants.  Of course, if you
+prefer, you can do your own command-line parsing as well (though I&rsquo;m
+not covering that today).</p>
+<details>
+    <summary><strong>(More details on <code>config</code> declarations&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The default value of a <code>config</code> can also be set at compile-time, if
+you&rsquo;d like to override the initializer in the source when you&rsquo;re
+building the executable.  For our program, this can be done as
+follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chpl -smarkerLen<span class="o">=</span><span class="m">14</span> day06.chpl
+</span></span></code></pre></div><p>When overridden at compile-time, <code>config</code> declarations can be
+initialized not just with literal values, but also with expressions
+that would be legal if they appeared in the source code at the
+initialization point, such as <code>-smarkerLen=&quot;(2*5)+4&quot;</code>,
+<code>-smarkerLen=&quot;+ reduce [1, 1, 2, 3, 3, 4];&quot;</code> or even
+<code>smarkerLen=&quot;x*foo(y)&quot;</code>, assuming <code>x</code>, <code>y</code>, and <code>foo()</code> have valid
+interpretations at <code>markerLen</code>&rsquo;s declaration point.</p>
+<p>In addition to <code>config const</code>s, Chapel also supports <code>config var</code>,
+<code>config param</code>, and <code>config type</code> declarations.  A <code>config var</code> is
+similar to a <code>config const</code> except that the variable can be
+re-assigned after its initialization, just like any variable.
+In Chapel, <code>param</code> and <code>type</code> declarations must be well-understood
+by the compiler, so they don&rsquo;t support overrides at execution-time,
+just compile-time.  Recall that <code>param</code>s are compile-time constants
+in Chapel.  We haven&rsquo;t seen <code>type</code> declarations in this series yet,
+but as you might guess, they support the declaration of type
+aliases.  In this way, a compile-time constant or type alias can be
+changed from one compile to the next using the same <code>-s</code> flag as
+above.</p>
+
+    </div>
+</details>
+
+<h3 id="helper-routines-for-identifying-the-marker">
+  <a href="#helper-routines-for-identifying-the-marker">Helper Routines for Identifying the Marker</a>
+</h3>
+<p>Next up, we declare a pair of helper routines that will do the work
+on each of our <code>markerLen</code>-sized windows.  The first takes in a
+<code>window</code> and counts the number of unique characters in it:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">uniqueChars</span><span class="p">(</span><span class="nx">window</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">s</span><span class="p">:</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">window</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">s</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">ch</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As usual, I&rsquo;ve written this using inferred types, but am expecting
+it to take a <code>bytes</code> value as the window and return an <code>int</code>.
+Because I&rsquo;ve written it in this generic style, in practice, it would
+work with any argument type whose serial iterator yields 8-bit
+unsigned integer values (<code>uint(8)</code>s).</p>
+<p>The body of this routine is fairly straightforward: I first declare
+a set of 8-bit unsigned integers named <code>s</code>.  Then I iterate over the
+<code>bytes</code> value, representing the component 8-bit values with my loop
+index variable <code>ch</code>.  Then I add each value into my set <code>s</code>.  At the
+end, I return the size of the set, which represents the number of
+unique bytes or characters within <code>window</code>.</p>
+<p>My second helper routine is even simpler:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">isMarker</span><span class="p">(</span><span class="nx">window</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">uniqueChars</span><span class="p">(</span><span class="nx">window</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">markerLen</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>It takes an argument, passes it along to <code>uniqueChars()</code> and returns
+whether or not the result is equal to <code>markerLen</code>.  It is similarly
+generic, so will accept anything that <code>uniqueChars()</code> can handle and
+will return a <code>bool</code> indicating the result.  I obviously could have
+combined these two routines into one, but for some reason it struck
+me as a better work decomposition to use two separate procedures.</p>
+<h3 id="reading-the-input-buffer">
+  <a href="#reading-the-input-buffer">Reading the Input Buffer</a>
+</h3>
+<p>This is the simplest case of input we&rsquo;ve had for AoC 2022 yet,
+perhaps to make up for yesterday.  We only need to read a single
+line of data.  Because we&rsquo;re going to do a lot of indexing into this
+buffer, I&rsquo;ve chosen to use a <code>bytes</code> type for similar reasons as in
+<a href="../../posts/aoc2022-day03-rucksacks/">day 3</a>: they support efficient
+indexing due to their simple nature and fixed-size elements.</p>
+<p>All I have to do is declare the buffer and pass it to the
+<code>readLine()</code> routine that we&rsquo;ve used for several of these exercises
+now:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">buffer</span><span class="p">:</span><span class="w"> </span><span class="kt">bytes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">readLine</span><span class="p">(</span><span class="nx">buffer</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="a-named-range-for-the-sliding-window">
+  <a href="#a-named-range-for-the-sliding-window">A Named Range for the Sliding Window</a>
+</h3>
+<p>Before getting into the details of my solution, I&rsquo;ll declare a named
+range to represent the indices that I&rsquo;ll be using to control this
+sliding window across the buffer:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">inds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">buffer</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="nx">markerLen</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We&rsquo;ve seen several Chapel ranges in this series so far, but I
+believe this is the first that we&rsquo;ve stored into a named constant or
+variable.  Like other such declarations, this gives us the
+opportunity to create the range once and refer to it symbolically,
+perhaps using a name that is clearer the range expression itself.
+In this case, I chose to make the range a named <code>const</code> simply
+because the lines where it&rsquo;s used in my two solutions were a bit
+cluttered when they contained the literal range
+<code>0..&lt;buffer.size-markerLen</code>.</p>
+<p>Now let&rsquo;s talk about value of <code>inds</code>, which represents the indices
+where I&rsquo;ll want to apply my sliding window.  Its low bound is <code>0</code>
+since <code>bytes</code> values like our <code>buffer</code> use 0-based indexing.  Since
+our sub-buffer window will be <code>markerLen</code> characters (or bytes), I
+subtract <code>markerLen</code> from the buffer&rsquo;s size in order to avoid
+indexing the buffer out-of-bounds and use this as the high bound.
+As in previous days&rsquo; exercises, I&rsquo;m using the open-interval range
+syntax (<code>..&lt;</code>) to indicate an exclusive upper-bound, due to the
+0-based indexing.</p>
+<h3 id="finding-the-marker-sequentially">
+  <a href="#finding-the-marker-sequentially">Finding the Marker Sequentially</a>
+</h3>
+<p>Before introducing my parallel solution, I&rsquo;ll start with a
+sequential one.  The main control flow is a serial <code>for</code> loop:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">inds</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">isMarker</span><span class="p">(</span><span class="nx">buffer</span><span class="p">[</span><span class="nx">i</span><span class="o">..#</span><span class="nx">markerLen</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>This iterates over the range of starting indices, binding them to
+the loop index variable <code>i</code>, one at a time.  I then compute the
+window or sub-buffer to pass to <code>isMarker()</code>, using a new range
+operator we haven&rsquo;t seen yet in this series.  Let&rsquo;s break it down:</p>
+<h4 id="specifying-the-window-using-an-unbounded-counted-range">
+  <a href="#specifying-the-window-using-an-unbounded-counted-range">Specifying the Window Using an Unbounded, Counted Range</a>
+</h4>
+<p>I start with the range <code>i..</code>, which is an <em>unbounded range</em>. We
+touched on these very briefly in <a href="../../posts/aoc2022-day05-cratestacks/#zippered-iteration-unbounded-ranges-and-another-strided-range">yesterday&rsquo;s
+article</a>,
+but to summarize, it can be thought of as a range that starts
+counting from <code>i</code> upwards towards infinity.</p>
+<p>I then apply the count operator (<code>#</code>) which says to take the first
+<code>markerLen</code> elements of the expression to which it is applied—in
+this case, my unbounded range.  The expression <code>i..#markerLen</code> can
+be read aloud as:</p>
+<blockquote>
+<p>&ldquo;Start counting from <em>i</em> and give me <em>markerLen</em> indices.&rdquo;</p></blockquote>
+<p>As a concrete example, if <code>i</code> were <code>6</code>, <code>i..#4</code> would represent
+<code>6..#4</code>, which is equivalent to <code>6..9</code> or the sequence <code>6</code>, <code>7</code>,
+<code>8</code>, <code>9</code>.  More precisely <code>lo..#n</code> is the same as <code>lo..&lt;lo+n</code>, so in
+this context, <code>#</code> can be viewed as a convenient form of syntactic
+sugar that makes common range idioms easier to read and get right
+the first time.</p>
+<h4 id="getting-the-windows-sub-buffer-via-slicing">
+  <a href="#getting-the-windows-sub-buffer-via-slicing">Getting the Window&rsquo;s Sub-Buffer via Slicing</a>
+</h4>
+<p>We then take this range expression and use it to access <code>buffer</code>,
+giving us a <code>markerLen</code>-sized sub-buffer, itself represented as a
+new <code>bytes</code> value.  We pass this <code>bytes</code> value to our <code>isMarker()</code>
+routine, which will tell us whether or not these specific byte
+values represent the marker we&rsquo;re looking for.</p>
+<p>As a result, the net effect of these two lines is to slide this
+<code>markerLen</code> window of indices across the entire input <code>buffer</code>,
+looking for the marker.  If we find it, the conditional evaluates
+to <code>true</code> and we execute the body, which is:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">i</span><span class="o">+</span><span class="nx">markerLen</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">exit</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Essentially, we print out the offset that follows the header by
+adding <code>markerLen</code> to the index representing the start of the marker
+(<code>i</code>).  We then exit the program by calling <code>exit()</code>, since we&rsquo;ve
+printed the marker we&rsquo;re looking for and have nothing more to do.</p>
+<p>Overall, pretty straightforward.  Was that our shortest Aoc 2022
+program yet?</p>
+<h3 id="finding-the-marker-in-parallel">
+  <a href="#finding-the-marker-in-parallel">Finding the Marker in Parallel</a>
+</h3>
+<p>Our parallel solution is even shorter, and not much more difficult,
+though its code is a bit denser.  Rather than running the window
+over our buffer serially, one element at a time, why not apply it in
+parallel across the buffer simultaneously?  Since we are only
+reading the buffer and not modifying it, there is no problem if
+several parallel tasks are inspecting it at once, even if their
+windows overlap.</p>
+<p>The one trick to getting this right is the following: What if
+multiple tasks find a <code>markerLen</code>-length sequence that meets our
+marker criteria?  How do we know which one to return?  One approach
+for this that I&rsquo;ll use today is to use the <em><code>maxloc</code> reduction</em>.
+But first, I need to introduce a few building blocks I&rsquo;ll be relying
+on:</p>
+<h4 id="parallel-loop-expressions">
+  <a href="#parallel-loop-expressions">Parallel Loop Expressions</a>
+</h4>
+<p>In earlier posts in this series, we&rsquo;ve seen Chapel&rsquo;s <code>forall</code> loop,
+which specifies that the iterations of a loop can and should be
+executed in parallel.  Up until this point, all <code>forall</code> loops that
+we&rsquo;ve seen have been statements.  However, <code>forall</code> loops can also
+be expressions.  For example, I could write:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">MyArray</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>The forall-loop expression on the right-hand side specifies a
+parallel computation that will yield values (in this case, the
+indices <code>i</code>) back to the execution context.  Arrays like <code>MyArray</code>
+support assignment overloads that take such iterable expressions and
+assign them, element-wise, to the array.  The net effect is that the
+elements of <code>MyArray</code> would be assigned the values between <code>1</code> and
+<code>1000</code>, respectively.  In essence, this statement could be viewed as
+a more concise way of writing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">elem</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">MyArray</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">elem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>At the same time, the <code>forall</code> expression can be somewhat unwieldy
+due to the keywords involved.  Because of this, Chapel provides an
+alternative, symbol-based way to write a <em>(potentially)</em> parallel
+loop expression, which looks like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">MyArray</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><details>
+    <summary><strong>(Wait, why did you say &lsquo;potentially&rsquo; there&hellip;?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        The opening and closing square brackets in this expression are often
+interpreted as <code>forall</code> and <code>do</code> respectively.  And in most cases,
+that&rsquo;s an appropriate interpretation, though there is one slight
+difference between the two forms (the reason I said &ldquo;potentially&rdquo;
+above): As mentioned on <a href="../../posts/aoc2022-day03-rucksacks/#forall-loops-and-task-intents">day
+3</a>,
+a <code>forall</code> loop says &ldquo;invoke this iterand&rsquo;s default parallel
+iterator method.&rdquo;  In contrast, Chapel&rsquo;s square-bracket loop form
+says to invoke the parallel iterator if there is one; but if not, to
+fall back to the traditional serial iterator.  In practice, most
+built-in Chapel types like ranges and arrays support parallel
+iterators, making the the two loop forms equivalent for those cases.
+    </div>
+</details>
+
+<p>For our purposes in today&rsquo;s code, think of this as a shorthand for
+a forall-loop expression.</p>
+<h4 id="range-translations">
+  <a href="#range-translations">Range Translations</a>
+</h4>
+<p>In this computation, I also rely on the ability to translate ranges
+by an integer offset.  As an example, consider a range like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>The expression <code>r+5</code> would result in the range <code>6..15</code>.
+Essentially, we&rsquo;ve just added <code>5</code> to every integer in the range,
+resulting in a new range shifted by the integer offset.  Intuitive,
+right?</p>
+<h4 id="the-maxloc-reduction">
+  <a href="#the-maxloc-reduction">The <code>maxloc</code> Reduction</a>
+</h4>
+<p>In previous entries in this series, we&rsquo;ve seen reductions, both in
+<a href="../../posts/aoc2022-day02-rochambeau/#reductions">expression</a> and
+<a href="../../posts/aoc2022-day03-rucksacks/#forall-loops-and-task-intents">task
+intent-based</a>
+forms.  Both forms are used to combine a collection of values—like
+the elements of an array—down to a single result value.  In
+practice we&rsquo;ve exclusively used the <code>+</code> reduction, which combines
+the elements by adding them together.</p>
+<p>Chapel has other flavors of reductions as well, such as the <code>max</code> and
+<code>min</code> reductions, which can be used to find the largest and smallest
+values in a collection.  For example, given an array of student test
+scores named <code>SAT</code>, the following lines would find the lowest and
+highest scores in the array:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">lowest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">min</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">SAT</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">highest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">SAT</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Sometimes, though, it&rsquo;s not enough to just find the lowest or highest
+value in a collection, but also where that value lives in the
+collection.</p>
+<p>This is where the <code>minloc</code> and <code>maxloc</code> reductions come in.  Rather
+than reducing a collection down to a single value, they reduce a
+zippered pair of collections—one representing the values and the
+other representing their indices—down to a tuple result: the
+smallest/largest value and that value&rsquo;s index.  When multiple
+positions have the same value, the location of the lowest index in
+the collection is returned.  For example:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">highScore</span><span class="p">,</span><span class="w"> </span><span class="nx">idx</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">SAT</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">SAT</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>This would return the highest SAT score of any student, along with
+that student&rsquo;s corresponding index in the range <code>1..SAT.size</code>.  If
+multiple students got the same maximum score, the index of the
+student appearing earliest in the array would be returned.</p>
+<p>In practice, indexable types in Chapel generally support a
+<code>.indices</code> query that returns their indices, so a common idiom for
+these reductions is:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="o">..</span><span class="p">.</span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">X</span><span class="p">,</span><span class="w"> </span><span class="nx">X</span><span class="p">.</span><span class="nx">indices</span><span class="p">)</span><span class="o">..</span><span class="p">.</span><span class="w">
+</span></span></span></code></pre></div><h4 id="putting-it-all-together">
+  <a href="#putting-it-all-together">Putting it All Together</a>
+</h4>
+<p>Now we have everything we need to interpret the following statement,
+which implements my parallel solution:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">loc</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">([</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">inds</span><span class="p">]</span><span class="w"> </span><span class="nx">isMarker</span><span class="p">(</span><span class="nx">buffer</span><span class="p">[</span><span class="nx">i</span><span class="o">..#</span><span class="nx">markerLen</span><span class="p">]),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                                 </span><span class="nx">inds</span><span class="o">+</span><span class="nx">markerLen</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Starting from the right, we&rsquo;re calling <code>isMarker()</code> identically to
+my serial solution, but within the loop expression <code>[i in inds]</code>.
+Because <code>inds</code> is a range and ranges support parallel iteration,
+this will act like a <code>forall</code> expression.  This implements my loop
+over the windows into my <code>buffer</code> like before, and is the first
+component of the <code>zip()</code> passed to my <code>maxloc</code> reduction.  Because
+<code>isMarker()</code> returns <code>true</code> or <code>false</code>, the <code>max</code> values will be
+those positions that returned <code>true</code>—that is, any windows that meet
+our marker criterion.  In addition, because <code>maxloc</code> will return the
+first such occurrence, we&rsquo;ll get the one we&rsquo;re looking for towards
+the start of the datastream.</p>
+<p>The second component I pass to <code>maxloc</code>&rsquo;s <code>zip()</code> expression is the
+range of indices I&rsquo;m iterating over, but shifted by <code>markerLen</code>.
+This will cause the location that&rsquo;s returned by <code>maxloc</code> to be the
+index following the header that we need to print out.</p>
+<p>All that&rsquo;s required now is to get the result of the the <code>maxloc reduce</code> and print it out.</p>
+<h3 id="printing-the-result-ignoring-part-of-it-with-_">
+  <a href="#printing-the-result-ignoring-part-of-it-with-_">Printing the Result (ignoring part of it with <code>_</code>)</a>
+</h3>
+<p>In de-tupling the result of the <code>maxloc</code>, I&rsquo;m using a special Chapel
+identifier <code>_</code>, which means &ldquo;This value doesn&rsquo;t matter, so don&rsquo;t
+bother naming it; just drop it on the floor.&rdquo;  Since we trust that
+AoC will give us legal input, we know that the header exists and
+that the maximum value will be <code>true</code>, so we don&rsquo;t really need to
+capture its value into a variable.  If our input source was not so
+trustworthy (or I was less confident my code was correct), I&rsquo;d
+probably want to capture the maximum value and verify that it was
+<code>true</code>.</p>
+<p>At this point, all that remains is to print out our answer, using
+the now-familiar <code>writeln()</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="nx">loc</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>That concludes my introduction to the serial and parallel Chapel
+solutions that I wrote for day 6 of AoC 2022.  You can browse or
+download the code at the top of this article or <a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day06/bradc/day06.chpl"target="_blank" rel="noopener">at
+GitHub</a>.  As mentioned at the outset, my
+solution solves part two as well, though you will need to read its
+instructions to see why (hint: it&rsquo;s the <code>config</code>).</p>
+<p>Thanks for reading this blog post and series, and please feel free
+to ask any questions or post any comments you have in the new <a href="https://chapel.discourse.group/c/blog/21"target="_blank" rel="noopener">Blog
+Category</a> of Chapel&rsquo;s
+Discourse Page.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;6%3A&#43;Packet&#43;Detection&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day06-packets%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;6%3A&#43;Packet&#43;Detection&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day06-packets%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;6%3A&#43;Packet&#43;Detection&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day06-packets%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;6%3A&#43;Packet&#43;Detection&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day06-packets%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day05-cratestacks/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 5: Stacking Crates
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day07-dir-traversals/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 7: Traversing Directories
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

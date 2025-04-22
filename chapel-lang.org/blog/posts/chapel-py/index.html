@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A demonstration of using Chapel&rsquo;s compiler library to develop custom language tooling">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Using the Chapel Compiler to Develop Language Tooling</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Using the Chapel Compiler to Develop Language Tooling</h2>
+<div class="post-subscript">
+    <p>Posted on February 4, 2025.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/tools">Tools</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+        <a class="button" href="../../tags/dyno">Dyno</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/daniel-fedorin">Daniel Fedorin</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#getting-started">Getting Started</a></li>
+    <li><a href="#abstract-syntax-trees">Abstract Syntax Trees</a></li>
+    <li><a href="#more-patterns-and-the-chapelreplace-module">More Patterns and the <code>chapel.replace</code> Module</a></li>
+    <li><a href="#using-semantic-information">Using Semantic Information</a></li>
+    <li><a href="#next-steps">Next Steps</a></li>
+    <li><a href="#appendix-building-documentation-urls">Appendix: Building Documentation URLs</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Despite its name, the Chapel compiler isn&rsquo;t just for compiling Chapel programs.
+As a benefit of an ongoing rewrite &mdash; an effort the team
+has nicknamed <em>Dyno</em> &mdash; Chapel&rsquo;s front-end is being redesigned to be more
+modular and re-usable. This direction has allowed the team to separate
+Chapel&rsquo;s documentation tool, <a href="https://chapel-lang.org/docs/tools/chpldoc/chpldoc.html"target="_blank" rel="noopener"><code>chpldoc</code></a>,
+from the compiler and make it a standalone tool. In addition,
+<a href="../../posts/chapel-lsp/">as we&rsquo;ve written about before</a>, we used the new
+front-end to develop a language server, <a href="https://chapel-lang.org/docs/tools/chpl-language-server/chpl-language-server.html"target="_blank" rel="noopener"><code>chpl-language-server</code></a>, and a linter, <a href="https://chapel-lang.org/docs/tools/chplcheck/chplcheck.html"target="_blank" rel="noopener"><code>chplcheck</code></a>.</p>
+<p>The new front-end is not just for use by the core Chapel team; by using the
+new compiler library, <strong>anyone can develop their own tools that interact with
+Chapel&rsquo;s source code</strong>. In this post, I&rsquo;ll tell you how you can do that,
+and give other examples of what can be done. The library is written in C++,
+but I find that its <a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html"target="_blank" rel="noopener">Python bindings</a>
+are an excellent way to get started and iterate on language tooling.</p>
+<h3 id="getting-started">
+  <a href="#getting-started">Getting Started</a>
+</h3>
+<p>The process for installing the Python bindings to the compiler is
+<a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#installation"target="_blank" rel="noopener">well-documented elsewhere</a>,
+and may well change after I write this post as the bindings become
+more mature, so I will not go over it here.</p>
+<p>Let&rsquo;s start with something simple. The Chapel convention is that record types should
+have names that start with a lowercase letter (more specifically, Chapel
+records should be in <code>camelCase</code>). Let&rsquo;s write a script that finds all record
+declarations in a given file, and makes sure that they follow this convention.
+The full code is below; I will explain it in detail in subsequent paragraphs.</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/records.py download="records.py">records.py</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">re</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">is_camel_case</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">&#34;([a-z]+([A-Z][a-z]*|\d+)*|[A-Z]+)?&#34;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">context</span> <span class="o">=</span> <span class="n">Context</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">modules</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">record</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">Record</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_camel_case</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">()):</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Record name is not in camel case:&#34;</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Let&rsquo;s break this piece of code down and go piece-by-piece. At the top, we have
+some imports. For the most part, these are the standard library. The only
+one specific to the Chapel compiler &mdash; as you might have guessed &mdash; is
+the following:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span></code></pre></div><p>For convenience, I import the entire module.</p>
+<p>Next up, I define a function that
+checks if a string is in <code>camelCase</code>. Its definition isn&rsquo;t so important
+to this post, but feel free to expand the explanation below if you&rsquo;re interested.</p>
+<details>
+    <summary><strong>(Click here to see how <code>is_camel_case</code> works)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The <code>is_camel_case</code> function uses a <a href="https://docs.python.org/3/library/re.html#regular-expression-syntax"target="_blank" rel="noopener">regular expression</a>
+to check if a string is in the desired format.
+This expression might look a little daunting. All it does, however, is specify that the first character should
+be a lowercase letter (<code>[a-z]</code>), after which can follow any number or lowercase
+letters (<code>+</code> means &ldquo;one or more&rdquo;). After that, any number of chunks can follow
+that start with an uppercase letter (<code>[A-Z]</code>).</p>
+<p>A special exception is made for words made up of <em>only</em> uppercase letters,
+to allow for acronyms such as <code>GPU</code>.</p>
+<p>The regular expression below is precisely the one used by the Chapel linter,
+<code>chplcheck</code>!</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">is_camel_case</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">&#34;([a-z]+([A-Z][a-z]*|\d+)*|[A-Z]+)?&#34;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+</span></span></code></pre></div>
+    </div>
+</details>
+
+<p>Finally, we get to the code that makes use of the compiler front-end. At the
+core of Dyno is the <code>Context</code> object. I will go into more detail about this
+later. For now, it&rsquo;s sufficient to understand that the <code>Context</code> keeps track
+of all of the compiler state, including its configuration, the source code
+being compiled, and any information that has been extracted from it. With
+the context in hand, we can parse whatever file the user has given us on
+the command line:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">context</span> <span class="o">=</span> <span class="n">Context</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">modules</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span></span></code></pre></div><p>A Chapel file is a collection of <a href="https://chapel-lang.org/docs/language/spec/modules.html"target="_blank" rel="noopener">modules</a>.
+When the file is parsed, the Chapel compiler will return a list of these modules.
+All that&rsquo;s left is to look at all the records in the given file, and check
+if their names are in <code>camelCase</code>. If they are not, we print a message.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">record</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">Record</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_camel_case</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">()):</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Record name is not in camel case:&#34;</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+</span></span></code></pre></div><p>The <code>each_matching</code> function is provided by the <code>chapel</code> module; it takes
+as arguments a pattern and a place to search for that pattern. In our case,
+the pattern is simply <code>Record</code> (representing record declarations in the source
+code), and the place is the <code>module</code> object. For each piece of code that
+matches the pattern, the function will return a tuple containing the matching
+object. It also returns a second value, which we ignore here; this value
+is used when the pattern is more complex and we want to extract more information
+from the matching object. The program is traversed recursively by <code>each_matching</code>,
+so it would return nested records as well.</p>
+<p>Running the script on the following Chapel file:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/record-naming.chpl download="record-naming.chpl">record-naming.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">fine</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">record</span><span class="w"> </span><span class="nc">NotFine</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>I get the following output:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">Record name is not in camel case: NotFine
+</span></span></span></code></pre></div><p>What I presented here is a very simplified implementation of what goes on
+in the <code>chplcheck</code> linter! In just 14 lines, we were able to get started
+on developing language tooling.</p>
+<h3 id="abstract-syntax-trees">
+  <a href="#abstract-syntax-trees">Abstract Syntax Trees</a>
+</h3>
+<p>The Chapel compiler, like most others, for the most part does not work with
+the textual representation of the code. Instead, through a process called
+<em>parsing</em>, the compiler converts the source code into a tree representation;
+specifically, an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree"target="_blank" rel="noopener">abstract syntax tree (AST)</a>.
+ASTs naturally encode the precedence of operators, nesting of expressions,
+and other syntactic information that is harder to retrieve from the program
+text.</p>
+<p>As an example, take a look at the following program and its AST
+representation.</p>
+<div class="side-by-side">
+  
+<div class="side" style="flex-grow: 0.5">
+  
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/one-two-three.chpl download="one-two-three.chpl">one-two-three.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+
+</div>
+
+<div class="side" >
+  <figure class="fullwide"><img src="../../posts/chapel-py/ast.png"
+    alt="A tree corresponding to the expression 1&#43;2*3">
+</figure>
+
+</div>
+
+
+</div>
+
+<p>All Chapel code is eventually contained within a module. Thus, a <code>Module</code> node
+is at the root of the syntax tree. Each node has children that represent
+other pieces of code contained within it. Since the module in the above program
+contains two statements, these two statements are children of this module.</p>
+<p>The first statement is a variable declaration. This is represented using a
+<code>Variable</code> node. The node contains the name of the
+variable being declared, <code>x</code>. The only child of this node is the expression
+that is being used to initialize <code>x</code>, which is <code>1+2*3</code>. Because multiplication
+has a higher precedence than addition, that expression is interpreted as
+<code>1+(2*3)</code>. So, the multiplication is &ldquo;contained&rdquo; within the addition, and
+the multiplication node (<code>OpCall *</code>) is a child of the addition node<br> (<code>OpCall +</code>).</p>
+<p>The second is a call to <code>writeln</code> with the variable <code>x</code>. This is represented by
+a function call node. The children of this call are the &ldquo;called expression&rdquo;
+(in this case, the <code>writeln</code> procedure) and the arguments being passed
+(in this case, the variable <code>x</code>).</p>
+<p>Each type of node in the tree can be used as a pattern. The ones we&rsquo;ve seen
+so far are <code>Record</code>, <code>Module</code>, <code>Variable</code>, <code>OpCall</code>, <code>IntLiteral</code>, <code>FnCall</code>,
+and <code>Identifier</code>. To drive the point home, we can print the value of each
+integer literal and each binary operation in the program.</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/ops.py download="ops.py">ops.py</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">context</span> <span class="o">=</span> <span class="n">Context</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">modules</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">OpCall</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Found an operation:&#34;</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">op</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">lit</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Found a literal:&#34;</span><span class="p">,</span> <span class="n">lit</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">Found an operation: +
+</span></span></span><span class="line"><span class="cl"><span class="go">Found an operation: *
+</span></span></span><span class="line"><span class="cl"><span class="go">Found a literal: 1
+</span></span></span><span class="line"><span class="cl"><span class="go">Found a literal: 2
+</span></span></span><span class="line"><span class="cl"><span class="go">Found a literal: 3
+</span></span></span></code></pre></div><p>The types of nodes in the Chapel AST form a Python class hierarchy. For instance,
+both the <code>FnCall</code> and the <code>OpCall</code> nodes inherit from a <code>Call</code> node. If
+you wanted to match all calls, using the <code>Call</code> node as a pattern would
+match both function and operator calls. Similarly, all loops that have index
+variables (e.g., <code>for</code>, <code>foreach</code>, <code>forall</code>) inherit from an <code>IndexableLoop</code>
+base class. I&rsquo;ve included the entire list of available classes, organized
+in a tree, below. Because it is quite large, I&rsquo;ve collapsed it to avoid taking
+up too much vertical space; you can click the sentence below to expand it.</p>
+<details>
+    <summary><strong>(Click here to see the Dyno class hierarchy)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <pre tabindex="0"><code>AstNode
+├── AnonFormal
+├── As
+├── Array
+├── Attribute
+├── AttributeGroup
+├── Break
+├── Catch
+├── Cobegin
+├── Conditional
+├── Comment
+├── Continue
+├── Delete
+├── Domain
+├── Dot
+├── EmptyStmt
+├── ErroneousExpression
+├── ExternBlock
+├── FunctionSignature
+├── Identifier
+├── Implements
+├── Import
+├── Include
+├── Init
+├── Label
+├── Let
+├── New
+├── Range
+├── Require
+├── Return
+├── Select
+├── Throw
+├── Try
+├── Use
+├── VisibilityClause
+├── When
+├── WithClause
+├── Yield
+├── SimpleBlockLike
+│   ├── Begin
+│   ├── Block
+│   ├── Defer
+│   ├── Local
+│   ├── Manage
+│   ├── On
+│   ├── Serial
+│   └── Sync
+├── Loop
+│   ├── DoWhile
+│   ├── While
+│   └── IndexableLoop
+│       ├── BracketLoop
+│       ├── Coforall
+│       ├── For
+│       ├── Forall
+│       └── Foreach
+├── Literal
+│   ├── BoolLiteral
+│   ├── ImagLiteral
+│   ├── IntLiteral
+│   ├── RealLiteral
+│   ├── UintLiteral
+│   └── StringLikeLiteral
+│       ├── BytesLiteral
+│       ├── CStringLiteral
+│       └── StringLiteral
+├── Call
+│   ├── FnCall
+│   ├── OpCall
+│   ├── PrimCall
+│   ├── Reduce
+│   ├── Scan
+│   ├── Tuple
+│   └── Zip
+└── Decl
+    ├── MultiDecl
+    ├── TupleDecl
+    ├── ForwardingDecl
+    └── NamedDecl
+        ├── EnumElement
+        ├── Function
+        ├── Interface
+        ├── Module
+        ├── TypeQuery
+        ├── ReduceIntent
+        ├── VarLikeDecl
+        │   ├── Formal
+        │   ├── TaskVar
+        │   ├── VarArgFormal
+        │   └── Variable
+        └── TypeDecl
+            ├── Enum
+            └── AggregateDecl
+                ├── Class
+                ├── Record
+                └── Union
+</code></pre>
+    </div>
+</details>
+
+<p>The exact class hierarchy may differ depending on the version of Chapel.
+I used the following script to generate the formatted version above,
+which can be used to get an up-to-date version.</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/hierarchy.py download="hierarchy.py">hierarchy.py</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="c1"># Modified from the following StackOverflow answer:</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># https://stackoverflow.com/a/59109706</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># prefix components:</span>
+</span></span><span class="line"><span class="cl"><span class="n">space</span> <span class="o">=</span>  <span class="s1">&#39;    &#39;</span>
+</span></span><span class="line"><span class="cl"><span class="n">branch</span> <span class="o">=</span> <span class="s1">&#39;│   &#39;</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># pointers:</span>
+</span></span><span class="line"><span class="cl"><span class="n">tee</span> <span class="o">=</span>    <span class="s1">&#39;├── &#39;</span>
+</span></span><span class="line"><span class="cl"><span class="n">last</span> <span class="o">=</span>   <span class="s1">&#39;└── &#39;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">tree</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;A recursive generator, given a an AST node,
+</span></span></span><span class="line"><span class="cl"><span class="s2">    will yield a visual tree structure line by line
+</span></span></span><span class="line"><span class="cl"><span class="s2">    with each line prefixed by the same characters
+</span></span></span><span class="line"><span class="cl"><span class="s2">    &#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">contents</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># contents each get pointers that are ├── with a final └── :</span>
+</span></span><span class="line"><span class="cl">    <span class="n">pointers</span> <span class="o">=</span> <span class="p">[</span><span class="n">tee</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">last</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">pointer</span><span class="p">,</span> <span class="n">child</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pointers</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="k">yield</span> <span class="n">prefix</span> <span class="o">+</span> <span class="n">pointer</span> <span class="o">+</span> <span class="n">child</span><span class="o">.</span><span class="vm">__name__</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">child</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="c1"># extend the prefix and recurse:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">extension</span> <span class="o">=</span> <span class="n">branch</span> <span class="k">if</span> <span class="n">pointer</span> <span class="o">==</span> <span class="n">tee</span> <span class="k">else</span> <span class="n">space</span>
+</span></span><span class="line"><span class="cl">            <span class="c1"># i.e. space because last, └── , above so no more |</span>
+</span></span><span class="line"><span class="cl">            <span class="k">yield from</span> <span class="n">tree</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="o">+</span><span class="n">extension</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="n">AstNode</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">(</span><span class="n">AstNode</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>When writing Chapel tooling, the AST nodes are one of the primary ways in
+which a programmer interacts with a Chapel program. The various methods provided
+by AST node classes, as well as other available features, are documented in
+the auto-generated <a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#module-chapel"target="_blank" rel="noopener"><code>chapel</code> module documentation</a>
+(in particular, the documentation for classes, including AST node classes, starts with <a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel.AggregateDecl"target="_blank" rel="noopener"><code>AggregateDecl</code> here</a>).
+The Python bindings also generate a <code>.pyi</code> file which contains the same information,
+and can be used for Python type checking and autocompletion in editors.</p>
+<h3 id="more-patterns-and-the-chapelreplace-module">
+  <a href="#more-patterns-and-the-chapelreplace-module">More Patterns and the <code>chapel.replace</code> Module</a>
+</h3>
+<p>I&rsquo;ve mentioned before that AST nodes can be used as patterns. However,
+not all patterns are just AST nodes. The <code>chapel</code> module supports writing
+more complicated patterns, which can help find more specific pieces of code.
+For this section, we&rsquo;ll implement a somewhat limited and impractical version
+of a common transformation: constant folding. This transformation replaces
+operations on known values with their result. Thus, a program like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Might be transformed into:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>I would like to stress that this transformation will be limited &mdash; we will simplify
+<code>1+2*3</code> into <code>1+6</code>, not <code>7</code>, and we will only handle integers &mdash; and impractical, in the sense
+that the Chapel compiler already performs constant folding as a part of
+compiling a program (so transforming a source file in this way will not
+have any advantages). However, implementing this transformation will allow us
+to play with more sorts of patterns.</p>
+<p>Another form of pattern in Chapel&rsquo;s API is a list. When the pattern is
+a list, the first element will be matched against AST nodes, whereas the
+subsequent elements will be matched against the children of the matched node.
+Thus, <code>[OpCall, IntLiteral, IntLiteral]</code> is a pattern that matches any
+binary operation whose operands are integer literals. The expression <code>2*3</code>
+will match this pattern, but <code>1+2*3</code>, as a whole, will not. Running the following
+Python code:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Python" data-lang="Python"><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="p">[</span><span class="n">OpCall</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">]):</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Found an operation:&#34;</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">op</span><span class="p">())</span>
+</span></span></code></pre></div><p>on our previous example file, <code>one-two-three.chpl</code>, produces the following output, which excludes the addition:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Console" data-lang="Console"><span class="line"><span class="cl"><span class="go">Found an operation: *
+</span></span></span></code></pre></div><p>A powerful feature of the pattern API is being able to store parts of the matched
+AST into a dictionary. Specifically, replacing <code>IntLiteral</code> with <code>(&quot;?x&quot;, IntLiteral)</code>
+will still match the same type of node, but will store the match into
+key <code>&quot;x&quot;</code> of the dictionary. This can be used to conveniently retrieve child AST nodes
+that are nested deeper in the tree. We can adjust our pattern to do this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Python" data-lang="Python"><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">pattern</span> <span class="o">=</span> <span class="p">[</span><span class="n">OpCall</span><span class="p">,</span> <span class="p">(</span><span class="s2">&#34;?lhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">),</span> <span class="p">(</span><span class="s2">&#34;?rhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="nb">vars</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Found an operation:&#34;</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">op</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Left operand:&#34;</span><span class="p">,</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;lhs&#34;</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Right operand:&#34;</span><span class="p">,</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;rhs&#34;</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span></code></pre></div><p>Note that the variable we previously ignored &mdash; the second element of the
+tuple yielded by <code>each_matching</code> &mdash; is now stored into the dictionary variable
+<code>vars</code>. Running the script above produces:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Console" data-lang="Console"><span class="line"><span class="cl"><span class="go">Found an operation: *
+</span></span></span><span class="line"><span class="cl"><span class="go">Left operand: 2
+</span></span></span><span class="line"><span class="cl"><span class="go">Right operand: 3
+</span></span></span></code></pre></div><p>Given this information, we can work on simplification. For the time being,
+let&rsquo;s just implement the four basic arithmetic operations: addition, subtraction,
+multiplication, and division.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Python" data-lang="Python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">simplify</span><span class="p">(</span><span class="n">opnode</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">  <span class="n">op</span> <span class="o">=</span> <span class="n">opnode</span><span class="o">.</span><span class="n">op</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">  <span class="n">lhs_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">  <span class="n">rhs_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;+&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">+</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">elif</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;-&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">-</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">elif</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;*&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">*</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">elif</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;/&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">//</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">pattern</span> <span class="o">=</span> <span class="p">[</span><span class="n">OpCall</span><span class="p">,</span> <span class="p">(</span><span class="s2">&#34;?lhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">),</span> <span class="p">(</span><span class="s2">&#34;?rhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="nb">vars</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="n">simplify</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;lhs&#34;</span><span class="p">],</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;rhs&#34;</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="p">(</span><span class="n">first_line</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">location</span><span class="p">()</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;I would simplify an expression on line&#34;</span><span class="p">,</span> <span class="n">first_line</span><span class="p">,</span> <span class="s2">&#34;to&#34;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</span></span></code></pre></div><p>Running it on the example above, <code>one-two-three.chpl</code>, the script produces:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Console" data-lang="Console"><span class="line"><span class="cl"><span class="go">I would simplify an expression on line 1 to 6
+</span></span></span></code></pre></div><p>To actually perform the simplification, we will use the <a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel-replace"target="_blank" rel="noopener"><code>chapel.replace</code>
+module</a>.
+This module is specifically provided to help modify Chapel programs via their ASTs.
+The core feature of this module is the <code>run</code> function, which takes a Python
+function that finds nodes to replace and then takes over the execution
+of the Python program to transform it into a command-line replacer. To
+make use of this, all we need to do is turn the outer loop over modules into
+a function. Instead of calling <code>print</code>, this function should yield the
+node-to-replace, as well as the new textual value to replace it with.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Python" data-lang="Python"><span class="line hl"><span class="cl"><span class="k">def</span> <span class="nf">simple_constant_fold</span><span class="p">(</span><span class="n">rc</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="nb">vars</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="p">[</span><span class="n">OpCall</span><span class="p">,</span> <span class="p">(</span><span class="s2">&#34;?lhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">),</span> <span class="p">(</span><span class="s2">&#34;?rhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">)]):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="n">simplify</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;lhs&#34;</span><span class="p">],</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;rhs&#34;</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line hl"><span class="cl">            <span class="k">yield</span> <span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">run</span><span class="p">(</span><span class="n">simple_constant_fold</span><span class="p">)</span>
+</span></span></code></pre></div><p>Running this file as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">python fold.py one-two-three.chpl
+</span></span></code></pre></div><p>Produces:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="o">+</span><span class="mi">6</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>The following is the complete script we developed in this section:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/fold.py download="fold.py">fold.py</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel.replace</span> <span class="kn">import</span> <span class="n">run</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">simplify</span><span class="p">(</span><span class="n">opnode</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">  <span class="n">op</span> <span class="o">=</span> <span class="n">opnode</span><span class="o">.</span><span class="n">op</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">  <span class="n">lhs_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">  <span class="n">rhs_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;+&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">+</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">elif</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;-&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">-</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">elif</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;*&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">*</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">elif</span> <span class="n">op</span> <span class="o">==</span> <span class="s2">&#34;/&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">lhs_val</span> <span class="o">//</span> <span class="n">rhs_val</span>
+</span></span><span class="line"><span class="cl">  <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">simple_constant_fold</span><span class="p">(</span><span class="n">rc</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">pattern</span> <span class="o">=</span> <span class="p">[</span><span class="n">OpCall</span><span class="p">,</span> <span class="p">(</span><span class="s2">&#34;?lhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">),</span> <span class="p">(</span><span class="s2">&#34;?rhs&#34;</span><span class="p">,</span> <span class="n">IntLiteral</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">op</span><span class="p">,</span> <span class="nb">vars</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="n">simplify</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;lhs&#34;</span><span class="p">],</span> <span class="nb">vars</span><span class="p">[</span><span class="s2">&#34;rhs&#34;</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">yield</span> <span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">run</span><span class="p">(</span><span class="n">simple_constant_fold</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<h3 id="using-semantic-information">
+  <a href="#using-semantic-information">Using Semantic Information</a>
+</h3>
+<p>So far, all of the things we&rsquo;ve done with our Python scripts have been syntactic:
+they looked solely at the structure of the program, without needing to
+make sense of the program&rsquo;s meaning.</p>
+<p>What does it mean to look at the program&rsquo;s meaning? For an example, take a look
+at the following program:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">ioMode</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>This is a valid Chapel program, and it prints <code>ioMode</code>. Where did
+<code>ioMode</code> come from, though? There certainly isn&rsquo;t a definition of that
+type in this snippet. The answer is that <code>ioMode</code> has been
+brought in through the <code>use IO</code> statement at the top of the program. If we
+were to write a version of the program that was only slightly different,
+it would not compile:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="w"> </span><span class="k">except</span><span class="w"> </span><span class="nx">ioMode</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">ioMode</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">);</span><span class="w"> </span><span class="c1">// error: ioMode is not defined
+</span></span></span></code></pre></div><p>To understand whether or not an identifier like <code>ioMode</code> is valid in a given
+scope, we need to understand what the surrounding statements
+&mdash; such as <code>use IO</code> &mdash; actually do, and how they affect the program.
+This is what I mean by the &ldquo;meaning&rdquo; of the program. In the field of programming
+languages, the &ldquo;meaning&rdquo; of a program is often referred to as its <em>semantics</em>.</p>
+<blockquote class="pull-quote">
+    <div class="quote-wrapper">
+        <div class="quote-container"><span class="open-quote">“</span></div>
+            <div class="quote-content">
+                <p>
+A major advantage of using the Chapel compiler library to develop language tooling
+is that it can be queried for semantic information, which would be
+very hard to replicate in a standalone tool.
+</p>
+            </div>
+        <div class="quote-container"><span class="close-quote">”</span></div>
+    </div>
+</blockquote>
+<p>Following the semantics can be tricky. In the first example, even though <code>ioMode</code> doesn&rsquo;t occur in
+the <code>use</code> statement, it&rsquo;s brought into scope from the <code>IO</code> module. In the
+second example, even though <code>ioMode</code> is explicitly mentioned, it&rsquo;s excluded,
+and therefore not in scope. A major advantage of using the Chapel compiler
+library to develop language tooling is that it can be queried for semantic
+information, which would be very hard to replicate in a standalone tool.</p>
+<p>To show this off, let&rsquo;s write a script which I will dub &ldquo;docbot&rdquo;. It will
+read a Chapel program, find all references to standard variables and types,
+and print out links to their documentation on the Chapel website. We start
+out as before, except that this time, I configure <code>context</code>&rsquo;s search paths.
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">This enables it to find the standard library modules.</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right" style="margin-top: -9.5rem"><span class="sidenote-delimiter">[note:</span>
+When using semantic information, it's important to enable Dyno to access
+the standard modules. This is true in part because the standard modules define
+a number of essential Chapel procedures (e.g., <code>writeln</code>).
+More importantly, many Chapel features (ranges,
+arrays, tuples) are defined using module code. When querying type information
+in particular, these features will be inscrutable without the standard modules.
+<span class="sidenote-delimiter">]</span></span></span>
+The empty lists I use as arguments indicate that I am not overriding any
+of the default search paths.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="first">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">context</span> <span class="o">=</span> <span class="n">Context</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">context</span><span class="o">.</span><span class="n">set_module_paths</span><span class="p">([],</span> <span class="p">[])</span>
+</span></span><span class="line"><span class="cl"><span class="n">modules</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>For this program, the &ldquo;secret ingredient&rdquo; will be the <a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel.Identifier.to_node"target="_blank" rel="noopener"><code>to_node</code></a>
+method. This method, defined on <code>Identifier</code> and <code>Dot</code> nodes (which represent
+something like <code>x.y</code>),
+<span class="sidenote"><label class="sidenote-label" for="sidenote-1">finds what the node refers to</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-1"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+One caveat to using <code>to_node</code> is that it does not perform call resolution.
+Chapel supports <a href="https://chapel-lang.org/docs/language/spec/procedures.html#function-and-operator-overloading">function overloading</a>, which means that without type information,
+it's not always possible to determine what the <code>foo</code> in
+<code>foo(x)</code> refers to. Type checking is far more complicated than
+name resolution (hence, slower), and is still an active area of work within
+Dyno.<br>
+<br>
+It's possible to use type resolution to retrieve refers-to information,
+but this is not done by <code>to_node</code>, and doing so is prone
+to running into limitations of Dyno's current implementation.
+<span class="sidenote-delimiter">]</span></span></span> and returns the AST
+node of that definition. The following Chapel program is commented with
+some examples:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">someRecord</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">myNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// calling to_node on &#39;someRecord&#39; will return the declaration on line 1
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">writeln</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="nx">someRecord</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// calling to_node on &#39;myNumber&#39; will return the declaration on line 2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myNumber</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// calling to_node on &#39;IO&#39; will return the AST node for the IO module.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The <code>to_node</code> method uses the exact same process as the Chapel compiler
+when performing name resolution. This has two important consequences:</p>
+<ol>
+<li>You do not have to handle any of it yourself. There&rsquo;s no need to worry
+about scopes, shadowing, <code>use</code>s and <code>import</code>s, or any of the other complexities of name resolution.</li>
+<li>The information you get will always match what the Chapel compiler would
+see. This guarantees correctness, in the sense of matching the reference
+implementation.</li>
+</ol>
+<p>To implement &ldquo;docbot&rdquo;, we once again iterate over all the
+modules, and for each node that&rsquo;s an <code>Identifier</code> or a <code>Dot</code> node, we use
+<code>to_node</code> to compute what the node refers to. All that&rsquo;s left then is to
+print the associated link, as well as the line that it occurs on.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="last">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">ident</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="nb">set</span><span class="p">([</span><span class="n">Identifier</span><span class="p">,</span> <span class="n">Dot</span><span class="p">])):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">to_node</span> <span class="o">=</span> <span class="n">ident</span><span class="o">.</span><span class="n">to_node</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">to_node</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">line_no</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ident</span><span class="o">.</span><span class="n">location</span><span class="p">()</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="n">full_url</span> <span class="o">=</span> <span class="n">find_doc_link</span><span class="p">(</span><span class="n">to_node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;On line </span><span class="si">{}</span><span class="s2">, URL: </span><span class="si">{}</span><span class="s2">&#34;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line_no</span><span class="p">,</span> <span class="n">full_url</span><span class="p">))</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>I&rsquo;ve glossed over finding the documentation links for the referenced definitions.
+There is a way to do this, but it&rsquo;s not particularly critical for the point of
+this demonstration. As a result, I will relegate its explanation to the <a href="#appendix-building-documentation-urls">appendix</a>;
+it&rsquo;s sufficient to take for granted a function <code>find_doc_link</code>, which, given
+an AST node of a standard library definition, generates a link to its documentation.</p>
+<p>The above example uses a <code>set</code> pattern, which is used to match <em>either</em> of
+its arguments. Thus, <code>set([Identifier, Dot])</code> will match either an <code>Identifier</code>
+or a <code>Dot</code> node.</p>
+<p>Running this script on the following Chapel program:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/list-io.chpl download="list-io.chpl">list-io.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">ioMode</span><span class="p">.</span><span class="nx">r</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Results in the following output:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Console" data-lang="Console"><span class="line"><span class="cl"><span class="go">On line 1, URL: https://chapel-lang.org/docs/modules/standard/IO.html
+</span></span></span><span class="line"><span class="cl"><span class="go">On line 1, URL: https://chapel-lang.org/docs/modules/standard/List.html
+</span></span></span><span class="line"><span class="cl"><span class="go">On line 3, URL: https://chapel-lang.org/docs/modules/standard/List.html#List.list
+</span></span></span><span class="line"><span class="cl"><span class="go">On line 4, URL: https://chapel-lang.org/docs/modules/standard/IO.html#IO.ioMode.r
+</span></span></span><span class="line"><span class="cl"><span class="go">On line 4, URL: https://chapel-lang.org/docs/modules/standard/IO.html#IO.ioMode
+</span></span></span></code></pre></div><p>All of these links work and take us to the Chapel docs!</p>
+<p>You can view or download the complete <code>docbot.py</code> script below.</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/docbot.py download="docbot.py">docbot.py</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">chapel</span> <span class="kn">import</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">context</span> <span class="o">=</span> <span class="n">Context</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">context</span><span class="o">.</span><span class="n">set_module_paths</span><span class="p">([],</span> <span class="p">[])</span>
+</span></span><span class="line"><span class="cl"><span class="n">modules</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">parent_module</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">node</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">parent_symbol</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">node</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">ROOT_URL</span> <span class="o">=</span> <span class="s2">&#34;https://chapel-lang.org/docs/modules/standard/&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">build_url</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">modules</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="n">module</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">modules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">        <span class="n">module</span> <span class="o">=</span> <span class="n">module</span><span class="o">.</span><span class="n">parent_symbol</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="s2">&#34;/&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">modules</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&#34;.html&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">build_anchor</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="s2">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="n">node</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Anchors don&#39;t contain outer modules</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">node</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">parent_symbol</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="s2">&#34;#&#34;</span> <span class="o">+</span> <span class="s2">&#34;.&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">names</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">find_doc_link</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">module</span> <span class="o">=</span> <span class="n">parent_module</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">full_url</span> <span class="o">=</span> <span class="n">ROOT_URL</span> <span class="o">+</span> <span class="n">build_url</span><span class="p">(</span><span class="n">module</span><span class="p">)</span> <span class="o">+</span> <span class="n">build_anchor</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">full_url</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">ident</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">each_matching</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="nb">set</span><span class="p">([</span><span class="n">Identifier</span><span class="p">,</span> <span class="n">Dot</span><span class="p">])):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">to_node</span> <span class="o">=</span> <span class="n">ident</span><span class="o">.</span><span class="n">to_node</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">to_node</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">line_no</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ident</span><span class="o">.</span><span class="n">location</span><span class="p">()</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="n">full_url</span> <span class="o">=</span> <span class="n">find_doc_link</span><span class="p">(</span><span class="n">to_node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;On line </span><span class="si">{}</span><span class="s2">, URL: </span><span class="si">{}</span><span class="s2">&#34;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line_no</span><span class="p">,</span> <span class="n">full_url</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>To go further with semantic information, you might use the following methods:</p>
+<ul>
+<li><a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel.AstNode.type"target="_blank" rel="noopener"><code>type</code></a>
+can be used to trigger type resolution and figure out what type a given
+node has. This can be invoked on any AST node, though only expression-like
+nodes will return a meaningful result.</li>
+<li><a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel.AstNode.resolve"target="_blank" rel="noopener"><code>resolve</code></a>
+gives you access to more of the resolution information. In addition to including
+the <code>type</code> above, it also includes the results of function resolution, if
+any, which make it possible to inspect what overloads were selected when
+resolving calls.</li>
+<li><a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel.AstNode.resolve_via"target="_blank" rel="noopener"><code>resolve_via</code></a>
+can be used to perform resolution within generic instantiations. This
+method is used to implement the <a href="../../posts/chapel-lsp/#generics">&ldquo;generic views&rdquo;</a>
+in the Chapel Language Server.</li>
+</ul>
+<h3 id="next-steps">
+  <a href="#next-steps">Next Steps</a>
+</h3>
+<p>I hope this article has given you a taste of what the Chapel front-end library
+can do. The Dyno effort is not just a project to improve or rewrite the code
+of the Chapel compiler; its goals also include allowing others to leverage
+the compiler for their own purposes. The Python bindings are a great way
+to get started with this, though the full API is also available in C++.
+Please see the <a href="https://github.com/chapel-lang/chapel/blob/main/tools/chpldoc/chpldoc.cpp"target="_blank" rel="noopener"><code>chpldoc</code> source code</a>
+for an example of using the C++ API, and the
+<a href="https://github.com/chapel-lang/chapel/tree/main/tools/chpl-language-server"target="_blank" rel="noopener"><code>chpl-language-server</code></a> or
+<a href="https://github.com/chapel-lang/chapel/tree/main/tools/chplcheck"target="_blank" rel="noopener"><code>chplcheck</code></a>
+source code for larger examples of using the Python API.</p>
+<h3 id="appendix-building-documentation-urls">
+  <a href="#appendix-building-documentation-urls">Appendix: Building Documentation URLs</a>
+</h3>
+<p>This appendix describes how &ldquo;docbot&rdquo; generates URLs to documentation.
+One thing to know is that the <a href="https://chapel-lang.org/docs/modules/standard.html"target="_blank" rel="noopener">Chapel documentation of the standard modules</a>
+is organized by module. Thus, the <code>IO</code> module will have its own page, as would
+the <code>List</code> module, and so on. If we find that an <code>Identifier</code> refers
+to some declaration, we will need to find which module it comes from.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="middle">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">parent_module</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">node</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">parent_symbol</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">node</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>The <a href="https://chapel-lang.org/docs/tools/chapel-py/chapel-py.html#chapel.AstNode.parent_symbol"target="_blank" rel="noopener"><code>parent_symbol</code> method</a>
+finds the symbol &mdash; function declaration, module,
+record, etc. &mdash; inside which the given node is being defined. We simply keep
+traversing the AST upwards until we find a module (as I mentioned before,
+all Chapel code is contained within some module).</p>
+<p>There are two more helper functions I ended up using. One of these is <code>build_url</code>,
+which builds the name of the HTML file corresponding to a particular module.
+This name is not <em>just</em> the module name, because some modules can be nested
+inside of others (e.g., we might have <code>OuterModule.InnerModule.html</code>). Thus,
+this function traverses upwards through the AST to build a fully-qualified module
+path.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="middle">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">build_url</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">modules</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="n">module</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">modules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">        <span class="n">module</span> <span class="o">=</span> <span class="n">module</span><span class="o">.</span><span class="n">parent_symbol</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="s2">&#34;/&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">modules</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&#34;.html&#34;</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>The last bit is finding the right definition within its module&rsquo;s page. Chapel
+provides HTML IDs for each definition. For a module-level variable or type declaration,
+the ID is just its name. For something like an element of an enumeration (e.g.,
+the <code>r</code> in <code>ioMode</code>), the ID is fully qualified (i.e., <code>ioMode.r</code>). The
+<code>build_anchor</code> function takes care of getting this piece.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="middle">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">build_anchor</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="s2">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="n">node</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Anchors don&#39;t contain outer modules</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Module</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">node</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">parent_symbol</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="s2">&#34;#&#34;</span> <span class="o">+</span> <span class="s2">&#34;.&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">names</span><span class="p">))</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>Finally, <code>find_doc_link</code> puts all of this together:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="middle">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">find_doc_link</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">module</span> <span class="o">=</span> <span class="n">parent_module</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">full_url</span> <span class="o">=</span> <span class="n">ROOT_URL</span> <span class="o">+</span> <span class="n">build_url</span><span class="p">(</span><span class="n">module</span><span class="p">)</span> <span class="o">+</span> <span class="n">build_anchor</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">full_url</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Using&#43;the&#43;Chapel&#43;Compiler&#43;to&#43;Develop&#43;Language&#43;Tooling&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchapel-py%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Using&#43;the&#43;Chapel&#43;Compiler&#43;to&#43;Develop&#43;Language&#43;Tooling&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchapel-py%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Using&#43;the&#43;Chapel&#43;Compiler&#43;to&#43;Develop&#43;Language&#43;Tooling&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchapel-py%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Using&#43;the&#43;Chapel&#43;Compiler&#43;to&#43;Develop&#43;Language&#43;Tooling&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fchapel-py%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

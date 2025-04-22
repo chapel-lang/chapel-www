@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A solution to day twelve of AoC 2022, covering atomic variables and recursive task parallelism">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 12: On the Summit</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 12: On the Summit</h2>
+<div class="post-subscript">
+    <p>Posted on December 19, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/jeremiah-corrado">Jeremiah Corrado</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#reading-the-elevation-map">Reading the Elevation Map</a></li>
+    <li><a href="#searching-for-the-shortest-path">Searching for the Shortest Path</a>
+      <ul>
+        <li><a href="#the-serial-search-algorithm">The Serial Search Algorithm</a></li>
+        <li><a href="#parallelizing-the-search-algorithm">Parallelizing the Search Algorithm</a></li>
+        <li><a href="#task-concurrency">Task Concurrency</a></li>
+        <li><a href="#atomic-variables">Atomic Variables</a></li>
+        <li><a href="#parallelizing-search-with-atomics">Parallelizing Search with <code>atomic</code>s</a></li>
+      </ul>
+    </li>
+    <li><a href="#conclusion-and-tips-for-part-2">Conclusion and Tips for Part 2</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to the final day of our &lsquo;Twelve Days of Chapel AoC&rsquo; series! For some
+background on this series, check out the <a href="../../posts/aoc2022-day00-intro/">introductory article</a>.
+You can also click the <code>Advent of Code 2022</code> tag above to see all the other
+articles from this series.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>In <a href="https://adventofcode.com/2022/day/12"target="_blank" rel="noopener">today&rsquo;s challenge</a>,
+our protagonist is about to embark on a hiking journey through the jungle
+to rendezvous with the elves, but first we need to plan an efficient route!</p>
+<p>The trusty handheld device given to us on <a href="https://adventofcode.com/2022/day/6"target="_blank" rel="noopener">day 6</a>
+provides a topographic map of the surrounding landscape in the form of a grid
+of lowercase letters. In this map, <code>a</code> represents the lowest elevation, and <code>z</code>
+represents the highest. From the starting position, marked by an <code>S</code>, we are
+tasked with finding the length of the shortest path to the top of a nearby
+hill — marked with an <code>E</code>. Additionally, the possible paths through the terrain
+are limited by our character&rsquo;s climbing abilities. We can only follow paths
+where the elevation increases by one step, or decreases by any number of steps,
+between adjacent grid points.</p>
+<p>To solve this problem, I split it into two major parts:</p>
+<ol>
+<li>reading the height-map into a numerical 2D array where each letter is
+mapped to an integer (<code>a</code>-&gt;<code>0</code> and <code>z</code>-&gt;<code>25</code>) that represents the
+elevation at that point</li>
+<li>applying a recursive task-parallel search algorithm to the map to find the
+shortest path from <code>S</code> to <code>E</code></li>
+</ol>
+<p>The following sections will cover the implementation of both parts in detail.
+If you&rsquo;ve been following this series so far, you&rsquo;ve probably seen ample
+discussion of the concepts shown in the IO section. If that&rsquo;s the case,
+please feel free to skim or skip ahead.</p>
+<p>In the second step, I&rsquo;ll first describe a serial implementation of the
+search algorithm to give a clear sense of how it works. I&rsquo;ll then explain
+how we can use Chapel&rsquo;s <em>task-parallel</em> features and <em>atomic variables</em>
+to easily create a parallel implementation of the same algorithm.</p>
+<p><strong>For those who like to watch the movie before reading the book, here is the
+full code:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day12-summit.chpl" download="aoc2022-day12-summit.chpl">aoc2022-day12-summit.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">readElevations</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">param</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;a&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;S&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">E</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;E&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">elevLines</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stdin</span><span class="p">.</span><span class="nx">lines</span><span class="p">().</span><span class="nx">strip</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">grid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">elevLines</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">elevLines</span><span class="p">.</span><span class="nx">first</span><span class="p">.</span><span class="nx">size</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">elevs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">grid</span><span class="p">]</span><span class="w"> </span><span class="nx">elevLines</span><span class="p">[</span><span class="nx">i</span><span class="p">][</span><span class="nx">j</span><span class="p">].</span><span class="nx">toByte</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">a</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">((</span><span class="nx">elevs</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="nx">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">a</span><span class="p">)),</span><span class="w"> </span><span class="nx">grid</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">((</span><span class="nx">elevs</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="nx">E</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">a</span><span class="p">)),</span><span class="w"> </span><span class="nx">grid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">start</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">end</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">25</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">findShortestPath</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="k">atomic</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">explore</span><span class="p">(</span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">[</span><span class="nx">end</span><span class="p">].</span><span class="nx">read</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">explore</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">pos</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">end</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">minTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="k">atomic</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">pathLen</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// stop searching if we&#39;ve reached &#39;end&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">end</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// stop searching if another path has reached &#39;end&#39; in fewer steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">end</span><span class="p">].</span><span class="nx">read</span><span class="p">()</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// explore the next positions in parallel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">nextPos</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">explore</span><span class="p">(</span><span class="nx">nextPos</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// try moving in each direction
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">label</span><span class="w"> </span><span class="nx">checkingMoves</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nx">move</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">move</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// is this move on the map and valid?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">elevs</span><span class="p">.</span><span class="k">domain</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">next</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">pos</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="c1">// check if another path made it to &#39;next&#39; in fewer steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//  if so, try the next direction
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//  otherwise, set minTo[next] = nextPathLen and then yield
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">minToNext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">].</span><span class="nx">read</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">do</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="k">if</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">minToNext</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">continue</span><span class="w"> </span><span class="nx">checkingMoves</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="o">!</span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">].</span><span class="nx">compareExchange</span><span class="p">(</span><span class="nx">minToNext</span><span class="p">,</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">yield</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readElevations</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">findShortestPath</span><span class="p">(</span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<h3 id="reading-the-elevation-map">
+  <a href="#reading-the-elevation-map">Reading the Elevation Map</a>
+</h3>
+<p>To handle the IO portion of the puzzle, I write a procedure called
+<code>readElevations</code> that parses the raw-text input, as in the following sample
+case:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Sabqponm
+</span></span><span class="line"><span class="cl">abcryxxl
+</span></span><span class="line"><span class="cl">accszExk
+</span></span><span class="line"><span class="cl">acctuvwj
+</span></span><span class="line"><span class="cl">abdefghi
+</span></span></code></pre></div><p>It returns a three-tuple containing the following items:</p>
+<ol>
+<li>a 2D array with the elevation of each grid point represented as a
+numerical value from 0–25</li>
+<li>a two-tuple with the coordinates of the starting position</li>
+<li>a two-tuple with the coordinates of the ending position</li>
+</ol>
+<p>To start out, I define the header of the procedure and <code>use</code> the <code>IO</code> module
+just inside:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">readElevations</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As a reminder from the <a href="../../posts/aoc2022-day08-treehouse/#reading-the-forest-input">8th day</a>
+in this series, placing a <code>use</code> statement inside the body of a procedure
+like this will make the symbols from that module available within the
+procedure&rsquo;s scope only. The same is true for some other scopes, such as
+iterators or plain old curly-braces (i.e., <code>{ use IO; ... }</code>).</p>
+<p>For this program, I&rsquo;ve confined all the IO operations to the
+<code>readElevations</code> procedure, so it makes sense that <code>IO</code>&rsquo;s symbols
+only be accessible from within it.</p>
+<p>Next, I define some <code>param</code>s to represent the numerical ASCII values
+of a few important characters. See <a href="../../posts/aoc2022-day03-rucksacks/#chapel-params">day 3&rsquo;s article</a>
+for more on <code>param</code>s.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">param</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;a&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;S&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">E</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;E&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The value of lowercase <code>a</code> will be used to map the input characters to
+their numerical representations. Uppercase <code>S</code> and <code>E</code> will be used to
+locate the starting and ending positions in the 2D array.</p>
+<p>Note that I also could have looked at an <a href="https://en.wikipedia.org/wiki/ASCII#Printable_characters"target="_blank" rel="noopener">ASCII table</a>,
+and hard-coded the values instead:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">param</span><span class="w"> </span><span class="nx">a</span><span class="p">:</span><span class="w"> </span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">97</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">S</span><span class="p">:</span><span class="w"> </span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">83</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">E</span><span class="p">:</span><span class="w"> </span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">69</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>However, the original approach tends to be less error-prone and more
+self-documenting.</p>
+<p>With those <code>param</code>s set up, I&rsquo;ll read the lines of the input into an
+array of strings, and then compute the size of the grid:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">elevLines</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stdin</span><span class="p">.</span><span class="nx">lines</span><span class="p">().</span><span class="nx">strip</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">grid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">elevLines</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">elevLines</span><span class="p">.</span><span class="nx">first</span><span class="p">.</span><span class="nx">size</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This code makes use of the <code>lines</code> iterator, which yields one
+line of text from the input at a time in the form of a <code>string</code>. I then call
+the <code>strip</code> method on each of those strings to remove their trailing
+newline characters. Because I&rsquo;ve assigned the iterator call directly to
+a variable, Chapel will implicitly create a 0-indexed array with one entry
+for each iteration. As such, <code>elevLines</code> will contain an array of strings;
+one for each line of the input.</p>
+<p>This is very similar to the approach taken to parse the input in
+<a href="../../posts/aoc2022-day10-crt/#an-iterator-to-represent-operations">day 10&rsquo;s article</a>.</p>
+<p>On the second line, I query the size of the array to get the height of the map
+and the size of the first line to get the width. Both values are then used
+to define a 2D <code>domain</code> called <code>grid</code>. This domain represents all the
+pairs of indices that comprise the elevation map (for more information
+about <code>domain</code>s, check out the article from <a href="../../posts/aoc2022-day08-treehouse/#domains-first-class-index-sets">day 8</a>
+of this series).</p>
+<p>And now I use <code>grid</code> to define a numerical elevation array called <code>elevs</code>
+(not to be confused with <em>elves</em>):</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">elevs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">grid</span><span class="p">]</span><span class="w"> </span><span class="nx">elevLines</span><span class="p">[</span><span class="nx">i</span><span class="p">][</span><span class="nx">j</span><span class="p">].</span><span class="nx">toByte</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">a</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This array initialization syntax is composed of two major parts:</p>
+<p>The leftmost portion, <code>var elevs = </code>, tells Chapel that I want to
+store the result of the expression on the right in a variable named
+<code>elevs</code>.</p>
+<p>In the middle of this line, <code>[(i, j) in grid]</code> indicates that I want to
+initialize an array whose elements are defined by the indices in <code>grid</code>.
+In other words, the array will use <code>grid</code> as its domain, and each of its
+elements will be defined in terms of some expression (to the right) that
+can use the values <code>i</code> and <code>j</code>.</p>
+<p>To the right, I use these indices to pull out individual characters
+from <code>elevLines</code>. Specifically, this code takes the <code>j</code>th character of
+the <code>i</code>th line, converts it to a byte, and then subtracts the special
+<code>a</code> value from that byte.</p>
+<p>This has the effect of mapping <code>a = 0</code>, <code>b = 1</code>, and so on, up to
+<code>z = 25</code> (note that the ASCII values of the lowercase letters are
+all consecutive integers). The only characters that won&rsquo;t be represented
+correctly in <code>elevs</code> are the <code>S</code> and <code>E</code>.</p>
+<p>Those values are located using the following <em>maximum-location (&lsquo;maxloc&rsquo;)
+reductions</em> :</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">((</span><span class="nx">elevs</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="nx">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">a</span><span class="p">)),</span><span class="w"> </span><span class="nx">grid</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nx">maxloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="p">((</span><span class="nx">elevs</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="nx">E</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">a</span><span class="p">)),</span><span class="w"> </span><span class="nx">grid</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The <code>maxloc</code> reduction takes a zippered pair of iterable expressions with
+compatible size and shape. Here, the first argument to <code>zip</code> is the set
+of values over which we want to find a maximum, and the second argument
+is the set of indices we&rsquo;ll use to define the location of that maximum value.</p>
+<p>Both the maximum value and its location are returned in a two-tuple. Here,
+I don&rsquo;t actually need the value itself, only its location in <code>grid</code>, so I
+choose not to store it in a variable by putting an underscore (<code>_</code>) in its
+place.</p>
+<p>More on <code>maxloc</code> can be found in <a href="../../posts/aoc2022-day06-packets/#putting-it-all-together">day 6&rsquo;s post</a>
+or in the <a href="https://chapel-lang.org/docs/primers/reductions.html#maxloc-and-minloc-reductions"target="_blank" rel="noopener">documentation</a></p>
+<p>In both of these lines, I am applying the reduction to a promoted array
+expression. The first expression: <code>elevs == (S - a)</code> <span class="sidenote"><label class="sidenote-label" for="sidenote-0">creates</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+    Chapel is smart enough to avoid actually creating this array. Instead
+    it will provide it to the reduction as an iterator in order to save
+    memory.
+<span class="sidenote-delimiter">]</span></span></span> an array of boolean values where the only <code>true</code> entry
+should be the location of <code>S</code>. Note that we are checking against <code>S - a</code>,
+rather than <code>S</code>, because we already subtracted the ASCII value of <code>a</code>
+from all entries in the elevation array.</p>
+<p>Chapel defines <code>true</code> to be greater than <code>false</code>, so <code>maxloc</code> will find
+the location of <code>S</code>, storing it in <code>start</code> as a two-tuple of coordinates. The
+reduction to find the ending position works in a similar manner. With these
+locations, I can set the proper elevations for the starting and ending
+positions, as defined by the problem:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">start</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">end</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">25</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>And now we have everything we need from the input text, so the relevant values
+are returned from the procedure in a three-tuple:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>In the process we cast <code>elevs</code> to a <em>signed</em> array of 8-bit integers using a
+promoted cast operation (<code>: int(8)</code>). When initialized, <code>elevs</code> was assigned
+with the type: <code>[grid] uint(8)</code>, meaning that it contained <em>unsigned</em> 8-bit
+integers (this is because <code>toByte()</code> returns a <code>uint(8)</code>); however, signed
+integers will be more convenient for subtractions later on, so I apply a cast
+here (note that this involves an extra array allocation, so defining <code>elevs</code>
+as an array of <code>int(8)</code> to begin with may be a more efficient strategy for
+larger problems).</p>
+<p>Next, I&rsquo;ll discuss how to use the data extracted from the input text to find
+the shortest path from start to end!</p>
+<h3 id="searching-for-the-shortest-path">
+  <a href="#searching-for-the-shortest-path">Searching for the Shortest Path</a>
+</h3>
+<p>As a reminder, the goal of this step is to find the length of the shortest
+possible path from <code>S</code> to <code>E</code>, where the set of possible paths is
+constrained by the elevation changes in the landscape. A path can only go
+from one space to another if the elevation of the destination is at most
+one step higher than the elevation of the current space.</p>
+<p>To facilitate a search over the possible paths, I&rsquo;ll define an <code>explore</code>
+procedure which starts at one space in the map, and attempts to explore the
+four surrounding spaces. If an adjacent space is too high (or sits outside
+the bounds of the map), it will be ignored. Otherwise, <code>explore</code> will be
+called on that neighboring space, and the search will continue
+until <code>explore</code> is called on the <code>end</code> space.</p>
+<p>This approach falls under the category of a <em>recursive tree search
+algorithm</em>. It&rsquo;s <a href="https://en.wikipedia.org/wiki/Recursion_%28computer_science%29"target="_blank" rel="noopener"><em>recursive</em></a>
+because the principal function repeatedly calls itself until some terminating
+condition is met (in this case, <code>explore</code> stops calling itself when the search
+reaches the <code>end</code> space). It&rsquo;s a <em>tree search</em>, because at each node (or grid
+space) there are multiple &ldquo;branches&rdquo; that the path could take next (here:
+<em>up</em>, <em>down</em>, <em>left</em>, and <em>right</em> are the possible options).</p>
+<p>Very roughly, <code>explore</code> will look something like this (many details are
+omitted here):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">explore</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLength</span><span class="p">):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">end</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">pathLength</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">shortest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">nextPos</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevations</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">shortest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">min</span><span class="p">(</span><span class="nx">shortest</span><span class="p">,</span><span class="w"> </span><span class="nx">explore</span><span class="p">(</span><span class="nx">nextPos</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLength</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">shortest</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>where <code>nextPositions</code> is an iterator I&rsquo;ll define later that provides all the
+possible next steps taking into account the elevation constraint and the
+borders of the map.</p>
+<p>At a high level, this simplified version of <code>explore</code> does two things:</p>
+<ol>
+<li>If <code>pos</code> is at the <code>end</code>, it returns the total length of the path that got
+us here. Notice that each call to <code>explore</code> increments <code>pathLength</code>
+by <code>1</code>, so by this point its value will be the total number of
+explorations required to traverse the path.</li>
+<li>Otherwise, starting from <code>pos</code>, it explores all the neighboring spaces
+that can be explored, and returns the shortest resulting path.</li>
+</ol>
+<p>The net result is that calling <code>explore</code> with <code>start</code> as the first argument
+should eventually return the shortest path to <code>end</code>.</p>
+<p>However, there are a few challenges with this approach that are not addressed
+in the dummy implementation above:</p>
+<ol>
+<li>We need some mechanism to keep track of paths that have already been tried
+so that our search doesn&rsquo;t end up going in circles. For example, starting
+from some space <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span>, <code>explore</code> could be called on the space to its <em>right</em>,
+which could then immediately call <code>explore</code> to its <em>left</em> — bringing the
+search back to <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span> without making any progress towards the <code>end</code>.</li>
+<li>The number of possible paths is huge, so we&rsquo;ll want to terminate
+branches of the search early whenever we know that they aren&rsquo;t going
+to beat the record for the shortest path — a technique called <a href="https://en.wikipedia.org/wiki/Decision_tree_pruning"target="_blank" rel="noopener">pruning</a>.</li>
+<li>We should be able to process search paths in parallel across multiple
+threads to speed up the search process — this is a good opportunity to
+make use of some of Chapel&rsquo;s parallel features that have not been
+explored in this series so far.</li>
+</ol>
+<p>In the following section, I&rsquo;ll describe how the first two challenges are
+addressed in a complete serial implementation. After that, I&rsquo;ll show a
+parallel code that addresses all three.</p>
+<h4 id="the-serial-search-algorithm">
+  <a href="#the-serial-search-algorithm">The Serial Search Algorithm</a>
+</h4>
+<p>I use a single mechanism to solve the first two problems described above:
+instead of directly returning the minimum of the search branches, I&rsquo;ll
+allocate a 2D array that keeps track of the shortest known path-length to
+each location in the map.</p>
+<p>This array will be queried and updated over the course of the search. For
+convenience, I create the following <code>findShortestPath</code> procedure that sets
+this up:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">findShortestPath</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">explore</span><span class="p">(</span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">[</span><span class="nx">end</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><details>
+    <summary><strong>(what does <code>const ref</code> mean?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>This is an example of an <a href="https://chapel-lang.org/docs/language/spec/procedures.html#argument-intents"target="_blank" rel="noopener">argument intent</a>.</p>
+<p>It indicates that the formal <code>elevs</code> must be taken by reference (hence
+<code>ref</code>) — meaning that the variable won&rsquo;t be copied or moved into the
+procedure when <code>findShortestPath</code> is called — and that it cannot be
+modified by <code>findShortestPath</code> (hence <code>const</code>). Since <code>elevs</code> is an array,
+the default argument intent is <code>ref</code>, meaning that I also could have simply
+written <code>const</code> instead; however, I decided to write the full <code>const ref</code>
+for documentation purposes.</p>
+
+    </div>
+</details>
+
+<details>
+    <summary><strong>(what does <code>: [?d] int(8)</code> mean?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>This is a type specifier — and a fairly advanced one at that.</p>
+<p>It indicates to the compiler (and to anyone reading the code), that
+this procedure will only accept an array of <code>int(8)</code> as its first
+argument. That&rsquo;s the <code>: [] int(8)</code> portion.</p>
+<p>The <code>?d</code> is called a type-query. In this case, it queries the
+array&rsquo;s <code>domain</code> and stores its value in a symbol called <code>d</code>. This
+makes it easy to reuse <code>d</code> in the body of the procedure to define
+<code>minDistancesTo</code> over the same set of indices as the <code>elevs</code> argument.</p>
+<p>An alternative would have been to omit the <code>?d</code> and query the <code>domain</code>
+directly in the procedure&rsquo;s body:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">findShortestPath</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">elevs</span><span class="p">.</span><span class="k">domain</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// ...
+</span></span></span></code></pre></div>
+    </div>
+</details>
+
+<p>The array <code>minDistanceTo</code> is initialized to have the maximum integer value
+for all elements. The rationale behind this is the same as in the dummy
+implementation of <code>explore</code> above: the starting minimum value is initialized
+to <code>max(int)</code> so that essentially any value we compare with it becomes
+the new working minimum.</p>
+<p>After exploration is complete, the <code>minDistanceTo</code> array will be populated
+with the shortest path from <code>start</code> to each location in the map (more on
+how I accomplish this shortly). The value of this array at the <code>end</code>
+location is the solution to our problem, so the procedure returns that
+value.</p>
+<p>As you might have noticed, we are now passing five arguments to <code>explore</code>,
+whereas the dummy version I defined above only took four arguments. Here is
+the actual implementation of <code>explore</code> that makes use of <code>minDistanceTo</code>
+(shortened to <code>minTo</code> within the procedure&rsquo;s scope):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">explore</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">pos</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">end</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">minTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">pathLen</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// stop searching if we&#39;ve reached &#39;end&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">end</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// stop searching if another path has reached &#39;end&#39; in fewer steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">//  than we&#39;ve taken so far
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">end</span><span class="p">]</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// otherwise, explore the next positions
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">nextPos</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">explore</span><span class="p">(</span><span class="nx">nextPos</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Like the simplified implementation above, the terminating condition:
+<code>if pos == end then return</code> is used to stop searching when a path has
+reached the <code>end</code>; however, the path length is not returned directly.
+Instead, <code>minTo[end]</code> will be modified by reference in the <code>nextPositions</code>
+iterator — more on this momentarily.</p>
+<p>The next conditional: <code>if pathLen &gt;= minTo[end] then return;</code>, takes
+care of the pruning concern mentioned above. The logic behind this check is
+as follows: suppose that this particular branch of the search has made <code>40</code>
+steps so far (i.e., <code>pathLen=40</code>); however, some other branch has already
+reached <code>end</code> in <code>35</code> steps (i.e., <code>minTo[end]=35</code>). In this case, we know
+that it&rsquo;s impossible for the current path to be the shortest, thus <code>explore</code>
+returns early so that the computer can use its resources for other paths.</p>
+<p>Additionally, notice that the <code>nextPositions</code> iterator is used in a similar
+manner as before, except I am not using a temporary variable to keep track
+of the shortest path. Again, this is because <code>minTo</code> will be updated with
+the shortest paths to each location as exploration progresses.</p>
+<p>Let&rsquo;s take a look at how <code>nextPositions</code> is implemented to see how that
+works:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// try moving in each direction
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">move</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">move</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// is this move on the map and valid?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">elevs</span><span class="p">.</span><span class="k">domain</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">next</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">pos</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="c1">// does this path beat the shortest record to &#39;next&#39;?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="k">yield</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>I start out by iterating over the possible moves: <em>up</em>, <em>down</em>, <em>left</em>,
+and <em>right</em> — each represented as a two-tuple. The next position will be
+the sum of the two-tuple and the current position. I store this value
+in <code>next</code>. Notice that I also passed <code>pathLen + 1</code> to the <code>nextPathLen</code>
+argument, meaning that <code>nextPathLen</code> represents the path length to <code>next</code>,
+not to <code>pos</code>.</p>
+<p>To check if the path to <code>next</code> will exceed the boundaries of the map, I
+simply query <code>elev</code>&rsquo;s <code>domain</code> and use the <code>contains</code> procedure. This
+will return <code>true</code> if <code>next</code> is in the domain and <code>false</code> if it isn&rsquo;t.
+I also check if the elevation constraint is met by subtracting the
+elevation at <code>next</code> from the elevation at <code>pos</code>. If the difference is small
+enough, then we know that our protagonist can make the climb. If either of
+these conditions is not met, the iterator will continue on to the next
+<code>move</code> without yielding anything.</p>
+<p>Lastly, I check whether the path to <code>next</code> is shorter than the shortest known
+path to that location (i.e., if <code>nextPathLen &lt; minTo[next]</code>). If it is,
+I update <code>minTo</code> with the new shortest path length and then yield <code>next</code>.
+Then, going forward, when other branches of the search read <code>minTo[next]</code>,
+they&rsquo;ll get the new shortest path length: <code>nextPathLen</code>.</p>
+<p>Notice that <code>next</code> is only yielded if this path beats the shortest-known
+path length. This solves the first challenge with my naive solution from
+the previous section because it prevents <code>explore</code> from starting searches
+down paths that are not an improvement on previous paths that have explored
+the same spaces.</p>
+<p>To summarize, this iterator does a few things: it yields the coordinates of
+the next locations that are valid moves—only if they result in an
+improvement on the best-known path lengths to those positions—and updates
+the best-known path lengths in the process. When called by the recursive
+<code>explore</code> procedure, it will eventually set the value of <code>minTo[end]</code> to
+the length of the shortest path.</p>
+<p>With the above procedures and iterator defined, we could solve the problem
+in serial as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readElevations</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">findShortestPath</span><span class="p">(</span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></div><h4 id="parallelizing-the-search-algorithm">
+  <a href="#parallelizing-the-search-algorithm">Parallelizing the Search Algorithm</a>
+</h4>
+<p>As the problem size grows, the serial solution above will continue to work;
+however, the time it takes to find the shortest path will grow rapidly. Thus,
+in practice, problems like this are often solved in parallel by spawning a new
+task to handle each branch of the search tree. As tasks are created, different
+threads can take responsibility for each task, and work on separate portions
+of the search concurrently.</p>
+<p>Correctly implementing this form of concurrency will motivate the
+introduction of a new concept, namely <em>atomic variables</em>; however, to
+show why they are needed, let&rsquo;s first discuss what would happen if we
+altered the <code>explore</code> procedure to spawn new tasks for each branch without
+making any other changes to the code.</p>
+<p>Specifically, what would happen if we changed <code>explore</code>&rsquo;s for-loop to spawn
+a new task for each of the next positions?</p>
+<h4 id="task-concurrency">
+  <a href="#task-concurrency">Task Concurrency</a>
+</h4>
+<p>In Chapel, this is as simple as replacing <code>for</code> with <code>coforall</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">// explore the next positions in parallel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">coforall</span><span class="w"> </span><span class="nx">nextPos</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">explore</span><span class="p">(</span><span class="nx">nextPos</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>A <code>coforall</code> loop is a task-parallel loop construct that spawns precisely
+one new task for each iteration of the loop. This is distinct from
+Chapel&rsquo;s <code>forall</code> loop which typically spawns one task per physical
+hardware thread and then breaks the loop&rsquo;s work up across each task.</p>
+<p>A much more detailed description of the <code>coforall</code> loop can be found in
+<a href="../../posts/aoc2022-day11-monkeys/#chapels-coforall-loops">yesterday&rsquo;s AoC article</a>;
+however, the important point for our purposes is that the above code will
+execute each call to <code>explore</code> on its own task, allowing multiple threads
+to work on the search simultaneously.</p>
+<p>Due to the recursive nature of our approach, the number of spawned tasks
+will rapidly exceed the number of physical threads needed to execute them
+concurrently. As such, Chapel&rsquo;s runtime will manage the execution of those
+tasks in the background. Whenever a thread finishes executing a task, it
+will be provided with the next available task in the queue.</p>
+<p>Although this parallel code would execute faster than the serial version,
+it would not actually produce the correct answer (or would at least be
+very unlikely to do so). This is because we&rsquo;ve failed to introduce any
+coordination between threads. Each will behave as if it has exclusive
+access to the <code>minTo</code> array even though this isn&rsquo;t actually true. This
+will cause threads to overwrite each other&rsquo;s work in a very haphazard
+manner, likely resulting in an incorrect solution.</p>
+<details>
+    <summary><strong>(an example of why coordination is necessary&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Simply invoking a <code>coforall</code> in this situation will result in incorrect results
+because each thread will have the ability to read and modify the
+<code>minTo</code> array without coordinating with other threads. This problem comes
+up in a few places, but let&rsquo;s look at one in particular to understand what&rsquo;s
+going on.</p>
+<p>Consider the following code from the <code>nextPositions</code> iterator:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Imagine that there are two threads that arrive at this conditional at
+roughly the same time. Thread 1 has taken <code>31</code> steps to get here, thread
+2 has taken <code>33</code> steps, and <code>minTo[next] = 37</code>. Now, the following events
+transpire in order:</p>
+<ol>
+<li>thread 1 reads the value of <code>minTo[next]</code> and compares it with its local
+copy of <code>nextPathLen</code> (the result is <code>true</code>)</li>
+<li>thread 2 does the same, and the result is also <code>true</code></li>
+<li>thread 1 writes the value <code>32</code> to <code>minTo[next]</code> (notice <code>nextPathLen = pathLen + 1</code>).</li>
+<li>thread 2 then <strong>overwrites</strong> <code>minTo[next]</code> with the value <code>34</code></li>
+</ol>
+<p>This is a problem because the correct minimum path length at <code>next</code> is the
+smaller of the two values: <code>32</code>. However, because the two threads did not
+coordinate with each other, the value is now <code>34</code>. The correctness of the
+algorithm relies on <code>minTo</code> always holding the best-known minimum at each
+location, so now we can&rsquo;t trust the results going forward.</p>
+
+    </div>
+</details>
+
+<p>As such, we&rsquo;ll need to introduce a mechanism to prevent separate tasks from
+interfering with each other when they are reading and writing to the same
+locations in memory (in this case, the <code>minTo</code> array).</p>
+<h4 id="atomic-variables">
+  <a href="#atomic-variables">Atomic Variables</a>
+</h4>
+<p>This class of coordination problem is so fundamental in parallel computing
+that essentially all modern hardware exposes a set of mechanisms that
+allow threads to safely read and write to the same locations in memory at
+roughly the same time.</p>
+<p>One such class of mechanisms are referred to as <em>atomic operations</em>, or just
+<em>atomics</em>. The idea behind the name being that the operation is not divisible
+into its sub-components and thus, the memory that they operate on cannot be
+manipulated by another thread during the operation.</p>
+<p>In Chapel specifically, atomic operations are exposed in a nice abstract
+manner. Any variable of a primitive type can be declared as an
+<a href="https://chapel-lang.org/docs/language/spec/task-parallelism-and-synchronization.html#functions-on-atomic-variables"target="_blank" rel="noopener">atomic variable</a>
+by prepending the keyword <code>atomic</code> to its type declaration. For example,
+we can create an <code>atomic int</code> as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="k">atomic</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>And now, the variable <code>x</code> will have access to a wide range of atomic operations.
+The important ones for our purposes are: <a href="https://chapel-lang.org/docs/language/spec/task-parallelism-and-synchronization.html#Atomics.read"target="_blank" rel="noopener"><code>read</code></a>
+and <a href="https://chapel-lang.org/docs/language/spec/task-parallelism-and-synchronization.html#Atomics.compareExchange"target="_blank" rel="noopener"><code>compareExchange</code></a>.
+I&rsquo;ll provide a more detailed explanation of each as they come up.</p>
+<p>The essential takeaway for this program is that replacing some of our
+variables with their <code>atomic</code> counterparts will allow us to safely keep
+track of minimum path lengths across multiple threads simultaneously.</p>
+<p>I&rsquo;ll also note that Chapel provides another primitive to facilitate
+coordination across tasks. <a href="https://chapel-lang.org/docs/language/spec/task-parallelism-and-synchronization.html#synchronization-variables"target="_blank" rel="noopener"><em>Synchronization variables</em></a>
+or <em>sync variables</em> expose a similar interface that could have also
+been used to solve todays challenge with task-parallelism.</p>
+<details>
+    <summary><strong>(Some notes on when to use <code>atomic</code>s vs. <code>sync</code>s&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>In our solution to <a href="../../posts/aoc2022-day11-monkeys/">day 11</a>, we used Chapel’s
+synchronization variables where today we used its atomic variables. You
+might be wondering how to decide between these options when writing your
+own task-parallel programs given that, in most cases, either variable type
+can be used with just a bit of effort.</p>
+<p>In practice, we tend to think of <code>atomic</code>s as being best-suited for what we
+might call “optimistic” synchronization situations: cases where the chances
+of interference with other tasks are low; or where, even if there is
+interference, it will be brief and generally not block a task’s ability
+to proceed. This is a good characterization of today&rsquo;s problem, because
+as we&rsquo;ll see in the coming sections, two or more threads might attempt
+to update <code>minTo[next]</code> simultaneously; however, this interference is
+somewhat unlikely to begin with, and when it does occur, the conflict can
+be resolved rapidly.</p>
+<p>By contrast, <code>sync</code> can be thought of as more of a “pessimistic”
+synchronization concept since it can result in tasks blocking (if a
+variable&rsquo;s full/empty state is not as expected) or yielding to other
+tasks to permit forward progress and avoid deadlock or livelock.</p>
+<p>In yesterday’s simulation of monkeys, only one of the troop of monkeys
+was going to be able to proceed based on the given synchronization
+variable’s value, so — on average across the group of monkeys — there
+was no expectation that reading the synchronized value would return the
+current monkey’s ID.  As a result, it would make sense for the current
+monkey to yield and let other monkeys process their items. Yielding in
+this scenario was especially important when running a simulation with
+more monkeys than processor cores.</p>
+<p>One other difference between the two is that atomics are implemented
+using hardware, which generally comes with a performance advantage over
+syncs, which are typically not.</p>
+<p>Alternatively, the hardware implementation of atomics means that they
+are limited to working with a fixed number of simple scalar types, whereas
+syncs are supported for most types including user-defined <code>records</code> and
+<code>classes</code>.</p>
+<p>All that said, either atomics or syncs can both be made to work in most
+situations, sometimes using methods or routines that we haven’t covered
+in this series. We tend to reach for atomics in most cases where they
+apply due to their implementation in hardware and consequent performance
+advantages; but syncs provide a reasonable solution when needing to
+synchronize on non-scalar types, or in producer-consumer patterns where
+it may be best for tasks to block in order for the program to make forward
+progress.</p>
+
+    </div>
+</details>
+
+<h4 id="parallelizing-search-with-atomics">
+  <a href="#parallelizing-search-with-atomics">Parallelizing Search with <code>atomic</code>s</a>
+</h4>
+<p>Now I&rsquo;ll briefly go over the code used in my parallel solution to today&rsquo;s
+puzzle. Most of this code will be the same as the serial solution in the
+previous section, so I&rsquo;ll focus my explanation primarily on the differences
+between the two.</p>
+<p>First, I update the <code>minDistancesTo</code> array in the <code>findShortestPath</code> procedure
+to store <code>atomic int</code>s rather than traditional <code>int</code>s. This is as simple as
+changing the type in the array&rsquo;s declaration and returning the value we read
+from the atomic:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">findShortestPath</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="k">atomic</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">explore</span><span class="p">(</span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">minDistanceTo</span><span class="p">[</span><span class="nx">end</span><span class="p">].</span><span class="nx">read</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now, values in this array have access to the <code>read</code> and <code>compareExchange</code>
+methods which will be used later on. Note that the return type of this
+procedure has implicitly changed from <code>int</code> to <code>atomic int</code> because
+the last line is now accessing an <code>atomic</code> variable.</p>
+<p>Next, the <code>explore</code> method is also updated slightly. First, its header is
+changed to accept <code>minTo</code> as an array of <code>atomic int</code>s rather than <code>int</code>s:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">explore</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">pos</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">end</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">elevs</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">minTo</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="k">atomic</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">pathLen</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that I didn&rsquo;t alter <code>elevs</code> to be an <code>atomic</code> array because it is
+never modified after it&rsquo;s created. The concurrent tasks spawned for the
+search will only ever read values from <code>elevs</code>, so we don&rsquo;t have to worry
+about one thread modifying its state while another is reading it.
+This fact is further denoted by the <code>const ref</code> intent which indicates
+that <code>explore</code> cannot modify <code>elevs</code>.</p>
+<p>The end condition is left unchanged; however, I do update the
+early-termination condition to call the <code>read</code> method on the minimum path length
+at <code>end</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// stop searching if we&#39;ve reached &#39;end&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">end</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// stop searching if another path has reached &#39;end&#39; in fewer steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">end</span><span class="p">].</span><span class="nx">read</span><span class="p">()</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This is necessary because numerical comparison operators like <code>&gt;=</code> are
+not available on <code>atomic int</code>s; therefore I first need to create a new <code>int</code>
+with the same value as <code>minTo[end]</code> by calling <code>read</code> on it.</p>
+<p>You may be wondering whether this check is valid since some other thread
+could come along and update <code>minTo[end]</code> between the time that this thread
+<code>read</code>s the value and compares it with <code>pathLen</code>. Such a concern is not
+invalid; however, we know that the values in <code>minTo</code> only ever get smaller.
+As such, the worst-case scenario here is that this early-termination
+condition is not met, but would have been met only an instant later. In
+such a case, some time is wasted on spawning more tasks that will
+ultimately be unfruitful; however, the correctness of the algorithm is
+not compromised. In other words, we can&rsquo;t be certain that some other task
+won&rsquo;t find and register a shorter path after our check, but we also can&rsquo;t
+spend all our time waiting to see whether another task will do so because
+if all of the tasks are waiting for each other, none of them will make
+progress on the actual search.</p>
+<p>Next, I spawn new tasks for each subsequent call to <code>explore</code>, using the
+<code>coforall</code> loop discussed earlier:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// explore the next positions in parallel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">nextPos</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">explore</span><span class="p">(</span><span class="nx">nextPos</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">pathLen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>And finally, I&rsquo;ll make some changes to the <code>nextPositions</code> iterator to
+properly handle coordination between tasks. Its header remains the same as
+the sequential implementation; however, I do change the for-loop over the
+four directions. Here, I add a <code>label</code> called <code>checkingMoves</code> to the loop:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">nextPositions</span><span class="p">(</span><span class="nx">pos</span><span class="p">,</span><span class="w"> </span><span class="nx">elevs</span><span class="p">,</span><span class="w"> </span><span class="nx">minTo</span><span class="p">,</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// try moving in each direction
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">label</span><span class="w"> </span><span class="nx">checkingMoves</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nx">move</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">move</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>A <code>label</code> is a special annotation that allows control-flow operations
+like <code>break</code> and <code>continue</code> to refer to a specific loop rather than
+the nearest surrounding loop. More details about <code>label</code>s can be found
+in the <a href="https://chapel-lang.org/docs/language/spec/statements.html#the-break-continue-and-label-statements"target="_blank" rel="noopener">documentation</a>,
+and the reason for this particular addition will be discussed below.</p>
+<p>The validity bounds and elevation checks remain unchanged:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// is this move on the map and valid?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">elevs</span><span class="p">.</span><span class="k">domain</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">next</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">next</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">elevs</span><span class="p">[</span><span class="nx">pos</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This last section of code is modified pretty significantly. At first
+glance, it looks like it could be doing something completely different than
+the simple <code>if nextPathLen &lt; minTo[next]</code> check from the serial version:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">      </span><span class="c1">// check if another path made it to &#39;next&#39; in fewer steps
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//  if so, try the next direction
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//  otherwise, set minTo[next] = nextPathLen and then yield
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">minToNext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">].</span><span class="nx">read</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">do</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="k">if</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">minToNext</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">continue</span><span class="w"> </span><span class="nx">checkingMoves</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="o">!</span><span class="nx">minTo</span><span class="p">[</span><span class="nx">next</span><span class="p">].</span><span class="nx">compareExchange</span><span class="p">(</span><span class="nx">minToNext</span><span class="p">,</span><span class="w"> </span><span class="nx">nextPathLen</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">yield</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>However, this code has exactly the same effect, only it&rsquo;s safe for
+concurrent use. Let&rsquo;s break it down:</p>
+<ul>
+<li>
+<p>First, I define a temporary variable, <code>minToNext</code>, with the current
+value of <code>minTo[next]</code> by calling <code>read</code>. This value has type
+<code>int</code>, which allows us to compare it with other <code>int</code>s.</p>
+</li>
+<li>
+<p>Next I&rsquo;ll use <code>minToNext</code> to check if this path length beats the
+record. I can&rsquo;t simply check whether <code>nextPathLen</code> is smaller than
+<code>minToNext</code> because its value could be changed by another thread
+while I&rsquo;m checking. So, I&rsquo;ll have to do something a little fancier.</p>
+<p>Initially, I&rsquo;d like to rule out the case where <code>nextPathLen</code> is
+actually larger than the minimum path length at <code>next</code>. In that
+case, I just want to continue on to the next <code>move</code> instead of yielding
+<code>next</code>. This is what the body of the do-while loop is designed to do.</p>
+<p>If the value is too large, then I <code>continue checkingMoves</code>.  I can&rsquo;t
+just say <code>continue</code> here because that would only continue to the next
+iteration of the do-while loop—having no effect. Thus, I use the
+aforementioned <code>label</code> on the outer for-loop to explicitly <code>continue</code>
+there.</p>
+</li>
+<li>
+<p>Now, looking at the terminating condition for the while loop itself:
+I use a <a href="https://en.wikipedia.org/wiki/Compare-and-swap"target="_blank" rel="noopener">compare and exchange</a>
+operation, which can do one of two things in this case:</p>
+<ol>
+<li>if <code>minTo[next] == minToNext</code>: update the value of <code>minTo[next]</code>
+to match <code>nextPathLen</code> and return <code>true</code>.</li>
+<li>if <code>minTo[next] != minToNext</code>: update the value of <code>minToNext</code>
+to match <code>minTo[next]</code> and return <code>false</code> `</li>
+</ol>
+<p>In the first case, I know that no other thread has updated the value
+of <code>minTo[next]</code> because <code>compareExchange</code> has confirmed that <code>minTo[next] == minToNext</code>
+is still true. As such, the new minimum value is put in its place; hence
+the <em>exchange</em> portion of <code>compareExchange</code>. The function also returns
+<code>true</code>, so the program leaves the do-while loop and moves on to yield
+<code>next</code>.</p>
+<p>In the second case, the values don&rsquo;t match, so I know that another
+thread updated the value while I was executing the body of the do-while
+loop. As such, <code>compareExchange</code> kindly replaces <code>minToNext</code> with the
+updated value, and I use it to run the check again. This loop keeps running
+until the first case is met (<code>minTo[next]</code> is updated with this task&rsquo;s
+smaller value), or until it <code>continue</code>s on to the next iteration of the
+outer for-loop.</p>
+</li>
+</ul>
+<p>In summary, this compare-and-exchange loop has the same effect as the
+serial code. It either updates <code>minTo[next]</code> with a smaller path
+length and yields <code>next</code>, or it continues checking the subsequent <code>move</code>.</p>
+<p>And that&rsquo;s the end of the parallel implementation! Now we can call our
+two primary procedures to find the shortest path in parallel:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">69
+</span><span class="lnt">70
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readElevations</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">findShortestPath</span><span class="p">(</span><span class="nx">elevations</span><span class="p">,</span><span class="w"> </span><span class="nx">start</span><span class="p">,</span><span class="w"> </span><span class="nx">end</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="conclusion-and-tips-for-part-2">
+  <a href="#conclusion-and-tips-for-part-2">Conclusion and Tips for Part 2</a>
+</h3>
+<p>In summary, this post discussed a serial and parallel implementation
+of a recursive tree search algorithm used to find the shortest path
+through a topographic map. Along the way we reviewed some IO concepts
+from previous posts, discussed recursion and task concurrency, and
+introduced a new concept: <code>atomic</code> variables.</p>
+<p>The full parallel code can be downloaded from the top of the article
+or found on <a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day12/jeremiah/day12a-par-alt.chpl"target="_blank" rel="noopener">GitHub</a>;</p>
+<p>In part two, you are asked to find the shortest path from <em>any</em> location
+with an elevation of <code>a</code> to <code>E</code>. This might sound like it would add a
+layer to the problem (i.e., run a separate search for each <code>a</code> in
+the map, and minimize over the shortest path from each); however, the
+algorithm shown above can be adjusted to simply set <code>minTo[pos]</code> to zero
+whenever <code>pos</code> has an elevation of <code>0</code>. This will have the effect of
+moving <code>S</code> to whichever <code>a</code> is closest to <code>E</code>. You could also run a
+reverse search, starting from <code>E</code> and ending whenever any <code>a</code> is
+encountered.</p>
+<p>With that we&rsquo;ve concluded the 12th and final entry in our &lsquo;Twelve Days of
+Chapel AoC&rsquo; series! Thanks for reading, and I hope you&rsquo;ll check out the
+other 11 posts from this series if you haven&rsquo;t already. As always, please
+feel free to leave questions or comments about this post in the Blog Category
+on Chapel&rsquo;s <a href="https://chapel.discourse.group/c/blog/"target="_blank" rel="noopener">Discourse Page</a>.</p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Feb 5, 2023</td>
+          <td style="text-align: left">Updated <code>findShortestPath()</code> to return the value stored in the <code>atomic</code></td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;12%3A&#43;On&#43;the&#43;Summit&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day12-summit%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;12%3A&#43;On&#43;the&#43;Summit&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day12-summit%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;12%3A&#43;On&#43;the&#43;Summit&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day12-summit%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;12%3A&#43;On&#43;the&#43;Summit&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day12-summit%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day11-monkeys/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 11: Monkeying Around
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day13-wrap-up/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+Advent of Code 2022: Wrap-up
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

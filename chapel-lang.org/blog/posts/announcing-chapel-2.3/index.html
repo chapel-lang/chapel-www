@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="Highlights from the December 2024 release of Chapel 2.3">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Announcing Chapel 2.3!</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Announcing Chapel 2.3!</h2>
+<div class="post-subscript">
+    <p>Posted on December 12, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/release-announcements">Release Announcements</a>
+        
+        <a class="button" href="../../tags/python">Python</a>
+        
+        <a class="button" href="../../tags/sparse-arrays">Sparse Arrays</a>
+        
+        <a class="button" href="../../tags/performance">Performance</a>
+        
+        <a class="button" href="../../tags/gpu-programming">GPU Programming</a>
+        
+        <a class="button" href="../../tags/dyno">Dyno</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>, <a href="../../authors/jade-abraham">Jade Abraham</a>, <a href="../../authors/michael-ferguson">Michael Ferguson</a>, <a href="../../authors/john-hartman">John Hartman</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#python-interoperability">Python Interoperability</a></li>
+    <li><a href="#sparse-computations">Sparse Computations</a>
+      <ul>
+        <li><a href="#background-on-sparsity-in-chapel">Background on Sparsity in Chapel</a></li>
+        <li><a href="#recent-sparse-improvements">Recent Sparse Improvements</a></li>
+      </ul>
+    </li>
+    <li><a href="#performance-improvements">Performance Improvements</a>
+      <ul>
+        <li><a href="#qthreads-tasking-improvements">Qthreads Tasking Improvements</a></li>
+        <li><a href="#optimizations-for-libfabricofi">Optimizations for Libfabric/OFI</a></li>
+      </ul>
+    </li>
+    <li><a href="#new-gpu-features">New GPU Features</a></li>
+    <li><a href="#dyno-compiler-improvements">Dyno Compiler Improvements</a></li>
+    <li><a href="#for-more-information">For More Information</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>The Chapel developer community is pleased to announce the release of
+Chapel version 2.3!  In this article, we&rsquo;ll summarize some of the
+major highlights, including:</p>
+<ul>
+<li>
+<p>Brand-new support for <a href="#python-interoperability">calling to Python from
+Chapel</a></p>
+</li>
+<li>
+<p>Improvements for <a href="#sparse-computations">computing with sparse
+arrays</a>,</p>
+</li>
+<li>
+<p><a href="#performance-improvements">Performance improvements</a> in the
+tasking and communication aspects of the runtime</p>
+</li>
+<li>
+<p>New features for <a href="#new-gpu-features">GPU programming</a> with Chapel</p>
+</li>
+<li>
+<p>Advances in the <a href="#dyno-compiler-improvements"><em>dyno</em> resolver</a> for
+calls and types</p>
+</li>
+</ul>
+<p>Before we get started, though, a few noteworthy improvements in
+Chapel 2.3 <em>not</em> covered in this article include:</p>
+<ul>
+<li>
+<p>New <a href="https://chapel-lang.org/docs/2.3/language/spec/task-parallelism-and-synchronization.html#Atomics.fetchMin"target="_blank" rel="noopener">atomic
+min/max</a>
+operations, including support for network-based implementations</p>
+</li>
+<li>
+<p>An
+<a href="https://chapel-lang.org/docs/2.3/modules/standard/MemDiagnostics.html#MemDiagnostics.allocations"target="_blank" rel="noopener"><code>allocations()</code></a>
+iterator that enumerates the memory allocations made by a locale</p>
+</li>
+<li>
+<p>New <a href="https://chapel-lang.org/install-pkg.html"target="_blank" rel="noopener">Linux packages</a> for
+AmazonLinux 2023 and Fedora 41</p>
+</li>
+<li>
+<p>Support for ROCm in <a href="https://packages.spack.io/package.html?name=chapel"target="_blank" rel="noopener">Chapel&rsquo;s Spack
+formula</a></p>
+</li>
+<li>
+<p>Support for LLVM 19 as the preferred back-end compiler, resulting
+in better performance</p>
+</li>
+</ul>
+<p>For a more complete list of changes in Chapel 2.3, please refer to
+its
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.3/CHANGES.md"target="_blank" rel="noopener">CHANGES.md</a>
+file.  And thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/2.3/CONTRIBUTORS.md"target="_blank" rel="noopener">everyone who
+contributed</a>
+to Chapel 2.3!</p>
+<h3 id="python-interoperability">
+  <a href="#python-interoperability">Python Interoperability</a>
+</h3>
+<p>One of the coolest features of Chapel 2.3 is a <a href="https://chapel-lang.org/docs/main/modules/packages/Python.html"target="_blank" rel="noopener">new <code>Python</code> package
+module</a>
+that supports calling from Chapel to Python.  This allows Chapel
+code to use many popular Python libraries like NumPy and PyTorch
+directly. This is a great way to leverage the power of Chapel&rsquo;s
+parallelism and Python&rsquo;s rich ecosystem of libraries.</p>
+<p>As a simple example, this program creates a 2 x 2 PyTorch tensor
+from Chapel and prints it out:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">Python</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">interp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Interpreter</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">torch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Module</span><span class="p">(</span><span class="nx">interp</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;torch&#34;</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">tensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Function</span><span class="p">(</span><span class="nx">torch</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;tensor&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tensor</span><span class="p">(</span><span class="k">owned</span><span class="w"> </span><span class="nx">Value</span><span class="p">,</span><span class="w"> </span><span class="p">[[</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">2.0</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mf">3.0</span><span class="p">,</span><span class="mf">4.0</span><span class="p">]]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">T</span><span class="p">.</span><span class="nx">str</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The <code>[[1.0,2.0], [3.0,4.0]]</code> argument is a native nested Chapel
+array that is copied into the PyTorch tensor. To print out the
+tensor, we again call into Python to get its string representation.
+This is a simple example, but it shows how easy it is to call into
+Python from Chapel.</p>
+<p>The other cool feature this enables is the ability to embed Python
+code in Chapel programs that can then be changed at execution
+time. This is a powerful way to create dynamic programs that can be
+modified on the fly. For example, suppose you want to apply a change
+to each element of an array, but don&rsquo;t want to have to recompile the
+program each time you change the operation. You could write a Python
+function that performs the operation and then call that function
+from Chapel. Here&rsquo;s an example:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;lambda x,: x&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">myFunc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">Function</span><span class="p">(</span><span class="nx">interp</span><span class="p">,</span><span class="w"> </span><span class="nx">func</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Before: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">myFunc</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">a</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>After compiling this program (see the
+<a href="https://chapel-lang.org/docs/main/modules/packages/Python.html#compiling-chapel-code"target="_blank" rel="noopener">docs</a>
+for details on how to do this), you can change the <code>func</code> variable
+to any Python lambda function you like on the command-line and
+re-run the program.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># increment each element</span>
+</span></span><span class="line"><span class="cl">./myApply --func<span class="o">=</span><span class="s2">&#34;lambda x,: x + 1&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># square each element</span>
+</span></span><span class="line"><span class="cl">./myApply --func<span class="o">=</span><span class="s2">&#34;lambda x,: x * x&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># zero out even elements</span>
+</span></span><span class="line"><span class="cl">./myApply --func<span class="o">=</span><span class="s2">&#34;lambda x,: 0 if x % 2 == 0 else x&#34;</span>
+</span></span></code></pre></div><p>While this support is still a work in progress, it&rsquo;s a great start
+that opens up a lot of possibilities for Chapel programmers.</p>
+<h3 id="sparse-computations">
+  <a href="#sparse-computations">Sparse Computations</a>
+</h3>
+<p>Chapel 2.3 continues a recent focus to improve support for sparse
+computations using Chapel&rsquo;s domains and arrays.  This section
+summarizes some of these recent advances.  But first, we&rsquo;ll start
+with some background for those unfamiliar with Chapel&rsquo;s sparse
+features.</p>
+<h4 id="background-on-sparsity-in-chapel">
+  <a href="#background-on-sparsity-in-chapel">Background on Sparsity in Chapel</a>
+</h4>
+<p>Chapel supports sparse arrays that act like dense rectangular
+arrays.  However, their sparse nature means that they only
+explicitly store data at a subset of their bounding boxes&rsquo; indices
+(e.g., the <em>non-zeroes</em> in a sparse matrix computation).</p>
+<p>Chapel&rsquo;s approach to sparsity is fairly unique in that it uses
+<em>domains</em> to represent the non-zero indices of a sparse array, and
+these domains may be shared by multiple arrays.  This supports
+amortizing the storage of indices, permitting each sparse array to
+simply store its non-zero values.  By default, Chapel stores sparse
+domains using a Coordinate (COO) storage format, though there are
+also options to store 2D sparse domains using Compressed Sparse Row
+or Column formats (CSR/CSC).  In addition, Chapel supports
+distributed sparse arrays by block-distributing the domain&rsquo;s
+bounding box, and then storing every locale&rsquo;s subdomain using COO,
+CSR, or CSC formats (as specified by the user).</p>
+<p>Chapel&rsquo;s sparse features were not part of the stabilization effort
+that culminated in <a href="../../posts/announcing-chapel-2.0/">Chapel 2.0</a>, due to our intention to make significant usability and
+implementation improvements rather than just adjustments to existing
+interfaces.  Now that we&rsquo;re past that milestone release, we&rsquo;ve
+turned our attention to improving and stabilizing these features.</p>
+<h4 id="recent-sparse-improvements">
+  <a href="#recent-sparse-improvements">Recent Sparse Improvements</a>
+</h4>
+<p>Chapel 2.1 and 2.2 contained sparse feature improvements in the form
+of new convenience methods for iterating over rows/columns of sparse
+arrays, and for querying or overwriting a single locale&rsquo;s chunk of a
+block-distributed sparse array or domain.  In addition, we made
+general orthogonality improvements that caused sparse domain/array
+features to be more equivalent to their dense counterparts.  Though
+these improvements were not highlighted in this blog&rsquo;s release
+announcements, they were summarized in the <a href="https://chapel-lang.org/releaseNotes/2.1-2.2/01-lang-lib.pdf"target="_blank" rel="noopener">language/library
+improvements</a>
+deck of our release notes for Chapel 2.1 and 2.2 (see slides 13–21).</p>
+<p>Chapel 2.3 continues this trend by adding new interfaces in response
+to user feedback.  It also improves sparse naming schemes and layout
+types to match their dense counterparts, while improving the
+performance of key idioms.</p>
+<p>Specifically, the types used to represent CSR and CSC formats were
+renamed from the previous class type, <code>CS(compressRows=true|false)</code>,
+to a pair of record types, <code>csrLayout</code> and <code>cscLayout</code>.  In
+addition, the module defining the types was renamed from <code>LayoutCS</code>
+to <code>CompressedSparseLayout</code>.  All of these changes were done to
+improve the clarity of the identifiers, and to unify the approach
+with distributions like <code>blockDist</code>, as well as the modules that
+define them, like <code>BlockDist</code>.</p>
+<p>The following example illustrates Chapel&rsquo;s sparse features in action
+using the new identifiers.  Specifically, it declares a sparse
+domain and array representing the main diagonal of an <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n \times n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span>
+matrix using CSR storage:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="nx">CompressedSparseLayout</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="c1">// declare a dense domain of size n x n, as well as a sparse subdomain
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w"> </span><span class="c1">// storing just the main diagonal in CSR format
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="nx">Diag</span><span class="p">:</span><span class="w"> </span><span class="k">sparse</span><span class="w"> </span><span class="k">subdomain</span><span class="p">(</span><span class="nx">D</span><span class="p">)</span><span class="w"> </span><span class="k">dmapped</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">csrLayout</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">i</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="c1">// declare an array over that domain, storing a real value per non-zero
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">Mat</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">Diag</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="c1">// initialize each non-zero element with a unique value
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w"> </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Diag</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="nx">Mat</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">j</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="c1">// print the sparse array as though it was dense
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="nx">write</span><span class="p">(</span><span class="nx">Mat</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">],</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="s">&#34;\n&#34;</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s">&#34; &#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The last loop in this example demonstrates how sparse arrays in
+Chapel can be accessed as though they were dense—in this case, by
+iterating over a dense index set and using those indices to print
+the array out.</p>
+<p>Chapel 2.3 also contains a new optimization for inter-locale copies
+of CSR/CSC arrays.  Previously, such copies required
+<em>O(#non-zeroes)</em> communications.  Now they only result in a few
+transfers regardless of size when compiled with <code>--fast</code>.  Here&rsquo;s an
+example of such a cross-locale copy, along with a demonstration of
+some of the recently-added iterators:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w"> </span><span class="c1">// move this task to another locale
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">Locales</span><span class="p">.</span><span class="nx">last</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="c1">// make a local copy of the sparse array
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">   </span><span class="kd">var</span><span class="w"> </span><span class="nx">LocMat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Mat</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="c1">// double its values
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">   </span><span class="nx">LocMat</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="c1">// iterate over the non-zeroes, printing them out
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">LocMat</span><span class="p">.</span><span class="nx">rows</span><span class="p">()</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="p">,</span><span class="w"> </span><span class="nx">m</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">LocMat</span><span class="p">.</span><span class="nx">colsAndVals</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Mat&#34;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">,</span><span class="nx">c</span><span class="p">),</span><span class="w"> </span><span class="s">&#34; = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">m</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Chapel 2.3 adds additional utility routines, including:</p>
+<ul>
+<li>
+<p>a <code>.getCoordinates()</code> method for COO-stored domains that returns
+an array of tuples representing the non-zeroes&rsquo; coordinates</p>
+</li>
+<li>
+<p>a <code>.localSubarrays()</code> iterator method for block-sparse arrays that
+yields each locale&rsquo;s sub-array, either serially or in parallel.</p>
+</li>
+<li>
+<p>a <code>getLocalSubarray()</code> method for block-sparse arrays that returns
+the current locale&rsquo;s sub-array.  This is a convenience method
+supporting a common case, where previous releases added the
+ability to query a specific locale&rsquo;s sub-array.</p>
+</li>
+</ul>
+<p>To see an example of Chapel&rsquo;s sparse features in action, browse
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.3/test/studies/spsMatMatMult/MatMatMult.chpl"target="_blank" rel="noopener"><code>MatMatMult.chpl</code></a>
+and the other files in <a href="https://github.com/chapel-lang/chapel/tree/release/2.3/test/studies/spsMatMatMult"target="_blank" rel="noopener">its
+directory</a>,
+which implement local and distributed sparse matrix-matrix
+multiplication routines in Chapel—an algorithm that has served as a
+testbed and motivator for many of these recent improvements.</p>
+<h3 id="performance-improvements">
+  <a href="#performance-improvements">Performance Improvements</a>
+</h3>
+<p>Beyond the sparse copy optimization mentioned above, Chapel 2.3
+includes several additional performance improvements.  In this
+section, we describe two classes of optimizations, both of which
+involve the Chapel runtime. As such, they have the potential to
+benefit any program without requiring source changes by the user.
+The first involves performance improvements for Chapel&rsquo;s tasking due
+to a Qthreads update.  The second reduces overheads for many idioms
+when using Libfabric/OFI as the communication layer.</p>
+<p>All graphs shown in this section are taken from our <a href="https://chapel-lang.org/perf-nightly.html"target="_blank" rel="noopener">nightly
+performance graphs</a>,
+which track Chapel performance over time, similar to stock tickers.</p>
+<h4 id="qthreads-tasking-improvements">
+  <a href="#qthreads-tasking-improvements">Qthreads Tasking Improvements</a>
+</h4>
+<p>Parallel tasks in Chapel are typically implemented using the
+<a href="https://github.com/sandialabs/qthreads#readme"target="_blank" rel="noopener">Qthreads lightweight threading
+library</a> developed by
+Sandia National Laboratories.  Chapel 2.3 includes an upgrade to
+version 1.21 of Qthreads, which accelerated several tasking idioms.
+One example of these improvements can be seen in the following
+thread-ring micro-benchmark, which originated from the <a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html"target="_blank" rel="noopener">Computer
+Language Benchmarks Game
+(CLBG)</a>:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.3/thread-ring.jpg"
+    alt="Impact of Qthreads 1.21 on the CLBG thread-ring benchmark"><figcaption>
+      <p>Impact of Qthreads 1.21 on the CLBG thread-ring benchmark</p>
+    </figcaption>
+</figure>
+
+<p>The Qthreads upgrade also had a noticeable and positive impact on
+more significant computations, such as studies of proxy applications
+like SSCA#2, LULESH, MiniMD, and the following CoMD run, gathered on
+16 nodes of HPE Apollo:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.3/CoMD.jpg"
+    alt="Impact of Qthreads 1.21 on a port of the CoMD proxy application from LLNL"><figcaption>
+      <p>Impact of Qthreads 1.21 on a port of the CoMD proxy application from LLNL</p>
+    </figcaption>
+</figure>
+
+<p>We greatly appreciate the ongoing support we receive from the
+Qthreads team, and particularly want to thank Ian Henriksen, who has
+debugged and fixed a few performance regressions caused by recent
+upgrades, such as the initial uptick that can be seen in the
+&lsquo;coforall-begin&rsquo; version of the thread-ring benchmark just above.</p>
+<h4 id="optimizations-for-libfabricofi">
+  <a href="#optimizations-for-libfabricofi">Optimizations for Libfabric/OFI</a>
+</h4>
+<p>Chapel 2.3 also includes several performance improvements for
+<code>CHPL_COMM=ofi</code>, which is the Libfabric-based communication layer
+Chapel uses when compiling for HPE Cray Supercomputing EX systems
+and the HPE Slingshot interconnect. All of the improvements
+described in this section relate to the use of non-blocking PUTs and
+GETs to improve <code>ofi</code> performance.</p>
+<p>The first optimization noticeably improves remote cache performance
+by pipelining PUTs, as seen <span class="sidenote"><label class="sidenote-label" for="sidenote-0">in the following graph</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+Note that the graphs in this section are performance
+graphs, so higher is better, unlike the execution time graphs of the
+previous section.<span class="sidenote-delimiter">]</span></span></span>, which measures the HPCC Random
+Access (RA) benchmark on 16 nodes of HPE Cray SC EX using
+a GET-update-PUT approach:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.3/RA-rmo.jpg"
+    alt="Impact of non-blocking PUTs on HPCC RA using GETs/PUTs"><figcaption>
+      <p>Impact of non-blocking PUTs on HPCC RA using GETs/PUTs</p>
+    </figcaption>
+</figure>
+
+<p>We also used non-blocking PUTs to improve the performance of <code>on</code>
+statements, because the target locale must do a PUT of a &ldquo;done&rdquo;
+indicator back to the initiating locale when the <code>on</code>-statement
+completes. As of Chapel 2.3, this PUT no longer blocks the task on
+the target locale, allowing it to service other requests more
+quickly. The resulting performance improvement can be seen in this
+next version of HPCC RA, which uses an <code>on</code>-statement to fire off a
+remote task to perform the update on the locale where the target
+element lives:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.3/RA-on.jpg"
+    alt="Impact of non-blocking PUT notifications on HPCC RA using remote tasks"><figcaption>
+      <p>Impact of non-blocking PUT notifications on HPCC RA using remote tasks</p>
+    </figcaption>
+</figure>
+
+<p>Finally, Chapel 2.3 improves the performance of large array
+transfers using non-blocking GETs for <code>ofi</code>.  Large transfers that
+exceed the maximum message size of the underlying network fabric
+must be fragmented into smaller GETs. The use of non-blocking GETS
+in such cases allows these smaller GETs to be performed in parallel,
+increasing throughput. The effect can be seen in the improvement to
+the &lsquo;1/4 mem array&rsquo; line on this graph:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.3/Large-Array-Gets.jpg"
+    alt="Impact of non-blocking GETs on large array transfers"><figcaption>
+      <p>Impact of non-blocking GETs on large array transfers</p>
+    </figcaption>
+</figure>
+
+<p>While the timings in this section were run on an HPE Cray EX, we
+expect similar performance improvements on other platforms that use
+<code>CHPL_COMM=ofi</code>, such as AWS using EFA.</p>
+<h3 id="new-gpu-features">
+  <a href="#new-gpu-features">New GPU Features</a>
+</h3>
+<p>Readers of this blog will know that a recent focus area for Chapel
+has been to support <a href="../../series/gpu-programming-in-chapel/">vendor-neutral GPU computing</a>.  GPU improvements continued at
+steady pace in Chapel 2.3, as described in this section.</p>
+<p>This release adds two new features for querying information about
+GPUs. The
+<a href="https://chapel-lang.org/docs/2.3/language/spec/locales.html#ChapelLocale.locale.gpuId"target="_blank" rel="noopener"><code>.gpuId</code></a>
+method on GPU sublocales provides a functionality similar to <code>.id</code>
+on locales by returning the ID of a given GPU sublocale within its
+host locale. This enables symmetric idioms between inter-node and
+inter-GPU parallelism:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">numGpusPerNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">gpu</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">gpu</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">globId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">loc</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">numGpusPerNode</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">gpu</span><span class="p">.</span><span class="nx">gpuId</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">globId</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Prior to the 2.3 release, we had to write the inner coforall-loop to
+zipper between <code>here.gpus</code> and <code>here.gpus.domain</code> to obtain IDs,
+which was redundant and different than the outer coforall. Note that
+<code>gpuId</code> returns the GPU’s position in the parent locale’s <code>gpus</code>
+array, which may differ from the device ID reported by vendor APIs
+when co-locales are used. Chapel 2.3 also has a new
+<a href="https://chapel-lang.org/docs/2.3/modules/standard/GPU.html#GPU.deviceAttributes"target="_blank" rel="noopener"><code>deviceAttributes()</code></a>
+function to query lower-level GPU properties.</p>
+<p>Beyond these new queries, Chapel 2.3 makes further improvements to
+the
+<a href="https://chapel-lang.org/docs/2.3/modules/standard/GPU.html#GPU.@gpu.itersPerThread"target="_blank" rel="noopener"><code>@gpu.itersPerThread</code></a>
+attribute introduced in Chapel 2.2. This attribute enables mapping
+multiple iterations of a loop onto a single thread. However, the
+previous support was limited to mapping a contiguous chunk of
+iterations onto a thread. Such a mapping may not be desirable in
+some scenarios, since it may lead to sub-optimal memory access
+patterns. With Chapel 2.3, the <code>@gpu.itersPerThread</code> attribute
+accepts a flag to switch to cyclic mapping. With this mapping,
+neighboring threads will receive neighboring iterations, potentially
+resulting in higher memory throughput.  This is illustrated in the
+following example, along with the default blocked mapping:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">@</span><span class="nx">gpu</span><span class="p">.</span><span class="nx">itersPerThread</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">foreach</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// we will get 100/10=10 threads
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// thread 0 will run 1..10
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// thread 1 will run 11..20 ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">@</span><span class="nx">gpu</span><span class="p">.</span><span class="nx">itersPerThread</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nx">cyclic</span><span class="o">=</span><span class="kc">true</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">foreach</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// we will get 100/10 = threads again
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// thread 0 will run i=1, 11, 21 ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// thread 1 will run i=2, 12, 22 ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In this release cycle, we have also been working on improving the
+internal implementation to enable halting when GPU support is
+enabled, and to provide distributed arrays across GPUs. While
+Chapel 2.3 has prototype support for 0-argument <code>halt()</code> calls,
+it is still a work in progress. Stay tuned!</p>
+<h3 id="dyno-compiler-improvements">
+  <a href="#dyno-compiler-improvements">Dyno Compiler Improvements</a>
+</h3>
+<p>In recent years, our team has been working hard on an effort named
+<em>dyno</em> to revamp the Chapel compiler.  The goals are to improve
+compile time, support interactive programming tools, and make it
+easier to write programs that process Chapel source code. This
+effort has already produced quite a few results:</p>
+<ul>
+<li>
+<p>more user-friendly error messages with <a href="https://chapel-lang.org/docs/usingchapel/man.html#man-detailed-errors"target="_blank" rel="noopener"><code>--detailed-errors</code></a></p>
+</li>
+<li>
+<p>the <a href="https://chapel-lang.org/docs/tools/chplcheck/chplcheck.html"target="_blank" rel="noopener"><code>chplcheck</code></a> linter</p>
+</li>
+<li>
+<p>the <a href="https://chapel-lang.org/docs/tools/chpl-language-server/chpl-language-server.html"target="_blank" rel="noopener">Chapel Language Server
+(CLS)</a>,
+which works with editors such as VS Code, Vim, or Emacs to
+provide interactive feedback while programming</p>
+</li>
+</ul>
+<p>The next major milestone for the dyno effort is to finish the new
+incremental type and call resolver. This resolver is already
+available for use in an experimental way from the Chapel Language
+Server. In the 2.3 release, this new resolver has seen significant
+advances in support for promoted expressions, iterators, and
+domains. Stay tuned as we complete the effort and wire up the <code>chpl</code>
+compiler to use it in forthcoming releases.</p>
+<h3 id="for-more-information">
+  <a href="#for-more-information">For More Information</a>
+</h3>
+<p>If you have questions about Chapel 2.3 or its new features, please
+reach out on Chapel&rsquo;s <a href="https://chapel.discourse.group/"target="_blank" rel="noopener">Discourse
+group</a> or one of our other
+<a href="https://chapel-lang.org/community.html"target="_blank" rel="noopener">community forums</a>.  As
+ever, we&rsquo;re interested in feedback on how we can make the Chapel
+language, libraries, implementation, and tools more useful to you.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;2.3%21&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;2.3%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Announcing&#43;Chapel&#43;2.3%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;2.3%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.3%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A summary of our twelve days of AoC 2022 and a peek at some of Chapel&rsquo;s distributed programming features">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022: Wrap-up</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022: Wrap-up</h2>
+<div class="post-subscript">
+    <p>Posted on December 20, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#summary-of-this-series">Summary of This Series</a></li>
+    <li><a href="#chapels-support-for-scalable-distributed-computing-a-preview">Chapel&rsquo;s Support for Scalable Distributed Computing: A Preview</a>
+      <ul>
+        <li><a href="#chapels-locales-and-their-role-in-supporting-distributed-parallelism">Chapel&rsquo;s Locales and their Role in Supporting Distributed Parallelism</a></li>
+        <li><a href="#data-parallelism-using-distributed-domains-and-arrays">Data Parallelism Using Distributed Domains and Arrays</a></li>
+        <li><a href="#explicit-distributed-computing-using-on-clauses">Explicit Distributed Computing Using <code>on</code>-clauses</a></li>
+      </ul>
+    </li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Having introduced the Chapel language using the first twelve days of
+AoC 2022 exercises, this completes our <em>Twelve Days of Chapel:
+Advent of Code 2022</em> winter spectacular.  Of course, Advent of Code
+2022 is still going on, but we&rsquo;re going to take a break as we head
+into winter shutdowns, holiday vacations, and the like.  If a
+specific exercise from days 13–25 catches our interest, and time
+permits, we may post additional AoC 2022 articles next month, but
+we&rsquo;ll see&hellip;  We also have other plans for posts and series in the
+coming year.</p>
+<p>Over these first twelve days, we managed to use a lot of Chapel
+features and find plenty of opportunities for parallel computation,
+both of which should give you enough material to either be effective
+or dangerous with the language, depending on how successful we were.
+In either case, please feel free to ask follow-up questions using
+the channels noted at the bottom of this article.</p>
+<p>That said, because Advent of Code focuses on desktop-ready
+computations, we never really had the chance to see Chapel&rsquo;s
+features supporting distributed parallel computing, which is its
+whole reason for existing.  In this article, we&rsquo;ll wrap up with a
+quick preview of such features, introducing them in the context of
+some computations we&rsquo;ve already seen.</p>
+<h3 id="summary-of-this-series">
+  <a href="#summary-of-this-series">Summary of This Series</a>
+</h3>
+<p>First though, let&rsquo;s summarize the main features that we used in this
+series and where they were introduced:</p>
+<ul>
+<li>
+<p><a href="../../posts/aoc2022-day00-intro/">Introduction: Advent of Code 2022: Twelve Days of Chapel</a></p>
+<ul>
+<li>introduction to Advent of Code</li>
+<li>compiling and running Chapel programs</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day01-calories/">Day 1: Counting Calories</a></p>
+<ul>
+<li>basic Chapel syntax</li>
+<li>modules and using their contents (<code>use</code>)</li>
+<li>declarations of variables (<code>var</code>) and constants (<code>const</code>)</li>
+<li>type specifications and casts (<code>: t</code>)</li>
+<li>type inference</li>
+<li>conditionals and <code>do</code>&hellip;<code>while</code> loops</li>
+<li>reading lines from, and writing them to, the console (<code>readLine()</code> and <code>writeln()</code>)</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day02-rochambeau/">Day 2: Rochambeau</a></p>
+<ul>
+<li>declaration order and visibility</li>
+<li>concrete enumerated types (<code>enum</code>) and <code>use</code> of enums</li>
+<li>procedure declarations and instantiation of generic arguments</li>
+<li>iterators (<code>iter</code>) and the <code>yield</code> statement</li>
+<li>sequential <code>for</code> loops and index variables</li>
+<li>tuples, tuple types, and de-tupling</li>
+<li>sum reductions (<code>+ reduce</code>)</li>
+<li>formatted console input with <code>readf</code></li>
+<li>the <code>string</code> type</li>
+<li>inferred-size arrays</li>
+<li>promotion of scalar procedures using array arguments</li>
+<li>stopping an erroneous program early with <code>halt()</code></li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day03-rucksacks/">Day 3: Rucksack Comparisons</a></p>
+<ul>
+<li>Chapel program structure and module initialization</li>
+<li><code>forall</code> loops and their relation to promotion</li>
+<li>task intents</li>
+<li>range values and open-interval ranges</li>
+<li>the <code>bytes</code> type and values</li>
+<li>slicing <code>bytes</code> values</li>
+<li>the <code>set</code> type</li>
+<li>unsigned integers and bit widths (<code>uint(8)</code>)</li>
+<li>compile-time <code>param</code> values</li>
+<li>the <code>break</code> statement</li>
+<li>race conditions</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day04-ranges/">Day 4: Finding Overlaps in Cleanup Ranges</a></p>
+<ul>
+<li>problem-solving strategies</li>
+<li>range intersection via slicing</li>
+<li>range subset queries (<code>contains()</code>)</li>
+<li>more formatted I/O with <code>readf()</code></li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day05-cratestacks/">Day 5: Stacking Crates</a></p>
+<ul>
+<li>the <code>list</code> type and its <code>pop()</code>, <code>append()</code>, and <code>last()</code> methods</li>
+<li>abstract <code>enum</code> types and printing enums</li>
+<li>typed array declarations (<code>: [indices] eltType</code>)</li>
+<li>strided ranges and unbounded ranges</li>
+<li>reference (<code>ref</code>) declarations</li>
+<li>zippered iteration</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day06-packets/">Day 6: Packet Detection</a></p>
+<ul>
+<li><code>config</code> declarations</li>
+<li>named range declarations</li>
+<li>the count operator (<code>#</code>)</li>
+<li>parallel loop expressions (<code>forall</code> and <code>[indices in iterands] expr</code>)</li>
+<li>range translation via <code>+</code></li>
+<li>the <code>maxloc</code> reduction (<code>maxloc reduce</code>)</li>
+<li>ignoring tuple elements using <code>_</code></li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day07-dir-traversals/">Day 7: Traversing Directories</a></p>
+<ul>
+<li>classes (<code>class</code>)</li>
+<li><code>owned</code> classes and memory management</li>
+<li>fields, methods, and type methods</li>
+<li>creating class instances with <code>new</code></li>
+<li>the <code>map</code> type</li>
+<li>string slicing</li>
+<li>string <code>startsWith()</code> and <code>partition()</code> methods</li>
+<li>recursion and recursive iterators</li>
+<li>min reductions (<code>min reduce</code>)</li>
+<li>conditional expressions for filtering</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day08-treehouse/">Day 8: Hiding Treehouses</a></p>
+<ul>
+<li>locally scoped module <code>use</code>s</li>
+<li>multidimensional arrays and indexing them</li>
+<li>domain values</li>
+<li>operator promotion using arrays</li>
+<li>array slicing and rank-change slices</li>
+<li>logical &lsquo;and&rsquo; reductions (<code>&amp;&amp; reduce</code>)</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day09-elvish-string-theory/">Day 9: Elvish String Theory</a></p>
+<ul>
+<li>index-free <code>for</code> loops</li>
+<li>the <code>select</code> statement</li>
+<li>the absolute value (<code>abs()</code>) and sign (<code>sgn()</code>) routines</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day10-crt/">Day 10: Scan Lines</a></p>
+<ul>
+<li>the <code>lines()</code> iterator</li>
+<li>the <code>strip()</code> method on strings</li>
+<li>scan expressions (<code>scan</code>)</li>
+<li>reshaping arrays (<code>reshape</code>)</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day11-monkeys/">Day 11: Monkeying Around</a></p>
+<ul>
+<li>task-parallelism vs. data-parallelism</li>
+<li>mapping Chapel tasks to threads and processors</li>
+<li>the <code>coforall</code> loop and its distinctions from <code>forall</code></li>
+<li>barrier synchronization</li>
+<li>cooperative multitasking and livelock</li>
+<li>double-buffering</li>
+<li>returning by reference (<code>ref</code>)</li>
+<li>the swap operator (<code>&lt;=&gt;</code>)</li>
+<li>synchronization variables (<code>sync</code>) and their access methods</li>
+<li>secondary methods</li>
+<li>implicit conversions from <code>bool</code> to <code>int</code></li>
+<li>class hierarchies, parent classes, and subclasses</li>
+<li>dynamic dispatch</li>
+<li>class initializers (<code>init</code>)</li>
+</ul>
+</li>
+<li>
+<p><a href="../../posts/aoc2022-day12-summit/">Day 12: On the Summit</a></p>
+<ul>
+<li>recursive tree searches in parallel</li>
+<li><code>const ref</code> argument intents</li>
+<li>argument queries (<code>?d</code>)</li>
+<li>atomic variables (<code>atomic</code>)</li>
+<li>operations on atomics (<code>read()</code>, <code>compareExchange()</code>)</li>
+<li>labels and labeled <code>break</code> statements</li>
+</ul>
+</li>
+</ul>
+<h3 id="chapels-support-for-scalable-distributed-computing-a-preview">
+  <a href="#chapels-support-for-scalable-distributed-computing-a-preview">Chapel&rsquo;s Support for Scalable Distributed Computing: A Preview</a>
+</h3>
+<p>As mentioned above, it isn&rsquo;t terribly surprising that we didn&rsquo;t
+encounter Chapel&rsquo;s support for distributed memory computing in this
+series given AoC&rsquo;s focus on desktop computing.  Since scalable
+parallel computing is Chapel&rsquo;s reason for existing, you can expect
+to see future articles on this blog cover those aspects of the
+language in more detail.  However, let&rsquo;s touch on the topic briefly
+before wrapping up this series.</p>
+<h4 id="chapels-locales-and-their-role-in-supporting-distributed-parallelism">
+  <a href="#chapels-locales-and-their-role-in-supporting-distributed-parallelism">Chapel&rsquo;s Locales and their Role in Supporting Distributed Parallelism</a>
+</h4>
+<p>A crucial feature for understanding distributed computing in Chapel
+is the
+<a href="https://chapel-lang.org/docs/language/spec/locales.html"target="_blank" rel="noopener"><em>locale</em></a>.
+Locales are a type built into the language for representing a
+portion of the target architecture that can run tasks and store
+variables.  Since that describes a CPU and its memory, your laptop
+could serve as a locale.  In fact, all of the programs written in
+this series would be considered <em>single-locale</em> Chapel programs
+since nothing about them has referred to other locales, either
+explicitly or implicitly.  Systems like clusters, the cloud, or
+supercomputers are considered <em>multi-locale</em> systems for Chapel,
+where each compute node could be considered a distinct locale.</p>
+<h4 id="data-parallelism-using-distributed-domains-and-arrays">
+  <a href="#data-parallelism-using-distributed-domains-and-arrays">Data Parallelism Using Distributed Domains and Arrays</a>
+</h4>
+<p>One of the simplest ways to get started with multi-locale computing
+in Chapel is through its support for <em>distributed arrays</em>.  These
+are identical to the arrays we&rsquo;ve seen in this series, except that
+rather than storing all of their elements in a single locale&rsquo;s
+memory, they are distributed across multiple locales.</p>
+<p>Looking back at <a href="../../posts/aoc2022-day08-treehouse/">day 8&rsquo;s
+computation</a>,
+recall that we used a 2D array to find ideal treehouse locations.
+If desired, we could have distributed the elements of this array
+across the memories of multiple compute nodes, giving each of them a
+chunk of the total array.  And for a forest that was large enough,
+this could be a way to run larger problem sizes or to achieve better
+performance.</p>
+<p>To see how this would be done, we could change the 2D domain
+<em>ForestSpace</em> from its original declaration:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numRows</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numCols</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></div><p>to this one that uses the
+<a href="https://chapel-lang.org/docs/modules/dists/CyclicDist.html"target="_blank" rel="noopener"><code>Cyclic</code></a>
+distribution for arrays:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CyclicDist</span><span class="p">;</span><span class="w">  </span><span class="c1">// we need to use the &#39;Cyclic Distribution&#39; module
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numRows</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numCols</span><span class="p">}</span><span class="w"> </span><span class="k">dmapped</span><span class="w"> </span><span class="nx">Cyclic</span><span class="p">(</span><span class="nx">startIdx</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></div><p>Doing so has the effect of distributing the indices of the
+<code>ForestSpace</code> domain across the compute nodes of the target system
+in a round-robin fashion in both of its dimensions.  The <code>Forest</code>
+array declared in terms of <code>ForestSpace</code> would be similarly
+distributed, such that each locale would store <code>1/numLocales</code> of the
+array elements.  And then the subsequent loops or slices over
+<code>Forest</code> would result in parallel computation across all of the
+locales owning the indices in question.</p>
+<p>Thus, by <code>use</code>-ing one additional module and changing just one line,
+we have turned our desktop AoC code into one that could target all
+of the processor cores and memories of a supercomputer.  This is an
+example of distributed data parallelism in Chapel since it leverages
+Chapel&rsquo;s data-parallel features—its domains, arrays, promotion, and
+<code>forall</code> loops—to target multiple locales.  Like the data-parallel
+examples we&rsquo;ve seen in this series, it represents a high-level way
+of doing distributed computing in Chapel.</p>
+<h4 id="explicit-distributed-computing-using-on-clauses">
+  <a href="#explicit-distributed-computing-using-on-clauses">Explicit Distributed Computing Using <code>on</code>-clauses</a>
+</h4>
+<p>We can also target multiple locales at a lower level using an
+<a href="https://chapel-lang.org/docs/language/spec/locales.html#the-on-statement"target="_blank" rel="noopener"><code>on</code> statement</a>
+(or <em>on-clause</em> for short).  This can be thought of as a more
+explicit way of doing distributed computing in Chapel, similar to
+how Chapel&rsquo;s task-parallel features were shown in this series to give
+us lower-level, more explicit control than its high-level
+data-parallel features.</p>
+<p>In our <a href="../../posts/aoc2022-day11-monkeys/">day 11</a> article, you
+may recall that the first task-parallel program I introduced was
+this one:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">coforall</span><span class="w"> </span><span class="nx">tid</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">4</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Hello from task &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">tid</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After the coforall&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Using the on-clause and one additional <code>coforall</code> loop, we can turn
+this from a 4-task, single-locale program into a multi-locale
+program:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">coforall</span><span class="w"> </span><span class="nx">tid</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">4</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Hello from task &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">tid</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; on locale &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">loc</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After the coforalls&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, I&rsquo;m iterating over a built-in array, <code>Locales</code>, which
+represents the set of locales on which my program is running.  If I
+specified that I wanted to run my program on 16 locales, or compute
+nodes, by using the command line:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./hello-coforall --numLocales<span class="o">=</span><span class="m">16</span>
+</span></span></code></pre></div><p>then the array would have 16 elements, one per node.  The <code>coforall</code>
+will then create a task per element in that array, so 16 tasks in
+this example, one per locale.  Each task will have its own index
+variable <code>loc</code> that refers to its specific locale.  Next, the
+<code>on</code>-clause says to run the code that it encloses on that specific
+locale.  At this point, I&rsquo;d have one task running on each of the 16
+compute nodes from my distributed system.</p>
+<p>Next, each of those tasks encounters the inner coforall, which
+causes it to create four tasks, mapping them to four local cores on
+that compute node / locale.  And each of those tasks prints a
+message like before.  Note that I&rsquo;ve added some more arguments to
+the message to make it unique on each locale.  Specifically, I&rsquo;m
+using the <code>.id</code> query supported by the locale type to get that
+locale&rsquo;s ID from <code>0..&lt;numLocales</code>.</p>
+<p>So, when running on 16 locales, we&rsquo;d see 64 messages printed to the
+console.  As in the original shared-memory version, these messages
+would print in an arbitrary order since there is no coordination or
+synchronization between the tasks.  As the tasks complete, they will
+&lsquo;join&rsquo; back together at the ends of their respective <code>coforall</code>
+loops, and the original task that kicked the rest of them off would
+print the final message, &ldquo;After the coforalls&rdquo;.</p>
+<h3 id="conclusion">
+  <a href="#conclusion">Conclusion</a>
+</h3>
+<p>Over the course of this &ldquo;Twelve Days of Chapel&rdquo; series, we&rsquo;ve
+introduced a big cross-section of the features supported by the
+Chapel language.  And in this article, you&rsquo;ve seen the basis for
+Chapel&rsquo;s distributed computing features: locales, distributed
+arrays, and <code>on</code>-clauses.  We hope that this brief taste of
+distributed computing in Chapel will whet your appetite to learn
+more about its features for scalable parallel computing beyond the
+desktop parallelism introduced in this series.  And we&rsquo;ll be coming
+back to these concepts more in future blog articles and series.
+Meanwhile, whether you&rsquo;ve got supercomputer-sized problems to solve,
+or simply parallel computations you&rsquo;d like to write on your laptop,
+you&rsquo;ve now got a good start on how to express them in Chapel.</p>
+<p>We&rsquo;ll be continuing this blog with new articles and series in 2023,
+and may return with another Advent of Code series in December next
+year.  Until then, we hope that you&rsquo;ve enjoyed this series.  Please
+let us know of any follow-up questions or comments you might have in
+the <a href="https://chapel.discourse.group/c/blog/"target="_blank" rel="noopener">Blog</a> category of
+Chapel&rsquo;s Discourse page, or on any of the <a href="https://chapel-lang.org/community.html"target="_blank" rel="noopener">other communication
+mechanisms</a> we support for
+the community.</p>
+<p>With best wishes for the new year,</p>
+<p>-<a href="../../authors/brad-chamberlain/">Brad</a>, <a href="../../authors/daniel-fedorin/">Daniel</a>, <a href="../../authors/jeremiah-corrado/">Jeremiah</a>, and <a href="../../authors/michelle-strout/">Michelle</a></p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%3A&#43;Wrap-up&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day13-wrap-up%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%3A&#43;Wrap-up&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day13-wrap-up%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%3A&#43;Wrap-up&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day13-wrap-up%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%3A&#43;Wrap-up&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day13-wrap-up%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day12-summit/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 12: On the Summit
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+    </nav>
+
+
+    </body>
+</html>

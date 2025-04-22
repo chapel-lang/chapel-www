@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A parallel solution to day two of AoC 2022, introducing enums, procedures, iterators, arrays, and promotion">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 2: Rochambeau</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 2: Rochambeau</h2>
+<div class="post-subscript">
+    <p>Posted on December 2, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#todays-task-and-how-i-approached-it">Today&rsquo;s Task and How I Approached It</a></li>
+    <li><a href="#use-statements-and-enumerated-types"><code>use</code> Statements and Enumerated Types</a></li>
+    <li><a href="#procedures-in-chapel">Procedures in Chapel</a>
+      <ul>
+        <li><a href="#the-beats-procedure">The <code>beats()</code> procedure</a></li>
+        <li><a href="#the-verdict-procedure">The <code>verdict()</code> procedure</a></li>
+        <li><a href="#the-score-procedure">The <code>score()</code> procedure</a></li>
+      </ul>
+    </li>
+    <li><a href="#chapel-iterators">Chapel Iterators</a></li>
+    <li><a href="#from-iterator-to-array">From Iterator to Array</a></li>
+    <li><a href="#argument-promotion">Argument Promotion</a></li>
+    <li><a href="#reductions">Reductions</a></li>
+    <li><a href="#summary-and-tips-for-part-two">Summary and Tips for Part Two</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to day 2 of Chapel&rsquo;s Advent of Code 2022 series!  If you&rsquo;ve
+stumbled in the door by chance, you might want to check out the
+previous articles in this series to <a href="../../posts/aoc2022-day00-intro/">get the
+context</a> for what we&rsquo;re doing here or
+<a href="../../posts/aoc2022-day01-calories/">learn basic Chapel features</a> that we&rsquo;ll
+build on in today&rsquo;s article.</p>
+<h3 id="todays-task-and-how-i-approached-it">
+  <a href="#todays-task-and-how-i-approached-it">Today&rsquo;s Task and How I Approached It</a>
+</h3>
+<p><a href="https://adventofcode.com/2022/day/2"target="_blank" rel="noopener">Today&rsquo;s challenge</a> is to read
+in a mysterious guide consisting of pairs of letters, then use them
+to drive a game of rock-paper-scissors.  In part one of the
+challenge, we&rsquo;ll interpret the letters as being indicative of which
+shape our opponent throws and which one we do.  A somewhat byzantine
+scoring system is applied, awarding points for wins and draws, as
+well as the shape thrown, even in the case of a loss.  Our task is
+to add up all of the scores across the games.</p>
+<p><strong>For those who eat dessert first, here&rsquo;s my approach to part one that I&rsquo;ll be describing:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day02-rochambeau.chpl" download="aoc2022-day02-rochambeau.chpl">aoc2022-day02-rochambeau.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">outcome</span><span class="p">,</span><span class="w"> </span><span class="nx">shape</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">enum</span><span class="w"> </span><span class="nx">outcome</span><span class="w"> </span><span class="p">{</span><span class="nx">lose</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">draw</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nx">win</span><span class="o">=</span><span class="mi">6</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">enum</span><span class="w"> </span><span class="nx">shape</span><span class="w"> </span><span class="p">{</span><span class="nx">rock</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">paper</span><span class="p">,</span><span class="w"> </span><span class="nx">scissors</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">enum</span><span class="w"> </span><span class="nx">entry</span><span class="w"> </span><span class="p">{</span><span class="nx">A</span><span class="o">=</span><span class="nx">rock</span><span class="p">:</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">X</span><span class="o">=</span><span class="nx">rock</span><span class="p">:</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="p">,</span><span class="w"> </span><span class="nx">Z</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">beats</span><span class="p">(</span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">s1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">rock</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">scissors</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="nx">s1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">paper</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">rock</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="nx">s1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">scissors</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">paper</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">verdict</span><span class="p">(</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">them</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">abc</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">us</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">them</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">us</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">draw</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">beats</span><span class="p">(</span><span class="nx">them</span><span class="p">,</span><span class="w"> </span><span class="nx">us</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">lose</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">beats</span><span class="p">(</span><span class="nx">us</span><span class="p">,</span><span class="w"> </span><span class="nx">them</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">win</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;We should never get here: &#34;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">them</span><span class="p">,</span><span class="w"> </span><span class="nx">us</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">score</span><span class="p">((</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="kt">int</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">verdict</span><span class="p">(</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">):</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readGuide</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%s %s&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">abc</span><span class="p">:</span><span class="nx">entry</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="nx">entry</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">Guide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readGuide</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">score</span><span class="p">(</span><span class="nx">Guide</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>In today&rsquo;s program, I had the opportunity to use more interesting
+Chapel concepts, including our first parallel, multicore-ready
+computation.  I also approached today&rsquo;s problem with the goal of
+using high-level, descriptive features rather than worrying too much
+about code size or performance (though neither one is too shabby).</p>
+<p>Some of the features I use in my solution include:</p>
+<ul>
+<li><em>enumerated types</em> to represent groups of symbols with associated values</li>
+<li><em>procedures</em> to factor sub-computations into useful units</li>
+<li>an <em>iterator</em> to read the input and help populate an array</li>
+<li><em>tuples</em> to pass pairs of values into and out of the routines</li>
+<li><em>argument promotion</em>, an elegant form of data-parallelism within Chapel</li>
+<li>a <em>reduction</em> to combine an array of values down to a scalar</li>
+</ul>
+<h3 id="use-statements-and-enumerated-types">
+  <a href="#use-statements-and-enumerated-types"><code>use</code> Statements and Enumerated Types</a>
+</h3>
+<p>My program begins with a pair of <code>use</code> statements:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">outcome</span><span class="p">,</span><span class="w"> </span><span class="nx">shape</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first of these, <code>use IO;</code> we saw yesterday, and it will again
+give us access to routines that we can use to read the input set.
+The second <code>use</code> statement is slightly different in that it is not
+making module symbols available to the scope, but symbols defined by
+our enumerated types, or <code>enum</code>s.  Let&rsquo;s take a look at the enums
+themselves and then come back to this.</p>
+<p>I defined three enums for this program, one describing the three
+shapes that a competitor can throw, one describing the three
+outcomes of a match, and one describing the six entries that can be
+read from the guide:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">enum</span><span class="w"> </span><span class="nx">outcome</span><span class="w"> </span><span class="p">{</span><span class="nx">lose</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">draw</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nx">win</span><span class="o">=</span><span class="mi">6</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">enum</span><span class="w"> </span><span class="nx">shape</span><span class="w"> </span><span class="p">{</span><span class="nx">rock</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">paper</span><span class="p">,</span><span class="w"> </span><span class="nx">scissors</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">enum</span><span class="w"> </span><span class="nx">entry</span><span class="w"> </span><span class="p">{</span><span class="nx">A</span><span class="o">=</span><span class="nx">rock</span><span class="p">:</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">X</span><span class="o">=</span><span class="nx">rock</span><span class="p">:</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="p">,</span><span class="w"> </span><span class="nx">Z</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>In Chapel, the symbols of an enumerated type need not have values
+associated with them, and in practice, many <code>enum</code>s do not.  These
+are referred to as <a href="https://chapel-lang.org/docs/language/spec/types.html#enumerated-types"target="_blank" rel="noopener"><em>abstract</em>
+enums</a>,
+and they do not support the ability to be converted to integers.  In
+this program, associating the <code>enum</code> symbols with integers permits
+us to do some convenient conversions, so we will define <em>concrete</em>
+enums in which each symbol has an associated <code>int</code> value.</p>
+<p>For example, when scoring a match, losses count for 0 points, draws
+for 3, and wins for 6, so I gave our three <code>outcome</code> symbols their
+respective values.  Similarly, throwing rock, paper, or scissors
+earns 1, 2, or 3 points.  Here, I only explicitly assign the value
+<code>1</code> to <code>rock</code>, and the symbols that follow will automatically be
+associated with the subsequent integers.</p>
+<p>Though I might like to map the letters to the <code>rock</code>, <code>paper</code>, and
+<code>scissors</code> enums, since that&rsquo;s what they represent, currently Chapel
+enumerations can only be mapped to integer values.  Moreover, <code>enum</code>
+constants with associated integer values do not coerce to that
+value; instead, casts are required to convert from an <code>enum</code> to
+<code>int</code>.  So here, I am casting <code>rock</code> to an integer and associating
+that value with <code>A</code> and <code>X</code>, since those are the two letters we&rsquo;re
+interpreting as &lsquo;rock&rsquo;.  As before, the subsequent letters will take
+on the next numerical values, so <code>B</code> and <code>Y</code> will share <code>paper</code>&rsquo;s
+integer value, and <code>C</code> and <code>Z</code>, <code>scissors</code>&rsquo;.</p>
+<p>Let&rsquo;s now return to my second <code>use</code> statement.  By default in
+Chapel, references to an <code>enum</code>&rsquo;s symbols must be fully <em>qualified</em>,
+providing a form of namespace safety.  For example, given the
+declaration of <code>shape</code> above, I would need to write <code>shape.rock</code> in
+my code to refer to that shape rather than simply <code>rock</code>.  While
+this is a very safe default, it can also be somewhat onerous when
+trying to write simple programs quickly, as in AoC.  For that
+reason, the <code>use</code> statement can be applied to an <code>enum</code> to make its
+symbols available to the scope, analogously to how <code>use</code> works with
+modules.  In this program, I only <code>use</code>d two of the three enums
+because they were the only two whose symbols I needed to refer to
+within the program text.</p>
+<details>
+    <summary><strong>(A note on declaration orderings and visibility&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Astute readers will note that the <code>use</code> statement refers to the
+<code>outcome</code> and <code>shape</code> types before they are defined, and this may
+seem strange coming from other programming languages, like C.  In
+Chapel, a symbol defined within a scope is generally visible from
+anywhere within the scope, whether before or after its declaration
+point.  As a result, it is not a problem for the <code>use</code> to refer to
+my <code>enum</code> types before they have even been defined.</p>
+<p>One benefit of this approach is that procedures do not require
+prototypes in Chapel, as in languages like C, and they can be called
+whether they are defined earlier or later in a scope.  As a result,
+Chapel programs are often written to be read from the top downwards,
+as in English, rather than bottom-up as in many traditional
+programming languages.  In fact, <a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day02/bradc/day02.chpl"target="_blank" rel="noopener">my GitHub solution for today&rsquo;s
+program</a>
+follows this principle by putting the first statements to be
+executed—those that read the file—near the top of the listing.  For
+this blog, I used a more traditional bottom-up approach simply
+because it lets me describe Chapel features to you in a more natural
+order.</p>
+<p>Before we go on, one place where declaration order <em>does</em> matter is
+in variable declarations.  For example, if I write:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">y</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>the reference to <code>y</code> in <code>x</code>&rsquo;s initializer refers to the variable <code>y</code>
+defined on the next line; however, this is not legal Chapel code
+because variables are not permitted to be referred to before they
+have been initialized.  So the principle of the symbols being
+visible throughout the scope still holds, but it is not useful in
+this specific context—either the declarations must have their orders
+swapped, or <code>x</code>&rsquo;s initializer cannot refer to <code>y</code>.</p>
+
+    </div>
+</details>
+
+<h3 id="procedures-in-chapel">
+  <a href="#procedures-in-chapel">Procedures in Chapel</a>
+</h3>
+<p>The <em>procedure</em> is one of two kinds of subroutines (or simply
+<em>routines</em>) in Chapel, the other being the iterator, which we&rsquo;ll see
+a bit later.  Procedures are used to factor a segment of code away
+from its callsite, as in other languages.  They may take arguments
+and/or return values.  In my program, I define three procedures,
+<code>beats()</code>, <code>verdict()</code>, and <code>score()</code>.</p>
+<h4 id="the-beats-procedure">
+  <a href="#the-beats-procedure">The <code>beats()</code> procedure</a>
+</h4>
+<p>The first procedure I&rsquo;m defining takes two shapes and determines
+whether or not the first beats the second in a game of
+rock-paper-scissors:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">beats</span><span class="p">(</span><span class="nx">s1</span><span class="p">,</span><span class="w"> </span><span class="nx">s2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">s1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">rock</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">scissors</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="nx">s1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">paper</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">rock</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="nx">s1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">scissors</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">s2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">paper</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Procedures are introduced using the <code>proc</code> keyword in Chapel,
+followed by the name of the procedure—in this case, <code>beats</code>.  This
+procedure takes two arguments, <code>s1</code> and <code>s2</code>, which represent two
+shapes that have been thrown.</p>
+<p>Note that the arguments of <code>beats()</code> do not have declared types, nor
+have I declared the procedure&rsquo;s return type.  Like the variable and
+constant declarations we saw yesterday, this is another form of
+<em>type elision</em>, provided for convenience and flexibility.  In
+practice, the compiler will analyze the Chapel source code and
+determine that this procedure will take two <code>shape</code>s and return a
+<code>bool</code>.</p>
+<details>
+    <summary><strong>(For readers familiar with C++ or generic instantiation&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>More precisely, <code>beats()</code> is <em>generic</em> in that it was written to
+take two arguments of any type.  The compiler examines the call(s)
+to <code>beats()</code> within the program and determines that the only
+<em>instantiation</em> required is one that takes two <code>shape</code> arguments.
+It therefore creates a copy of <code>beats()</code> with the signature:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">beats</span><span class="p">(</span><span class="nx">them</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">,</span><span class="w"> </span><span class="nx">us</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">):</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>In this way, Chapel&rsquo;s generic procedures are a lot like C++ template
+functions, but using simpler (and arguably more intuitive) syntax.</p>
+
+    </div>
+</details>
+
+<p>In practice, it can often be valuable to constrain a procedure&rsquo;s
+arguments, for documentation purposes, safety, or just to avoid
+confusion.  For example, even though this procedure was written to
+accept two arguments of any type, its body compares the arguments to
+<code>shape</code> values; therefore, the procedure will only work for
+arguments that support comparisons with <code>shape</code> values—which, for
+our program, means only other <code>shape</code>s.  Since we know that the
+procedure was only designed to take <code>shape</code> arguments, we could make
+this explicit in the code by providing argument types.  We could
+also add a return type for the purposes of documentation and to have
+the compiler validate that we&rsquo;re keeping our types straight.  The
+result would look like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">beats</span><span class="p">(</span><span class="nx">them</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">,</span><span class="w"> </span><span class="nx">us</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">):</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>In my AoC codes, I tend to write most of my routines generically
+since the programs are not very complicated, and to keep the code
+concise and flexible.  However, when defining libraries for others
+to use, my preference is definitely to specify argument and return
+types as a form of creating well-defined interfaces and
+self-documenting code for a user.</p>
+<h4 id="the-verdict-procedure">
+  <a href="#the-verdict-procedure">The <code>verdict()</code> procedure</a>
+</h4>
+<p>The next procedure I&rsquo;ll define takes two arguments representing
+entries from the guide.  It will convert those entries to shapes and
+then use them to determine whether we won, lost, or had a draw,
+returning the corresponding <code>outcome</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">verdict</span><span class="p">(</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">them</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">abc</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">us</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">:</span><span class="w"> </span><span class="nx">shape</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">them</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">us</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">draw</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">beats</span><span class="p">(</span><span class="nx">them</span><span class="p">,</span><span class="w"> </span><span class="nx">us</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">lose</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">beats</span><span class="p">(</span><span class="nx">us</span><span class="p">,</span><span class="w"> </span><span class="nx">them</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">win</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;We should never get here: &#34;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">them</span><span class="p">,</span><span class="w"> </span><span class="nx">us</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The constant declarations convert each argument from an <code>entry</code>
+value to a <code>shape</code>, leveraging the fact that we defined the entries
+to have integer values matching the shapes.  Chapel does not support
+enum-to-enum casts by default and I don&rsquo;t have time to teach you how
+to write one today, so we&rsquo;ll just cast each <code>entry</code> to <code>int</code>, and
+then cast that <code>int</code> to a <code>shape</code>, one for our opponent and one for
+us.</p>
+<p>Next, we check whether the shapes are the same, indicating a draw.
+If they&rsquo;re not, we pass them to our <code>beats()</code> routine to see whether
+we lost or won.  In each of the three cases, we return the
+corresponding <code>outcome</code> value.</p>
+<p>The call to <code>halt()</code> in the final <code>else</code> clause should be
+unnecessary if my program is correct (and I believe it is!), and I
+could even replace the check for whether we won with a simple <code>else</code>
+clause since it&rsquo;s the only other rational possibility.  However, I
+wrote it this way in case my code had bugs, and an earlier version
+of it did, so this saved me some headache by pointing out my mistake
+blatantly rather than silently returning a <code>win</code> for that case.</p>
+<p>Chapel&rsquo;s <code>halt()</code> routine is a lot like <code>writeln()</code> in that it
+prints out all of its arguments, but then it also exits the program.
+For the second argument I&rsquo;m passing to <code>halt()</code>, I&rsquo;ve created a
+<em>tuple</em> of the two values, which would print out like <code>(0, 3)</code>.
+We&rsquo;ll see additional uses of tuples as we go.</p>
+<h4 id="the-score-procedure">
+  <a href="#the-score-procedure">The <code>score()</code> procedure</a>
+</h4>
+<p>My final procedure computes the score of a round of
+rock-paper-scissors, given two <code>entry</code> values from the strategy
+guide:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">score</span><span class="p">((</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="kt">int</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">verdict</span><span class="p">(</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">):</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Though it may not look like it, this procedure takes just a single
+argument, but that argument must be a 2-tuple.  The tuple nature of
+the argument is indicated by the additional set of parentheses.
+This represents a syntactic de-tupling of the argument that is
+passed in, binding its component values to the argument names.
+Since there are two argument names, the actual argument passed in
+must be a 2-tuple.  My reasons for taking this approach will become
+clear as we get further along.</p>
+<p>If we were to create the fully typed version of this procedure,
+it could be written as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">score</span><span class="p">((</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">):</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">,</span><span class="w"> </span><span class="nx">entry</span><span class="p">)):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>This indicates that the two tuple elements are both <code>entry</code> values
+and that the procedure returns an <code>int</code>.  A shorthand for writing
+homogeneous tuple types like this is:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">score</span><span class="p">((</span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">):</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="nx">entry</span><span class="p">):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>This indicates that we are expecting a 2-tuple of <code>entry</code> values.</p>
+<p>The body of this procedure is quite simple: It returns the sum of
+our entry&rsquo;s <code>shape</code> and the <code>outcome</code> of our call to <code>verdict()</code>
+after casting both to integers.</p>
+<h3 id="chapel-iterators">
+  <a href="#chapel-iterators">Chapel Iterators</a>
+</h3>
+<p>As mentioned above, Chapel&rsquo;s second type of subroutine is the
+<em>iterator</em>, declared with the <code>iter</code> keyword.  Iterators are like
+procedures in that they are used to factor code away from callsites
+and can be passed arguments.  However, where a called procedure can
+only return a single time, an iterator can <em>yield</em> multiple values
+back to its callsite before ultimately returning (or, it could be
+written to iterate forever).</p>
+<p>The iterator we&rsquo;re going to create is named <code>readGuide()</code> and it
+will be written to read pairs of strings from the console, yielding
+them back to the callsite as a 2-tuple of entries:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">readGuide</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readf</span><span class="p">(</span><span class="s">&#34;%s %s&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">abc</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">abc</span><span class="p">:</span><span class="nx">entry</span><span class="p">,</span><span class="w"> </span><span class="nx">xyz</span><span class="p">:</span><span class="nx">entry</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We start by declaring two strings, <code>abc</code> and <code>xyz</code>, which will hold
+the <code>A</code>–<code>C</code> and <code>X</code>–<code>Z</code> values that we read in, respectively.  Note
+that the names are simply mnemonic and have no bearing on what
+values the strings can hold.</p>
+<p>To do the input for today&rsquo;s entry, I&rsquo;m using the <code>IO</code> module&rsquo;s
+<code>readf()</code> routine, which supports formatted reads from the console.
+The format string <code>&quot;%s %s&quot;</code> indicates that we want to read two
+<code>s</code>tring values, separated by whitespace, into the arguments that
+follow—<code>abc</code> and <code>xyz</code>.  <code>readf()</code> returns <code>false</code> once it cannot
+fulfill the requested read, such as at the end of the file).  So at
+that point, we will exit the <code>while</code> loop and fall out of the
+iterator, returning to the callsite.</p>
+<p>The body of the iterator&rsquo;s <code>while</code> loop takes the two string values
+and casts them to their corresponding <code>entry</code> values.  In Chapel,
+strings can be cast to <code>enum</code>s and vice-versa, which tends to be
+very convenient in I/O situations like this one.  We then form a
+2-tuple of the two <code>entry</code> values and <code>yield</code> them back to the
+callsite.</p>
+<p>Iterators are often used to drive loops in Chapel.  For example, we
+could write a serial for-loop over our <code>readGuide()</code> iterator as
+follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readGuide</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>and this would cause the loop body to run for each pair of values
+yielded, binding them to the loop&rsquo;s index variables, <code>i</code> and <code>j</code>,
+respectively.  Another way to write this loop would be to use a
+single index variable:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">pair</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readGuide</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In this case, <code>pair</code> would be a 2-tuple of <code>entry</code> values.</p>
+<h3 id="from-iterator-to-array">
+  <a href="#from-iterator-to-array">From Iterator to Array</a>
+</h3>
+<p>Though loops over iterators are very common in Chapel, in this
+program, we&rsquo;re going to use the iterator in another way, and one
+that is very powerful for these AoC exercises where the amount of
+input is typically unknown.  Specifically, we&rsquo;re going to use a call
+to the iterator to initialize a constant, <code>Guide</code>, representing our
+strategy guide.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">41
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">Guide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readGuide</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>When a variable or constant is initialized using an iterator call
+like this, it becomes a 1-dimensional, 0-based array containing all
+of the yielded values.  In this case, for the AoC sample input of
+three pairs, <code>Guide</code> would be equivalent to the array declaration:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">Guide</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="nx">entry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">X</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="nx">C</span><span class="p">,</span><span class="w"> </span><span class="nx">Z</span><span class="p">)];</span><span class="w">
+</span></span></span></code></pre></div><p>What makes this such an attractive pattern for AoC codes is that the
+array&rsquo;s size need not be known <em>a priori</em> to declare the array.
+Moreover, arrays are very powerful and fundamental types in Chapel,
+particularly for use in parallel computation.  So once we have our
+input data in an array, we can start to do cool things with it.</p>
+<h3 id="argument-promotion">
+  <a href="#argument-promotion">Argument Promotion</a>
+</h3>
+<p>In this case, the cool thing we&rsquo;re going to do is so subtle and
+powerful, you might miss it, so let&rsquo;s work our way up to it.
+In Chapel, given a procedure that accepts a scalar value, like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">inc</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>in addition to calling the procedure with an integer argument, like
+<code>inc(42)</code>, you can also call it with an argument that is an array
+of integers and get an array of results back.  For example:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">inc</span><span class="p">([</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">33</span><span class="p">,</span><span class="w"> </span><span class="mi">78</span><span class="p">,</span><span class="w"> </span><span class="mi">45</span><span class="p">]);</span><span class="w">  </span><span class="c1">// result will be the array &#39;[43, 34, 79, 46]&#39;
+</span></span></span></code></pre></div><p>This is known as <em>argument promotion</em>, where the scalar formal
+argument is being <em>promoted</em> by passing it an array actual
+argument.</p>
+<p>Not only is this a powerful and compact idiom, but it is also the
+first parallel computing concept we&rsquo;ve seen in AoC 2022.
+Specifically, Chapel can and will evaluate promoted function calls
+in parallel.  For example, for a large array on a sixteen-core
+processor, each processor will compute the function call for 1/16 of
+the array elements in parallel, ideally resulting in a 16x speedup
+as compared to iterating over the array serially and making the
+calls one at a time.</p>
+<p>By now, you can probably see where this is going: By calling
+<code>score(Guide)</code>, we pass our array of 2-tuples to our <code>score()</code>
+procedure, which expects a 2-tuple as its argument.  This promotes
+the call, generating an array of resulting scores.  We could then
+capture those scores into a new array variable as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Scores</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">score</span><span class="p">(</span><span class="nx">Guide</span><span class="p">);</span><span class="w">  </span><span class="c1">// Scores will be an array of `int` scores
+</span></span></span></code></pre></div><p>Because promotion enables parallel execution, this also has the
+potential to parallelize the main computation in our program.  The
+3-element AoC sample input is small enough that its promotion will
+be computed serially to avoid unnecessary task creation overheads;
+but for the full-sized input, Chapel should use all of your
+laptop&rsquo;s processor cores to compute the scores in parallel.</p>
+<details>
+    <summary><strong>(Performance notes for this code&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>For anyone inclined to do performance studies of this Chapel
+program, or others, note that once you have a correct Chapel
+program, you should always <a href="https://chapel-lang.org/perf-tips.html"target="_blank" rel="noopener">recompile it with
+<code>--fast</code></a> before doing
+performance studies with it.</p>
+<p>Furthermore, for this quick-running program, note that the I/O
+required to read the guide as input is likely to dominate the
+execution time of the program, potentially overwhelming any benefits
+gained from the parallelism here.  However, for a longer-running or
+more computationally-intensive program, this form of implicit
+parallelism can result in significant performance gains.  You can
+simulate this by putting a serial loop around the promoted call to
+<code>score(Guide)</code> to run it for a larger number of trials until it
+overwhelms the input time.  To compare with a serial execution, try
+replacing the promotion with a serial for-loop that iterates over
+the <code>Guide</code> array, calling <code>score()</code> on each element.</p>
+
+    </div>
+</details>
+
+<h3 id="reductions">
+  <a href="#reductions">Reductions</a>
+</h3>
+<p>At this point, all that is required is to sum all of the values
+returned by our promoted call, <code>score(Guide)</code>.  Because this is a
+common idiom in parallel computing, Chapel supports a <code>reduce</code>
+expression which can be used to collapse a collection of values down
+to a single result.  In this case, we want to sum all of the values,
+so we use a <code>+ reduce</code> expression and just print out the result
+using a <code>writeln()</code>::</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">43
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">score</span><span class="p">(</span><span class="nx">Guide</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>One thing to note here is that Chapel is designed to avoid silently
+creating temporary arrays whenever possible. This is because, when
+working at the supercomputer scales that Chapel was built for,
+arrays can be massive, and allocating an extra array here or there
+can exhaust your memory very quickly.  So where we might think of
+the call to <code>score(Guide)</code> as conceptually creating an array of
+results, if we reduce the call immediately rather than storing it
+into an explicit array, the reduction will actually combine the
+scalar <code>int</code> scores as they are returned, eliminating the need for
+any temporary arrays.  As a result, the memory requirements for this
+program&rsquo;s variables are essentially just the space for the <code>Guide</code>
+array and some scalar variables.</p>
+<details>
+    <summary><strong>(Do we need any arrays at all&hellip;?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>We could even eliminate the space required by the <code>Guide</code> array by
+promoting <code>score()</code> with the invocation of the iterator itself, as
+follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">score</span><span class="p">(</span><span class="nx">readGuide</span><span class="p">()));</span><span class="w">
+</span></span></span></code></pre></div><p>However, my <code>readGuide()</code> iterator is serial, for reasons I&rsquo;ll
+explain in a moment, which means that the promotion would be as
+well.  As a result, this is a classic time-space tradeoff: Spend
+some space to store the data in an array to enable parallel
+computation?  Or conserve the space and spend more time computing
+serially?  In Chapel, this decision is yours to make.</p>
+<p>My <code>readGuide()</code> iterator is serial because it is implemented using
+a serial while-loop.  In practice, textual input can generally be very
+difficult to parallelize due to the difficulty in anticipating how
+many bytes each element will require.  However, this program&rsquo;s input
+is regular enough that it <em>could</em> be parallelized, with effort.
+Specifically, we could write a parallel overload of <code>readGuide()</code>
+that would use Chapel&rsquo;s support for files and channels to read
+entries from the file in parallel.  However, that is beyond the
+scope of this article (and series, likely).</p>
+
+    </div>
+</details>
+
+<h3 id="summary-and-tips-for-part-two">
+  <a href="#summary-and-tips-for-part-two">Summary and Tips for Part Two</a>
+</h3>
+<p>We covered a lot of ground today including several key features that
+should serve you well during AoC 2022: procedures, iterators, enums,
+halts, and your first introduction to arrays and parallel computing
+in Chapel, including promotion and reductions.  In future articles,
+we&rsquo;ll almost certainly spend more time with arrays as well as more
+explicit forms of concurrency in Chapel, such as parallel loops.</p>
+<p>Like yesterday, the full code for my solution can be viewed and
+downloaded at the top of this article, or <a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day02/bradc/day02.chpl"target="_blank" rel="noopener">at
+GitHub</a>,
+noting again that the GitHub version of the code uses my preferred
+top-down ordering of the code.</p>
+<p>Refreshingly, you have all the tools you need to complete part two
+of today&rsquo;s assignment.  It&rsquo;s essentially a fairly minor variation on
+part one in which you&rsquo;ll need to redefine what entries <code>X</code>, <code>Y</code>, and
+<code>Z</code> mean, and change the interpretation of the <code>xyz</code> variables in
+the guide.</p>
+<p>Good luck, and see you tomorrow!</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;2%3A&#43;Rochambeau&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day02-rochambeau%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;2%3A&#43;Rochambeau&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day02-rochambeau%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;2%3A&#43;Rochambeau&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day02-rochambeau%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;2%3A&#43;Rochambeau&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day02-rochambeau%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day01-calories/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 1: Counting Calories
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day03-rucksacks/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 3: Rucksack Comparisons
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

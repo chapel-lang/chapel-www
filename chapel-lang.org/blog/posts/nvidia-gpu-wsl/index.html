@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="This post demonstrates using the Windows Subsystem for Linux to run Chapel code on a GPU from NVIDIA">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Measure the Performance of your Gaming GPU with Chapel</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Measure the Performance of your Gaming GPU with Chapel</h2>
+<div class="post-subscript">
+    <p>Posted on August 27, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/gpu-programming">GPU Programming</a>
+        
+        <a class="button" href="../../tags/how-to">How-to</a>
+        
+        <a class="button" href="../../tags/windows">Windows</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/ahmad-rezaii">Ahmad Rezaii</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#put-your-gaming-system-to-work-with-chapel">Put your gaming system to work with Chapel</a></li>
+    <li><a href="#install-wsl">Install WSL</a></li>
+    <li><a href="#use-cuda-from-wsl">Use CUDA from WSL</a>
+      <ul>
+        <li><a href="#test-wsl-access-to-gpu">Test WSL access to GPU</a></li>
+      </ul>
+    </li>
+    <li><a href="#install-the-cuda-toolkit">Install the CUDA Toolkit</a>
+      <ul>
+        <li><a href="#test-cuda-toolkit-installation-in-wsl">Test CUDA Toolkit installation in WSL</a></li>
+      </ul>
+    </li>
+    <li><a href="#build-chapel-with-gpu-support">Build Chapel with GPU support</a>
+      <ul>
+        <li><a href="#prepare-for-chapel">Prepare for Chapel</a></li>
+        <li><a href="#acquire-chapel-sources">Acquire Chapel sources</a></li>
+        <li><a href="#configure-and-build-chapel">Configure and build Chapel</a></li>
+      </ul>
+    </li>
+    <li><a href="#measure-gpu-memory-bandwidth-using-chapel">Measure GPU memory bandwidth using Chapel</a></li>
+    <li><a href="#next-steps-and-additional-exploration">Next steps and additional exploration</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <h3 id="put-your-gaming-system-to-work-with-chapel">
+  <a href="#put-your-gaming-system-to-work-with-chapel">Put your gaming system to work with Chapel</a>
+</h3>
+<p>Modern gaming systems have tremendous parallel potential. Today&rsquo;s offerings from
+AMD and Intel combine with GPUs from NVIDIA to build multi-CPU systems that command
+thousands of GPU cores. While not supercomputers, they are definitely <em>super</em>
+computers. It would be nice if we could use Chapel to take control of all that
+raw power, but it is almost always locked inside the Windows operating system,
+making it an inhospitable development environment for HPC programs.
+Although Chapel runs natively on Linux and MacOS, support for Chapel on Windows
+was previously limited to Cygwin, degrading the performance and limiting Chapel
+to an incomplete set of features. The Windows Subsystem for Linux (WSL)
+allows Chapel to behave and perform more like it would on native Linux and is now
+the preferred way to develop Chapel programs on Windows.</p>
+<p>In this post, I&rsquo;m going to show that we can use WSL to run Chapel code on our NVIDIA
+GPUs hosted in Windows, while also getting performance that is on par with lower-level CUDA code.
+We&rsquo;ll be evaluating performance with a commonly used memory streaming benchmark
+known as <a href="https://www.cs.virginia.edu/stream/"target="_blank" rel="noopener">STREAM Triad</a>.
+The STREAM Triad algorithm performs simple processing on three arrays of equal length
+to form a synthetic benchmark that is suitable for measuring memory bandwidth.</p>
+<p>The pseudocode for the calculation looks something like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">A</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">k</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">C</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w">
+</span></span></span></code></pre></div><p>Memory bandwidth is the measurement of how much data your graphics card can move between
+the GPU and the card&rsquo;s vRAM in a fixed amount of time. This is an important metric
+for gaming, especially at higher resolutions and refresh rates that are becoming
+more popular; but it&rsquo;s also important for image processing and machine
+learning applications that can have their performance limited by the interface
+between the GPU and vRAM. The STREAM Triad benchmark will help you understand how the
+actual bandwidth of your GPU compares to its maximum theoretical bandwidth.</p>
+<p>To follow along on your own with this demonstration, you&rsquo;ll need access to what I&rsquo;m
+going to daringly call a <span class="sidenote"><label class="sidenote-label" for="sidenote-0">&ldquo;typical&rdquo; gaming computer</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right" style="margin-top: -15.5rem"><span class="sidenote-delimiter">[note:</span>
+<a href="https://store.steampowered.com/hwsurvey/">Steam hardware surveys</a>
+over the previous 18 months report a pretty consistent 90–95% market dominance by
+Windows 10 and 11. According to the same surveys, NVIDIA GPUs are the most popular
+in gaming systems, accounting for around 70–75% of systems with dedicated graphic
+processing units.
+<span class="sidenote-delimiter">]</span></span></span> — that is, one
+that runs Windows and has a GPU from <span class="sidenote"><label class="sidenote-label" for="sidenote-1">NVIDIA</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-1"></input><span class="sidenote-content sidenote-right" style="margin-top: -0.5rem"><span class="sidenote-delimiter">[note:</span>
+Note that Chapel's GPU support enables Chapel code to run on GPUs from both AMD and
+NVIDIA. It's just that AMD does not support accessing your card from WSL at the time of
+this writing.
+<span class="sidenote-delimiter">]</span></span></span>.</p>
+<p>To start, let&rsquo;s review the setup. I&rsquo;ll assume you have a Windows 10- or 11-based
+PC and a GPU from NVIDIA&rsquo;s 10XX series or newer. You&rsquo;ll also need several GB of
+free disk space, the amount varying depending on what you might already have installed.
+We should also get an idea of our card&rsquo;s theoretical maximum memory bandwidth.
+This can often be found on third-party websites that track these sorts of stats.
+For my RTX 2070 Super, the memory bandwidth is reported to be ~448 GB/s.</p>
+<p>To help navigate this guide, choose your own adventure based on your initial state:</p>
+<ul>
+<li><strong>I do not have WSL installed:</strong> <a href="#install-wsl">continue to the next section</a> (3–4 GB free space needed)</li>
+<li><strong>I have WSL, but not the CUDA Toolkit:</strong> <a href="#install-the-cuda-toolkit">start by installing the CUDA Toolkit</a> (&lt;2 GB free space needed)</li>
+<li><strong>I have WSL and the CUDA Toolkit, take me to the <del>final boss</del> <a href="#build-chapel-with-gpu-support">last step in this post</a></strong>. (&lt;1 GB free space needed)</li>
+</ul>
+<h3 id="install-wsl">
+  <a href="#install-wsl">Install WSL</a>
+</h3>
+<p>To use WSL you must have virtual machine extensions enabled for your CPU. These
+are called VT-x for Intel and AMD-V for AMD systems. You&rsquo;ll also need to enable
+the Windows feature called <em>Virtual Machine Platform</em>. It&rsquo;s possible your system
+already has these settings enabled, but if not, Microsoft has a <a href="https://support.microsoft.com/en-us/windows/enable-virtualization-on-windows-11-pcs-c5578302-6e43-4b4b-a449-8ced115f58e1"target="_blank" rel="noopener">handy guide</a>
+for enabling the necessary features.</p>
+<p>You can install WSL from PowerShell or even from the <a href="https://apps.microsoft.com/detail/9p9tqf7mrm4r?hl=en-lk&amp;gl=LK"target="_blank" rel="noopener">Windows Store</a>,
+but I will follow the PowerShell installation method in this demo.</p>
+<p>Operations:</p>
+<ol>
+<li>open up PowerShell or a command prompt</li>
+<li>run <code>wsl --install -d Ubuntu</code></li>
+<li>reboot</li>
+</ol>
+<p>At this point, you should have WSL installed. You can start WSL in a variety of ways,
+but for now we&rsquo;ll just keep using the command prompt.
+Go ahead and type <code>wsl</code> at a PowerShell prompt to get a new Ubuntu shell.</p>
+<h3 id="use-cuda-from-wsl">
+  <a href="#use-cuda-from-wsl">Use CUDA from WSL</a>
+</h3>
+<p>NVIDIA has published specific instructions and even <a href="https://www.youtube.com/watch?v=JaHVsZa2jTc"target="_blank" rel="noopener">made a video</a>
+detailing how to utilize your video card from WSL. In order to compile CUDA code in WSL
+we need the CUDA compiler <code>nvcc</code> provided by the CUDA Toolkit; but otherwise
+the WSL installation can run CUDA code out of the box using the drivers already in Windows.
+This leads to an important detail of the next step: installing the GPU driver in WSL is not necessary!
+It requires some care on our part to avoid accidentally installing drivers alongside the CUDA Toolkit
+because doing so can cause problems when trying to run CUDA code in WSL.
+Thankfully, NVIDIA has made a specific set of downloads available for WSL Ubuntu installations
+that leave the driver installation out by default.</p>
+<p>Before we get to installing the toolkit, we should verify that we can access the
+video card using the <a href="https://www.nvidia.com/en-us/geforce/drivers/"target="_blank" rel="noopener">NVIDIA drivers</a>
+that are already installed in Windows. If you happen to update your drivers
+during this process, remember to close and restart WSL before going forward with
+the next steps.</p>
+<h4 id="test-wsl-access-to-gpu">
+  <a href="#test-wsl-access-to-gpu">Test WSL access to GPU</a>
+</h4>
+<ul>
+<li>Launch WSL</li>
+<li>Type <code>nvidia-smi</code> and examine the output</li>
+</ul>
+<details>
+    <summary><strong>(Example nvidia-smi output)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <pre tabindex="0"><code>+-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 560.31.01              Driver Version: 560.81         CUDA Version: 12.6     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 2070 ...    On  |   00000000:01:00.0  On |                  N/A |
+| 28%   35C    P5             18W /  215W |    1165MiB /   8192MiB |     25%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+</code></pre><p><strong>note:</strong> If you don&rsquo;t get this output check that <code>/usr/lib/wsl/lib/</code> exists and
+contains <code>nvidia-smi</code>. You may need to close and restart WSL.</p>
+    </div>
+</details>
+
+<h3 id="install-the-cuda-toolkit">
+  <a href="#install-the-cuda-toolkit">Install the CUDA Toolkit</a>
+</h3>
+<p>To compile CUDA programs, we are going to need the CUDA Toolkit installed in WSL.
+To avoid the additional complexity of getting a more recent version of LLVM on our
+Ubuntu distribution, we are going to use CUDA version 11.8, as using a newer
+version requires us to perform some <span class="sidenote"><label class="sidenote-label" for="sidenote-2">additional steps.</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-2"></input><span class="sidenote-content sidenote-right" style="margin-top: -5.5rem"><span class="sidenote-delimiter">[note:</span>
+  We'd need to have LLVM > 15 available for CUDA 12. If you're feeling up to the
+  task, installing LLVM >= 16 will allow for CUDA 12. You can read more about the
+  requirements from <a href="https://chapel-lang.org/docs/technotes/gpu.html#setup"> Chapel's
+  GPU setup notes</a>
+  <span class="sidenote-delimiter">]</span></span></span></p>
+<p>There are several ways to get the CUDA Toolkit; in this demonstration, we&rsquo;ll use
+the <a href="https://developer.nvidia.com/cuda-11-8-0-download-archive?target_os=Linux&amp;target_arch=x86_64&amp;Distribution=WSL-Ubuntu&amp;target_version=2.0&amp;target_type=runfile_local"target="_blank" rel="noopener">runfile published by NVIDIA</a>.
+The installation instructions are reproduced here for convenience:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+</span></span><span class="line"><span class="cl">sudo sh cuda_11.8.0_520.61.05_linux.run
+</span></span></code></pre></div><ul>
+<li>Accept the EULA</li>
+<li>Install default options selected (only need toolkit — <strong>do not install driver!</strong>)</li>
+<li>Ignore warning that says driver wasn&rsquo;t installed, if it comes up</li>
+</ul>
+<p>Follow Instructions to update local environment variables. These instructions will
+be given in the final output from the CUDA Toolkit install, but I am reproducing
+them here for completeness.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span>/usr/local/cuda-11.8/bin:<span class="nv">$PATH</span>
+</span></span><span class="line"><span class="cl"><span class="nb">export</span> <span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span>/usr/local/cuda-11.8/lib64:<span class="nv">$LD_LIBRARY_PATH</span>
+</span></span></code></pre></div><p>Note that if you close this Ubuntu shell you&rsquo;ll need to redo these export commands.
+You can avoid this by adding them to your <code>~/.bashrc</code> file so they will be automatically
+executed in every new Ubuntu shell. See the <code>chapel-wsl-demo.txt</code> file at the end
+for a list of commands used to set up this demo.</p>
+<h4 id="test-cuda-toolkit-installation-in-wsl">
+  <a href="#test-cuda-toolkit-installation-in-wsl">Test CUDA Toolkit installation in WSL</a>
+</h4>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/cuda-stream.cu download="cuda-stream.cu">cuda-stream.cu</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span><span class="lnt">118
+</span><span class="lnt">119
+</span><span class="lnt">120
+</span><span class="lnt">121
+</span><span class="lnt">122
+</span><span class="lnt">123
+</span><span class="lnt">124
+</span><span class="lnt">125
+</span><span class="lnt">126
+</span><span class="lnt">127
+</span><span class="lnt">128
+</span><span class="lnt">129
+</span><span class="lnt">130
+</span><span class="lnt">131
+</span><span class="lnt">132
+</span><span class="lnt">133
+</span><span class="lnt">134
+</span><span class="lnt">135
+</span><span class="lnt">136
+</span><span class="lnt">137
+</span><span class="lnt">138
+</span><span class="lnt">139
+</span><span class="lnt">140
+</span><span class="lnt">141
+</span><span class="lnt">142
+</span><span class="lnt">143
+</span><span class="lnt">144
+</span><span class="lnt">145
+</span><span class="lnt">146
+</span><span class="lnt">147
+</span><span class="lnt">148
+</span><span class="lnt">149
+</span><span class="lnt">150
+</span><span class="lnt">151
+</span><span class="lnt">152
+</span><span class="lnt">153
+</span><span class="lnt">154
+</span><span class="lnt">155
+</span><span class="lnt">156
+</span><span class="lnt">157
+</span><span class="lnt">158
+</span><span class="lnt">159
+</span><span class="lnt">160
+</span><span class="lnt">161
+</span><span class="lnt">162
+</span><span class="lnt">163
+</span><span class="lnt">164
+</span><span class="lnt">165
+</span><span class="lnt">166
+</span><span class="lnt">167
+</span><span class="lnt">168
+</span><span class="lnt">169
+</span><span class="lnt">170
+</span><span class="lnt">171
+</span><span class="lnt">172
+</span><span class="lnt">173
+</span><span class="lnt">174
+</span><span class="lnt">175
+</span><span class="lnt">176
+</span><span class="lnt">177
+</span><span class="lnt">178
+</span><span class="lnt">179
+</span><span class="lnt">180
+</span><span class="lnt">181
+</span><span class="lnt">182
+</span><span class="lnt">183
+</span><span class="lnt">184
+</span><span class="lnt">185
+</span><span class="lnt">186
+</span><span class="lnt">187
+</span><span class="lnt">188
+</span><span class="lnt">189
+</span><span class="lnt">190
+</span><span class="lnt">191
+</span><span class="lnt">192
+</span><span class="lnt">193
+</span><span class="lnt">194
+</span><span class="lnt">195
+</span><span class="lnt">196
+</span><span class="lnt">197
+</span><span class="lnt">198
+</span><span class="lnt">199
+</span><span class="lnt">200
+</span><span class="lnt">201
+</span><span class="lnt">202
+</span><span class="lnt">203
+</span><span class="lnt">204
+</span><span class="lnt">205
+</span><span class="lnt">206
+</span><span class="lnt">207
+</span><span class="lnt">208
+</span><span class="lnt">209
+</span><span class="lnt">210
+</span><span class="lnt">211
+</span><span class="lnt">212
+</span><span class="lnt">213
+</span><span class="lnt">214
+</span><span class="lnt">215
+</span><span class="lnt">216
+</span><span class="lnt">217
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">  STREAM benchmark implementation in CUDA.
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">    COPY:       a(i) = b(i)
+</span></span></span><span class="line"><span class="cl"><span class="cm">    SCALE:      a(i) = q*b(i)
+</span></span></span><span class="line"><span class="cl"><span class="cm">    SUM:        a(i) = b(i) + c(i)
+</span></span></span><span class="line"><span class="cl"><span class="cm">    TRIAD:      a(i) = b(i) + q*c(i)
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">  It measures the memory system on the device.
+</span></span></span><span class="line"><span class="cl"><span class="cm">  The implementation is in double precision.
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">  Code based on the code developed by John D. McCalpin
+</span></span></span><span class="line"><span class="cl"><span class="cm">  http://www.cs.virginia.edu/stream/FTP/Code/stream.c
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">  Written by: Massimiliano Fatica, NVIDIA Corporation
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">  Further modifications by: Ben Cumming, CSCS; Andreas Herten (JSC/FZJ)
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">  Additional modifications by: Ahmad Rezaii and Brad Chamberlain to
+</span></span></span><span class="line"><span class="cl"><span class="cm">  focus on the Triad kernel for this article
+</span></span></span><span class="line"><span class="cl"><span class="cm">*/</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cp">#define NTIMES  10
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;float.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;limits.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/time.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/time.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp"># ifndef MIN
+</span></span></span><span class="line"><span class="cl"><span class="cp"># define MIN(x,y) ((x)&lt;(y)?(x):(y))
+</span></span></span><span class="line"><span class="cl"><span class="cp"># endif
+</span></span></span><span class="line"><span class="cl"><span class="cp"># ifndef MAX
+</span></span></span><span class="line"><span class="cl"><span class="cp"># define MAX(x,y) ((x)&gt;(y)?(x):(y))
+</span></span></span><span class="line"><span class="cl"><span class="cp"># endif
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="kt">double</span> <span class="n">real</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">double</span>   <span class="n">avgtime</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">},</span> <span class="n">maxtime</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">        <span class="n">mintime</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">FLT_MAX</span><span class="p">,</span><span class="n">FLT_MAX</span><span class="p">,</span><span class="n">FLT_MAX</span><span class="p">,</span><span class="n">FLT_MAX</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">print_help</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;Usage: stream [-s] [-n &lt;elements&gt;] [-b &lt;blocksize&gt;]</span><span class="se">\n\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;  -s</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;        Print results in SI units (by default IEC units are used)</span><span class="se">\n\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;  -n &lt;elements&gt;</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;        Put &lt;elements&gt; values in the arrays</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;        (defaults to 1&lt;&lt;26)</span><span class="se">\n\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;  -b &lt;blocksize&gt;</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;        Use &lt;blocksize&gt; as the number of threads in each block</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;        (defaults to 192)</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">parse_options</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">,</span> <span class="kt">bool</span><span class="o">&amp;</span> <span class="n">SI</span><span class="p">,</span> <span class="kt">int</span><span class="o">&amp;</span> <span class="n">N</span><span class="p">,</span> <span class="kt">int</span><span class="o">&amp;</span> <span class="n">blockSize</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Default values
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">SI</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">N</span> <span class="o">=</span> <span class="mi">1</span><span class="o">&lt;&lt;</span><span class="mi">26</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">blockSize</span> <span class="o">=</span> <span class="mi">192</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">c</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">((</span><span class="n">c</span> <span class="o">=</span> <span class="n">getopt</span> <span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="s">&#34;sn:b:h&#34;</span><span class="p">))</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">switch</span> <span class="p">(</span><span class="n">c</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="sc">&#39;s&#39;</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">SI</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="sc">&#39;n&#39;</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">N</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">atoi</span><span class="p">(</span><span class="n">optarg</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="sc">&#39;b&#39;</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">blockSize</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">atoi</span><span class="p">(</span><span class="n">optarg</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="sc">&#39;h&#39;</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">print_help</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">                <span class="n">std</span><span class="o">::</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">default</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">print_help</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">                <span class="n">std</span><span class="o">::</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* A gettimeofday routine to give access to the wall
+</span></span></span><span class="line"><span class="cl"><span class="cm">   clock timer on most UNIX-like systems.  */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">double</span> <span class="nf">mysecond</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="nc">timeval</span> <span class="n">tp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="nc">timezone</span> <span class="n">tzp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">gettimeofday</span><span class="p">(</span><span class="o">&amp;</span><span class="n">tp</span><span class="p">,</span><span class="o">&amp;</span><span class="n">tzp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="n">tp</span><span class="p">.</span><span class="n">tv_sec</span> <span class="o">+</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="n">tp</span><span class="p">.</span><span class="n">tv_usec</span> <span class="o">*</span> <span class="mf">1.e-6</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="n">__global__</span> <span class="kt">void</span> <span class="n">set_array</span><span class="p">(</span><span class="n">T</span> <span class="o">*</span> <span class="n">__restrict__</span> <span class="k">const</span> <span class="n">a</span><span class="p">,</span> <span class="n">T</span> <span class="n">value</span><span class="p">,</span> <span class="kt">int</span> <span class="n">len</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">threadIdx</span><span class="p">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">blockIdx</span><span class="p">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">blockDim</span><span class="p">.</span><span class="n">x</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">idx</span> <span class="o">&lt;</span> <span class="n">len</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">a</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="n">__global__</span> <span class="kt">void</span> <span class="n">STREAM_Triad</span><span class="p">(</span><span class="n">T</span><span class="o">*</span> <span class="n">a</span><span class="p">,</span> <span class="n">T</span><span class="o">*</span> <span class="n">b</span><span class="p">,</span> <span class="n">T</span><span class="o">*</span> <span class="n">c</span><span class="p">,</span> <span class="n">T</span> <span class="n">scalar</span><span class="p">,</span> <span class="kt">int</span> <span class="n">len</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">threadIdx</span><span class="p">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">blockIdx</span><span class="p">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">blockDim</span><span class="p">.</span><span class="n">x</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">idx</span> <span class="o">&lt;</span> <span class="n">len</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">c</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">scalar</span> <span class="o">*</span> <span class="n">b</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">real</span> <span class="o">*</span><span class="n">d_a</span><span class="p">,</span> <span class="o">*</span><span class="n">d_b</span><span class="p">,</span> <span class="o">*</span><span class="n">d_c</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">j</span><span class="p">,</span><span class="n">k</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">double</span> <span class="n">times</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="n">NTIMES</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="n">real</span> <span class="n">scalar</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="n">label</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">label</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="s">&#34;Copy:      &#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">label</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="s">&#34;Scale:      &#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">label</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="s">&#34;Add:      &#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">label</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="s">&#34;Triad:      &#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Parse arguments
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">bool</span> <span class="n">SI</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">N</span><span class="p">,</span> <span class="n">blockSize</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">parse_options</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="n">SI</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">blockSize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34; STREAM Benchmark implementation in CUDA</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34; Array size (%s precision) =%7.2f MB</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="o">==</span><span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span><span class="o">?</span><span class="s">&#34;double&#34;</span><span class="o">:</span><span class="s">&#34;single&#34;</span><span class="p">,</span> <span class="kt">double</span><span class="p">(</span><span class="n">N</span><span class="p">)</span><span class="o">*</span><span class="kt">double</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">))</span><span class="o">/</span><span class="mf">1.e6</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* Allocate memory on device */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cudaMalloc</span><span class="p">((</span><span class="kt">void</span><span class="o">**</span><span class="p">)</span><span class="o">&amp;</span><span class="n">d_a</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span><span class="o">*</span><span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cudaMalloc</span><span class="p">((</span><span class="kt">void</span><span class="o">**</span><span class="p">)</span><span class="o">&amp;</span><span class="n">d_b</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span><span class="o">*</span><span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cudaMalloc</span><span class="p">((</span><span class="kt">void</span><span class="o">**</span><span class="p">)</span><span class="o">&amp;</span><span class="n">d_c</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span><span class="o">*</span><span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* Compute execution configuration */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">dim3</span> <span class="n">dimBlock</span><span class="p">(</span><span class="n">blockSize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">dim3</span> <span class="n">dimGrid</span><span class="p">(</span><span class="n">N</span><span class="o">/</span><span class="n">dimBlock</span><span class="p">.</span><span class="n">x</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span> <span class="n">N</span> <span class="o">%</span> <span class="n">dimBlock</span><span class="p">.</span><span class="n">x</span> <span class="o">!=</span> <span class="mi">0</span> <span class="p">)</span> <span class="n">dimGrid</span><span class="p">.</span><span class="n">x</span><span class="o">+=</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34; using %d threads per block, %d blocks</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span><span class="n">dimBlock</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="n">dimGrid</span><span class="p">.</span><span class="n">x</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">SI</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">printf</span><span class="p">(</span><span class="s">&#34; output in SI units (KB = 1000 B)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span>
+</span></span><span class="line"><span class="cl">        <span class="n">printf</span><span class="p">(</span><span class="s">&#34; output in IEC units (KiB = 1024 B)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* Initialize memory on the device */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">set_array</span><span class="o">&lt;</span><span class="n">real</span><span class="o">&gt;&lt;&lt;&lt;</span><span class="n">dimGrid</span><span class="p">,</span><span class="n">dimBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="n">d_a</span><span class="p">,</span> <span class="mf">2.f</span><span class="p">,</span> <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">set_array</span><span class="o">&lt;</span><span class="n">real</span><span class="o">&gt;&lt;&lt;&lt;</span><span class="n">dimGrid</span><span class="p">,</span><span class="n">dimBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="n">d_b</span><span class="p">,</span> <span class="mf">.5f</span><span class="p">,</span> <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">set_array</span><span class="o">&lt;</span><span class="n">real</span><span class="o">&gt;&lt;&lt;&lt;</span><span class="n">dimGrid</span><span class="p">,</span><span class="n">dimBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="n">d_c</span><span class="p">,</span> <span class="mf">.5f</span><span class="p">,</span> <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/*  --- MAIN LOOP --- repeat test cases NTIMES times --- */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">scalar</span><span class="o">=</span><span class="mf">3.0f</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">k</span><span class="o">&lt;</span><span class="n">NTIMES</span><span class="p">;</span> <span class="n">k</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">times</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">=</span> <span class="n">mysecond</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">        <span class="n">STREAM_Triad</span><span class="o">&lt;</span><span class="n">real</span><span class="o">&gt;&lt;&lt;&lt;</span><span class="n">dimGrid</span><span class="p">,</span><span class="n">dimBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="n">d_b</span><span class="p">,</span> <span class="n">d_c</span><span class="p">,</span> <span class="n">d_a</span><span class="p">,</span> <span class="n">scalar</span><span class="p">,</span>  <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">cudaDeviceSynchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">        <span class="n">times</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">=</span> <span class="n">mysecond</span><span class="p">()</span> <span class="o">-</span>  <span class="n">times</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">k</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/*  --- SUMMARY --- */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span> <span class="n">k</span><span class="o">&lt;</span><span class="n">NTIMES</span><span class="p">;</span> <span class="n">k</span><span class="o">++</span><span class="p">)</span> <span class="cm">/* note -- skip first iteration */</span>
+</span></span><span class="line"><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">j</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">avgtime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">avgtime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">times</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">k</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">            <span class="n">mintime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">MIN</span><span class="p">(</span><span class="n">mintime</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">times</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">k</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">            <span class="n">maxtime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">MAX</span><span class="p">(</span><span class="n">maxtime</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">times</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">k</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">double</span> <span class="n">bytes</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="mi">2</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">N</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="mi">2</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">N</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="mi">3</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">N</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="mi">3</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">real</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">N</span>
+</span></span><span class="line"><span class="cl">    <span class="p">};</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Use right units
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">const</span> <span class="kt">double</span> <span class="n">G</span> <span class="o">=</span> <span class="n">SI</span> <span class="o">?</span> <span class="mf">1.e9</span> <span class="o">:</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="mi">30</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;</span><span class="se">\n</span><span class="s">Function      Rate %s  Avg time(s)  Min time(s)  Max time(s)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">           <span class="n">SI</span> <span class="o">?</span> <span class="s">&#34;(GB/s) &#34;</span> <span class="o">:</span> <span class="s">&#34;(GiB/s)&#34;</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;-----------------------------------------------------------------</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="mi">3</span><span class="p">;</span> <span class="n">j</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">avgtime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">avgtime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="kt">double</span><span class="p">)(</span><span class="n">NTIMES</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">printf</span><span class="p">(</span><span class="s">&#34;%s%11.4f     %11.8f  %11.8f  %11.8f</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">label</span><span class="p">[</span><span class="n">j</span><span class="p">].</span><span class="n">c_str</span><span class="p">(),</span>
+</span></span><span class="line"><span class="cl">                <span class="n">bytes</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">/</span><span class="n">mintime</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">G</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">avgtime</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">                <span class="n">mintime</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">                <span class="n">maxtime</span><span class="p">[</span><span class="n">j</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* Free memory on device */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cudaFree</span><span class="p">(</span><span class="n">d_a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cudaFree</span><span class="p">(</span><span class="n">d_b</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cudaFree</span><span class="p">(</span><span class="n">d_c</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>Save the code sample above as <code>cuda-stream.cu</code> and compile it using <code>nvcc</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">nvcc -O3 -o cuda-stream cuda-stream.cu
+</span></span></code></pre></div><p>The <code>-O3</code> flag tells the compiler to perform all the optimizations and <code>-o</code> just
+gives our output file a good name other than the default, <code>a.out</code>.</p>
+<p>Now run the compiled binary:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">./cuda-stream -s -b <span class="m">512</span>
+</span></span></code></pre></div><p>Here the <code>-s</code> tells <code>cuda-stream</code> to write the output in SI units (e.g., KB as opposed to KiB),
+and the <code>-b 512</code> sets the block size to 512 threads per block, which matches
+Chapel&rsquo;s default.</p>
+<p>You should see some output like this:</p>
+<pre tabindex="0"><code class="language-terminal" data-lang="terminal"> STREAM Benchmark implementation in CUDA
+ Array size (double precision) = 536.87 MB
+ using 512 threads per block, 131072 blocks
+ output in SI units (KB = 1000 B)
+
+Function      Rate (GB/s)   Avg time(s)  Min time(s)  Max time(s)
+-----------------------------------------------------------------
+Triad:         399.5623      0.00418501   0.00403094   0.00468612
+</code></pre><p>Note that the memory throughput reported by <code>cuda-stream</code> is about 400 GB/s,
+roughly 11% less than the theoretical maximum of 448 GB/s for the NVIDIA 2070 Super
+we looked up earlier.</p>
+<p>If you were able to compile and run the sample program, then we are ready for the
+next (and final) steps, building Chapel with GPU support.</p>
+<h3 id="build-chapel-with-gpu-support">
+  <a href="#build-chapel-with-gpu-support">Build Chapel with GPU support</a>
+</h3>
+<h4 id="prepare-for-chapel">
+  <a href="#prepare-for-chapel">Prepare for Chapel</a>
+</h4>
+<p>To prepare our new Ubuntu instance for Chapel, there are some packages we&rsquo;ll
+need to install. The easiest way to do this is to grab the list of packages from
+the <a href="https://chapel-lang.org/docs/usingchapel/prereqs.html#installation"target="_blank" rel="noopener">Chapel documentation</a>.
+I have posted the commands for Ubuntu 22.04 from the Chapel documentation here
+for convenience.</p>
+<p>This will install all the things we need to build the Chapel compiler and runtime
+in a later step.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">sudo apt-get update
+</span></span><span class="line"><span class="cl">sudo apt-get install gcc g++ m4 perl python3 python3-dev bash make mawk git pkg-config cmake
+</span></span><span class="line"><span class="cl">sudo apt-get install llvm-dev llvm clang libclang-dev libclang-cpp-dev libedit-dev
+</span></span></code></pre></div><h4 id="acquire-chapel-sources">
+  <a href="#acquire-chapel-sources">Acquire Chapel sources</a>
+</h4>
+<p>We are going to need a copy of the Chapel sources to build from. This demonstration
+relies on portability features that were first released with Chapel 2.0, which you can
+read more about in <a href="https://chapel-lang.org/blog/posts/announcing-chapel-2.0/"target="_blank" rel="noopener">its release announcement</a>.
+The sources for all Chapel releases are available from <a href="https://github.com/chapel-lang/chapel/releases"target="_blank" rel="noopener">the releases page</a>.
+Version 2.1 is the latest release at the time of this writing.</p>
+<p>In your WSL shell, these commands will download and extract the Chapel source code
+into a new directory named &lsquo;chapel-2.1.0&rsquo;.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">wget https://github.com/chapel-lang/chapel/releases/download/2.1.0/chapel-2.1.0.tar.gz
+</span></span><span class="line"><span class="cl">tar -xzf chapel-2.1.0.tar.gz
+</span></span></code></pre></div><p>Go ahead and move into the <code>chapel-2.1.0</code> directory now.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">cd</span> chapel-2.1.0
+</span></span></code></pre></div><p>Next, we&rsquo;ll configure and build Chapel.</p>
+<h4 id="configure-and-build-chapel">
+  <a href="#configure-and-build-chapel">Configure and build Chapel</a>
+</h4>
+<p>Starting from the <code>chapel-2.1.0</code> directory, we&rsquo;ll set some environment variables
+and build Chapel.</p>
+<p>First, source the configuration script <code>util/setchplenv.bash</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">source</span> util/setchplenv.bash
+</span></span></code></pre></div><p>This will set up the <code>CHPL_HOME</code> directory and add the output <code>bin</code> directory to
+the system <code>PATH</code>. This ensures the Chapel compiler <code>chpl</code> is available without
+having to know the full path when we want to <span class="sidenote"><label class="sidenote-label" for="sidenote-3">use it later</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-3"></input><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>
+Note that each <code>export</code> or <code>source</code> command only affects the current terminal,
+so as with setting the environment variables for CUDA before, you can either perform
+these steps each time you open a new terminal, or configure the system to do that
+for you by placing these lines in your <code>.bashrc</code> file, typically located at <code>~/.bashrc</code>.
+See the <code>chapel-wsl-demo.txt</code> file at the end of this post for a list of all the
+commands used to set up this demo.
+<span class="sidenote-delimiter">]</span></span></span>.
+Because we want to build Chapel with GPU support, we need to set a few other
+environment variables to configure the Chapel compiler and runtime.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">export</span> <span class="nv">CHPL_LLVM</span><span class="o">=</span>system
+</span></span><span class="line"><span class="cl"><span class="nb">export</span> <span class="nv">CHPL_LOCALE_MODEL</span><span class="o">=</span>gpu
+</span></span></code></pre></div><p>The first line tells Chapel to use the LLVM we installed earlier as the code
+generation backend. LLVM is required when building Chapel with GPU support.
+Setting the <span class="sidenote"><label class="sidenote-label" for="sidenote-4">locale model</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-4"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+  The locale model is an abstraction for how a computer's processors and memory
+  are exposed to a Chapel program, and it is a defining feature of Chapel. Other blog posts that discuss locales are <a href="../../posts/aoc2022-day13-wrap-up/#chapels-locales-and-their-role-in-supporting-distributed-parallelism">Advent of Code 2022</a>
+  and <a href="../../posts/intro-to-gpus/#locales-and-on-statements-the-foundation-of-chapel">Intro to GPUs</a>.
+  <span class="sidenote-delimiter">]</span></span></span>
+to <code>gpu</code> is essentially the big switch that tells Chapel to use the GPU for eligible
+portions of your Chapel code. See the <a href="https://chapel-lang.org/docs/technotes/gpu.html#overview"target="_blank" rel="noopener">documentation</a>
+for more information about loop structures that are eligible for GPU locales.</p>
+<p>At this point, it might be useful to run <code>printchplenv</code> to see the various environment
+variables and values that Chapel will build and run with. The descriptions and
+more details about the individual variables are available in the Chapel documentation
+that describes <a href="https://chapel-lang.org/docs/usingchapel/chplenv.html"target="_blank" rel="noopener">setting up your environment</a>.
+Most of these should not need to be adjusted from whatever the Chapel environment
+scripts selected for your system, but let&rsquo;s look at a few of the important
+ones for our setup, <code>CHPL_LLVM</code>, <code>CHPL_GPU</code>, and <code>CHPL_LOCALE_MODEL</code>.</p>
+<pre tabindex="0"><code class="language-terminal" data-lang="terminal">CHPL_LOCALE_MODEL: gpu *
+  CHPL_GPU: nvidia
+...
+CHPL_LLVM: system *
+</code></pre><p>Notice that the build scripts correctly detected that we&rsquo;re using an NVIDIA GPU,
+and that the output indicates values we&rsquo;ve explicitly set in the environment with an <code>*</code>.</p>
+<details>
+    <summary><strong>(Full output of my <code>printchplenv</code>, for the curious reader)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <pre tabindex="0"><code>machine info: Linux HECTOR 5.15.133.1-microsoft-standard-WSL2 #1 SMP Thu Oct 5 21:02:42 UTC 2023 x86_64
+CHPL_HOME: /home/ahmad/chapel-2.1.0 *
+script location: /home/ahmad/chapel-2.1.0/util/chplenv
+CHPL_TARGET_PLATFORM: linux64
+CHPL_TARGET_COMPILER: llvm
+CHPL_TARGET_ARCH: x86_64
+CHPL_TARGET_CPU: native
+CHPL_LOCALE_MODEL: gpu *
+  CHPL_GPU: nvidia
+CHPL_COMM: none
+CHPL_TASKS: qthreads
+CHPL_LAUNCHER: none
+CHPL_TIMERS: generic
+CHPL_UNWIND: none
+CHPL_MEM: jemalloc
+CHPL_ATOMICS: cstdlib
+CHPL_GMP: bundled
+CHPL_HWLOC: bundled
+CHPL_RE2: bundled
+CHPL_LLVM: system *
+CHPL_AUX_FILESYS: none
+</code></pre>
+    </div>
+</details>
+
+<p>Now we just need to build Chapel with the <code>make</code> command. I recommend a parallel
+build using the <code>-j</code> option limited to the number of cores on your system. We can
+use the <code>nproc</code> utility to determine the number of cores available, and if we have
+sufficient memory available on the PC, we should be able to just use all the cores.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">make -j<span class="sb">`</span>nproc<span class="sb">`</span>
+</span></span></code></pre></div><h3 id="measure-gpu-memory-bandwidth-using-chapel">
+  <a href="#measure-gpu-memory-bandwidth-using-chapel">Measure GPU memory bandwidth using Chapel</a>
+</h3>
+<p>Once Chapel is built, we are ready to compile and run our example code!</p>
+<p>The <code>chapel-stream</code> code is an implementation of the STREAM Triad benchmark that
+has been adapted from similar examples in C++ and CUDA. Recall from the introduction
+that it is a synthetic benchmark to measure memory bandwidth. You can read more
+about data movement and GPU programming with Chapel in earlier posts from the <a href="../../series/gpu-programming-in-chapel/">GPU Programming</a> series that this article is a part of.</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/chapel-stream.chpl download="chapel-stream.chpl">chapel-stream.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span><span class="lnt">118
+</span><span class="lnt">119
+</span><span class="lnt">120
+</span><span class="lnt">121
+</span><span class="lnt">122
+</span><span class="lnt">123
+</span><span class="lnt">124
+</span><span class="lnt">125
+</span><span class="lnt">126
+</span><span class="lnt">127
+</span><span class="lnt">128
+</span><span class="lnt">129
+</span><span class="lnt">130
+</span><span class="lnt">131
+</span><span class="lnt">132
+</span><span class="lnt">133
+</span><span class="lnt">134
+</span><span class="lnt">135
+</span><span class="lnt">136
+</span><span class="lnt">137
+</span><span class="lnt">138
+</span><span class="lnt">139
+</span><span class="lnt">140
+</span><span class="lnt">141
+</span><span class="lnt">142
+</span><span class="lnt">143
+</span><span class="lnt">144
+</span><span class="lnt">145
+</span><span class="lnt">146
+</span><span class="lnt">147
+</span><span class="lnt">148
+</span><span class="lnt">149
+</span><span class="lnt">150
+</span><span class="lnt">151
+</span><span class="lnt">152
+</span><span class="lnt">153
+</span><span class="lnt">154
+</span><span class="lnt">155
+</span><span class="lnt">156
+</span><span class="lnt">157
+</span><span class="lnt">158
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Use standard modules for timing routines and type utility functions
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">use</span><span class="w"> </span><span class="nx">Time</span><span class="p">,</span><span class="w"> </span><span class="nx">Types</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Use a common HPCC user module containing helper routines
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">use</span><span class="w"> </span><span class="nx">HPCCProblemSize</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Whether to use SI units (true == GB, false == GiB)
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">SI</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Capture an alias for the host CPU where we start execution
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// The number of vectors and element type of those vectors
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">numVectors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">type</span><span class="w"> </span><span class="nx">elemType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Configuration constants to set the problem size (m) and the scalar
+</span></span></span><span class="line"><span class="cl"><span class="c1">// multiplier (alpha)
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="mi">26</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Configuration constants to set the number of trials to run and the
+</span></span></span><span class="line"><span class="cl"><span class="c1">// amount of error to permit in the verification
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">numTrials</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">epsilon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Configuration constants to control what&#39;s printed -- benchmark
+</span></span></span><span class="line"><span class="cl"><span class="c1">// parameters, input and output arrays, and/or statistics
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">printParams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">printArrays</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">printStats</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// The program entry point
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">printConfiguration</span><span class="p">();</span><span class="w">  </span><span class="c1">// print the problem size, number of trials, etc.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// Move execution from the host CPU to the initial GPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// ProblemSpace describes the index set for the three vectors.  It
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// is a 1D domain that has indices 1 through m.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">ProblemSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">m</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// A, B, and C are the three vectors, declared to store a variable of type
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// elemType for each index in ProblemSpace. As they are local to the `on`
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// statement that executes on the GPU, the memory for these arrays will be
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// allocated in GPU-accessible memory.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">ProblemSpace</span><span class="p">]</span><span class="w"> </span><span class="nx">elemType</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">initVectors</span><span class="p">(</span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">);</span><span class="w">  </span><span class="c1">// Initialize the input vectors, B and C
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">execTime</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">numTrials</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">  </span><span class="c1">// an array of timings
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">trial</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">numTrials</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// loop over the trials
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">// Capture the start time
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">startTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">timeSinceEpoch</span><span class="p">().</span><span class="nx">totalSeconds</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">// The main loop: Iterate over the vectors A, B, and C in a
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">// parallel, zippered manner referring to the elements as a, b, and c.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">// Compute the multiply-add on b and c, storing the result to a.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">// This forall loop will be offloaded onto the GPU.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">alpha</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">c</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">// Store the elapsed time
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="nx">execTime</span><span class="p">(</span><span class="nx">trial</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">timeSinceEpoch</span><span class="p">().</span><span class="nx">totalSeconds</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">startTime</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">on</span><span class="w"> </span><span class="nx">host</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">printResults</span><span class="p">(</span><span class="nx">execTime</span><span class="p">);</span><span class="w">      </span><span class="c1">// ...and print the results
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Print the problem size and number of trials
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">printConfiguration</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">printParams</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printProblemSize</span><span class="p">(</span><span class="nx">elemType</span><span class="p">,</span><span class="w"> </span><span class="nx">numVectors</span><span class="p">,</span><span class="w"> </span><span class="nx">m</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Number of trials = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">numTrials</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;\n&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Initialize vectors B and C using arbitrary values, and
+</span></span></span><span class="line"><span class="cl"><span class="c1">// optionally print them to the console
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">initVectors</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">C</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">B</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">C</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">printArrays</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;B is: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;\n&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;C is: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;\n&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Print out the timings and the throughput
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">printResults</span><span class="p">(</span><span class="nx">execTimes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">printStats</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">totalTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">minTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">maxTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">min</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">execTimes</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// note: skip the first iteration
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="nx">totalTime</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">t</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">minTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">min</span><span class="p">(</span><span class="nx">minTime</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">maxTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="nx">maxTime</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">avgTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">totalTime</span><span class="o">/</span><span class="p">(</span><span class="nx">numTrials</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Execution time:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;  avg = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">avgTime</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;  min = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">minTime</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;  max = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">maxTime</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">SI</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">GBPerSec</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">numVectors</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">numBytes</span><span class="p">(</span><span class="nx">elemType</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">minTime</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e-9</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Performance (GB/s) = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">GBPerSec</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">GiBPerSec</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">numVectors</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">numBytes</span><span class="p">(</span><span class="nx">elemType</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">minTime</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="mi">30</span><span class="p">):</span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Performance (GiB/s) = &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">GiBPerSec</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>Now let&rsquo;s compile the example program! Whenever we want to evaluate the performance
+of a Chapel program, it&rsquo;s imperative that we compile with the <code>--fast</code> flag. You
+can read more about this flag and others in the list of <a href="https://chapel-lang.org/docs/usingchapel/compiling.html#most-useful-flags"target="_blank" rel="noopener">most useful flags</a>.</p>
+<p>Run the Chapel compiler, <code>chpl</code>, telling it to look for additional modules in the
+<code>examples</code> directory with the use of the <code>-M</code> flag. This is important because our
+<code>chapel-stream</code> program makes use of a module that is not in Chapel&rsquo;s standard or package
+libraries.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">chpl chapel-stream.chpl --fast -M<span class="o">=</span><span class="nv">$CHPL_HOME</span>/examples/benchmarks/hpcc
+</span></span></code></pre></div><details>
+    <summary><strong>(Error message and explanation when <code>-M</code> is not included or path is not found)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>When trying to compile a Chapel program, you may encounter an error similar to the
+following if all the source code isn&rsquo;t in the same directory:</p>
+<pre tabindex="0"><code class="language-terminal" data-lang="terminal">chapel-stream.chpl:10: error: cannot find module or enum named &#39;HPCCProblemSize&#39;
+</code></pre><p>The error is telling us about a missing module or enum named <code>HPCCProblemSize</code>.
+If we look at the code in <code>chapel-stream.chpl</code> around line 9, we can see that
+it is bringing another module into scope with the <code>use HPCCProblemSize;</code> statement.</p>
+<div data-code-type="main" data-code-section="first">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Use a common HPCC user module containing helper routines
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">use</span><span class="w"> </span><span class="nx">HPCCProblemSize</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>The problem is that we have either asked Chapel to load a user-defined module without
+telling it where to find it, or the path we gave was not found. To fix the error, we can set or
+update the environment variable, <a href="https://chapel-lang.org/docs/usingchapel/chplenv.html#chpl-module-path"target="_blank" rel="noopener"><code>CHPL_MODULE_PATH</code></a>,
+or pass the <code>-M</code> flag with the correct path to our modules when we compile our programs.</p>
+
+    </div>
+</details>
+
+<p>Finally, we are ready to run the <code>chapel-stream</code> executable using our GPU!</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">./chapel-stream
+</span></span></code></pre></div><pre tabindex="0"><code class="language-terminal" data-lang="terminal">Problem size = 67108864 (2**26)
+Bytes per array = 536870912
+Total memory required (GB) = 1.5
+Number of trials = 10
+
+Execution time:
+  avg = 0.00423325
+  min = 0.0041151
+  max = 0.00458097
+Performance (GB/s) = 391.39
+</code></pre><p>Success! We have executed the compiled program on our NVIDIA GPU, and we never
+had to use anything more than regular Chapel code to do it!</p>
+<p>Let&rsquo;s look at how the performance compares with our initial check using the CUDA implementation.
+The throughput for each is very similar on my machine, although the
+exact value can vary. Both programs consistently report ~385–400 GB/s when performing
+the STREAM Triad benchmark on 2^26, or about 67.1 million elements.</p>
+<p>Note that this same Chapel code runs on AMD GPUs as written! If you have
+access to a machine to try it on, I encourage you to check it out. See the
+<a href="https://chapel-lang.org/docs/technotes/gpu.html#vendor-portability"target="_blank" rel="noopener">vendor portability</a>
+section of the GPU technote for more information.</p>
+<h3 id="next-steps-and-additional-exploration">
+  <a href="#next-steps-and-additional-exploration">Next steps and additional exploration</a>
+</h3>
+<p>At this point, we have demonstrated that we can use Chapel to write code in WSL that
+runs directly on your NVIDIA GPU hosted in Windows. We have also shown that Chapel&rsquo;s
+GPU performance has the capacity to match lower-level CUDA code in the STREAM Triad benchmark.</p>
+<p>Recall that STREAM Triad is a relatively simple algorithm we used to
+demonstrate Chapel&rsquo;s ability to write cross-platform capable code that performs similarly to native CUDA implementations — but Chapel is capable of so much more!</p>
+<p>Check out these other excellent blog entries to see how you can use Chapel to put your gaming system to work for you, for science, or wherever your creativity leads you! The first two articles provide more information on writing Chapel programs that target the GPU, and the third gives an example of a problem that can be adapted to improve large-scale performance by exploiting the overwhelming core counts of the GPU. Happy coding!</p>
+<ul>
+<li><a href="../../posts/intro-to-gpus/">Introduction to GPU Programming in Chapel</a></li>
+<li><a href="../../posts/gpu-data-movement/">Data Movement on the GPU</a></li>
+<li><a href="../../posts/bns1/">Introduction to Navier-Stokes in Chapel</a></li>
+</ul>
+<p>For more information and other <a href="https://chapel-lang.org/docs/technotes/gpu.html#examples"target="_blank" rel="noopener">examples</a>,
+<a href="https://chapel-lang.org/docs/technotes/gpu.html#benchmark-examples"target="_blank" rel="noopener">benchmarks</a> and
+<a href="https://chapel-lang.org/docs/technotes/gpu.html#test-examples"target="_blank" rel="noopener">tests</a>, see the
+<a href="https://chapel-lang.org/docs/technotes/gpu.html"target="_blank" rel="noopener">GPU technote</a>.</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/chapel-wsl-demo.txt download="chapel-wsl-demo.txt">chapel-wsl-demo.txt</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl"># This is a list of the commands used in the Chapel NVIDIA WSL demo.
+</span></span><span class="line"><span class="cl"># These steps assume that you have already installed the NVIDIA driver in Windows
+</span></span><span class="line"><span class="cl"># and have enabled WSL2 with an Ubuntu distribution. These should be run in an
+</span></span><span class="line"><span class="cl"># Ubuntu terminal. Except for those that are explicitly stated to be added to
+</span></span><span class="line"><span class="cl"># the ~/.bashrc file, these commands should not need to be run again after the
+</span></span><span class="line"><span class="cl"># initial setup.
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Download CUDA
+</span></span><span class="line"><span class="cl">wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Install CUDA
+</span></span><span class="line"><span class="cl">sudo sh cuda_11.8.0_520.61.05_linux.run
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Get Chapel Dependencies
+</span></span><span class="line"><span class="cl">sudo apt-get update
+</span></span><span class="line"><span class="cl">sudo apt-get install gcc g++ m4 perl python3 python3-dev bash make mawk git pkg-config cmake
+</span></span><span class="line"><span class="cl">sudo apt-get install llvm-dev llvm clang libclang-dev libclang-cpp-dev libedit-dev
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Setup ENV for CUDA compilation - Add to ~/.bashrc
+</span></span><span class="line"><span class="cl">export PATH=/usr/local/cuda-11.8/bin:$PATH
+</span></span><span class="line"><span class="cl">export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Download Chapel
+</span></span><span class="line"><span class="cl">wget https://github.com/chapel-lang/chapel/releases/download/2.1.0/chapel-2.1.0.tar.gz
+</span></span><span class="line"><span class="cl">tar -xzf chapel-2.1.0.tar.gz
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Setup ENV for Chapel compilation - Add to ~/.bashrc
+</span></span><span class="line"><span class="cl">export CHPL_LLVM=system
+</span></span><span class="line"><span class="cl">export CHPL_LOCALE_MODEL=gpu
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"># Build Chapel
+</span></span><span class="line"><span class="cl">cd chapel-2.1.0
+</span></span><span class="line"><span class="cl"># This command adds `chpl` to the PATH and sets CHPL_HOME
+</span></span><span class="line"><span class="cl">source util/setchplenv.bash
+</span></span><span class="line"><span class="cl">make -j`nproc`
+</span></span><span class="line"><span class="cl">cd -
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Measure&#43;the&#43;Performance&#43;of&#43;your&#43;Gaming&#43;GPU&#43;with&#43;Chapel&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnvidia-gpu-wsl%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Measure&#43;the&#43;Performance&#43;of&#43;your&#43;Gaming&#43;GPU&#43;with&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnvidia-gpu-wsl%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Measure&#43;the&#43;Performance&#43;of&#43;your&#43;Gaming&#43;GPU&#43;with&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnvidia-gpu-wsl%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Measure&#43;the&#43;Performance&#43;of&#43;your&#43;Gaming&#43;GPU&#43;with&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fnvidia-gpu-wsl%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/gpu-data-movement/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Chapel&#39;s High-Level Support for CPU-GPU Data Transfers and Multi-GPU Programming
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+    </nav>
+
+
+    </body>
+</html>

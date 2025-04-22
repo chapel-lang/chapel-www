@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A summary of highlights from the December 2022 release of Chapel 1.29.0">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Announcing Chapel 1.29.0!</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Announcing Chapel 1.29.0!</h2>
+<div class="post-subscript">
+    <p>Posted on December 15, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/release-announcements">Release Announcements</a>
+        
+        <a class="button" href="../../tags/dyno">Dyno</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#highlights-of-chapel-1290">Highlights of Chapel 1.29.0</a>
+      <ul>
+        <li><a href="#compilation-times">Compilation Times</a></li>
+        <li><a href="#optimized-performance">Optimized Performance</a></li>
+        <li><a href="#library-stabilization">Library Stabilization</a></li>
+        <li><a href="#better-error-messages-via-dyno">Better Error Messages via &lsquo;dyno&rsquo;</a></li>
+        <li><a href="#overload-resolution">Overload Resolution</a></li>
+        <li><a href="#notable-bug-fixes">Notable Bug Fixes</a></li>
+      </ul>
+    </li>
+    <li><a href="#experimental-features">Experimental Features</a></li>
+    <li><a href="#for-more-information">For More Information</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Today, the Chapel developer community is pleased to announce the
+release of version 1.29.0 of Chapel!  To obtain a copy, please refer
+to the <a href="https://chapel-lang.org/download.html"target="_blank" rel="noopener">Downloading Chapel</a>
+page on the Chapel website.</p>
+<h3 id="highlights-of-chapel-1290">
+  <a href="#highlights-of-chapel-1290">Highlights of Chapel 1.29.0</a>
+</h3>
+<h4 id="compilation-times">
+  <a href="#compilation-times">Compilation Times</a>
+</h4>
+<p>This version of Chapel includes a change to how the <code>chpl</code> compiler
+is built, causing it to use <code>jemalloc</code> by default on all platforms
+other than Mac and Cygwin.  We&rsquo;ve found this to result in a
+significant compile-time savings on average, as can be seen on
+October 10th in our <a href="https://chapel-lang.org/perf/comp-default/?startdate=2022/09/06&amp;enddate=2022/12/07&amp;graphs=averagetotalcompilationtime"target="_blank" rel="noopener">nightly performance graph tracking average
+compilation
+times</a>
+across the Chapel test suite.</p>
+<h4 id="optimized-performance">
+  <a href="#optimized-performance">Optimized Performance</a>
+</h4>
+<p>In terms of the performance of Chapel programs themselves, version
+1.29.0 includes improvements to the performance and scalability of
+<a href="https://chapel-lang.org/perf/16-node-cs-hdr/?startdate=2022/10/09&amp;enddate=2022/12/14&amp;configs=ofi&amp;graphs=creatingdistributeddomains,creatingdistributedarrays1elementperlocale"target="_blank" rel="noopener">creating distributed domains and
+arrays</a>.
+In practice, these improvements have been shown to improve execution
+time of user applications that create and destroy arrays frequently,
+such as
+<a href="https://github.com/Bears-R-Us/arkouda/blob/master/README.md"target="_blank" rel="noopener">Arkouda</a>.</p>
+<h4 id="library-stabilization">
+  <a href="#library-stabilization">Library Stabilization</a>
+</h4>
+<p>A large number of the changes in Chapel 1.29.0 involve continued
+improvements to our standard library modules in terms of renamings,
+behavior improvements, and the like as part of our preparation for
+the forthcoming Chapel 2.0 release.  The standard <a href="https://chapel-lang.org/docs/1.29/modules/standard/IO.html"target="_blank" rel="noopener">IO
+module</a>
+in particular has undergone some fairly significant improvements and
+changes, including:</p>
+<ul>
+<li>new <code>readAll()</code>, <code>readBinary()</code>, and <code>writeBinary()</code> routines</li>
+<li>new <code>fileReader</code> and <code>fileWriter</code> types that replace the previous <code>channel</code> type</li>
+<li>an improved interpretation of range-based <code>region</code> arguments in IO routines</li>
+</ul>
+<p>as well as numerous other naming improvements to routines and
+deprecations of stale functionality.</p>
+<h4 id="better-error-messages-via-dyno">
+  <a href="#better-error-messages-via-dyno">Better Error Messages via &lsquo;dyno&rsquo;</a>
+</h4>
+<p>Within the compiler&rsquo;s code base, we have continued making good
+strides with our &lsquo;dyno&rsquo; project, whose goal is to dramatically
+revamp and modernize Chapel&rsquo;s compilation architecture to improve
+compilation times, support separate compilation, etc.  Most of these
+changes are not yet visible to the typical end-user, though one nice
+one is: A new error-reporting framework has been developed that is
+now used for all parser errors in the production compiler.</p>
+<p>As a result of this change, parse errors now have both a (default)
+compact message as well as a more detailed one designed to help
+users cope with the error.  To opt in to the latter, compile with
+the experimental <code>--detailed-errors</code> flag.  For example, given the
+erroneous program:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">R</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">R</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>the default error message is:</p>
+<pre tabindex="0"><code>$ chpl newR.chpl
+newR.chpl:4: syntax error: &#39;new&#39; expression is missing its argument list
+</code></pre><p>Meanwhile, recompiling with the new flag gives:</p>
+<pre tabindex="0"><code>$ chpl newR.chpl --detailed-errors
+─── syntax in newR.chpl:4 [NewWithoutArgs] ───
+  &#39;new&#39; expression is missing its argument list.
+  &#39;new&#39; expression used here:
+      |
+    4 | var x = new R;
+      |
+  Perhaps you intended to write &#39;new R()&#39; instead?
+</code></pre><h4 id="overload-resolution">
+  <a href="#overload-resolution">Overload Resolution</a>
+</h4>
+<p>Chapel 1.29.0 continues the improvements to overload selection
+started in Chapel 1.28.0 by preferring procedures that are generic
+over those that require an implicit conversion to resolve.  For
+example, consider these procedure overloads:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w">       </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;In generic version&#34;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;In &#39;real&#39; version&#34;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>In Chapel 1.28.0, a call like <code>f(42)</code> would have preferred the
+<code>real</code> version, but now prefers the generic version, considering it
+a more precise match.  This behavior makes Chapel&rsquo;s overload
+selection more similar to C++ as well as more self-consistent with
+other Chapel cases involving generics.</p>
+<h4 id="notable-bug-fixes">
+  <a href="#notable-bug-fixes">Notable Bug Fixes</a>
+</h4>
+<p>A number of user-identified bugs were fixed in this release, including:</p>
+<ul>
+<li>an issue in which param <code>NaN</code> and infinity values wouldn&rsquo;t implicitly convert to <code>real(32)</code></li>
+<li>broken virtual method calls with <code>ref</code> arguments or return intents</li>
+<li>internal errors stemming from certain module-qualified types and conditionals within loops</li>
+<li>a subtle issue regarding remote variable accesses within <code>export</code> procedures</li>
+</ul>
+<h3 id="experimental-features">
+  <a href="#experimental-features">Experimental Features</a>
+</h3>
+<p>Turning to experimental features, Chapel 1.29.0 introduces a new
+&lsquo;weak&rsquo; class reference concept for use when working with <code>shared</code>
+class variables.  Though the details of the syntax and interface are
+still being finalized, this would be a great time to experiment with
+the feature and offer feedback.  See the
+<a href="https://chapel-lang.org/docs/1.29/builtins/WeakPointer.html"target="_blank" rel="noopener">&lsquo;WeakPointer&rsquo;</a>
+page for details.</p>
+<p>The <code>chpl</code> compiler now also supports a prototype capability to
+capture the generated assembly for a given routine.  See
+&lsquo;<a href="https://chapel-lang.org/docs/1.29/technotes/llvm.html#inspecting-the-generated-code"target="_blank" rel="noopener">Inspecting the Generated
+Code</a>&rsquo;
+in the LLVM technical note for more information.</p>
+<p>In other news, this release includes very experimental support for
+running Chapel programs on AMD GPUs and for dedicating a core to
+handling the Chapel runtime&rsquo;s active messages on Slingshot-11
+systems.</p>
+<h3 id="for-more-information">
+  <a href="#for-more-information">For More Information</a>
+</h3>
+<p>For a more complete list of changes in Chapel 1.29.0, see its
+<a href="https://github.com/chapel-lang/chapel/blob/release/1.29/CHANGES.md"target="_blank" rel="noopener">CHANGES.md</a>
+file.  For questions about any of the changes in this release,
+please reach out to the team on
+<a href="https://chapel.discourse.group/"target="_blank" rel="noopener">Discourse</a>.</p>
+<p>As always, we’re interested in feedback on how we can help make the
+Chapel language, libraries, implementation, and tools more useful to
+you in your work.</p>
+<p>Thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/1.29/CONTRIBUTORS.md"target="_blank" rel="noopener">everyone who
+contributed</a>
+to Chapel 1.29.0!</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;1.29.0%21&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.29%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;1.29.0%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.29%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Announcing&#43;Chapel&#43;1.29.0%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.29%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Announcing&#43;Chapel&#43;1.29.0%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-1.29%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

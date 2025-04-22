@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A parallel solution to day three of AoC 2022, introducing ranges, bytes, forall-loops, and sets">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 3: Rucksack Comparisons</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 3: Rucksack Comparisons</h2>
+<div class="post-subscript">
+    <p>Posted on December 3, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#todays-task-and-how-i-approached-it">Today&rsquo;s Task and How I Approached It</a></li>
+    <li><a href="#getting-started-kicking-off-execution">Getting Started: Kicking off Execution</a></li>
+    <li><a href="#an-iterator-for-reading-rucksacks">An Iterator for Reading Rucksacks</a></li>
+    <li><a href="#ranges-and-slicing">Ranges and Slicing</a></li>
+    <li><a href="#forall-loops-and-task-intents">Forall Loops and Task Intents</a></li>
+    <li><a href="#the-set-type">The <code>set</code> type</a></li>
+    <li><a href="#promotion-vs-forall-loops">Promotion vs. <code>forall</code> loops</a></li>
+    <li><a href="#computing-priorities-using-params-and-bytes">Computing Priorities using <code>param</code>s and <code>bytes</code></a></li>
+    <li><a href="#chapel-params">Chapel <code>param</code>s</a></li>
+    <li><a href="#bytes-literals-and-the-tobyte-method"><code>bytes</code> literals and the <code>toByte()</code> method</a></li>
+    <li><a href="#summary-and-tips-for-part-two">Summary and Tips for Part Two</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Welcome to day 3 in our Chapel&rsquo;s Advent of Code 2022 series!  If
+you&rsquo;re just joining us, check out the previous articles in this
+series to:</p>
+<ul>
+<li><a href="../../posts/aoc2022-day00-intro/">get the context</a> for what we&rsquo;re doing</li>
+<li><a href="../../posts/aoc2022-day01-calories/">learn basic Chapel features</a> like declaring variables and constants</li>
+<li><a href="../../posts/aoc2022-day02-rochambeau/">learn about procedures and iterators</a></li>
+</ul>
+<p>all of which we&rsquo;ll be relying on today.</p>
+<h3 id="todays-task-and-how-i-approached-it">
+  <a href="#todays-task-and-how-i-approached-it">Today&rsquo;s Task and How I Approached It</a>
+</h3>
+<p><a href="https://adventofcode.com/2022/day/3"target="_blank" rel="noopener">Today&rsquo;s challenge</a> is to read
+in a series of rucksacks, each represented by one line in a file.
+Each rucksack is a sequence of letters representing the items in
+that rucksack.  Each rucksack is also divided into two compartments
+of equal size—so the first half of each line is the first
+compartment and the second half is the second.  Our goal is to find
+the single item (letter) per rucksack that is contained in both
+compartments and convert that to a priority (numerical score), where
+<code>a</code>–<code>z</code> are scored as <code>1</code>–<code>26</code> and <code>A</code>-<code>Z</code> as <code>27</code>–<code>52</code>.  Then we
+sum all the priorities and print that as our result.</p>
+<p><strong>If you like your movies to be spoiled, here&rsquo;s my approach to part one that I&rsquo;ll describe here:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day03-rucksacks.chpl" download="aoc2022-day03-rucksacks.chpl">aoc2022-day03-rucksacks.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Set</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readRucksacks</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readRucksacks</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">rucksack</span><span class="p">:</span><span class="w"> </span><span class="kt">bytes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">rucksack</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rucksack</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">mid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">len</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">rucksack</span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">mid</span><span class="p">],</span><span class="w"> </span><span class="nx">rucksack</span><span class="p">[</span><span class="nx">mid</span><span class="o">..&lt;</span><span class="nx">len</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">compartment1</span><span class="p">,</span><span class="w"> </span><span class="nx">compartment2</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">items</span><span class="p">:</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">compartment1</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">items</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">compartment2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="nx">items</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">itemToPriority</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">sum</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">itemToPriority</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">param</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;A&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;Z&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;a&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nx">Z</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="o">-</span><span class="nx">A</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">27</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="o">-</span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>In today&rsquo;s program, I wrote a solution in which each rucksack&rsquo;s
+score is computed in parallel.  However, where yesterday&rsquo;s solution
+used implicit parallelism by promoting a procedure with an array,
+today I&rsquo;ll be using <em>forall loops</em>, which are a key workhorse for
+data-parallelism in Chapel.  Other features I&rsquo;ll introduce in this
+article include:</p>
+<ul>
+<li><em>ranges</em> for representing regular sequences of integers and their use in <em>slicing</em></li>
+<li>the <code>bytes</code> type for representing raw byte strings</li>
+<li>the standard library&rsquo;s <code>set</code> collection</li>
+<li>unsigned integers and integers of specific bit-widths</li>
+<li><code>param</code> values to represent compile-time constants</li>
+</ul>
+<p>Also in today&rsquo;s blog, my code is organized in the way I prefer to
+write Chapel—top-down, so that the order of the code matches the way
+we&rsquo;d read English and also (roughly) the order in which the code is
+executed.  I&rsquo;ll also provide a bit more detail about Chapel program
+structure and execution.</p>
+<h3 id="getting-started-kicking-off-execution">
+  <a href="#getting-started-kicking-off-execution">Getting Started: Kicking off Execution</a>
+</h3>
+<p>My program starts, as most Chapel programs do, with a <code>use</code>
+statement that gives me access to some standard modules:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Set</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first is <code>IO</code>, which will be familiar to readers of this series:
+it provides the routines I&rsquo;ll use to read in the rucksack data.  The
+second is <code>Set</code>, which is a standard module providing a <code>set</code>
+datatype.  This is the first AoC program I&rsquo;ve written that <code>use</code>s
+two standard modules, and you can see that they can be
+comma-separated rather than each needing a distinct <code>use</code> statement.</p>
+<p>Next, in my top-down coding style, I&rsquo;m going to write the first
+statements that I want to execute when my program starts running:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readRucksacks</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first statement calls an iterator that I&rsquo;ve written to read in and
+yield the rucksacks.  The second calls a routine to compute the sum
+of the rucksacks&rsquo; priorities, printing out the result.  All I have
+to do now is write those routines.</p>
+<details>
+    <summary><strong>(More on Chapel program structure and execution&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Before going on, let&rsquo;s talk a bit more about how programs begin
+executing in Chapel.  As mentioned earlier in the series, if today&rsquo;s
+code was stored in a file named <code>day03.chpl</code>, it would introduce a
+module named <code>day03</code>.  I also stated that Chapel programs begin by
+initializing all of their modules, which includes any executable
+code defined at the module scope.  When we compile a program, like</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chpl day03.chpl
+</span></span></code></pre></div><p>and that file defines a single module, it is considered the
+program&rsquo;s <em>main module</em>.  In Chapel, the main module governs how the
+program executes.</p>
+<p>In this case, when I run the resulting program using <code>./day03</code>, the
+first thing that happens is that the <code>IO</code> and <code>Set</code> modules will be
+initialized, since our code relies on them due to its <code>use</code>
+statements (and, recursively, any modules that they <code>use</code> or
+<code>import</code> will also be initialized).  Next, our own module will be
+initialized, which involves running the two module-scope statements
+we&rsquo;ve just seen.  All the other code in this file declares our
+subroutines, which are not executed until they are called.</p>
+<p>If you&rsquo;re coming from a more structured programming style and it
+seems odd to have filenames define module names or file-scope code
+be executed, Chapel also permits these things to be stated more
+explicitly.  For example, I could define all of this file&rsquo;s contents
+within an explicit <code>module</code> declaration to avoid relying on the
+filename, like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">module</span><span class="w"> </span><span class="nc">day03</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// put the rest of this file&#39;s contents here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>This would fix the name of the module regardless of whether I saved
+it in a file named <code>day03.chpl</code>, <code>day03-attempt2.chpl</code>, or
+<code>day03-why-isnt-this-working.chpl</code>.</p>
+<p>Then, instead of relying on module-scope code to execute, I could
+introduce a <code>main()</code> procedure, as in other languages, to contain
+the two statements from above that define how my program should
+start executing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">module</span><span class="w"> </span><span class="nc">day03</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readRucksacks</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// put the rest of my subroutines here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Note that this module will still be initialized before <code>main()</code> is
+executed, it&rsquo;s just that there&rsquo;s no other executable module-level
+code, so nothing is required to initialize it.</p>
+<p>When writing large Chapel programs, this style of coding can be very
+useful to make the program&rsquo;s organization clear and explicit.
+However, when writing short programs, as in AoC, I typically tend to
+prefer the style I&rsquo;ve been using because it feels more lightweight,
+like scripting.</p>
+
+    </div>
+</details>
+
+<h3 id="an-iterator-for-reading-rucksacks">
+  <a href="#an-iterator-for-reading-rucksacks">An Iterator for Reading Rucksacks</a>
+</h3>
+<p>As in <a href="../../posts/aoc2022-day02-rochambeau/">yesterday&rsquo;s solution</a>, I&rsquo;m
+defining an iterator to read today&rsquo;s lines of input and yield them,
+such that <code>Rucksacks</code>, defined above, will be an array containing
+all of the input data.  Here&rsquo;s the first part of that iterator:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">iter</span><span class="w"> </span><span class="nf">readRucksacks</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">rucksack</span><span class="p">:</span><span class="w"> </span><span class="kt">bytes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">rucksack</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As in my <a href="../../posts/aoc2022-day01-calories/">day 1</a> solution, I&rsquo;m relying
+on the <code>readLine()</code> routine from <code>IO</code> to read a line of input at a
+time.  However, where I read in <code>string</code> values on day 1, I&rsquo;m
+reading in values of the <code>bytes</code> type here.  These two types are
+very similar.  Chapel strings are
+<a href="https://en.wikipedia.org/wiki/UTF-8"target="_blank" rel="noopener">UTF-8</a>, which permits them to
+support a wide variety of international characters or <em>codepoints</em>.
+In contrast, <code>bytes</code> types are like a string of raw bytes, or 8-bit
+values.</p>
+<p>When working with ASCII data, as in this program, the reason I tend
+to use <code>bytes</code> values is that their operations can generally be
+implemented more efficiently.  That said, it would certainly be
+possible to take the same approach I did here using <code>string</code>s
+instead.</p>
+<details>
+    <summary><strong>(More on performance of <code>bytes</code> vs. strings&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Both strings and bytes support indexing to extract a specific
+element, using the syntax <code>myStringOrBytes[i]</code>.  However, since
+strings are UTF-8, a naive implementation would have to walk through
+the string data consecutively to find the <code>i</code>th codepoint.  In
+contrast, <code>bytes</code> are made up of fixed-size bytes, so the <code>i</code>th byte
+can be accessed directly by the implementation, simply using math.</p>
+<p>Another difference is that indexing a <code>string</code> in this way returns
+a new string of length 1, whereas indexing a <code>bytes</code> returns a
+single byte—an 8-bit value.  While either would work for today&rsquo;s
+computation, the performance-minded programmer in me prefers doing
+most of my work using integers rather than strings since integer
+operations are supported natively by processors.</p>
+<p>Again, though, all that said, this program could have been written
+with strings, probably with very few changes to the code.</p>
+
+    </div>
+</details>
+
+<p>Since we need to divide each rucksack into two compartments, I&rsquo;m
+going to yield those compartments using a tuple, making <code>Rucksacks</code>
+an array of 2-tuples, similar to yesterday&rsquo;s array.  But where that
+program stored 2-tuples of enums, today I&rsquo;ll store 2-tuples of
+<code>bytes</code>.</p>
+<p>To split my rucksacks into compartments, I start by calculating the
+midpoint of each one after reading it:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rucksack</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">mid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">len</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I first compute the length (<code>len</code>) of the rucksack by querying its
+<code>size</code>, subtracting one for the newline byte (<code>\n</code>).  Dividing that
+by two gives me the midpoint, <code>mid</code>.</p>
+<p>Then, to compute the two compartments, I use a Chapel feature known
+as <em>slicing</em>, in which a variable is indexed not using a single
+integer, but a sequence of them:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="p">(</span><span class="nx">rucksack</span><span class="p">[</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">mid</span><span class="p">],</span><span class="w"> </span><span class="nx">rucksack</span><span class="p">[</span><span class="nx">mid</span><span class="o">..&lt;</span><span class="nx">len</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Though we&rsquo;ve seen Chapel&rsquo;s ranges in passing, we haven&rsquo;t really
+discussed them much, so let me do a bit of that now:</p>
+<h3 id="ranges-and-slicing">
+  <a href="#ranges-and-slicing">Ranges and Slicing</a>
+</h3>
+<p>In Chapel, a <em>range</em> represents a regular sequence of integers.  For
+example <code>1..4</code> represents the integers <code>1</code>, <code>2</code>, <code>3</code>, <code>4</code>.  In this
+code (and on previous days) I&rsquo;ve used <em>open-interval ranges</em> which
+are written <code>lo..&lt;hi</code>.  This excludes the upper bound from the
+range, similar to open intervals in math.  For example, <code>1..&lt;4</code>
+would represent the integers <code>1</code>, <code>2</code>, <code>3</code>.  When counting from <code>0</code>,
+open-interval ranges are commonly used, in order to write <code>0..&lt;n</code>
+rather than <code>0..n-1</code>.  As used here, open-interval ranges are
+admittedly syntactic sugar, but I find them easier to read.</p>
+<p>Certain types in Chapel, like arrays, strings, and <code>bytes</code> support
+indexing using a range to refer to a subset of their value(s).  For
+example, here, I&rsquo;m slicing the rucksack <code>bytes</code> value that I just
+read with <code>0..&lt;mid</code> and <code>mid..&lt;len</code> to refer to the bytes
+representing the first and second halves.  The result of each slice
+is a new <code>bytes</code> value, and I yield these back to the callsite as a
+2-tuple.</p>
+<p>Note that Chapel&rsquo;s <code>bytes</code> values use 0-based indexing, as do all
+Chapel types for which the user does not specify indices.</p>
+<p>Ranges support a number of other queries and operations, like
+non-unit striding, and we&rsquo;ll likely come across some of those in the
+days to come.</p>
+<h3 id="forall-loops-and-task-intents">
+  <a href="#forall-loops-and-task-intents">Forall Loops and Task Intents</a>
+</h3>
+<p>Though there is a way to write today&rsquo;s computation using promotion
+and implicit parallelism, like we did yesterday, my first thought
+happened to be to use a parallel loop.  And since my job is to teach
+you Chapel features, let&rsquo;s take a look at how I did it and then
+consider the promotion-based approach afterwards as an optional
+sidebar.</p>
+<p>In defining my <code>sumOfPriorities()</code> routine, my first thought was
+that I could iterate over all the pairs of compartments in parallel,
+computing their values independently and adding them up.  When
+looping over large data structures in Chapel, like arrays, the
+<em>forall loop</em> is typically the best way to do it in parallel.  A
+<code>forall</code> loop essentially asserts that its iterations can be
+executed in any order, and that they <em>should</em> be executed in
+parallel if possible.</p>
+<p>As an example, here&rsquo;s a simple forall loop in Chapel:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Hello from iteration &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Semantically, the use of <code>forall</code> in this loop says &ldquo;These 1000
+iterations can, and should, be executed in parallel.&rdquo;  In practice,
+<code>forall</code> loops are implemented by invoking the iterand expression&rsquo;s
+parallel iterator.  In this case, it would invoke the default
+parallel iterator method for the <code>range</code> type (which itself is
+implemented as Chapel code).  That iterator will create a number of
+tasks, divide the range&rsquo;s indices between them, and have each task
+compute its iterations in parallel.  If you compile and run this
+program, you will likely see the messages come out in a
+semi-arbitrary order, indicative of the parallelism.  If you use
+tools to monitor your system&rsquo;s CPU usage, you should also see signs
+of parallel computation, in terms of the processors&rsquo; utilization.</p>
+<p>Without getting into too many implementation details, the tasks
+created to implement a <code>forall</code> loop are executed by the system&rsquo;s
+<em>threads</em> which are typically mapped to distinct <em>processor cores</em>.
+For example, if my laptop had a 16-core processor, each of those
+cores would execute ~1/16 of the above loop&rsquo;s iterations in parallel
+with the other cores.</p>
+<p>In today&rsquo;s AoC computation, we want to use our loop to compute a sum
+of all the rucksacks&rsquo; items&rsquo; priorities.  Writing this as a simple
+for-loop, we might say:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">compartment1</span><span class="p">,</span><span class="w"> </span><span class="nx">compartment2</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="o">..</span><span class="p">.;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>That is, we&rsquo;d iterate over our array of rucksacks, de-tupling each
+one into its two compartments, and then accumulate their priorities
+into a running <code>sum</code> variable using the <code>+=</code> operator.</p>
+<p>The problem with trying this same approach in a <code>forall</code> loop is
+that it can lead to what is known as a <em>race condition</em> or <em>data
+race</em>.  These are a bit technical, so I&rsquo;ll describe them in a
+sidebar:</p>
+<details>
+    <summary><strong>(More on race conditions&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>As an example of a race condition, consider the following loop:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>This appears as though it might conceivably add up the integers from
+1 to 1000 in parallel.  However, since the iterations of this loop
+are potentially all executing in parallel, it is likely that
+multiple tasks will try to update <code>sum</code> simultaneously, which can be
+problematic.</p>
+<p>To see why, pretend that you and I are two tasks that have divided up
+the iterations between ourselves, and we are each executing our
+first iteration, such that I am trying to add the value <code>i=1</code> into
+the sum and you are trying to add the <code>i=501</code> case.  Here is how our
+operations might interleave in time::</p>
+<ul>
+<li>You read <code>sum</code>, with the value of <code>0</code> into a register</li>
+<li>I read <code>sum</code>, with the value of <code>0</code> into a register</li>
+<li>You add <code>501</code> to your register, making it hold <code>501</code></li>
+<li>I add <code>1</code> to my register, making it hold <code>1</code></li>
+<li>You store your register back to <code>sum</code>, making it hold <code>501</code></li>
+<li>I store my register back to <code>sum</code>, making it hold <code>1</code></li>
+</ul>
+<p>So where these operations should have resulted in <code>sum</code> holding
+<code>502</code>, the interleaving has caused my update to blow away your
+contribution without a trace.  Over the course of all the
+iterations, you can imagine this happening multiple times, where
+the fact that we&rsquo;re executing in an uncoordinated way causes us to
+each stomp on each others&rsquo; contributions.  And with 4, 16, or 128
+tasks, the races are only more likely to occur.</p>
+
+    </div>
+</details>
+
+<p>Happily, Chapel is designed to reduce the chances that users
+inadvertently create data races like these.  Specifically, if you were
+to try and compile the code above with version 1.28 of the Chapel
+compiler, you&rsquo;d get the following error:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">testit.chpl:4: error: cannot assign to const variable
+</span></span><span class="line"><span class="cl">testit.chpl:3: note: The shadow variable <span class="s1">&#39;sum&#39;</span> is constant due to forall intents in this loop
+</span></span></code></pre></div><p>What&rsquo;s happening here is that when an outer scalar variable, like
+<code>sum</code>, crosses over into a parallel construct, like a <code>forall</code> loop,
+the compiler creates a <code>const</code> copy of that variable called a
+<em>shadow variable</em> for each task that is helping to run the <code>forall</code>
+loop.  Because the shadow variable for <code>sum</code> is <code>const</code>, it cannot
+be assigned and prevents you from accidentally creating a race.</p>
+<p>One way to fix this data race in Chapel is to use a variable type
+that supports coordinated accesses between parallel tasks—so-called
+<em>sync</em> or <em>atomic</em> variables.  However, today I&rsquo;ll use another
+approach related to the <code>reduce</code> expression we saw yesterday.
+Specifically, I&rsquo;ll apply a <em>reduce intent</em> to the loop, as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sum</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>This tells Chapel that instead of giving the tasks <code>const</code> copies of
+<code>sum</code>, it should give them their own modifiable copies.  Then, as
+the tasks complete their portions of the <code>forall</code> loop, Chapel will
+automatically combine their individual copies of <code>sum</code> together
+using <code>+</code>, leaving the result in the original <code>sum</code> variable.  Note
+that each task&rsquo;s copy of <code>sum</code> will be initialized to <code>0</code> (since
+that is the identity value for <code>+</code>), and that the original <code>sum</code>
+variable&rsquo;s value will also be accounted for in the final result (in
+this case, since it&rsquo;s <code>0</code>, it has no effect).</p>
+<p>Doing the same for our advent of code loop, we get the following:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">compartment1</span><span class="p">,</span><span class="w"> </span><span class="nx">compartment2</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="the-set-type">
+  <a href="#the-set-type">The <code>set</code> type</a>
+</h3>
+<p>Next, we need to compare the items (letters or byte values) stored
+within each of the two compartments to find the one that they share
+in common.  This is where the <code>Set</code> module comes in.</p>
+<p>The approach I took was to iterate over all of the byte values
+represented by the first compartment, storing each one&rsquo;s value into
+the set. Then, I iterate over the second compartment&rsquo;s byte values,
+looking for an item that is already in the set.</p>
+<p>Here&rsquo;s the declaration of my set:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">23
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">items</span><span class="p">:</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Chapel&rsquo;s standard <code>set</code> type is generic and parameterized by the type
+of values the set will store.  The <code>bytes</code> type represents the byte
+values that comprise it as 8-bit unsigned integers, which in Chapel
+is written <code>uint(8)</code>.  So the type specifier <code>set(uint(8))</code> defines
+<code>items</code> to be a set of 8-bit unsigned integers.</p>
+<p>Next we iterate over the first compartment:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">compartment1</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">items</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The default iterator for the <code>bytes</code> type yields <code>uint(8)</code> values
+representing the individual byte values that comprise it.  So this
+loop simply iterates over those bytes, adding them into our set
+using the <code>.add()</code> method.  If we encounter duplicates, this is not
+a problem due the nature of the <code>set</code> type.</p>
+<p>Then, we can iterate over the second compartment similarly:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">28
+</span><span class="lnt">29
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">compartment2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="nx">items</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, we&rsquo;re using the set&rsquo;s <code>.contains()</code> method to see whether the
+given <code>item</code> is already in the set.  If it is, we call a helper
+procedure to compute its priority and add it into our task&rsquo;s <code>sum</code>
+variable:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">        </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">itemToPriority</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then, because the day&rsquo;s instructions assured us that the two
+compartments would only have one item in common, there&rsquo;s no real
+need for us to consider the rest of the items in the container, so
+we can break out of the <code>compartment2</code> loop using a <code>break</code>
+statement (in practice, the time saved here is probably negligible,
+given that the compartments are not very big&hellip;).</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>After breaking out of the loop, our task will continue on to the
+next pair of compartments that we own from the array of rucksacks,
+until we have completed all of our iterations.  Then, Chapel will
+ensure that our local copy of <code>sum</code> is added back into the original,
+due to the <code>reduce</code> intent.</p>
+<p>Once all tasks have completed their iterations, the <code>forall</code> loop
+is complete, and our routine can return the final <code>sum</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">sum</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="promotion-vs-forall-loops">
+  <a href="#promotion-vs-forall-loops">Promotion vs. <code>forall</code> loops</a>
+</h3>
+<p>As I was preparing to write up this article, I started looking into
+ways to refactor or clean up my code and found I could write the
+whole thing as a promotion, similar to yesterday&rsquo;s approach.  The
+choice between the two approaches is primarily stylistic and, as
+mentioned above, I stuck with the <code>forall</code>-based approach for this
+article because it&rsquo;s the first thing that occurred to me and gave me
+an opportunity to introduce one of Chapel&rsquo;s main parallel loop
+styles.  But in the following sidebar, I&rsquo;ll show how I arrived at
+the promoted version, for those who are interested (you may want to
+see if you can come up with it yourself first):</p>
+<details>
+    <summary><strong>(Converting my <code>forall</code> loop into a promotion&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The thing that led me to the promoted version was wondering whether,
+in the loop nest above, it would be clearer if I were to move the
+comparison of the compartments into a helper function.  This
+led me to write the following helper procedure:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">rucksacksToPriority</span><span class="p">((</span><span class="nx">compartment1</span><span class="p">,</span><span class="w"> </span><span class="nx">compartment2</span><span class="p">)):</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">items</span><span class="p">:</span><span class="w"> </span><span class="nx">set</span><span class="p">(</span><span class="kt">uint</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">compartment1</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">items</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">compartment2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">items</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">itemToPriority</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">halt</span><span class="p">(</span><span class="s">&#34;We didn&#39;t find any items of overlap!&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Its body is almost identical to that of my <code>forall</code> loop except that
+I&rsquo;ve changed the <code>break</code> statement and <code>sum</code> addition into a
+<code>return</code>.  I&rsquo;ve also added a <code>halt()</code> to the end of the routine to
+avoid surprises and make the Chapel compiler stop complaining that I
+might not return anything if I reached that point.</p>
+<p>Note that I had my helper take a 2-tuple of compartments as its
+arguments, similar to yesterday&rsquo;s code.  This was so that I
+could move the de-tupling of my rucksacks from the <code>forall</code> loop
+to the call to the helper routine.  Here&rsquo;s the resulting version
+of <code>sumOfPriorities()</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">compartments</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Rucksacks</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">sum</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">rucksacksToPriority</span><span class="p">(</span><span class="nx">compartments</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">sum</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Nothing new here, just a loop over an array, passing the elements
+to a helper routine and accumulating the sums.  But at this point,
+I realized that this was a lot of code to write where we could
+simply use a promotion and reduction instead.  Namely:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">sumOfPriorities</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">rucksacksToPriority</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Or at this point, I could just rewrite my original <code>writeln()</code> as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">rucksacksToPriority</span><span class="p">(</span><span class="nx">Rucksacks</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></div><p>A very succinct and tidy expression of data parallelism!</p>
+
+    </div>
+</details>
+
+<p>As mentioned at the outset, for this program, the choice between
+these approaches is primarily a matter of style, based on whether
+you prefer loops and explicit parallelism or promotion and implicit
+parallelism.  In fact, promoted procedure calls are implemented by
+the compiler using <code>forall</code> loops; and <code>reduce</code> expressions are
+implemented using <code>reduce</code> intents on those loops.  So they really
+are essentially equivalent.</p>
+<h3 id="computing-priorities-using-params-and-bytes">
+  <a href="#computing-priorities-using-params-and-bytes">Computing Priorities using <code>param</code>s and <code>bytes</code></a>
+</h3>
+<p>All that remains is to write the helper procedure to convert an item
+(a <code>uint(8)</code>) into its integer score.  The approach I took here
+relies on two properties of ASCII characters.</p>
+<p>The first is that the letters <code>A</code> through <code>Z</code> are consecutive ASCII
+values, as are the lowercase letters <code>a</code> through <code>z</code>.  However, note
+that there are other characters between each of these ranges.  The
+second, which I had to Google to remind myself of, is that the
+upper-case letters have lower ASCII values than the lower-case
+letters.</p>
+<p>I&rsquo;ll confess here that I can never remember the numeric values of
+ASCII characters despite having worked with them for decades.  So I
+wrote my code without the need to refer to those values directly,
+which also makes it more self-documenting.  Specifically, I started
+out my procedure by having Chapel compute the ASCII values of <code>&quot;A&quot;</code>,
+<code>&quot;Z&quot;</code>, and <code>&quot;a&quot;</code>, as follows:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">itemToPriority</span><span class="p">(</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">param</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;A&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;Z&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;a&#34;</span><span class="p">.</span><span class="nx">toByte</span><span class="p">();</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>There are a few important new concepts here.  The first is the
+<code>param</code> keyword:</p>
+<h3 id="chapel-params">
+  <a href="#chapel-params">Chapel <code>param</code>s</a>
+</h3>
+<p>In Chapel, a <code>param</code> is a value that is known to the compiler at
+compile-time.  As a simple example, the literal integer <code>42</code> is a
+<code>param</code> because the compiler knows its value, as are the literal
+string <code>&quot;hello&quot;</code> and the literal Boolean value <code>true</code>.  Like
+<code>const</code>s, <code>param</code>s cannot be re-assigned once they are initialized.</p>
+<p>For this routine, I chose to use a <code>param</code> because I knew that these
+ASCII values are well-defined constants that never change.  I also
+knew that they are values that the compiler could compute for me,
+for reasons I&rsquo;ll get to in a second.  So rather than hard-coding
+<code>65</code>, <code>90</code>, and <code>97</code> into my code (the ASCII values of these three
+characters—I just Googled it), I wanted to do the next best thing:
+Namely, have the compiler determine these values to avoid spending
+any time computing them when running my program.</p>
+<h3 id="bytes-literals-and-the-tobyte-method">
+  <a href="#bytes-literals-and-the-tobyte-method"><code>bytes</code> literals and the <code>toByte()</code> method</a>
+</h3>
+<p>The other thing that&rsquo;s new here are the expressions like <code>b&quot;A&quot;</code>.
+This is Chapel&rsquo;s notation for a <code>bytes</code> value, similar to the string
+value <code>&quot;A&quot;</code>, but using a <code>b</code> prefix as a mnemonic for <code>bytes</code>.  For
+example, the following code shows the use of both literal types to
+declare variables and then check their types::</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">first</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;Brad&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">last</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="s">&#34;Chamberlain&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">((</span><span class="nx">first</span><span class="p">.</span><span class="kd">type</span><span class="p">:</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">last</span><span class="p">.</span><span class="kd">type</span><span class="p">:</span><span class="kt">string</span><span class="p">));</span><span class="w">  </span><span class="c1">// prints &#39;(string, bytes)&#39;
+</span></span></span></code></pre></div><p>The <code>bytes</code> type supports a method called
+<a href="https://chapel-lang.org/docs/language/spec/bytes.html#Bytes.bytes.toByte"target="_blank" rel="noopener"><code>.toByte()</code></a>
+that, for a single-byte <code>bytes</code> value returns it as a <code>uint(8)</code>.
+When the <code>bytes</code> value is a <code>param</code>, as these literals are, the
+<code>uint(8)</code> it returns is as well.  Thus, these declarations are
+equivalent to writing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">param</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">Z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">90</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">97</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>or just directly using those numeric values where <code>A</code>, <code>Z</code>, and <code>z</code>
+are referenced.  Which brings us to our final bit of code:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nx">Z</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="o">-</span><span class="nx">A</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">27</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">item</span><span class="o">-</span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here, I&rsquo;m leveraging the fact that <code>A</code> through <code>Z</code> come before <code>a</code>
+through <code>z</code> by checking to see whether the current item&rsquo;s numerical
+value is less than <code>Z</code>&rsquo;s.  Since all our items are letters, if it
+is, then it is a capital letter.  I then compute its priority by
+subtracting <code>A</code>&rsquo;s numerical value and adding 27.  This maps <code>A</code> to
+the priority <code>27</code>, <code>B</code> to <code>28</code>, and so on.  Otherwise, the item must
+be a lowercase letter, so I do the same sort of subtraction, mapping
+<code>a</code> to the value <code>1</code>, <code>b</code> to <code>2</code>, etc.</p>
+<p>If, like me, you find it somewhat distasteful to be computing on
+ASCII values, another approach might be to create a map from byte
+values to scores at the outset of the program, and then look up the
+byte values in that map.  This felt a bit heavyweight to me given
+the nice numerical properties of adjacent letters, and I wasn&rsquo;t sure
+I wanted to teach you about maps today anyway.  But it&rsquo;s another
+approach to consider.</p>
+<h3 id="summary-and-tips-for-part-two">
+  <a href="#summary-and-tips-for-part-two">Summary and Tips for Part Two</a>
+</h3>
+<p>And that&rsquo;s my solution to day three!  Most of the features used
+today show up in a lot of Chapel programs in practice.  Ranges are
+so fundamental and intuitive that we&rsquo;ve seen them in the previous
+days&rsquo; articles without even defining them.  Forall-loops are one of
+the pillars of data parallelism in Chapel and show up frequently.
+And <code>param</code>s are crucial for doing compile-time computation in
+Chapel, including procedures which take in and return <code>param</code>s.
+Finally, the <code>bytes</code> type is a nice alternative to strings,
+particularly in cases where you are only using ASCII strings, want
+to compute on numerical byte values, and/or want guarantees of
+better performance.</p>
+<p>As on previous days, the full code for my solution can be viewed and
+downloaded at the top of this article, or <a href="https://github.com/chapel-lang/chapel/blob/main/test/studies/adventOfCode/2022/day03/bradc/day03.chpl"target="_blank" rel="noopener">at
+GitHub</a>.</p>
+<p>If you are interested, you should have everything you need to do
+part two on your own.  The main changes I made to my code were to</p>
+<ul>
+<li>
+<p>change my iterator to return triples of lines rather than pairs of
+compartments</p>
+</li>
+<li>
+<p>use a second set to store all of the items appearing in the first
+two rucksacks</p>
+</li>
+</ul>
+<p>Tomorrow, if all goes as planned, you&rsquo;ll be hearing from one of my
+colleagues—so I will see you sometime next week!</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;3%3A&#43;Rucksack&#43;Comparisons&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day03-rucksacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;3%3A&#43;Rucksack&#43;Comparisons&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day03-rucksacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;3%3A&#43;Rucksack&#43;Comparisons&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day03-rucksacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;3%3A&#43;Rucksack&#43;Comparisons&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day03-rucksacks%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day02-rochambeau/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 2: Rochambeau
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day04-ranges/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 4: Finding Overlaps in Cleanup Ranges
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

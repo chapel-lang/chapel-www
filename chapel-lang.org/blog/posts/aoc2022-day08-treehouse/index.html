@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A solution to day eight of AoC 2022, introducing domains and multidimensional arrays.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Advent of Code 2022, Day 8: Hiding Treehouses</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Advent of Code 2022, Day 8: Hiding Treehouses</h2>
+<div class="post-subscript">
+    <p>Posted on December 8, 2022.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/advent-of-code">Advent of Code</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a></li>
+    <li><a href="#reading-the-forest-input">Reading the Forest Input</a></li>
+    <li><a href="#storing-the-forest-in-a-2d-array">Storing the Forest in a 2D Array</a>
+      <ul>
+        <li><a href="#domains-first-class-index-sets">Domains: First-class Index Sets</a></li>
+        <li><a href="#representing-our-forest-using-a-domain-and-array">Representing our Forest Using a Domain and Array</a></li>
+      </ul>
+    </li>
+    <li><a href="#a-procedure-for-computing-a-trees-visibility">A Procedure for Computing a Tree&rsquo;s Visibility</a>
+      <ul>
+        <li><a href="#using-slices-to-refer-to-subsets-of-the-forest">Using Slices to Refer to Subsets of the Forest</a></li>
+        <li><a href="#using-promotions-and-reductions-to-compute-visibility">Using Promotions and Reductions to Compute Visibility</a></li>
+      </ul>
+    </li>
+    <li><a href="#computing-visibility-in-parallel-via-promotion">Computing Visibility in Parallel via Promotion</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Here we are on day 8 of Advent of Code 2022, two-thirds of the way
+through our &lsquo;Twelve Days of Chapel AoC&rsquo; series!  If you&rsquo;re new to
+the series, check out the <a href="../../posts/aoc2022-day00-intro/">introductory
+article</a> for more context.</p>
+<h3 id="the-task-at-hand-and-my-approach">
+  <a href="#the-task-at-hand-and-my-approach">The Task at Hand and My Approach</a>
+</h3>
+<p>In <a href="https://adventofcode.com/2022/day/8"target="_blank" rel="noopener">part one of today&rsquo;s
+puzzle</a>, we&rsquo;re given a
+2-dimensional (2D) grid of integers, representing the heights of
+trees in a very dense, regular forest.  Our goal is to determine how
+many trees are visible from outside the forest by looking for lines
+of sight to each tree along the rows or columns of trees.
+Essentially, starting from a given tree, if you can walk directly to
+the edge of the forest encountering only trees that are shorter,
+your starting tree is visible.</p>
+<p>To accomplish this, I&rsquo;m going to use a 2D array to represent the
+forest, which will be the first higher-dimensional Chapel array
+we&rsquo;ve seen in this series.  I&rsquo;ll also be introducing the concept of
+the <em>domain</em>, which is Chapel&rsquo;s way of representing sets of indices
+that can be used for declaring arrays or describing iteration
+spaces.  I&rsquo;ll also make use of slicing, reductions, and promotion,
+which we&rsquo;ve seen in earlier articles.</p>
+<p><strong>For those who looked in their parents&rsquo; closets for presents before holidays, here&rsquo;s my full solution for today:</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/aoc2022-day08-treehouse.chpl" download="aoc2022-day08-treehouse.chpl">aoc2022-day08-treehouse.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">Lines</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readLines</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readLines</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">line</span><span class="p">,</span><span class="w"> </span><span class="nx">stripNewline</span><span class="o">=</span><span class="kc">true</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">line</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">numRows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Lines</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numCols</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Lines</span><span class="p">.</span><span class="nx">first</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numRows</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numCols</span><span class="p">};</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">Forest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">r</span><span class="p">,</span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="nx">Lines</span><span class="p">[</span><span class="nx">r</span><span class="p">][</span><span class="nx">c</span><span class="p">]:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">visible</span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">):</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="o">..&lt;</span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">visible</span><span class="p">(</span><span class="nx">ForestSpace</span><span class="p">,</span><span class="w"> </span><span class="nx">Forest</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>The code for this one&rsquo;s going to be short and sweet, so let&rsquo;s get
+into it.</p>
+<h3 id="reading-the-forest-input">
+  <a href="#reading-the-forest-input">Reading the Forest Input</a>
+</h3>
+<p>Here, I&rsquo;m going to take the approach we&rsquo;ve used in a lot of these
+articles, of writing an iterator that reads and yields lines,
+storing them as an inferred-size array named <code>Lines</code>:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">Lines</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readLines</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">iter</span><span class="w"> </span><span class="nf">readLines</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">readLine</span><span class="p">(</span><span class="nx">line</span><span class="p">,</span><span class="w"> </span><span class="nx">stripNewline</span><span class="o">=</span><span class="kc">true</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">yield</span><span class="w"> </span><span class="nx">line</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>If you&rsquo;ve been following this series, you might notice a few
+differences between this code and my last such routine on <a href="../../posts/aoc2022-day05-cratestacks/#reading-the-initial-state-of-the-stacks">day
+5</a>.
+Specifically:</p>
+<ul>
+<li>
+<p>I moved my <code>use IO;</code> statement into the iterator itself.  The
+<code>use</code> statement only makes its module&rsquo;s contents available to the
+scope that contains it, and this is the only scope in which I need
+to access symbols from &lsquo;IO&rsquo;.  So I move it from the file&rsquo;s module
+scope to this local scope in order to not pollute the namespace of
+the whole program with symbols that won&rsquo;t be needed.</p>
+</li>
+<li>
+<p>I&rsquo;ve also used the optional <code>stripNewline</code> argument provided by
+the <code>readLine()</code> routine, which tells it to remove the terminating
+newline character (<code>\n</code>) before storing a line of input into
+<code>line</code>.  Note that identifying the argument name, as I&rsquo;ve done
+here with <code>stripNewline=</code>, is not necessary; however, it makes the
+call more self-documenting than if I&rsquo;d simply written
+<code>readLine(line, true)</code>.</p>
+</li>
+</ul>
+<p>After executing these statements, <code>Lines</code> will be a 1-dimensional
+(1D) 0-based array of strings, with each <code>string</code> value representing
+one line from the file (or, a row of trees in our forest).</p>
+<h3 id="storing-the-forest-in-a-2d-array">
+  <a href="#storing-the-forest-in-a-2d-array">Storing the Forest in a 2D Array</a>
+</h3>
+<p>Up until this point in the series, we have used arrays frequently,
+but only 1D arrays.  Because Chapel was designed for scientific
+computing, where modeling the physical world often involves
+multidimensional data sets, it also supports n-dimensional arrays,
+as in NumPy or Fortran.  Such arrays are notably absent from C, C++,
+Java, and the like, which support arrays-of-arrays, yet don&rsquo;t have a
+language-supported way to represent a dynamically-sized,
+n-dimensional array using a contiguous block of memory.  Doing so
+enables elements to be traversed along any dimension by walking a
+pointer through memory using a fixed stride.  This can be important
+for efficiency in applications using nD arrays.</p>
+<p>For this program, a 2D array is a very natural representation of the
+forest data, since it will permit us to focus on data along rows or
+columns, as desired.  Of course, we could do the computation
+directly on the input array of strings; but as we will see, using
+the 2D array permits us to make use of <em>slicing</em> in interesting
+ways.</p>
+<p>First, I declare a pair of integer constants representing the number
+of rows and columns in the forest:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">numRows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Lines</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">numCols</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Lines</span><span class="p">.</span><span class="nx">first</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I compute the number of rows (<code>numRows</code>) by querying the size of my
+array of lines that I read in—effectively, the number of lines in
+the file.  Then I take the size of the first line from the file (the
+number of characters or <em>codepoints</em> it is storing), which serves as
+the number of columns (<code>numCols</code>).  Note that I&rsquo;m assuming that all
+lines have the same length.  I can safely make this assumption since
+it is true of the AoC input sets.  Because of this, I could have
+equivalently checked the size of <code>Lines.last</code> or <code>Lines[i]</code> for any
+value of <code>i</code> in <code>0..&lt;numRows</code> instead.</p>
+<h4 id="domains-first-class-index-sets">
+  <a href="#domains-first-class-index-sets">Domains: First-class Index Sets</a>
+</h4>
+<p>All arrays in Chapel are defined over a concept known as a <em>domain</em>.
+A Chapel domain is a language feature representing a set of indices.
+These indices can be used for a variety of purposes, such as
+defining the indices of an array or an array slice, or serving as
+the iterand for a loop.</p>
+<p>Up until now, the 1D arrays we&rsquo;ve declared have had their indices
+defined using a range.  For instance, we&rsquo;ve seen declarations like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Though ranges are not domains themselves, they are used to build
+rectangular domains of 1 or more dimensions.  As a convenience, they
+can be used to create domains when used in array declarations like
+this.  Specifically, for this declaration of <code>A</code>, the compiler will
+introduce an <em>anonymous domain</em> representing the indices <code>1..1000</code>.
+Domain literals in Chapel are represented by specifying the indices
+within curly brackets, and if we were to type out the domain&rsquo;s
+value, it would look like <code>{1..1000}</code>.  Like ranges, domains can be
+named, so we could write:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="mi">1000</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></div><p>This declares a 1D domain named <code>D</code>, representing the indices <code>1</code>
+through <code>1000</code>, inclusive.  A named domain can also be used to
+specify an array&rsquo;s indices, like so:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">B</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>which would give us an array of 1000 strings, indexed using
+<code>1..1000</code>.</p>
+<p>Multidimensional rectangular domains are defined using a list of
+ranges. For example, here is a 3D domain whose size in each
+dimension is defined by the variables <code>m</code>, <code>n</code>, and <code>o</code>
+respectively:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">D3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="o">..</span><span class="nx">m</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">o</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></div><p>If we wanted to declare an array over this set of indices, we could
+do it in any of the following ways:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">D3</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">B</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="mi">1</span><span class="o">..</span><span class="nx">m</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">o</span><span class="p">}]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">C</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">m</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">o</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>Note that these three forms are equivalent, and that the curly
+brackets used in <code>B</code>&rsquo;s declaration are unnecessary.  In practice, we
+typically omit them for brevity, as in our 1D array declarations up
+to this point.  One motivation for naming domains is that it permits
+them to be reused within the code rather than typing the raw indices
+over and over again, reducing the chances of mistakes.  For example,
+we can write a parallel loop over the indices of these arrays as
+follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D3</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">C</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></div><p>Since D3 is a 3-dimensional domain, loops over it will yield 3-tuple
+indices.  Here, I am de-tupling them into their respective integer
+components, naming them <code>i</code>, <code>j</code>, and <code>k</code>.  We can then index into
+our arrays using the three integers, separated by commas in the
+normal square brackets used for indexing.</p>
+<p>Chapel&rsquo;s arrays can also be accessed using tuple indices.  So if we
+were to store the indices yielded by <code>D3</code> using a single loop
+index variable, we could write:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">idx</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D3</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">A</span><span class="p">[</span><span class="nx">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="p">[</span><span class="nx">idx</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">C</span><span class="p">[</span><span class="nx">idx</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></div><p>Note that <code>idx</code> is a 3-tuple of <code>int</code>s in this loop.</p>
+<details>
+    <summary><strong>(A sidebar on promotion and operators&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Before going on, note that multidimensional arrays can be used to
+promote a scalar function, just as we&rsquo;ve done with 1D arrays earlier
+in this series.  In addition, scalar operators are able to be
+promoted just as scalar procedures are.  Thus, the loop above could
+be written:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">C</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>which promotes the scalar <code>*</code> operator supported on pairs of
+integers across all corresponding elements of <code>B</code> and <code>C</code>,
+generating an array&rsquo;s worth of results.  As with other promotions
+we&rsquo;ve seen, this loop can be thought of as the equivalent to:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">c</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>which in turn is equivalent to our previous domain-based loops that
+indexed into the arrays using triples of scalars or 3-tuples.  Which
+of these forms you choose typically is a mix of style preference and
+whether or not you require the loop indices within the loop&rsquo;s body
+(in which case, iterating over the domain is the way to go).</p>
+
+    </div>
+</details>
+
+<h4 id="representing-our-forest-using-a-domain-and-array">
+  <a href="#representing-our-forest-using-a-domain-and-array">Representing our Forest Using a Domain and Array</a>
+</h4>
+<p>We now have everything we need to create our domain and array.
+I start by declaring a 2D array in terms of the number of rows
+and columns we got from the input file:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numRows</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numCols</span><span class="p">};</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I declare this as a constant because I have no intention of changing
+the domain&rsquo;s indices after it is initialized.  In practice, this
+provides useful semantic information to the compiler that can enable
+important optimizations.</p>
+<p>I named this domain because I want to loop over it in order to
+convert my 1D <code>Lines</code> input array into a 2D array.  By giving it a
+name, I avoid the need to repeat these range expressions again when
+I write that loop.  And by giving it a (somewhat) meaningful name, I
+potentially improve my code&rsquo;s readability compared to just using
+literal range and domain expressions.</p>
+<p>I chose to use 0-based indexing for this domain because that&rsquo;s what
+my <code>Lines</code> array and its <code>string</code> values will use.  That said, I
+don&rsquo;t end up using the numerical values of my indices at all after
+the next statement, so could nearly as easily have used 1-based
+indexing or any other indexing scheme that felt natural.</p>
+<p>At this point, I could declare my array as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Forest</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>However, since the first thing I want to do with the array is store
+my input data into it, I took a different approach:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Forest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">r</span><span class="p">,</span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="nx">Lines</span><span class="p">[</span><span class="nx">r</span><span class="p">][</span><span class="nx">c</span><span class="p">]:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As described in our <a href="../../posts/aoc2022-day06-packets/#parallel-loop-expressions">day
+6</a>
+article, <code>[idx in expr]</code> is a Chapel loop expression that is
+equivalent to <code>for[all] idx in expr</code>.  It will be parallel if <code>expr</code>
+supports parallel iteration and serial otherwise.  Like most
+built-in Chapel types, domains do support parallel iteration, so
+this declaration is equivalent to:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Forest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">,</span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">Lines</span><span class="p">[</span><span class="nx">r</span><span class="p">][</span><span class="nx">c</span><span class="p">]:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>which in turn is very similar to:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Forest</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Lines</span><span class="p">[</span><span class="nx">r</span><span class="p">][</span><span class="nx">c</span><span class="p">]:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><details>
+    <summary><strong>(Why merely <em>similar to</em> and not equivalent&hellip;?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        The difference between the first two declarations of <code>Forest</code> and
+the third is that they provide an initialization expression for the
+array at its declaration point.  This causes the array elements to
+be initialized with their corresponding values extracted from
+<code>Lines</code>.  In contrast, the third form does not initialize <code>Forest</code>,
+so Chapel will ensure that all of its <code>int</code> elements store their
+default value of 0.  Then, the loop statement that follows uses the
+assignment operator to store the values from <code>Lines</code> into the array
+elements.  The net effect will be the same in terms of the array&rsquo;s
+values, but technically each element is touched twice to get that
+result in the third form.
+    </div>
+</details>
+
+<p>In any of these forms, the loop&rsquo;s body is simply an indexing
+expression into my <code>Lines</code> array, first to pick out line <code>r</code> and
+then to pick out the <code>c</code>th character from that line&rsquo;s string.  I
+cast that character to an <code>int</code> in order to make the array store
+integer values that I can compare easily and cheaply.</p>
+<details>
+    <summary><strong>(A note on string indexing&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Throughout this series, I&rsquo;ve occasionally mentioned that I&rsquo;ve chosen
+to use a <code>bytes</code> value in order to avoid the potential overhead of
+string indexing.  Specifically, Chapel strings use a UTF-8 encoding,
+and UTF-8 is a format that generally requires scanning through the
+string&rsquo;s buffer from the start to find position <code>i</code> due to the fact
+that some characters or <em>codepoints</em> require 1 byte while others
+require 2.  So why did I use a string here?</p>
+<p>The reason is because when a string is made up strictly of ASCII
+characters (as in today&rsquo;s challenge), all codepoints are known to be
+a single byte, so we can directly compute the address of a character
+and access it without scanning from the beginning.  Chapel optimizes
+accesses to ASCII-only strings in this way.</p>
+<p>This program happens to compute the right result if we change all
+<code>string</code> references to <code>bytes</code>, though the contents of the <code>Forest</code>
+array might surprise you.  If you were to print them out, rather
+than seeing the digits <code>1</code> through <code>9</code>, you would see the integer
+values of the ASCII characters <code>&quot;1&quot;</code> through <code>&quot;9&quot;</code> (namely, <code>48</code>
+through <code>57</code>).  The algorithm still works since we&rsquo;re only comparing
+the tree heights, and the ASCII values maintain the same ordering
+and stride.  But I worried this might be confusing to someone
+printing out the output.  Alternatively, we could have converted the
+ASCII values to <code>1</code> through <code>9</code> when storing them to this array, as
+in <a href="../../posts/aoc2022-day03-rucksacks/#computing-priorities-using-params-and-bytes">day 3&rsquo;s
+solution</a>,
+by subtracting the ASCII value of <code>0</code> from each when assigning it to
+<code>Forest</code>.</p>
+
+    </div>
+</details>
+
+<p>Note that Chapel distinguishes very strictly between 2D arrays and
+1D arrays of 1D arrays (or in this case, 1D arrays of indexable,
+array-like types, such as strings).  For this reason, we could not
+write <code>Lines[r,c]</code> because <code>Lines</code> is not a 2D array or data
+structure.  Only <code>Lines[r]</code> or <code>Lines[r][c]</code> would be legal,
+returning a full-line string or a single-character string from a
+line, respectively..</p>
+<p>We store the result of this <code>[...]</code>-loop expression into the new
+inferred-type variable <code>Forest</code>.  When a variable is initialized
+with a <code>[...]</code>-loop like this, its domain is determined by the index
+set of the loop.  In this case, since <code>ForestSpace</code> defines that
+index set, it also serves as the domain for <code>Forest</code>.  Thus, this
+statement could have been written out more verbosely as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">Forest</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">r</span><span class="p">,</span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="nx">Lines</span><span class="p">[</span><span class="nx">r</span><span class="p">][</span><span class="nx">c</span><span class="p">]:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><details>
+    <summary><strong>(A quick note on array types and <code>[...]</code> loops&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Note that the syntax used for an array type (e.g., <code>[1..n] int</code>) is
+very similar to that used for a loop expression (e.g., <code>[i in 1..n] 2*i</code>).  This is intentional in Chapel&rsquo;s design to emphasize the
+relationship between these expressions in type vs.  value contexts.
+For example, where the latter might be read</p>
+<blockquote>
+<p>&ldquo;For all indices i in 1 through n compute 2 times i.&rdquo;</p></blockquote>
+<p>the former could be thought of as saying:</p>
+<blockquote>
+<p>&ldquo;For all indices in 1 through n store an integer variable.&rdquo;</p></blockquote>
+<p>In fact, if the index variable is not needed by the loop&rsquo;s body, it
+may be omitted (this is also true of for- and forall-loops).  Thus
+<code>[1..3] writeln(&quot;Ha&quot;);</code> is a concise way of saying</p>
+<blockquote>
+<p>&ldquo;For all indices 1 through 3, print the string &lsquo;Ha&rsquo;&rdquo;</p></blockquote>
+<p>This index-less form bears even greater resemblance to an array type
+expression like <code>[1..n] int</code>, where the index is similarly not
+necessary.</p>
+
+    </div>
+</details>
+
+<p>At this point, we have our 2D array, <code>Forest</code>, of tree heights and
+are ready to compute on it.</p>
+<h3 id="a-procedure-for-computing-a-trees-visibility">
+  <a href="#a-procedure-for-computing-a-trees-visibility">A Procedure for Computing a Tree&rsquo;s Visibility</a>
+</h3>
+<p>Next, let&rsquo;s look at my procedure for computing the visibility of a
+tree.  Here is its argument list:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">visible</span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">):</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I declare this routine to take a 2-tuple of ints, <code>(r, c)</code>, which
+will serve as the row and column coordinates of the tree in
+question—essentially, an index from <code>TreeSpace</code>.  It also takes
+<code>height</code>, an <code>int</code> indicating the corresponding tree&rsquo;s height, for
+use in determining whether it&rsquo;s larger than its neighbors along any
+of the row- or column-based sight lines.</p>
+<p>Those who have been following this series may note that I&rsquo;ve
+departed from my typical style of omitting the types for my
+procedures&rsquo; formal arguments by declaring them here.  If you&rsquo;re
+curious, I&rsquo;ll explain why I did this a bit later.</p>
+<h4 id="using-slices-to-refer-to-subsets-of-the-forest">
+  <a href="#using-slices-to-refer-to-subsets-of-the-forest">Using Slices to Refer to Subsets of the Forest</a>
+</h4>
+<p>First, let&rsquo;s focus on the body of the procedure.  We&rsquo;ve introduced
+examples of <em>slicing</em> in previous articles in this series, in which
+a range of indices is used to access a subset of elements in a
+<code>bytes</code> value, string, or array.  We&rsquo;ll be using slicing today to
+refer to subsets of the forest.  For example, the slice
+<code>Forest[0..r, 0..c]</code> would represent the sub-array of trees that are
+in the quadrant northwest of <code>(r,c)</code>, inclusive.</p>
+<p>For this computation, we will be looking at trees in the same row or
+column.  For example, the slice <code>Forest[0..&lt;numRows, c]</code> would
+represent all trees in my column and <code>Forest[r, 0..&lt;numCols]</code> would
+represent all those in my row.  These two slice expressions can be
+written in a more concise form, though, which is <code>Forest[r, ..]</code> and
+<code>Forest[.., c]</code>, respectively.  When an unbounded range is used in
+an array slicing expression, it uses the array&rsquo;s bounds in place of
+any missing range bounds.  Thus, rather than remembering whether
+<code>Forest</code> is 0-based or 1-based, or how many elements it has, I can
+use an unbounded range as a more mnemonic way to refer to sub-arrays
+of values.  This also often reduces the chances of errors.</p>
+<p>Of course, in this computation, we don&rsquo;t want the entire row or
+column of the forest, just the subset directly to the north, west,
+south, and east of the current tree.  These could be expressed using
+the slices:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">ref</span><span class="w"> </span><span class="nx">north</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="w"> </span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="w">    </span><span class="p">],</span><span class="w">  </span><span class="c1">// all rows before mine in my column
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">south</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="w">    </span><span class="p">],</span><span class="w">  </span><span class="c1">// all rows after mine in my column
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">west</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="w">    </span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="o">..&lt;</span><span class="nx">c</span><span class="w"> </span><span class="p">],</span><span class="w">  </span><span class="c1">// all columns before mine in my row
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">east</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="w">    </span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">];</span><span class="w">  </span><span class="c1">// all columns after mine in my row
+</span></span></span></code></pre></div><p>(where the spacing here is not necessary or meaningful, but just
+used to align the dimensions).</p>
+<p>As before, I&rsquo;m using unbounded ranges, but leaving only one of the
+two bounds unspecified.  As a result, missing low bounds will use 0,
+the array&rsquo;s low bound in each dimension; and missing high bounds
+will use <code>numRows</code> or <code>numCols</code>, respectively.  These four slice
+expressions describe the neighbors we must analyze.</p>
+<h4 id="using-promotions-and-reductions-to-compute-visibility">
+  <a href="#using-promotions-and-reductions-to-compute-visibility">Using Promotions and Reductions to Compute Visibility</a>
+</h4>
+<p>Here&rsquo;s how I wrote the body of <code>visible()</code> itself:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="o">..&lt;</span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that I wrote the slice expressions directly rather than naming
+them and using those names here.  Either approach is fine, but I
+found I preferred seeing the slice expressions directly in the
+computation for some reason.</p>
+<p>I use the <code>&lt;</code> operator to compare each of the four sight-line slices
+to my tree&rsquo;s height, <code>height</code>.  This is another instance of
+<em>operator promotion</em> as described in the sidebar above.
+Specifically, the <code>&lt;</code> operator takes two <code>int</code> arguments, yet I am
+passing it an array slice and an <code>int</code>.  As a result, an expression
+like:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="w">
+</span></span></span></code></pre></div><p>can be thought of as equivalent to:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="p">(</span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>which in turn is equivalent to:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">.</span><span class="k">domain</span><span class="p">.</span><span class="nx">low</span><span class="o">..&lt;</span><span class="nx">r</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>This computation could have been written in any of these equivalent
+ways if preferred.</p>
+<p>Because we are interested in whether all of the trees in these
+slices are shorter than ours, we use a <em>logical and</em> (<code>&amp;&amp;</code>)
+reduction, which applies a boolean short-circuiting &lsquo;and&rsquo; operation
+to the arguments.  This causes it to quit early if a single <code>false</code>
+is found, since there is no way for the result to become <code>true</code> at
+that point.  Then, because only one of the four directions is
+required to get visibility, we use the short-circuiting &lsquo;or&rsquo;
+operation (<code>||</code>) to combine the results.  This means that if the
+tree is visible from any of the four directions, we don&rsquo;t need to
+check the other three.</p>
+<p>In this way, I&rsquo;ve computed whether the tree at <code>(r, c)</code> is visible
+in a very succinct manner.  It may seem surprising that I didn&rsquo;t do
+any special handling of trees at the edge of the forest.  Let&rsquo;s look
+at why that is.</p>
+<p>The first thing to note is that for a tree on the border, like
+<code>(r=3, c=0)</code>, the slice that governs its west neighbors is
+<code>Forest[r, ..&lt;c]</code> or <code>Forest[3, ..&lt;0]</code> or <code>Forest[3, 0..&lt;0]</code>.
+However, <code>0..&lt;0</code> is a degenerate, or empty, range since there are no
+integers between <code>0</code> and <code>0</code> excluding <code>0</code>.  As a result, this slice
+is empty.</p>
+<p>That leads to the question &ldquo;What do reductions do if they are
+applied to an empty collection of values?&rdquo;  The answer is that they
+generate the identity element of their reduction operator, which is
+<code>true</code> for the <code>&amp;&amp;</code> operator.  Thus, our border trees are
+automatically visible, which matches the AoC definition as well.
+For this reason, no special handling for them is required!</p>
+<h3 id="computing-visibility-in-parallel-via-promotion">
+  <a href="#computing-visibility-in-parallel-via-promotion">Computing Visibility in Parallel via Promotion</a>
+</h3>
+<p>Now all we have to do is call our <code>visible()</code> routine for all trees
+in the forest, passing in their coordinates and heights.  We could
+do this using:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">rc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">visible</span><span class="p">(</span><span class="nx">rc</span><span class="p">,</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">rc</span><span class="p">]);</span><span class="w">
+</span></span></span></code></pre></div><p>However, this is another chance for us to apply promotion.  We&rsquo;ve
+already seen that we can promote an integer argument, like <code>height</code>
+above, with an array in order to promote the function.  However, we
+can also use a domain to promote arguments, so long as the formal
+arguments are the same as the domain&rsquo;s index type—in this case, a
+2-tuple of <code>int</code>s.  As a result, our forall-loop above can be
+written as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">visible</span><span class="p">(</span><span class="nx">ForestSpace</span><span class="p">,</span><span class="w"> </span><span class="nx">Forest</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>which is equivalent to the loop:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">),</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">ForestSpace</span><span class="p">,</span><span class="w"> </span><span class="nx">Forest</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">visible</span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">),</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>(yet, in a far more succinct manner).</p>
+<details>
+    <summary><strong>(Returning to the question of &lsquo;Why did Brad start declaring his formal types?&rsquo;&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>This promotion turns out to be the reason that I declared the types
+of my arguments in <code>visible()</code>, uncharacteristically for me when
+compared with other procedures I&rsquo;ve written in this series.  The
+reason is that if I were to declare the procedure without types, as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">visible</span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">),</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>the compiler would correctly see that the actual argument
+<code>ForestSpace</code>, a 2D domain, could only be passed to a 2-tuple formal
+argument <code>(r,c)</code> through promotion.  So it would correctly identify
+this as a promoted procedure call.  But then, because <code>height</code> is
+generic, it would send the whole <code>Forest</code> array in as <code>height</code> on
+every call.  Because of this, the resulting loop would effectively
+end up being:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">ForestSpace</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">visible</span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">),</span><span class="w"> </span><span class="nx">Forest</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>This would result in the compiler treating <code>visible()</code> as if it had
+a definition like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">visible</span><span class="p">((</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">):</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">ForestSpace</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// etc..
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Of course, this was not at all what I intended, since I just wanted
+the right-hand side of the <code>&lt;</code> to be a single integer, not an entire
+array.  So, <code>height</code> should be an <code>int</code>, not an array of <code>int</code>.  And
+this quickly became obvious to me because the compiler complained
+that it could not zipper the 1D array represented by <code>Forest[..&lt;r, c]</code> with the 2D array <code>height</code> when promoting the operator <code>&lt;</code>.
+Oops!</p>
+<p>Declaring the formal type of <code>height</code> to be <code>int</code> fixed this issue
+by making it a promoted argument as well.  And then I added the
+argument type to <code>(r, c)</code> for consistency, even though it was not
+strictly necessary.  I did continue to rely on the compiler to infer
+that the return type of <code>visible()</code> is <code>bool</code>, which also is
+relatively obvious since we&rsquo;re returning the result of an <code>||</code>
+expression.</p>
+<p>That makes this a case where typed arguments not only improve a
+program&rsquo;s readability and safety, but are also required to get the
+intended behavior.  I want to emphasize that by omitting types in my
+codes in this series, I don&rsquo;t mean to imply in any way that this is
+a best practice in Chapel.  Rather, I am trying to show off the
+language&rsquo;s power combined with how it often results in writing
+clear, concise code quickly, as feels appropriate for these toy AoC
+programs.  In larger or more important programs, using argument
+types is definitely a good practice for the purposes of clarity,
+safety, and documentation.</p>
+
+    </div>
+</details>
+
+<p>Finally, since the AoC problem asks us to find the number of visible
+trees in the forest, we can use our old friends, the <code>+</code> reduction
+and <code>writeln()</code> routine to do so:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">visible</span><span class="p">(</span><span class="nx">ForestSpace</span><span class="p">,</span><span class="w"> </span><span class="nx">Forest</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>And there you have it.  Hopefully you did not have any trouble seeing
+the forest for the trees!  [rim shot].</p>
+<p>Before wrapping up, here are some optional, and slightly technical,
+notes on parallelism and performance in the code above:</p>
+<details>
+    <summary><strong>(Notes on parallelism and performance with this approach&hellip;)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <h3 id="a-note-on-parallelism-and-performance">
+  <a href="#a-note-on-parallelism-and-performance">A Note on Parallelism and Performance</a>
+</h3>
+<p>The first thing I want to point out about the code above is that we
+have created an abundance of parallelism in this program.
+Specifically, in that last line of code, I&rsquo;ve parallelized all of
+the iterations over our forest.  So, as long as <code>numRows*numCols</code> is
+greater than the number of processor cores on our system, we&rsquo;ve
+pretty likely saturated our processors with tasks to run.</p>
+<p>But then, within the <code>visible()</code> routine my use of the <code>[...]</code> loop
+form is also interpreted as a <code>forall</code> since it is over an array
+(slice).  Parallelism is good, but this might lead one to wonder
+whether there could be too much of a good thing?  And the answer is
+that there can be, but also &ldquo;it depends.&rdquo;</p>
+<p>Chapel&rsquo;s built-in parallel iterators, like the ones on domains and
+arrays that are leading these forall loops, are designed to check
+how utilized the system is (or, really, how many tasks are running).
+In the event that it finds there are already more tasks than cores,
+it takes a branch that runs the loop serially, as if it was a
+for-loop.  This is good because it avoids the overhead of creating
+tasks that don&rsquo;t have their own core to run on, so would end up
+running serially anyway.  However, the checking and branching do add
+some amount of overhead.  Whether that overhead is meaningful or
+negligible depends heavily on the size of the loop and the
+computational intensity of its body—essentially, whether enough time
+is spent in it to overwhelm the compiler-generated &ldquo;should it be run
+in parallel or serially?&rdquo; checks.</p>
+<p>In this case, since we are effectively firing off up to
+<code>numRows*numCols*4</code> such parallel loops within the context of an
+already highly parallel loop, it is unlikely that we will have the
+cores to execute them in parallel.  For that reason, a programmer
+who wants to squeeze every last bit of performance out of this loop
+<em>might</em> choose to write their reductions using serial <code>for</code> loops
+instead.  This would eliminate any overheads involved in checking
+for parallelism only to decide to run serially anyway.  The result
+of this rewrite would be:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">return</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="o">..&lt;</span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>For any large forest, this would still generate plenty of parallelism
+from the outer-loop promotion of <code>visible()</code>.  Is this rewrite worth
+it?  It depends a lot on how much you care about succinct code
+vs. not leaving performance on the floor, as well as how good the
+Chapel compiler is (or gets) at reducing overheads in the face of
+unnecessary nested parallelism.  In any event, it&rsquo;s good to
+understand these tradeoffs and some of the options available for
+rewriting code.</p>
+<h3 id="a-note-on-slicing-and-performance">
+  <a href="#a-note-on-slicing-and-performance">A Note on Slicing and Performance</a>
+</h3>
+<p>One other way to optimize the performance of this program, at least
+given Chapel&rsquo;s status today, relates to the slice expressions.
+When slicing a 2D array, there are two similar-yet-different forms
+I&rsquo;d like to compare:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">ref</span><span class="w"> </span><span class="nx">Slice1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></div><p>and</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">ref</span><span class="w"> </span><span class="nx">Slice2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">..</span><span class="nx">c</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></div><p>The first of these is slightly more succinct and results in a
+virtual 1D <em>array view</em> into the original 2D array, owing to the
+fact that one of the dimensions is a range (<code>..&lt;r</code>) and the other is
+the singleton index, <code>c</code>.  This collapses that dimension out of the
+view, leaving a 1D array with the indices <code>[0..&lt;r]</code>.  Meanwhile, the
+second is a 2D array view that happens to be degenerate in the
+second dimension.</p>
+<p>A difference between these is that if we were to create named
+references to these slices, as in the lines above, those references
+are essentially like virtual arrays themselves.  The first would act
+like a 1D array, so would be indexed <code>Slice1[i]</code>, equivalent to
+<code>Forest[i,c]</code>.  Meanwhile, the second is still a 2D array, so would
+be indexed <code>Slice2[i,j]</code>, where <code>j</code> would have to be <code>c</code> in order to
+stay in-bounds for the slice.  Note that these views can be passed
+to other routines or used in other computations as though they were
+normal 1D or 2D arrays, respectively.</p>
+<p>Due to vagaries of the Chapel implementation, as things stand today
+(Chapel version 1.28), the performance of rank-change slices, like
+<code>Slice1</code> above is notably worse than that of rank-preserving slices,
+like <code>Slice2</code>.  As a result, performance minded programmers will
+tend to want to use rank-preserving slices whenever possible, at
+least until we improve the performance of rank-change slices.</p>
+<p>This suggests that an even better-performing way to write this code
+would be:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">return</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">..</span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">..</span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">..</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="o">..&lt;</span><span class="nx">c</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">r</span><span class="o">..</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">f</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Or, we could do away with creating either kind of slice altogether
+and just loop over the indices in question directly, as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">return</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nx">rc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="o">..</span><span class="nx">c</span><span class="p">}</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">Forest</span><span class="p">[</span><span class="nx">rc</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="c1">// etc.
+</span></span></span></code></pre></div><p>Or we could avoid creating the domains and loop over ranges, or&hellip;,
+or &hellip;</p>
+<p>There are definite decisions to be made here between which code
+styles you find clearest, which are going to result in the best
+performance, and where your tastes and needs fall on that spectrum.
+I&rsquo;ll also mention that Chapel performance is improving all the time,
+particularly for higher-level idioms such as these array slices.  To
+that end, if you prefer writing at a higher level but encounter
+unacceptable performance overheads, or just find yourself wishing
+things were faster, that is always feedback we are happy to receive
+and slot into our priority list.  Just let us know.</p>
+
+    </div>
+</details>
+
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>That concludes today&rsquo;s article and a brief introduction to Chapel&rsquo;s
+domains and multidimensional arrays, as well as their relationship
+to forall loops, promotion, slicing, and reductions.  You can browse
+or download my code from the top of this article or
+<a href="https://github.com/chapel-lang/chapel/blob/e055a3f4e8469f1d351829038149d2ce891c986f/test/studies/adventOfCode/2022/day08/bradc/day08.chpl"target="_blank" rel="noopener">GitHub</a>
+if you want to try it yourself or make modifications to it.</p>
+<p>Part two of today&rsquo;s exercise is not too much harder (though I had a
+hard time with it due to not reading the instructions carefully).
+You should already have all the Chapel features you need to solve
+it.  Essentially, you can create another procedure like <code>visible()</code>
+that implements different logic to compute a tree&rsquo;s score and invoke
+it in the same promoted manner.  Just be sure to read the
+description of how the score is computed more carefully than I did!</p>
+<p>Thanks for reading this blog post and series, and please feel free
+to ask any questions or post any comments you have in the new <a href="https://chapel.discourse.group/c/blog/"target="_blank" rel="noopener">Blog
+Category</a> of Chapel&rsquo;s
+Discourse Page.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;8%3A&#43;Hiding&#43;Treehouses&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day08-treehouse%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;8%3A&#43;Hiding&#43;Treehouses&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day08-treehouse%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;8%3A&#43;Hiding&#43;Treehouses&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day08-treehouse%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Advent&#43;of&#43;Code&#43;2022%2C&#43;Day&#43;8%3A&#43;Hiding&#43;Treehouses&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Faoc2022-day08-treehouse%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/aoc2022-day07-dir-traversals/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+ Day 7: Traversing Directories
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/aoc2022-day09-elvish-string-theory/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+ Day 9: Elvish String Theory
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

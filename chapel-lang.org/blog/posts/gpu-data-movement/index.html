@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="This post covers how Chapel&rsquo;s arrays, parallelism, and locality features enable moving data between CPUs and GPUs.">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Chapel&#39;s High-Level Support for CPU-GPU Data Transfers and Multi-GPU Programming</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Chapel&#39;s High-Level Support for CPU-GPU Data Transfers and Multi-GPU Programming</h2>
+<div class="post-subscript">
+    <p>Posted on April 25, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/gpu-programming">GPU Programming</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/engin-kayraklioglu">Engin Kayraklioglu</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#refresher-allocating-data">Refresher: Allocating data</a></li>
+    <li><a href="#rolling-up-our-sleeves-moving-data-between-host-and-device">Rolling up our sleeves: Moving data between host and device</a></li>
+    <li><a href="#getting-serious-move-parts-of-an-array-between-host-and-device">Getting serious: Move parts of an array between host and device</a></li>
+    <li><a href="#getting-efficient-overlapping-data-transfer-with-computation">Getting efficient: Overlapping data transfer with computation</a></li>
+    <li><a href="#getting-parallel-use-multiple-gpus-concurrently">Getting parallel: Use multiple GPUs concurrently</a></li>
+    <li><a href="#getting-distributed-use-multiple-nodes-with-multiple-gpus-concurrently">Getting distributed: Use multiple nodes with multiple GPUs concurrently</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Moving data between <em>host</em> (CPU) and <em>device</em> (GPU) memories is a crucial part of GPU
+programming. A very common pattern is to initialize some input data on the
+host memory, offload the data to the device memory,
+crunch numbers in parallel using the GPU, and then copy the resulting data back.
+If you have access to multiple GPUs, potentially across multiple nodes in an HPC
+system, data movement can get even more complicated.  How do data movement and
+multi-GPU parallelism work in Chapel? We will explore the answer to that
+question in this article.</p>
+<p>Before starting with some code, I recommend taking a look at Daniel Fedorin&rsquo;s <a href="../../posts/intro-to-gpus/">Introduction to
+GPU Programming in Chapel</a> which covers some
+basics. The key points from that article that I&rsquo;ll assume you&rsquo;re
+aware of are:</p>
+<ul>
+<li>Chapel’s <em>locales</em> represent parts of the machine that can run code and store
+variables.</li>
+<li>The <code>on</code> statement specifies where code should be executed, including on the
+GPU.</li>
+</ul>
+<h3 id="refresher-allocating-data">
+  <a href="#refresher-allocating-data">Refresher: Allocating data</a>
+</h3>
+<p>Based on those key points above, let&rsquo;s review how data can be allocated on
+device memory in Chapel in more detail here.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">  </span><span class="c1">// allocates &#39;DevArr&#39; on the device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">             </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">DevArr</span><span class="p">);</span><span class="w">         </span><span class="c1">// prints &#34;1 1 1 1 1&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>Recall that <code>here.gpus[0]</code> refers to a GPU <em>sublocale</em> that represents the first device
+on the node. The body of the <code>on</code> statement targeting that sublocale will cause:</p>
+<ul>
+<li>array data to be allocated on device memory, and</li>
+<li>order-independent operations to run on the device.</li>
+</ul>
+<p>Therefore, <code>DevArr</code> is an array whose elements are allocated in device memory.
+There&rsquo;s nothing special about the array&rsquo;s definition. The array&rsquo;s elements are
+allocated on the GPU because it is defined while executing on a GPU sublocale. If
+we look at the full code, you can see that both host- and device-allocated
+arrays are declared in the same way:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/allocation.chpl download="allocation.chpl">allocation.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">   </span><span class="c1">// allocates &#39;HostArr&#39; on the host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">               </span><span class="c1">// executes on the (multicore) CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">  </span><span class="c1">// allocates &#39;DevArr&#39; on the device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">             </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">DevArr</span><span class="p">);</span><span class="w">         </span><span class="c1">// prints &#34;1 1 1 1 1&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">HostArr</span><span class="p">);</span><span class="w">          </span><span class="c1">// prints &#34;1 1 1 1 1&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<h3 id="rolling-up-our-sleeves-moving-data-between-host-and-device">
+  <a href="#rolling-up-our-sleeves-moving-data-between-host-and-device">Rolling up our sleeves: Moving data between host and device</a>
+</h3>
+<p>The example above keeps host and device values where they were declared, and it doesn&rsquo;t involve
+any data movement between different memory types. Given that both host- and
+device-allocated arrays are just Chapel arrays with the same type and features,
+do you have a guess as to how to copy data between them? For the answer, let&rsquo;s look at a
+slightly modified code where the host array is copied into the device array and
+then copied back after an increment operation:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/movement.chpl download="movement.chpl">movement.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="hl"><span class="lnt"> 7
+</span></span><span class="lnt"> 8
+</span><span class="hl"><span class="lnt"> 9
+</span></span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">   </span><span class="c1">// allocates &#39;HostArr&#39; on the host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">               </span><span class="c1">// executes on the (multicore) CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">  </span><span class="c1">// allocates &#39;DevArr&#39; on the device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">  </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">;</span><span class="w">        </span><span class="c1">// copies values from host to device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">             </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line hl"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">;</span><span class="w">        </span><span class="c1">// copies values from device to host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">HostArr</span><span class="p">);</span><span class="w">          </span><span class="c1">// prints &#34;2 2 2 2 2&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Any surprises?</p>
+<p>Chapel arrays can be assigned to one another using the assignment operator, <code>=</code>.
+The array implementation can figure out where array data is allocated and
+will perform bulk copy operations under the hood. In other words, the copies back and
+forth in the highlighted lines will each result in a single data movement operation
+between the host and the device.</p>
+<h3 id="getting-serious-move-parts-of-an-array-between-host-and-device">
+  <a href="#getting-serious-move-parts-of-an-array-between-host-and-device">Getting serious: Move parts of an array between host and device</a>
+</h3>
+<p>More often than not, you&rsquo;ll want to move only parts of the data to the device,
+operate on that part, copy the output from that part back to the host, and repeat
+until you finish processing your data in full. There could be multiple reasons
+for doing this:</p>
+<ul>
+<li>Your input data might be too large for your device memory.</li>
+<li>You might want to distribute the data onto multiple GPUs if your system has
+more than one.</li>
+<li>You can overlap data transfer with computation to hide the latency of such transfers.</li>
+</ul>
+<p>Let&rsquo;s expand on our previous example and make it closer to a case where you have
+a very large input array:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/slices.chpl download="slices.chpl">slices.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="hl"><span class="lnt">15
+</span></span><span class="lnt">16
+</span><span class="hl"><span class="lnt">17
+</span></span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">RangeChunk</span><span class="p">.</span><span class="nx">chunks</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w">              </span><span class="c1">// the problem size (use `--n` to specify!)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">sliceSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">       </span><span class="c1">// the number of elements per slice
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">numSlices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">n</span><span class="o">/</span><span class="nx">sliceSize</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// (+1 is to round up)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">          </span><span class="c1">// allocates &#39;HostArr&#39; on the host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                      </span><span class="c1">// executes on the (multicore) CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">numSlices</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">      </span><span class="c1">// allocates &#39;DevArr&#39; on the device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">    </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">];</span><span class="w">      </span><span class="c1">// copies a slice from host to device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                  </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line hl"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">;</span><span class="w">      </span><span class="c1">// copies from device to a slice on host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">HostArr</span><span class="p">);</span><span class="w">                 </span><span class="c1">// prints &#34;2 2 2 2 2 ...&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<details>
+    <summary><code>config const</code> <strong>looks cool, what is that?</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <code>config</code> is a unique and very powerful concept in Chapel and has nothing to do
+with GPU support. Variables at module scope can be declared with the <code>config</code>
+qualifier to turn them into compile- or execution-time arguments. For example,
+with the source above, the application can be run using <code>./slices --n=2_000_000 --sliceSize=1000</code> to set <code>n</code> to 2,000,000 and the slice size to 1000. You can read more about <code>config</code> in the <a href="https://chapel-lang.org/docs/main/users-guide/base/configs.html"target="_blank" rel="noopener">Chapel Users
+Guide</a>.
+    </div>
+</details>
+
+<p>There are two key changes from the previous example. First, we use the
+<a href="https://chapel-lang.org/docs/modules/packages/RangeChunk.html"target="_blank" rel="noopener"><code>RangeChunk</code></a>
+module to slice the range <code>1..n</code> up into <code>numSlices</code> chunks, which are also of
+type <code>range</code>. The <code>chunks</code> iterator makes sure that the generated chunks cover
+the whole range, even if <code>n</code> is not divisible by <code>numSlices</code>.</p>
+<p>More importantly, the loop body now copies array slices back and forth. Chapel
+arrays can be indexed with the <code>[]</code> syntax. However, that syntax can also be
+used to slice arrays. For example, if the argument to the operator is a range,
+then an array slice will be created. An array slice does not have its own data;
+it uses the same data as the original array.
+You may have guessed it already, but an array slice can be used pretty much anywhere an array can be used. If
+they are used in assignments like the ones in the highlighted lines, the
+corresponding data will be copied in bulk. The fact that one or both sides of an
+array assignment is an array slice whose data is stored on a GPU does not matter &mdash;
+Chapel will copy the relevant data between the host and the device under the
+hood.</p>
+<h3 id="getting-efficient-overlapping-data-transfer-with-computation">
+  <a href="#getting-efficient-overlapping-data-transfer-with-computation">Getting efficient: Overlapping data transfer with computation</a>
+</h3>
+<p>Currently, the GPU sublocale copies a slice of <code>HostArr</code> into the device memory
+first. Once the copy is complete, the kernel executes. And then, once the
+kernel finishes, the data is copied back. Only then does the program move on to
+copying the next slice. This sequential execution of copy-execute-copy leaves
+some performance on the table. GPUs are capable of transferring data while
+executing a kernel. Some higher-end GPUs can even handle multiple
+data copies in each direction (host-to-device, device-to-host) while
+executing a kernel.</p>
+<p>Overlapping data movement and processing is a common optimization. In a typical
+overlapping scenario, a single device is used by multiple parallel execution
+units. Some of these parallel units can perform data transfers while another
+executes a kernel. Let&rsquo;s take a look at how we can achieve this with Chapel&rsquo;s
+features for parallelism:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/overlap.chpl download="overlap.chpl">overlap.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="hl"><span class="lnt">12
+</span></span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">RangeChunk</span><span class="p">.</span><span class="nx">chunks</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w">              </span><span class="c1">// the problem size (use `--n` to specify!)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">sliceSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">       </span><span class="c1">// the number of elements per slice
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">numSlices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">n</span><span class="o">/</span><span class="nx">sliceSize</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// (+1 is to round up)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">          </span><span class="c1">// allocates &#39;HostArr&#39; on the host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                      </span><span class="c1">// executes on the (multicore) CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">on</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">numSlices</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">      </span><span class="c1">// allocates &#39;DevArr&#39; on the device *per task*
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">];</span><span class="w">      </span><span class="c1">// copies a slice from host to device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                  </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">;</span><span class="w">      </span><span class="c1">// copies from device to a slice on host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">HostArr</span><span class="p">);</span><span class="w">                 </span><span class="c1">// prints &#34;2 2 2 2 2 ...&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>The key difference from the previous example is highlighted. Here, we are using
+a <code>coforall</code> loop instead of a <code>for</code> loop. A <code>coforall</code> loop creates a <em>parallel
+task</em> per iteration. These tasks can run concurrently.</p>
+<p>Chapel tasks running on
+the same GPU sublocale can execute GPU operations &mdash; including transfers and
+kernel launch &mdash; independently of one another. Depending on the capabilities of
+your particular hardware and available resources, the
+underlying GPU can overlap data transfer and execution from
+distinct tasks, leading to
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">better performance</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right" style="margin-top: -11.5rem"><span class="sidenote-delimiter">[note:</span>
+Admittedly, overlap is an optimization which can be a hard to fine-tune; the
+balance between transfer performance (bandwidth and latency) and computational
+intensity should be handled delicately. Furthermore, fine-tuning overlap is
+typically specific to the hardware and application characteristics. For example,
+in our very simple case of launching a kernel to increment each element of
+the array by one, I don't expect any gain from overlap. This application has
+almost no computation, and the execution time will be dominated by data transfer,
+diminishing any chance to overlap. However, for more realistic and
+computationally intensive applications, the benefits can be significant.  We
+plan to revisit overlap with a
+more realistic example in a future article.
+<span class="sidenote-delimiter">]</span></span></span>.</p>
+<details>
+    <summary><strong>Tell me more about how this works before we move on</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>GPUs can perform transfer and execution asynchronously from the CPU. This is
+achieved by a concept called a <em>stream</em> or <em>work queue</em>. The CPU can create
+multiple streams per GPU, and queue up operations in those streams. The GPU
+driver guarantees that the order of operations within a stream will be
+preserved. However, it can schedule operations from different streams in any
+order it sees fit. Typically, this is driven by the availability of data
+transfer and/or execution units at the time of scheduling.</p>
+<p>Chapel tasks create and use their own streams when interacting with GPUs. This
+enables operations coming from distinct tasks to be scheduled concurrently for
+potential overlap.</p>
+<figure class="fullwide"><img src="../../posts/gpu-data-movement/streams.png"><figcaption>
+      <h4>Using per-task streams can enable overlap</h4>
+    </figcaption>
+</figure>
+<p>The figure above shows the difference between using the default stream and
+per-task GPU streams in the context of two tasks and a toy workload, where
+the scheduling permitted by the per-task streams results in faster
+execution.</p>
+
+    </div>
+</details>
+
+<h3 id="getting-parallel-use-multiple-gpus-concurrently">
+  <a href="#getting-parallel-use-multiple-gpus-concurrently">Getting parallel: Use multiple GPUs concurrently</a>
+</h3>
+<p>One of the cases where you might want to copy slices of arrays back and forth is
+when you have multiple GPUs in your workstation/server or you have access to a cluster
+or a supercomputer with multiple GPUs per node. Luckily, we have already seen a
+way of executing a number of parallel tasks concurrently. Yes, I am talking
+about <code>coforall</code> loops:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/parallel.chpl download="parallel.chpl">parallel.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="hl"><span class="lnt">10
+</span></span><span class="hl"><span class="lnt">11
+</span></span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">RangeChunk</span><span class="p">.</span><span class="nx">chunks</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w">              </span><span class="c1">// the problem size (use `--n` to specify!)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">             </span><span class="nx">sliceSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">       </span><span class="c1">// the number of elements per slice
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">          </span><span class="c1">// allocates &#39;HostArr&#39; on the host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                      </span><span class="c1">// executes on the (multicore) CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">numGpus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">   </span><span class="c1">// number of GPUs on the locale
+</span></span></span><span class="line hl"><span class="cl"><span class="c1"></span><span class="k">coforall</span><span class="w"> </span><span class="p">(</span><span class="nx">gpu</span><span class="p">,</span><span class="w"> </span><span class="nx">gpuChunk</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">,</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">numGpus</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">  </span><span class="k">on</span><span class="w"> </span><span class="nx">gpu</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">numSlices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">gpuChunk</span><span class="p">.</span><span class="nx">size</span><span class="o">/</span><span class="nx">sliceSize</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// (+1 is to round up)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">coforall</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="nx">gpuChunk</span><span class="p">,</span><span class="w"> </span><span class="nx">numSlices</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">    </span><span class="c1">// allocates &#39;DevArr&#39; on the device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">];</span><span class="w">    </span><span class="c1">// copies a slice from host to device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">      </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">;</span><span class="w">    </span><span class="c1">// copies from device to a slice on host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">HostArr</span><span class="p">);</span><span class="w">  </span><span class="c1">// prints &#34;2 2 2 2 2 ...&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>In this code, we introduce a second <code>coforall</code> loop, which we use to compute
+with multiple GPUs simultaneously. This loop uses <code>zip</code>, which causes it to
+iterate over the GPUs in the current node and the chunks generated by the
+<code>chunks</code> iterator in a lock-step manner. Here, we are iterating over the GPUs in
+the current node, and the chunks generated by the <code>chunks</code> iterator as we have
+seen before.</p>
+<p>In the end, <code>gpu</code> and <code>gpuChunk</code> represent a GPU
+sublocale and the chunk that it needs to work on for each
+task created by the <code>coforall</code> loop. Then, an <code>on</code> statement moves each task
+onto its corresponding GPU sublocale.</p>
+<p>Using a <code>coforall</code> loop together with an <code>on</code> statement to use multiple GPU
+sublocales concurrently is nothing new in Chapel. In fact, <code>coforall</code> loops are
+commonly used with <code>on</code> statements to parallelize work across multiple <em>compute nodes</em>. In the next
+step, we will re-use the idiom introduced here to expand the execution to
+multiple nodes.</p>
+<h3 id="getting-distributed-use-multiple-nodes-with-multiple-gpus-concurrently">
+  <a href="#getting-distributed-use-multiple-nodes-with-multiple-gpus-concurrently">Getting distributed: Use multiple nodes with multiple GPUs concurrently</a>
+</h3>
+<p>We can expand our previous example to use multiple nodes by adding another
+similar <code>coforall</code> loop and an <code>on</code> statement:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/distributed.chpl download="distributed.chpl">distributed.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="hl"><span class="lnt"> 9
+</span></span><span class="hl"><span class="lnt">10
+</span></span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">RangeChunk</span><span class="p">.</span><span class="nx">chunks</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w">                </span><span class="c1">// the problem size (use `--n` to specify!)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">sliceSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">         </span><span class="c1">// the number of elements per slice
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">            </span><span class="c1">// allocates on the host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">HostArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                        </span><span class="c1">// executes on the (multicore) CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w"></span><span class="k">coforall</span><span class="w"> </span><span class="p">(</span><span class="nx">loc</span><span class="p">,</span><span class="w"> </span><span class="nx">locChunk</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">Locales</span><span class="p">,</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">numLocales</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">  </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">numGpus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">coforall</span><span class="w"> </span><span class="p">(</span><span class="nx">gpu</span><span class="p">,</span><span class="w"> </span><span class="nx">gpuChunk</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">here</span><span class="p">.</span><span class="nx">gpus</span><span class="p">,</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="nx">locChunk</span><span class="p">,</span><span class="w"> </span><span class="nx">numGpus</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">on</span><span class="w"> </span><span class="nx">gpu</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">numSlices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">gpuChunk</span><span class="p">.</span><span class="nx">size</span><span class="o">/</span><span class="nx">sliceSize</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// (+1 is to round up)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">coforall</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">chunks</span><span class="p">(</span><span class="nx">gpuChunk</span><span class="p">,</span><span class="w"> </span><span class="nx">numSlices</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">  </span><span class="c1">// allocates on the device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">];</span><span class="w">  </span><span class="c1">// copies a slice from host to device
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">          </span><span class="nx">DevArr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">              </span><span class="c1">// executes on the device as a kernel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">          </span><span class="nx">HostArr</span><span class="p">[</span><span class="nx">chunk</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">DevArr</span><span class="p">;</span><span class="w">  </span><span class="c1">// copies from device to a slice on host
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">HostArr</span><span class="p">);</span><span class="w">  </span><span class="c1">// prints &#34;2 2 2 2 2 ...&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>The highlighted idiom should be familiar. Instead of iterating over <code>here.gpus</code>
+as in Line 12, we are iterating over <code>Locales</code>. <code>Locales</code> is a built-in array
+that represents all compute nodes the application is using. Similarly,
+<code>numLocales</code> is another built-in that&rsquo;s just a slightly more convenient way of
+doing <code>Locales.size</code>.  Finally, the <code>on</code> statement here targets a locale that
+represents a <em>compute node</em>.</p>
+<p>Overall, this snippet uses the same idiom to distribute work across compute
+nodes <em>and</em> across GPUs within them.</p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>We&rsquo;ve covered a lot of ground in this post:</p>
+<ul>
+<li>
+<p>We&rsquo;ve observed that Chapel&rsquo;s high-level array operations—like assignment and
+slicing—can be used to move data between GPUs and CPUs.</p>
+</li>
+<li>
+<p>We&rsquo;ve explored how Chapel&rsquo;s parallelism and locality features can enable using
+multiple GPUs and/or multiple GPUs on multiple compute nodes, whether you&rsquo;re
+on your laptop, GPU-based server, or a supercomputer.</p>
+</li>
+</ul>
+<p>If you were already familiar with Chapel, the key takeaway is that there aren&rsquo;t a
+lot of new concepts to learn that enable GPU programming &mdash; the features that
+you know about can readily enable GPU programming. If you are new to Chapel but
+know about GPU programming, the key takeaway is that Chapel makes programming
+GPUs feel as natural as programming CPUs.  If you are new to both Chapel
+and GPU programming, the key takeaway is that GPU programming doesn&rsquo;t have to be
+scary!</p>
+<p>So far, we have only covered how to program GPUs in Chapel. None of it matters
+unless it performs and scales well. Stay tuned for our upcoming GPU blog posts
+about performance and scaling!</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Chapel%27s&#43;High-Level&#43;Support&#43;for&#43;CPU-GPU&#43;Data&#43;Transfers&#43;and&#43;Multi-GPU&#43;Programming&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fgpu-data-movement%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Chapel%27s&#43;High-Level&#43;Support&#43;for&#43;CPU-GPU&#43;Data&#43;Transfers&#43;and&#43;Multi-GPU&#43;Programming&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fgpu-data-movement%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Chapel%27s&#43;High-Level&#43;Support&#43;for&#43;CPU-GPU&#43;Data&#43;Transfers&#43;and&#43;Multi-GPU&#43;Programming&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fgpu-data-movement%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Chapel%27s&#43;High-Level&#43;Support&#43;for&#43;CPU-GPU&#43;Data&#43;Transfers&#43;and&#43;Multi-GPU&#43;Programming&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fgpu-data-movement%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/intro-to-gpus/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Introduction to GPU Programming in Chapel
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/nvidia-gpu-wsl/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+Measure the Performance of your Gaming GPU with Chapel
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

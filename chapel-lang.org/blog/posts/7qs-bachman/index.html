@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="An interview with oceanographer Scott Bachman, focusing on his work to measure coral reef biodiversity using satellite image analysis">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>7 Questions for Scott Bachman: Analyzing Coral Reefs with Chapel</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<div class="author-side-by-side">
+
+<div class="interview-img-wrapper">
+    <div class="interview-img-shadow">
+        <img class="interview-img" src="../../posts/7qs-bachman/bachman.jpg" alt="Interviewee Photo">
+    </div>
+</div>
+<div class="post-info"><h2>7 Questions for Scott Bachman: Analyzing Coral Reefs with Chapel</h2>
+<div class="post-subscript">
+    <p>Posted on October 1, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/earth-sciences">Earth Sciences</a>
+        
+        <a class="button" href="../../tags/image-analysis">Image Analysis</a>
+        
+        <a class="button" href="../../tags/gpu-programming">GPU Programming</a>
+        
+        <a class="button" href="../../tags/user-experiences">User Experiences</a>
+        
+        <a class="button" href="../../tags/interviews">Interviews</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>, <a href="../../authors/engin-kayraklioglu">Engin Kayraklioglu</a>
+    </p>
+</div>
+</div>
+</div>
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-who-are-you">1. Who are you?</a></li>
+    <li><a href="#2-what-do-you-do-what-problems-are-you-trying-to-solve">2. What do you do? What problems are you trying to solve?</a></li>
+    <li><a href="#3-how-does-chapel-help-you-with-these-problems">3. How does Chapel help you with these problems?</a></li>
+    <li><a href="#4-what-initially-drew-you-to-chapel">4. What initially drew you to Chapel?</a></li>
+    <li><a href="#5-what-are-your-biggest-successes-that-chapel-has-helped-achieve">5. What are your biggest successes that Chapel has helped achieve?</a></li>
+    <li><a href="#6-if-you-could-improve-chapel-with-a-finger-snap-what-would-you-do">6. If you could improve Chapel with a finger snap, what would you do?</a></li>
+    <li><a href="#7-anything-else-youd-like-people-to-know">7. Anything else you&rsquo;d like people to know?</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>In this second installment of our <a href="../../series/7-questions-for-chapel-users/">Seven Questions for Chapel
+Users</a> series,
+we&rsquo;re looking at a recent success story in which Scott Bachman used
+Chapel to unlock new scales of biodiversity analysis in coral reefs to
+study ocean health using satellite image processing.  This is work
+that Scott started as a visiting scholar with the Chapel team at HPE,
+and it is just one of several projects he took on during his time with
+us.  Since wrapping up his visit at HPE, Scott has continued to apply
+Chapel in his work, which he describes below.</p>
+<p>One noteworthy thing about the computation Scott describes here is
+that it is just a few hundred lines of Chapel code, yet can be used to
+drive the CPUs and GPUs of the world&rsquo;s largest supercomputers.  This
+serves as a sharp contrast with the 100+k lines that make up the
+CHAMPS framework covered in our <a href="../../posts/7qs-laurendeau/">previous interview</a>.  Together, the two demonstrate the vast
+spectrum of code sizes that researchers are productively writing in
+Chapel.</p>
+<p>This interview was conducted live (online) on August 23rd, and was
+edited for clarity with Scott&rsquo;s assistance.</p>
+<h3 id="1-who-are-you">
+  <a href="#1-who-are-you">1. Who are you?</a>
+</h3>
+<p>My name is Dr. Scott Bachman.  I am an oceanographer currently at the
+National Center for Atmospheric Research (NCAR), and also at
+<a href="https://www.cworthy.org/"target="_blank" rel="noopener">[C]Worthy</a> where I&rsquo;m the technical modeling
+lead.  I have been an oceanographer for just about 10 years since my
+Ph.D.  I have expertise in physics, fluid dynamics, and large-scale
+computing, at least within the scope of computational oceanography.
+I&rsquo;m not necessarily an HPC computer whiz, but I&rsquo;m pretty good by
+scientist standards.  At NCAR we use HPC heavily—NCAR owns its own
+clusters.  At [C]worthy we also do that, although we kind of bounce
+between clusters operated by DOE and NSF.</p>
+<h3 id="2-what-do-you-do-what-problems-are-you-trying-to-solve">
+  <a href="#2-what-do-you-do-what-problems-are-you-trying-to-solve">2. What do you do? What problems are you trying to solve?</a>
+</h3>
+<p>In my position at NCAR, I solve problems related to ocean physics,
+understanding how the ocean behaves, making connections to climate
+change, and how we can prepare for it and mitigate risk.  So one thing
+that I&rsquo;ve done with Chapel specifically is that I wrote, or
+essentially translated, a code that has been used to calculate
+biodiversity in coral reefs.</p>
+<p>Previously that was done serially in MATLAB, and it was creating an
+enormous bottleneck for the scientists because it was just not
+performing at all, and they were not able to do these biodiversity
+analyses at any kind of interesting scale—they were limited to very,
+very small islands and atolls.  And the challenge with reefs is that
+they&rsquo;re very scattered and also very small.  This means you have to
+cover a massive footprint even though the individual reefs are pretty
+tiny.</p>
+<blockquote class="pull-quote">
+    <div class="quote-wrapper">
+        <div class="quote-container"><span class="open-quote">“</span></div>
+            <div class="quote-content">
+                <p>
+Coral reefs are home to about 25% of all marine life at some stage of
+their life cycle, so even though they cover a tiny, tiny area, they
+are massively important for the entire oceanic food web, and
+therefore, so many other things.
+</p>
+            </div>
+        <div class="quote-container"><span class="close-quote">”</span></div>
+    </div>
+</blockquote>
+<p>I consider this work to benefit humankind, though I think a lot of
+people who don&rsquo;t live near reefs don&rsquo;t even understand that they&rsquo;re
+living things.  Coral reefs are home to about 25% of all marine life
+at some stage of their life cycle, so even though they cover a tiny,
+tiny area, they are massively important for the entire oceanic food
+web, and therefore, so many other things.  I think their value in
+monetary terms has been calculated at something like $10 trillion.
+And they provide coastal protection, they provide fisheries, they can
+provide so many more things.</p>
+<p>So it&rsquo;s very, very important to try to conserve what reefs are left,
+and we&rsquo;re losing them very rapidly.  People in Florida, for the most
+part, don&rsquo;t even recognize that their state has lost practically all
+of their reefs, which used to be world-renowned.  So it&rsquo;s the
+unfortunate property that coral reefs are hidden underneath the water,
+and unless you go into the water and go under, you won&rsquo;t ever see
+them.  But they&rsquo;re there and they&rsquo;re really, really important.</p>
+<blockquote class="pull-quote">
+    <div class="quote-wrapper">
+        <div class="quote-container"><span class="open-quote">“</span></div>
+            <div class="quote-content">
+                <p>
+It's understandable that a lot of people are limited to the domain of
+running their programs serially, which is fine for the most part until
+you run into a problem that requires an enormous scale or enormous
+speed.
+</p>
+            </div>
+        <div class="quote-container"><span class="close-quote">”</span></div>
+    </div>
+</blockquote>
+<h3 id="3-how-does-chapel-help-you-with-these-problems">
+  <a href="#3-how-does-chapel-help-you-with-these-problems">3. How does Chapel help you with these problems?</a>
+</h3>
+<p>Chapel has helped with this particular problem due to its speed and its
+ease of use.  As you know, climate scientists tend not to be computer
+scientists, even though we use computers a lot.  Most of us have skill
+in some kind of scientific software or programming language—usually
+it&rsquo;s Python or MATLAB.  But as a community, we tend to achieve only
+such a level of skill with those languages that we never really get
+deep into the weeds unless we&rsquo;re very much on the computational
+physics side.  So it&rsquo;s understandable that a lot of people are limited
+to the domain of running their programs serially, which is fine for
+the most part until you run into a problem that requires an enormous
+scale or enormous speed.</p>
+<p>This problem that I have been working on for coral biodiversity was
+one such problem where they had really high-resolution satellite
+imagery with tons and tons of data; but they weren&rsquo;t able to work
+through the data fast enough to do anything really useful.  So I
+picked up that problem when I started working with the Chapel team at
+HPE, and I was able to stand up a highly, highly parallelized version
+of their biodiversity solver without too much trouble.  I had some
+guidance from developers on the Chapel team like Ben Harshbarger, but
+otherwise Chapel&rsquo;s ease-of-use was perfect for it.  It let me split up
+these satellite images very naturally into sub-images that could be
+mapped to different nodes, and it was pretty much embarrassingly
+parallel, so it broke the door open to so much progress.</p>
+<p>I generally ran the simulations on the NCAR supercomputer.  Basically
+my colleagues fed me imagery to work with, and I could give it back to
+them in a matter of minutes after the preprocessing.  So yeah, it&rsquo;s
+this really powerful, potent thing that is only about 300 lines of
+code, and they&rsquo;re still so excited about it.  And I&rsquo;m so excited about
+it too.</p>
+<h3 id="4-what-initially-drew-you-to-chapel">
+  <a href="#4-what-initially-drew-you-to-chapel">4. What initially drew you to Chapel?</a>
+</h3>
+<p>My case is a bit unique in that I applied for the visiting scholar
+position and was able to
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">coerce you guys into giving it to me</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>
+Editors' note: No coercion was needed!  Scott was a great match for
+what we were looking for, which was for someone to bring their domain
+expertise and see what they could accomplish with Chapel while working
+within our team.<span class="sidenote-delimiter">]</span></span></span>. I&rsquo;ve worked with HPC code and HPC
+clusters quite a lot in my career, and I&rsquo;ve felt the pain of working
+in Fortran and C and MPI.  I was not super-familiar with Chapel at all
+prior to applying, but when I saw what it was purporting to offer as
+far as low barrier-to-entry and super-high performance, it definitely
+caught my attention—especially having encountered situations where
+parallel libraries like Dask with Python can be really finicky and
+really hard to use.  It&rsquo;s just like, man, there are a lot of easy
+problems that people can&rsquo;t attack without something like Chapel.  And
+so, yeah, I got really intrigued by it.</p>
+<blockquote class="pull-quote">
+    <div class="quote-wrapper">
+        <div class="quote-container"><span class="open-quote">“</span></div>
+            <div class="quote-content">
+                <p>
+With the coral reef program, I was able to speed it up by a factor of,
+like 10,000. I would say some of that was algorithmic... but again,
+Chapel had the features in the language that allowed me to do it
+pretty succinctly.
+</p>
+            </div>
+        <div class="quote-container"><span class="close-quote">”</span></div>
+    </div>
+</blockquote>
+<h3 id="5-what-are-your-biggest-successes-that-chapel-has-helped-achieve">
+  <a href="#5-what-are-your-biggest-successes-that-chapel-has-helped-achieve">5. What are your biggest successes that Chapel has helped achieve?</a>
+</h3>
+<p>With the coral reef program, I was able to speed it up by a factor of,
+like 10,000.  I would say some of that was algorithmic; I exploited
+some properties of this problem that sped it up tremendously, not even
+including the parallelism part.  But again, Chapel had the features in
+the language that allowed me to do it pretty succinctly.</p>
+<figure><img src="../../posts/7qs-bachman/Reef.png"
+    alt="Reef classification as performed by Scott&rsquo;s code, along with the speedup achieved"><figcaption>
+      <p>Reef classification as performed by Scott&rsquo;s code, along with the speedup achieved</p>
+    </figcaption>
+</figure>
+
+<p>I think that right now we&rsquo;re at two or three journal papers that have
+been submitted, and are at various stages of review and revision, that
+were made possible by this program.  The code continues to be a
+cornerstone of this grant that we&rsquo;re just starting.  It&rsquo;s like a
+three-year grant to continue this and link biological sampling with
+remote sensing.  So they&rsquo;re really leaning on me for the remote
+sensing and processing of that stuff, and eventually it&rsquo;s going to
+lead to a global data set that we&rsquo;ll put online.  So it&rsquo;s already
+borne a lot of fruit, and it will definitely continue to do so.  And I
+don&rsquo;t expect that the usefulness of a Chapel program like this is
+going to expire anytime soon.  If anything, I think it&rsquo;ll grow.</p>
+<h3 id="6-if-you-could-improve-chapel-with-a-finger-snap-what-would-you-do">
+  <a href="#6-if-you-could-improve-chapel-with-a-finger-snap-what-would-you-do">6. If you could improve Chapel with a finger snap, what would you do?</a>
+</h3>
+<p>Oh boy, if I could improve Chapel with a finger snap, what would I do?
+Wishlist item one would be full GPU support.  I know that&rsquo;s <a href="https://chapel-lang.org/blog/series/gpu-programming-in-chapel/"target="_blank" rel="noopener">currently
+in-progress</a>,
+and that when I was working with you guys you wanted to take my coral
+program and use it as patient zero, which was cool.  I don&rsquo;t know how
+far it&rsquo;s come since then but the bottom line is that the vast majority
+of the work we do is based on arrays and looping over arrays and
+stencils, doing the same operation on a bazillion points.  Just having
+the ability to say &ldquo;this problem is embarrassingly parallel, let&rsquo;s run
+it on 15,000 GPU cores&rdquo; without any real modification to the code
+would be nice.  Having forall loops that could target multiple GPUs in
+this way, similar to how current ones can target multiple compute
+nodes&hellip;that would be amazing.</p>
+<p>Another wishlist item, <a href="../../posts/announcing-chapel-2.1/#installationportability-improvements">one which I know you guys are working on</a>, is to simplify building it on some arbitrary cluster.  That, to
+me, is one thing that, when people inquire about Chapel, I always have
+to tell them that once it works, it&rsquo;s amazing; but that getting that
+first program compiling and running on a new system can be a job.
+This relates to the way Chapel currently exists in the programming
+language ecosystem.  For a scientist like me, when we come to a
+cluster, you get on, and they&rsquo;ve already got Python, Perl, C, Fortran,
+all the compilers, all that stuff.  But Chapel, unless it&rsquo;s an HPE
+cluster, Chapel usually does not come with it, and you have to put it
+on there yourself.  If every system just had it available out of the
+box, this whole item would be a moot point.</p>
+<p>The last one, which I think of as more of an inter-language issue,
+would be to ease the difficulty of reading and writing simple things
+like binary and text files.  I wish Chapel were more like Python where
+you have an array and can just do <code>array.toFile()</code> and it&rsquo;s done.
+With Chapel, it&rsquo;s like you have to open buffers and I don&rsquo;t know what
+else, but it&rsquo;s more complex.</p>
+<blockquote class="pull-quote">
+    <div class="quote-wrapper">
+        <div class="quote-container"><span class="open-quote">“</span></div>
+            <div class="quote-content">
+                <p>
+I told them 'Don't hire software engineers.  I'll do it, and I'll
+write it in Chapel because I can do it by myself, and I can stand this
+thing up really fast.'  And that is exactly what happened.
+</p>
+            </div>
+        <div class="quote-container"><span class="close-quote">”</span></div>
+    </div>
+</blockquote>
+<h3 id="7-anything-else-youd-like-people-to-know">
+  <a href="#7-anything-else-youd-like-people-to-know">7. Anything else you&rsquo;d like people to know?</a>
+</h3>
+<p>Working with Chapel made such an impression on me that when I started
+at [C]worthy the next year, my boss wanted to pick my brain about how
+to do this really cutting-edge project that no-one&rsquo;s ever done before.
+I told them &ldquo;Don&rsquo;t hire software engineers.  I&rsquo;ll do it, and I&rsquo;ll
+write it in Chapel because I can do it by myself, and I can stand this
+thing up really fast.&rdquo;  And that is exactly what happened.</p>
+<p>So I think, as far as my use cases, Chapel has proved itself multiple
+times, and I&rsquo;m using it now, and next time we talk in one of these
+interviews, I&rsquo;ll tell you about the [C]worthy project.</p>
+<hr>
+<p>Thanks very much to Scott for participating in this interview series!
+To read or hear more about Scott&rsquo;s work in coral reef biodiversity,
+check out his <a href="https://dl.acm.org/doi/abs/10.1145/3624062.3624599"target="_blank" rel="noopener">PAW-ATM 2023
+paper</a>, which was
+<a href="https://chapel-lang.org/presentations/Bachman-PAW-ATM.pdf"target="_blank" rel="noopener">presented at
+SC23</a>, or
+<a href="https://youtu.be/lJhh9KLL2X0"target="_blank" rel="noopener">watch an earlier version of the talk</a>,
+presented at <a href="https://chapel-lang.org/CHIUW2023.html"target="_blank" rel="noopener">CHIUW 2023</a>.</p>
+<p>And if you have any other questions for Scott, or comments on this
+series, please direct them to the <a href="https://chapel.discourse.group/t/7-questions-for-chapel-users-series-questions-comments/37200"target="_blank" rel="noopener">7 Questions for Chapel
+Users</a>
+thread on Discourse.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;7&#43;Questions&#43;for&#43;Scott&#43;Bachman%3A&#43;Analyzing&#43;Coral&#43;Reefs&#43;with&#43;Chapel&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F7qs-bachman%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;7&#43;Questions&#43;for&#43;Scott&#43;Bachman%3A&#43;Analyzing&#43;Coral&#43;Reefs&#43;with&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F7qs-bachman%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=7&#43;Questions&#43;for&#43;Scott&#43;Bachman%3A&#43;Analyzing&#43;Coral&#43;Reefs&#43;with&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F7qs-bachman%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;7&#43;Questions&#43;for&#43;Scott&#43;Bachman%3A&#43;Analyzing&#43;Coral&#43;Reefs&#43;with&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F7qs-bachman%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+    
+    
+    <nav class="container series-navigation">
+        
+        <div class="series-button-wrapper prev">
+            <a class="button" href=../../posts/7qs-laurendeau/>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</svg>
+
+                <span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+7 Questions for Éric Laurendeau: Computing Aircraft Aerodynamics in Chapel
+
+
+                    </span>
+                </span>
+            </a>
+        </div>
+        
+        
+        <div class="series-button-wrapper next">
+            <a class="button" href=../../posts/7qs-dias/>
+                <span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+7 Questions for Nelson Luís Dias: Atmospheric Turbulence in Chapel
+
+
+                    </span>
+                </span>
+                <svg class="feather">
+    <use xlink:href="../../feather-sprite.svg#chevrons-right"/>
+</svg>
+
+            </a>
+        </div>
+        
+    </nav>
+
+
+    </body>
+</html>

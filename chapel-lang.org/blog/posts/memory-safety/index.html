@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A description of how Chapel&rsquo;s features for memory safety strike a balance between productivity and performance, with comparisons to other languages">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Memory Safety in Chapel</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Memory Safety in Chapel</h2>
+<div class="post-subscript">
+    <p>Posted on April 10, 2025.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/safety">Safety</a>
+        
+        <a class="button" href="../../tags/language-comparison">Language Comparison</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/michael-ferguson">Michael Ferguson</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#variable-not-initialized">Variable Not Initialized</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#mishandling-strings">Mishandling Strings</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#use-after-free">Use-After-Free</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#out-of-bounds-array-access">Out-of-Bounds Array Access</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#out-of-bounds-array-access-in-distributed-memory">Out-of-Bounds Array Access in Distributed Memory</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>Memory safety is a property of a programming language that helps to
+prevent bugs in programs written in that language. This article describes
+Chapel&rsquo;s memory safety features and how these features support Chapel&rsquo;s
+goals of productivity and performance.</p>
+<p>Chapel is designed to balance productivity, performance and scalability.
+As a result, its memory safety features are not as comprehensive as
+Python&rsquo;s (where performance is not as important) or Rust&rsquo;s (which has a
+design that focuses primarily on safety).</p>
+<p>This table shows how we see Chapel as comparing to the other technologies
+studied here:</p>
+<span class="alt-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th style="text-align: center">C/C++</th>
+          <th style="text-align: center">Rust</th>
+          <th style="text-align: center">Python</th>
+          <th style="text-align: center">MPI</th>
+          <th style="text-align: center">OpenSHMEM</th>
+          <th style="text-align: center">Chapel</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Productivity</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">✔️</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">➕</td>
+      </tr>
+      <tr>
+          <td>Performance</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➕</td>
+      </tr>
+      <tr>
+          <td>Scalability</td>
+          <td style="text-align: center"></td>
+          <td style="text-align: center"></td>
+          <td style="text-align: center"></td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➕</td>
+      </tr>
+      <tr>
+          <td>Safety</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➕</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">➖</td>
+          <td style="text-align: center">✔️</td>
+      </tr>
+  </tbody>
+</table>
+<p style="text-align: center"> <b>Key:</b> ➕: great; ✔️: good; ➖: drawback</p>
+<p>Since this article is focused on the safety aspect, we&rsquo;ll consider how
+Chapel compares to Rust, C, C++, and Python when it comes to common
+memory-safety programming errors. The following table shows the errors we
+will discuss and summarizes how each language does:</p>
+<span class="alt-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th>Error</th>
+          <th style="text-align: center">C</th>
+          <th style="text-align: center">C++</th>
+          <th style="text-align: center">Rust</th>
+          <th style="text-align: center">Python</th>
+          <th style="text-align: center">Chapel</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Variable Not Initialized</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">✅</td>
+      </tr>
+      <tr>
+          <td>Mishandling Strings</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">⚠️</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">✅</td>
+      </tr>
+      <tr>
+          <td>Use-After-Free</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">⚠️</td>
+          <td style="text-align: center">⚠️</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">⚠️</td>
+      </tr>
+      <tr>
+          <td>Out-of-Bounds Array Access</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">✅</td>
+          <td style="text-align: center">⚠️</td>
+      </tr>
+  </tbody>
+</table>
+<p>Here are the meanings of ❌, ⚠️ , and ✅ for the purposes of this article:</p>
+<ul>
+<li>✅ : The language prevents this type of error or responds to the error</li>
+<li>⚠️  : There is significant help from the language to avoid this type of
+error; however, programmers still need to take caution because such
+errors can cause undefined behavior in some situations</li>
+<li>❌ : The language doesn&rsquo;t offer much protection against this type of
+error, and such errors may result in undefined behavior</li>
+</ul>
+<p>This article also evaluates out-of-bounds array accesses in the context of
+communication in distributed-memory programming with MPI, OpenSHMEM, and
+Chapel. This table summarizes the result:</p>
+<span class="alt-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th>Error</th>
+          <th style="text-align: center">MPI</th>
+          <th style="text-align: center">OpenSHMEM</th>
+          <th style="text-align: center">Chapel</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Out-of-Bounds in Communication</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">❌</td>
+          <td style="text-align: center">⚠️</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="variable-not-initialized">
+  <a href="#variable-not-initialized">Variable Not Initialized</a>
+</h3>
+<p>Many programming languages provide a way to declare a variable without
+initializing it. When using such a language, it&rsquo;s a common error to
+forget to initialize a variable. What happens if you make that error?
+We&rsquo;ll demonstrate it in this section with a program that declares a local
+variable but doesn&rsquo;t initialize it.</p>
+<h5 id="c-and-c">
+  <a href="#c-and-c">C and C++</a>
+</h5>
+<p>In C and C++, it&rsquo;s easy to declare a variable without initializing it, as
+this example shows:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/unset-variable.c download="unset-variable.c">unset-variable.c</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">x</span><span class="p">;</span>                  <span class="c1">// OOPS! x is not initialized
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  
+</span></span><span class="line"><span class="cl">  <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;x is %i</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Unfortunately, programs like this in C and C++ print out <em>stack trash</em>,
+that is, whatever memory happened to be stored in the memory used for the
+variable:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> gcc unset-variable.c
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./a.out
+</span></span><span class="line"><span class="cl"><span class="go">x is 32764
+</span></span></span></code></pre></div><p>This can lead to hard-to-find bugs and, in the context of software
+security, reveal information about a program to an attacker. The
+situation is a little better in C++ because, for many types that didn&rsquo;t
+exist in C, variables using that type are automatically initialized.
+That applies to types like <code>std::vector</code> but not to the <code>int</code> used in this
+example, because <code>int</code> is a type that C++ inherited from C, and for
+which it needs to maintain compatibility.</p>
+<h5 id="rust">
+  <a href="#rust">Rust</a>
+</h5>
+<p>Rust checks at compile-time that a variable is initialized before it is
+used. As a result, the program below won&rsquo;t compile:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/unset-variable.rs download="unset-variable.rs">unset-variable.rs</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">x</span>: <span class="kt">i64</span><span class="p">;</span><span class="w"> </span><span class="c1">// OOPS! forgot to initialize x
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;y is </span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> rustc unset-variable.rs
+</span></span><span class="line"><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">error[E0381]: used binding `x` isn&#39;t initialized
+</span></span></span><span class="line"><span class="cl"><span class="go"> --&gt; unset-variable.rs:3:13
+</span></span></span><span class="line"><span class="cl"><span class="go">  |
+</span></span></span><span class="line"><span class="cl"><span class="go">2 |     let mut x: i64; // OOPS! forgot to initialize x
+</span></span></span><span class="line"><span class="cl"><span class="go">  |         ----- binding declared here but left uninitialized
+</span></span></span><span class="line"><span class="cl"><span class="go">3 |     let y = x;
+</span></span></span><span class="line"><span class="cl"><span class="go">  |             ^ `x` used here but it isn&#39;t initialized
+</span></span></span><span class="line"><span class="cl"><span class="go">  |
+</span></span></span><span class="line"><span class="cl"><span class="go">help: consider assigning a value
+</span></span></span><span class="line"><span class="cl"><span class="go">  |
+</span></span></span><span class="line"><span class="cl"><span class="go">2 |     let mut x: i64 = 42; // OOPS! forgot to initialize x
+</span></span></span><span class="line"><span class="cl"><span class="go">  |                    ++++
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">error: aborting due to 1 previous error
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">For more information about this error, try `rustc --explain E0381`.
+</span></span></span></code></pre></div><p>Note that Rust checks that local variables are initialized even in
+<code>unsafe</code> blocks.</p>
+<h5 id="python">
+  <a href="#python">Python</a>
+</h5>
+<p>In Python, it&rsquo;s just not possible to declare a variable; instead
+variables are created the first time they are assigned to. So, this type
+of error just isn&rsquo;t possible.</p>
+<h5 id="chapel">
+  <a href="#chapel">Chapel</a>
+</h5>
+<p>In Chapel, variables are initialized to a default value if the type
+supports it. Some variables can&rsquo;t be initialized to a default value, and
+in those cases, the Chapel compiler will emit an error if the variable
+is used before it is initialized.</p>
+<p>For example, an <code>int</code> variable will be initialized to <code>0</code>:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/unset-int-variable.chpl download="unset-int-variable.chpl">unset-int-variable.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">  </span><span class="c1">// integer variables are set to 0 if not initialized
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl unset-int-variable.chpl
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./unset-int-variable
+</span></span><span class="line"><span class="cl"><span class="go">0
+</span></span></span></code></pre></div>
+
+<details>
+    <summary><strong>(What if the variable can&rsquo;t be initialized to a default?)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>A variable can&rsquo;t be initialized to a default if it is declared without
+a type, or if its type has no default value.</p>
+<p>Chapel allows variables to be declared without a type. In this
+case the variable&rsquo;s type will be inferred when it is initialized. That
+won&rsquo;t work if it&rsquo;s used before it is initialized, so that case results in
+an error:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">unset-untyped-variable.chpl:1: In function &#39;main&#39;:
+</span></span></span><span class="line"><span class="cl"><span class="go">unset-untyped-variable.chpl:2: error: &#39;x&#39; is not initialized and has no type
+</span></span></span><span class="line"><span class="cl"><span class="go">unset-untyped-variable.chpl:2: note: cannot find initialization point to split-init this variable
+</span></span></span><span class="line"><span class="cl"><span class="go">unset-untyped-variable.chpl:3: note: &#39;x&#39; is used here before it is initialized
+</span></span></span></code></pre></div><p>See <a href="https://chapel-lang.org/docs/language/spec/variables.html#split-initialization"target="_blank" rel="noopener">https://chapel-lang.org/docs/language/spec/variables.html#split-initialization</a> for more details on this feature.</p>
+<p>A class type like <code>owned C</code> is an example of a Chapel type that has no
+default value.  Class types in Chapel can be nilable or non-nilable;
+meaning they can store <code>nil</code> or not. The type <code>owned C</code> is non-nilable &mdash;
+that is, a variable of that type can&rsquo;t store <code>nil</code>. Since <code>nil</code> is the
+reasonable default value for classes and <code>owned C</code> can&rsquo;t be <code>nil</code>, the
+variable<br> <code>var x: owned C;</code> can&rsquo;t be initialized with a default. As a
+result, the compiler will give an error.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">C</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">C</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl unset-owned-variable.chpl
+</span></span><span class="line"><span class="cl"><span class="go">unset-owned-variable.chpl:2: In function &#39;main&#39;:
+</span></span></span><span class="line"><span class="cl"><span class="go">unset-owned-variable.chpl:3: error: cannot default-initialize x: owned C
+</span></span></span><span class="line"><span class="cl"><span class="go">unset-owned-variable.chpl:4: error: use here prevents split-init
+</span></span></span><span class="line"><span class="cl"><span class="go">note: non-nilable class type &#39;borrowed C&#39; does not support default initialization
+</span></span></span><span class="line"><span class="cl"><span class="go">note: Consider using the type owned C? instead
+</span></span></span></code></pre></div><p>We&rsquo;ll discuss Chapel&rsquo;s classes and memory management further in the
+<a href="#use-after-free">Use-After-Free section</a>.</p>
+
+    </div>
+</details>
+
+<h5 id="summary">
+  <a href="#summary">Summary</a>
+</h5>
+<p>How well do each of these programming languages protect against
+uninitialized memory?</p>
+<ul>
+<li>❌ <strong>C and C++:</strong> programmer beware!</li>
+<li>✅ <strong>Python:</strong> it&rsquo;s not possible to write a variable declaration separate from initializing a variable</li>
+<li>✅ <strong>Rust:</strong> checks at compile-time that each variable is initialized
+before it is used</li>
+<li>✅ <strong>Chapel:</strong> ensures at compile-time that each variable is initialized, possibly by setting it to a default value</li>
+</ul>
+<h3 id="mishandling-strings">
+  <a href="#mishandling-strings">Mishandling Strings</a>
+</h3>
+<p>General-purpose languages need to provide ways to manipulate strings, as
+strings are a very common data type. To demonstrate, we&rsquo;ll create a little
+program in each language that creates a string storing a greeting:</p>
+<h5 id="c">
+  <a href="#c">C</a>
+</h5>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/string-greeting.c download="string-greeting.c">string-greeting.c</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define MAX_GREETING 16
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">greeting</span><span class="p">[</span><span class="n">MAX_GREETING</span><span class="p">];</span> <span class="c1">// C doesn&#39;t really have string support;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                               <span class="c1">// here we allocate an array to store the
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                               <span class="c1">// greeting
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">                               <span class="c1">// OOPS! allocated array might not be big enough
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="nf">strcpy</span><span class="p">(</span><span class="n">greeting</span><span class="p">,</span> <span class="s">&#34;Hello &#34;</span><span class="p">);</span>  <span class="c1">// copy &#34;Hello &#34; into &#39;greeting&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">strcat</span><span class="p">(</span><span class="n">greeting</span><span class="p">,</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>   <span class="c1">// append the passed name to the greeting
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;%s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">greeting</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>It&rsquo;s easy to cause a stack overflow for this program by providing a name longer than 16 characters:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> gcc string-greeting.c
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./a.out abcdefghijklmnopqrstuv
+</span></span><span class="line"><span class="cl"><span class="go">Hello abcdefghijklmnopqrstuv
+</span></span></span><span class="line"><span class="cl"><span class="go">*** stack smashing detected ***: terminated
+</span></span></span><span class="line"><span class="cl"><span class="go">Aborted (core dumped)
+</span></span></span></code></pre></div><p>That&rsquo;s disastrous from a security perspective, and it could be
+exploitable.  In practice, C programmers should know not to write code
+like this. A better program would count the sizes of the strings to be
+concatenated, allocate a new string on the heap, and use <code>stpncpy</code> and
+<code>strlcat</code> instead of <code>strcpy</code> and <code>strcat</code>.</p>
+<h5 id="c-python-rust-and-chapel">
+  <a href="#c-python-rust-and-chapel">C++, Python, Rust, and Chapel</a>
+</h5>
+<p>These newer languages have improved on the situation in C and include a
+standard <code>string</code> type that avoids many of the
+error-prone patterns of string manipulation in C. In particular,
+appending to a string will resize it appropriately.</p>
+<p>Since C programs can be valid C++ programs, it&rsquo;s possible to write an
+unsafe program like the above in C++ too.</p>
+<p>Here are the equivalent programs using the standard <code>string</code> type in these other languages:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/string-greeting.cpp download="string-greeting.cpp">string-greeting.cpp</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">greeting</span> <span class="o">=</span> <span class="s">&#34;Hello &#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">greeting</span> <span class="o">+=</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>                <span class="c1">// append the passed name to the greeting
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">greeting</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span> <span class="c1">// print the greeting
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/string-greeting.py download="string-greeting.py">string-greeting.py</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">greeting</span> <span class="o">=</span> <span class="s2">&#34;Hello &#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">greeting</span> <span class="o">+=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">greeting</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">main</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/string-greeting.rs download="string-greeting.rs">string-greeting.rs</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">env</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">greeting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span>::<span class="n">from</span><span class="p">(</span><span class="s">&#34;Hello &#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">greeting</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;</span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">greeting</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/string-greeting.chpl download="string-greeting.chpl">string-greeting.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">who</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">;</span><span class="w">  </span><span class="c1">// enable command-line options like --who=world
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">greeting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;Hello &#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">greeting</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">who</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">greeting</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<h5 id="summary-1">
+  <a href="#summary-1">Summary</a>
+</h5>
+<p>C is uniquely bad at string manipulation, but the other languages provide
+mechanisms to avoid the most common issues.</p>
+<ul>
+<li>❌ <strong>C:</strong> programmer beware!</li>
+<li>⚠️  <strong>C++:</strong> It&rsquo;s possible to write the same error-prone code with
+<code>strcat</code> since C++ extends C. Programmers should use the
+<code>std::string</code> type to avoid these issues.</li>
+<li>✅ <strong>Everything else:</strong> the standard <code>string</code> type avoids these issues</li>
+</ul>
+<h3 id="use-after-free">
+  <a href="#use-after-free">Use-After-Free</a>
+</h3>
+<p>When allocating memory dynamically, a potential problem is reading or
+writing memory that has already been freed.</p>
+<h5 id="c-1">
+  <a href="#c-1">C</a>
+</h5>
+<p>C and C++ have a lot of flexibility with pointers. As a result, it&rsquo;s very
+easy to read or write to memory that has been freed. This kind of error
+can cause all manner of problems, since the writes could overwrite other
+values in memory.</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/use-after-free.c download="use-after-free.c">use-after-free.c</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span><span class="o">*</span> <span class="n">buf</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">free</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">42</span><span class="p">;</span> <span class="c1">// OOPS: uses &#39;buf&#39; after the memory is freed
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// do other heap operations to make heap corruption more visible
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span><span class="o">*</span> <span class="n">other_buf</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">other_buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">120</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">free</span><span class="p">(</span><span class="n">other_buf</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;buf[0] is %i</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>What happens when you compile and run such a program? If you are lucky,
+it will crash. If you are unlucky, the error will cause a
+difficult-to-detect data corruption issue.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> clang use-after-free.c
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./a.out
+</span></span><span class="line"><span class="cl"><span class="go">a.out(38065,0x1fae94f40) malloc: Heap corruption detected, free list is damaged at 0x6000007bc020
+</span></span></span><span class="line"><span class="cl"><span class="go">*** Incorrect guard value: 96606699388929
+</span></span></span><span class="line"><span class="cl"><span class="go">a.out(38065,0x1fae94f40) malloc: *** set a breakpoint in malloc_error_break to debug
+</span></span></span></code></pre></div><h5 id="c-2">
+  <a href="#c-2">C++</a>
+</h5>
+<p>C++ provides <code>std::unique_ptr</code> and <code>std::shared_ptr</code> to reduce the
+chances of a use-after-free because the <code>free</code> calls are automatically
+added. However, use-after-free is still possible.</p>
+<p>For example, this program compiles, but it has a use-after-free:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/use-after-free.cpp download="use-after-free.cpp">use-after-free.cpp</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="c1">// compile with
+</span></span></span><span class="line"><span class="cl"><span class="c1">//   g++ use-after-free.cpp --std=c++14       
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;memory&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// allocate an integer on the heap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">auto</span> <span class="n">buf</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// create a reference that refers to the value on the heap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span><span class="o">&amp;</span> <span class="n">ref_to_val</span> <span class="o">=</span> <span class="o">*</span><span class="n">buf</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Replace the buffer with something else.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// This causes the old buffer to be freed.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">buf</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">ref_to_val</span> <span class="o">=</span> <span class="mi">42</span><span class="p">;</span> <span class="c1">// OOPS: uses &#39;buf&#39; after the memory is freed
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// do other heap operations to make heap corruption more visible
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">buf</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">buf</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">printf</span><span class="p">(</span><span class="s">&#34;buf[0] is %i</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">ref_to_val</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>As with the similar C program, if you are lucky, the program will crash:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> clang++ use-after-free.cpp --std<span class="o">=</span>c++14     
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./a.out
+</span></span><span class="line"><span class="cl"><span class="go">a.out(47219,0x1fae94f40) malloc: Heap corruption detected, free list is damaged at 0x60000315c020
+</span></span></span><span class="line"><span class="cl"><span class="go">*** Incorrect guard value: 71734543777834
+</span></span></span><span class="line"><span class="cl"><span class="go">a.out(47219,0x1fae94f40) malloc: *** set a breakpoint in malloc_error_break to debug
+</span></span></span></code></pre></div><h5 id="python-1">
+  <a href="#python-1">Python</a>
+</h5>
+<p>Python is a garbage-collected language, and so isn&rsquo;t susceptible to
+use-after-free errors. It keeps memory allocated as long as it can be
+referred to.</p>
+<h5 id="rust-1">
+  <a href="#rust-1">Rust</a>
+</h5>
+<p>The Rust compiler issues an error in this case to prevent a
+use-after-free.</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/use-after-free.rs download="use-after-free.rs">use-after-free.rs</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Allocate an integer value on the heap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span>: <span class="nb">Box</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Create a reference to the value
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">ref_to_val</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">*</span><span class="n">ref_to_val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="c1">// modify the value through the reference
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">                      
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span><span class="w"> </span><span class="c1">// replace the pointer
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span><span class="w">         </span><span class="c1">// explicitly drop &#39;buf&#39; to avoid compiler error
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;value: </span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">ref_to_val</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> rustc use-after-free.rs
+</span></span><span class="line"><span class="cl"><span class="go">error[E0506]: cannot assign to `buf` because it is borrowed
+</span></span></span><span class="line"><span class="cl"><span class="go">  --&gt; use-after-free.rs:11:9
+</span></span></span><span class="line"><span class="cl"><span class="go">   |
+</span></span></span><span class="line"><span class="cl"><span class="go">6  |     let ref_to_val: &amp;mut i32 = &amp;mut *buf;
+</span></span></span><span class="line"><span class="cl"><span class="go">   |                                --------- `buf` is borrowed here
+</span></span></span><span class="line"><span class="cl"><span class="go">...
+</span></span></span><span class="line"><span class="cl"><span class="go">11 |         buf = Box::new(2); // replace the pointer
+</span></span></span><span class="line"><span class="cl"><span class="go">   |         ^^^ `buf` is assigned to here but it was already borrowed
+</span></span></span><span class="line"><span class="cl"><span class="go">...
+</span></span></span><span class="line"><span class="cl"><span class="go">16 |     println!(&#34;value: {}&#34;, ref_to_val);
+</span></span></span><span class="line"><span class="cl"><span class="go">   |                           ---------- borrow later used here
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">error: aborting due to 1 previous error
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">For more information about this error, try `rustc --explain E0506`.
+</span></span></span></code></pre></div><p>Note that here, the <code>borrow</code> in the error message refers to the concept
+of having a pointer to something without having any concern about when
+that thing will be deallocated.</p>
+<details>
+    <summary><strong>(The situation is different for unsafe code)</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>However, code in <code>unsafe</code> blocks is not protected against use-after-free
+and can produce undefined behavior:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Allocate a an integer value on the heap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span>: <span class="nb">Box</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Create a pointer to the value
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">         </span><span class="c1">// modify the value through the pointer
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">                           </span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span><span class="w"> </span><span class="c1">// free the pointer
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;value: </span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="p">);</span><span class="w"> </span><span class="c1">// OOPS: use-after free, prints garbage
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span><span class="w">         </span><span class="c1">// explicitly drop &#39;buf&#39; to avoid compiler error
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> rustc use-after-free-unsafe.rs
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./use-after-free-unsafe  
+</span></span><span class="line"><span class="cl"><span class="go">value: -1495007200
+</span></span></span></code></pre></div>
+    </div>
+</details>
+
+<h5 id="chapel-1">
+  <a href="#chapel-1">Chapel</a>
+</h5>
+<p>Chapel provides automatic memory management for its types (arrays,
+strings, &hellip;) and <code>owned</code> and <code>shared</code> for class types to automatically
+manage freeing classes.</p>
+<p>Chapel includes compile-time lifetime checking that catches common errors,
+but it is not exhaustive. It is designed to help programmers find problems
+in their programs without requiring a lot of programmer effort.</p>
+<p>Here is an example of a program containing a use-after-free that is
+detected by Chapel&rsquo;s lifetime checker. This program does not compile as a
+result.</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/use-after-free-scoped.chpl download="use-after-free-scoped.chpl">use-after-free-scoped.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">C</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// create a reference to a &#39;C&#39; instance on the heap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="k">borrowed</span><span class="w"> </span><span class="nx">C</span><span class="p">?</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">instance</span><span class="p">.</span><span class="nx">borrow</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">b</span><span class="o">!</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// do other heap operations to make heap corruption more visible
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">owned</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">b</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl use-after-free-scoped.chpl
+</span></span><span class="line"><span class="cl"><span class="go">use-after-free-scoped.chpl:3: In function &#39;main&#39;:
+</span></span></span><span class="line"><span class="cl"><span class="go">use-after-free-scoped.chpl:12: error: applying postfix-! to dead value
+</span></span></span><span class="line"><span class="cl"><span class="go">use-after-free-scoped.chpl:12: note: &#39;b&#39; refers to &#39;instance&#39;
+</span></span></span><span class="line"><span class="cl"><span class="go">use-after-free-scoped.chpl:9: note: &#39;instance&#39; is dead due to deinitialization here
+</span></span></span><span class="line"><span class="cl"><span class="go">use-after-free-scoped.chpl:9: error: Scoped variable b would outlive the value it is set to
+</span></span></span><span class="line"><span class="cl"><span class="go">use-after-free-scoped.chpl:8: note: consider scope of instance
+</span></span></span></code></pre></div>
+
+<p>In addition to <code>owned</code>, <code>shared</code>, and <code>borrowed</code> classes, Chapel
+supports <code>unmanaged</code> classes, which require the user to be responsible
+for freeing such memory when necessary, similar to classic C++.  While
+this can be an important feature in some applications for
+generality and/or performance, its use is generally discouraged since it can
+potentially result in memory safety errors.</p>
+<details>
+    <summary>What are some errors that Chapel&rsquo;s lifetime checker doesn&rsquo;t detect?</summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>As mentioned, Chapel&rsquo;s lifetime checker takes a hands-off approach to
+<code>unmanaged</code>. Using <code>unmanaged</code> is inherently unsafe but it is
+sometimes necessary. Here&rsquo;s an example of a use-after-free that is not
+detected at compile-time because the use of <code>unmanaged</code> opts out of
+the checking:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">C</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">unmanaged</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">delete</span><span class="w"> </span><span class="nx">x</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Here is a case that has a use-after-free due to aliasing. This case
+goes beyond what we expect the Chapel compiler to handle.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">C</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">borrow</span><span class="p">();</span><span class="w">  </span><span class="c1">// b refers to the same class instance as x
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">41</span><span class="p">);</span><span class="w">     </span><span class="c1">// now x refers to a new class instance;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">                       </span><span class="c1">// the old class instance is deleted
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">b</span><span class="p">);</span><span class="w">          </span><span class="c1">// use-after-free: b refers to a deleted instance
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div>
+    </div>
+</details>
+
+<h5 id="summary-2">
+  <a href="#summary-2">Summary</a>
+</h5>
+<p>The languages vary greatly in the extent to which use-after-free is an
+issue:</p>
+<ul>
+<li>❌ <strong>C:</strong> use-after-free is very easy to accidentally write</li>
+<li>⚠️  <strong>C++:</strong> <code>unique_ptr</code> and <code>shared_ptr</code> help to some extent, but
+use-after-free is still possible to write</li>
+<li>⚠️  <strong>Rust:</strong> compile-time checking prevents a use-after-free in safe code,
+but a use-after-free is still possible in <code>unsafe</code> code</li>
+<li>✅ <strong>Python:</strong> the garbage collector avoids this issue</li>
+<li>⚠️  <strong>Chapel:</strong> automatic memory management for most types means that
+<code>free</code> need only be written when using <code>unmanaged</code>. The compiler can
+detect and emit errors for some use-after-free situations, but it does
+not detect all such situations.</li>
+</ul>
+<h3 id="out-of-bounds-array-access">
+  <a href="#out-of-bounds-array-access">Out-of-Bounds Array Access</a>
+</h3>
+<p>Did you notice the bounds-checking errors in most of the string-greeting programs
+above? For example, the C program uses <code>argv[1]</code> but does not check that there was an
+argument passed. What does an out-of-bounds array access do in these
+languages?</p>
+<h5 id="c-and-c-1">
+  <a href="#c-and-c-1">C and C++</a>
+</h5>
+<p>There is no array bounds checking in C or C++. In fact, it&rsquo;s quite hard for a C
+compiler to provide array bounds checking, because, in practice, C code
+uses pointers as arrays, and there is not a consistent way for the
+compiler to know where the array length is stored.</p>
+<p>For example, consider this program that creates a 1-element array and
+then accesses the <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>i</mi><mrow><mi>t</mi><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">i^{th}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span> element based on a command-line argument:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds.c download="out-of-bounds.c">out-of-bounds.c</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="nf">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span> <span class="c1">// convert the first argument into an int
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">};</span>      <span class="c1">// allocate an array with space for 1 element
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>      <span class="c1">// access the array at &#39;idx&#39;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                           <span class="c1">// OOPS! no bounds checking
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;array at index %i is %i</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>If the command-line argument is not 0, it will lead to an out-of-bounds
+array access. At best, you get a program crash. At worst, you get a
+hard-to-find memory corruption bug.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> gcc out-of-bounds.c
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./a.out <span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">zsh: segmentation fault  ./a.out 123456789
+</span></span></span></code></pre></div><p>The story with a C++ vector is similar:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds.cpp download="out-of-bounds.cpp">out-of-bounds.cpp</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>   <span class="c1">// convert the first argument into an int
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// create a vector with space for one element
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;array at index &#34;</span> <span class="o">&lt;&lt;</span> <span class="n">idx</span> <span class="o">&lt;&lt;</span> <span class="s">&#34; is &#34;</span> <span class="o">&lt;&lt;</span> <span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> g++ out-of-bounds.cpp
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./a.out <span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">zsh: segmentation fault  ./a.out 123456789
+</span></span></span></code></pre></div><p>C and C++ developers use address sanitizers or similar tools to find this
+class of error. Additionally, the C++ standard library in use might have
+a way to activate bounds checking for some types, such as
+<code>-D_GLIBCXX_DEBUG</code>.</p>
+<h5 id="python-2">
+  <a href="#python-2">Python</a>
+</h5>
+<p>Since Python includes array bounds checking, a similar program with an
+out-of-bounds array access will cause an <code>IndexError: list index out of range</code> error to be raised.</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds.py download="out-of-bounds.py">out-of-bounds.py</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">    <span class="n">array</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">x</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;array at index&#34;</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="s2">&#34; is &#34;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">main</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> python3 out-of-bounds.py <span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">Traceback (most recent call last):
+</span></span></span><span class="line"><span class="cl"><span class="go">  File &#34;/Users/mferguson/chapel-blog/content/posts/memory-safety/code/out-of-bounds.py&#34;, line 10, in &lt;module&gt;
+</span></span></span><span class="line"><span class="cl"><span class="go">    main(sys.argv)
+</span></span></span><span class="line"><span class="cl"><span class="go">    ~~~~^^^^^^^^^^
+</span></span></span><span class="line"><span class="cl"><span class="go">  File &#34;/Users/mferguson/chapel-blog/content/posts/memory-safety/code/out-of-bounds.py&#34;, line 6, in main
+</span></span></span><span class="line"><span class="cl"><span class="go">    x = array[idx]
+</span></span></span><span class="line"><span class="cl"><span class="go">        ~~~~~^^^^^
+</span></span></span><span class="line"><span class="cl"><span class="go">IndexError: list index out of range
+</span></span></span></code></pre></div><h5 id="rust-2">
+  <a href="#rust-2">Rust</a>
+</h5>
+<p>Rust includes bounds checking, and failing a bounds check will cause the
+program to panic (print out a message and halt).</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds.rs download="out-of-bounds.rs">out-of-bounds.rs</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">env</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span>::<span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span>::<span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="p">().</span><span class="n">expect</span><span class="p">(</span><span class="s">&#34;need a number&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">array</span>: <span class="p">[</span><span class="kt">i32</span><span class="p">;</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;array at index </span><span class="si">{}</span><span class="s"> is </span><span class="si">{}</span><span class="s">&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">idx</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> rustc out-of-bounds.rs
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./out-of-bounds <span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">thread &#39;main&#39; panicked at out-of-bounds.rs:7:13:
+</span></span></span><span class="line"><span class="cl"><span class="go">index out of bounds: the len is 1 but the index is 123456789
+</span></span></span><span class="line"><span class="cl"><span class="go">note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+</span></span></span></code></pre></div><p>Rust&rsquo;s bounds checking is active even in <code>unsafe</code> blocks.</p>
+<h5 id="chapel-2">
+  <a href="#chapel-2">Chapel</a>
+</h5>
+<p>For Chapel, out-of-bounds array accesses are checked by default, but
+disabled when the program is compiled with <code>--fast</code> or <code>--no-checks</code>.</p>
+<p>When the program is compiled with bounds checks, the behavior is similar
+to the Rust program. The program halts and prints an error about the
+out-of-bounds access. For example, this program allocates a 10-element
+array and accesses an index provided on the command line:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds.chpl download="out-of-bounds.chpl">out-of-bounds.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">    </span><span class="c1">// enable command-line options like --idx=2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">array</span><span class="p">:[</span><span class="mi">0</span><span class="o">..#</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">  </span><span class="c1">// allocate an array with space for 10 elements
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">array</span><span class="p">[</span><span class="nx">idx</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;array at index &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">idx</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; is &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl out-of-bounds.chpl
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./out-of-bounds --idx<span class="o">=</span><span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">out-of-bounds.chpl:5: error: halt reached - array index out of bounds
+</span></span></span><span class="line"><span class="cl"><span class="go">note: index was 123456789 but array bounds are 0..9
+</span></span></span></code></pre></div><p>However, if the program is compiled with checks disabled, as with
+<code>--fast</code>, the out-of-bounds access causes undefined behavior. The program
+might crash, or it might print out garbage values.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl --fast out-of-bounds.chpl
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./out-of-bounds --idx<span class="o">=</span><span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">zsh: segmentation fault  ./out-of-bounds --idx=123456789
+</span></span></span></code></pre></div><p>Chapel&rsquo;s array bounds checks are disabled with <code>--fast</code> in order to
+achieve maximum performance. The expectation is that such program errors
+will be found and resolved during development and testing where bounds
+checking will be enabled.</p>
+<h5 id="summary-3">
+  <a href="#summary-3">Summary</a>
+</h5>
+<p>Bounds checking in these languages varies from opt-in to opt-out to
+always on:</p>
+<ul>
+<li>❌ <strong>C and C++:</strong> out-of-bounds array accesses aren&rsquo;t checked unless running
+with a memory-checking tool</li>
+<li>✅ <strong>Rust:</strong> out-of-bounds array accesses cause the program to halt with an
+out-of-bounds error</li>
+<li>✅ <strong>Python:</strong> out-of-bounds array accesses raise an error</li>
+<li>⚠️  <strong>Chapel:</strong> with <code>--checks</code> (the default), out-of-bounds array accesses
+cause the program to halt; with <code>--fast</code>, these checks are disabled to
+improve performance</li>
+</ul>
+<h3 id="out-of-bounds-array-access-in-distributed-memory">
+  <a href="#out-of-bounds-array-access-in-distributed-memory">Out-of-Bounds Array Access in Distributed Memory</a>
+</h3>
+<p>Chapel is a language designed for distributed-memory parallel computing,
+so we&rsquo;ll compare Chapel with <a href="https://www.mpi-forum.org/"target="_blank" rel="noopener">MPI</a> and
+<a href="http://openshmem.org"target="_blank" rel="noopener">OpenSHMEM</a>, which are distributed-memory parallel
+computing frameworks usable from C and C++.</p>
+<p>What will happen with an out-of-bounds array access in the context of a
+distributed-memory parallel program?</p>
+<h5 id="cc-with-mpi-and-openshmem">
+  <a href="#cc-with-mpi-and-openshmem">C/C++ with MPI and OpenSHMEM</a>
+</h5>
+<p>MPI and OpenSHMEM have a C interface that precludes bounds checking.</p>
+<p>Here is a C and MPI example using <code>MPI_Gather</code> that provides a count
+too large that overflows the local buffer:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds-mpi.c download="out-of-bounds-mpi.c">out-of-bounds-mpi.c</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;mpi.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">MPI_Init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">argc</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">argv</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="nf">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span> <span class="c1">// convert the first argument into an int
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">myRank</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">numRanks</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">MPI_Comm_rank</span> <span class="p">(</span><span class="n">MPI_COMM_WORLD</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">myRank</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">MPI_Comm_size</span> <span class="p">(</span><span class="n">MPI_COMM_WORLD</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">numRanks</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kt">size_t</span> <span class="n">nPerRank</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span><span class="o">*</span> <span class="n">array</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="n">nPerRank</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span><span class="o">*</span> <span class="n">gathered</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="n">numRanks</span><span class="o">*</span><span class="n">nPerRank</span><span class="o">*</span><span class="n">numRanks</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">nPerRank</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">myRank</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Gather the first value from each array onto rank 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">MPI_Gather</span><span class="p">(</span><span class="cm">/* sendbuf */</span> <span class="n">array</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* sendcount */</span> <span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* sendtype */</span> <span class="n">MPI_INT</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* recvbuf */</span> <span class="n">gathered</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* recvcount */</span> <span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* recvtype */</span> <span class="n">MPI_INT</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* root */</span> <span class="mi">0</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* comm */</span> <span class="n">MPI_COMM_WORLD</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">myRank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;Correct gather:</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">numRanks</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;  %i</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">gathered</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// What if there is an error in MPI_Gather?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// If &#39;count&#39; is larger than nPerRank, this version
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// will gather too much data and refer to invalid memory.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">MPI_Gather</span><span class="p">(</span><span class="cm">/* sendbuf */</span> <span class="n">array</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* sendcount */</span> <span class="n">count</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* sendtype */</span> <span class="n">MPI_INT</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* recvbuf */</span> <span class="n">gathered</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* recvcount */</span> <span class="n">count</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* recvtype */</span> <span class="n">MPI_INT</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* root */</span> <span class="mi">0</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">             <span class="cm">/* comm */</span> <span class="n">MPI_COMM_WORLD</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">myRank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;Potentially bad gather:</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="o">*</span><span class="n">numRanks</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;  %i</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">gathered</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="nf">MPI_Finalize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>First, here&rsquo;s what it looks like to compile and run it when there is no
+out-of-bounds access. In this case, any index less than 1000 will not
+lead to a memory safety violation.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> mpicc out-of-bounds-mpi.c
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> mpirun -n <span class="m">3</span> ./a.out <span class="m">2</span>
+</span></span><span class="line"><span class="cl"><span class="go">Correct gather:
+</span></span></span><span class="line"><span class="cl"><span class="go">  0
+</span></span></span><span class="line"><span class="cl"><span class="go">  1
+</span></span></span><span class="line"><span class="cl"><span class="go">  2
+</span></span></span><span class="line"><span class="cl"><span class="go">Potentially bad gather:
+</span></span></span><span class="line"><span class="cl"><span class="go">  0
+</span></span></span><span class="line"><span class="cl"><span class="go">  0
+</span></span></span><span class="line"><span class="cl"><span class="go">  1
+</span></span></span><span class="line"><span class="cl"><span class="go">  1
+</span></span></span><span class="line"><span class="cl"><span class="go">  2
+</span></span></span><span class="line"><span class="cl"><span class="go">  2
+</span></span></span></code></pre></div><p>Providing a count beyond the size of the array leads to incorrect results
+or core dumps:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> mpirun -n <span class="m">3</span> ./a.out <span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="go">Correct gather:
+</span></span></span><span class="line"><span class="cl"><span class="go">  0
+</span></span></span><span class="line"><span class="cl"><span class="go">  1
+</span></span></span><span class="line"><span class="cl"><span class="go">  2
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] Read -1, expected 493827156, errno = 14
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] *** Process received signal ***
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] Signal: Segmentation fault (11)
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] Signal code: Address not mapped (1)
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] Failing at address: 0x5ebb9f222880
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] *** Process received signal ***
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] Signal: Segmentation fault (11)
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] Signal code: Address not mapped (1)
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] Failing at address: 0x55ae28cd6000
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 0] [iris:24726] [ 0] /lib/x86_64-linux-gnu/libc.so.6(+0x45250) [0x70976c845250]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 1] /lib/x86_64-linux-gnu/libc.so.6(+0x45250) [0x731ed9c45250]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 1] /lib/x86_64-linux-gnu/libc.so.6(+0x1ae906) [0x731ed9dae906]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 2] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_btl_vader.so(+0x338d) [0x731ed800738d]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 3] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_pml_ob1.so(mca_pml_ob1_send_request_schedule_once+0x1b9) [0x731ed3e51ab9]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 4] /lib/x86_64-linux-gnu/libc.so.6(+0x1ae962) [0x70976c9ae962]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 2] /lib/x86_64-linux-gnu/libopen-pal.so.40(opal_convertor_unpack+0x85) [0x70976cab4b55]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 3] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_pml_ob1.so(mca_pml_ob1_recv_request_progress_frag+0x13f) [0x70976b05f5af]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 4] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_btl_vader.so(mca_btl_vader_poll_handle_frag+0x95) [0x70976bc36d15]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 5] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_btl_vader.so(+0x8064) [0x70976bc37064]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 6] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_pml_ob1.so(mca_pml_ob1_recv_frag_callback_ack+0x211) [0x731ed3e50881]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 5] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_btl_vader.so(mca_btl_vader_poll_handle_frag+0x95) [0x731ed800bd15]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 6] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_btl_vader.so(+0x8064) [0x731ed800c064]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 7] /lib/x86_64-linux-gnu/libopen-pal.so.40(opal_progress+0x34) [0x70976ca9d6f4]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 7] /lib/x86_64-linux-gnu/libmpi.so.40(ompi_request_default_wait+0x55) [0x70976cc35ed5]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 8] /lib/x86_64-linux-gnu/libopen-pal.so.40(opal_progress+0x34) [0x731ed9ab86f4]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 8] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_pml_ob1.so(mca_pml_ob1_send+0x2b5) [0x731ed3e4f8f5]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [ 9] /lib/x86_64-linux-gnu/libmpi.so.40(ompi_coll_base_gather_intra_linear_sync+0xd2) [0x731ed9f369e2]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [10] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_coll_tuned.so(ompi_coll_tuned_gather_intra_dec_fixed+0x83) [0x731ed3e2c333]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [11] /lib/x86_64-linux-gnu/libmpi.so.40(ompi_coll_base_gather_intra_linear_sync+0x38c) [0x70976cc90c9c]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [ 9] /usr/lib/x86_64-linux-gnu/openmpi/lib/openmpi3/mca_coll_tuned.so(ompi_coll_tuned_gather_intra_dec_fixed+0x83) [0x70976b046333]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [10] /lib/x86_64-linux-gnu/libmpi.so.40(PMPI_Gather+0x173) [0x731ed9effb93]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [12] ./a.out(+0x1426) [0x55ae048c7426]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [13] /lib/x86_64-linux-gnu/libmpi.so.40(PMPI_Gather+0x173) [0x70976cc59b93]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [11] ./a.out(+0x1426) [0x5ebb76730426]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [12] /lib/x86_64-linux-gnu/libc.so.6(+0x2a3b8) [0x70976c82a3b8]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [13] /lib/x86_64-linux-gnu/libc.so.6(+0x2a3b8) [0x731ed9c2a3b8]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [14] /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b) [0x731ed9c2a47b]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] [15] ./a.out(+0x11a5) [0x55ae048c71a5]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24726] *** End of error message ***
+</span></span></span><span class="line"><span class="cl"><span class="go">/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b) [0x70976c82a47b]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] [14] ./a.out(+0x11a5) [0x5ebb767301a5]
+</span></span></span><span class="line"><span class="cl"><span class="go">[iris:24725] *** End of error message ***
+</span></span></span><span class="line"><span class="cl"><span class="go">--------------------------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go">Primary job  terminated normally, but 1 process returned
+</span></span></span><span class="line"><span class="cl"><span class="go">a non-zero exit code. Per user-direction, the job has been aborted.
+</span></span></span><span class="line"><span class="cl"><span class="go">--------------------------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go">--------------------------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go">mpirun noticed that process rank 0 with PID 0 on node iris exited on signal 11 (Segmentation fault).
+</span></span></span><span class="line"><span class="cl"><span class="go">--------------------------------------------------------------------------
+</span></span></span></code></pre></div><p>Similarly, an out-of-bounds array access in OpenSHMEM might lead to
+incorrect results, hard-to-reproduce bugs, or core dumps:</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds-shmem.c download="out-of-bounds-shmem.c">out-of-bounds-shmem.c</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;shmem.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="nf">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span> <span class="c1">// convert the first argument into an int
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">myRank</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">numRanks</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="nf">shmem_init</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">myRank</span> <span class="o">=</span> <span class="nf">shmem_my_pe</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="n">numRanks</span> <span class="o">=</span> <span class="nf">shmem_n_pes</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kt">size_t</span> <span class="n">nPerRank</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span><span class="o">*</span> <span class="n">array</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="o">*</span><span class="p">)</span> <span class="nf">shmem_malloc</span><span class="p">(</span><span class="n">nPerRank</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">memset</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nPerRank</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">myRank</span> <span class="o">==</span> <span class="n">numRanks</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">val</span> <span class="o">=</span> <span class="mi">42</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">shmem_int_put</span><span class="p">(</span><span class="n">array</span> <span class="o">+</span> <span class="n">idx</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">val</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="c1">// OOPS: idx might be out-of-bounds
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">shmem_int_get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">val</span><span class="p">,</span> <span class="n">array</span> <span class="o">+</span> <span class="n">idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span> <span class="c1">// OOPS: idx might be out-of-bounds
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;Got value %#x</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">val</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>In this case, the value we got should be <code>0x1010101</code> if it is valid:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> oshcc out-of-bounds-shmem.c
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> oshrun -np <span class="m">3</span> ./a.out  <span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="go">Got value 0x1010101
+</span></span></span></code></pre></div><p>Providing an index beyond the array bounds leads to incorrect results and
+possibly core dumps:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> oshrun -np <span class="m">3</span> ./a.out  <span class="m">2000</span>
+</span></span><span class="line"><span class="cl"><span class="go">Got value 0
+</span></span></span><span class="line"><span class="cl"><span class="go"></span><span class="gp">$</span> oshrun -np <span class="m">3</span> ./a.out  <span class="m">123456789</span>
+</span></span><span class="line"><span class="cl"><span class="go">[iris][[45244,1],2][pshmem_put.c:156:pshmem_int_put] Required address 0x11c6f3524 is not in symmetric space
+</span></span></span><span class="line"><span class="cl"><span class="go">--------------------------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="go">SHMEM_ABORT was invoked on rank 2 (pid 55917, host=iris) with errorcode -1.
+</span></span></span><span class="line"><span class="cl"><span class="go">--------------------------------------------------------------------------
+</span></span></span></code></pre></div><p>Address sanitizers and similar tools are difficult to use in this
+context. Ideally, the network hardware provides support for <code>shmem_int_put</code>. As a result,
+the out-of-bounds access won&rsquo;t necessarily even occur in code run by the
+processor! It&rsquo;s likely to make the program halt, but it can be
+challenging to figure out what caused the out-of-bounds array access.</p>
+<h5 id="distributed-memory-programs-in-chapel">
+  <a href="#distributed-memory-programs-in-chapel">Distributed-Memory Programs in Chapel</a>
+</h5>
+<p>A distributed Chapel program has the same level of bounds-checking
+support as a non-distributed Chapel program.</p>
+<p>For example, this program creates a distributed array and then accesses
+the index provided on the command line (which might be out of bounds):</p>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href=code/out-of-bounds-dist.chpl download="out-of-bounds-dist.chpl">out-of-bounds-dist.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">    </span><span class="c1">// enable command-line options like --idx=2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// create a distributed array storing 100 elements
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createArray</span><span class="p">(</span><span class="mi">0</span><span class="o">..#</span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">array</span><span class="p">[</span><span class="nx">idx</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;array at index &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">idx</span><span class="p">,</span><span class="w"> </span><span class="s">&#34; is &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+
+<p>First, let&rsquo;s show what happens if the index is in bounds:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl out-of-bounds-dist.chpl
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./out-of-bounds-dist -nl <span class="m">3</span> --idx<span class="o">=</span><span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="go">array at index 1 is 0
+</span></span></span></code></pre></div><p>If the index is not within bounds, you get an out-of-bounds error at
+run-time (provided it is compiled with bounds checking on, e.g., without
+<code>--fast</code>):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> ./out-of-bounds-dist -nl <span class="m">3</span> --idx<span class="o">=</span><span class="m">1000</span>
+</span></span><span class="line"><span class="cl"><span class="go">out-of-bounds-dist.chpl:8: error: halt reached - array index out of bounds
+</span></span></span><span class="line"><span class="cl"><span class="go">note: index was 1000 but array bounds are 0..99
+</span></span></span></code></pre></div><h5 id="summary-4">
+  <a href="#summary-4">Summary</a>
+</h5>
+<p>Bounds-checking errors when using MPI or OpenSHMEM cause undefined
+behavior and can be challenging to debug. In contrast, Chapel is unique
+in providing bounds checking for distributed-memory programming.</p>
+<ul>
+<li>❌ <strong>MPI, OpenSHMEM:</strong> these distributed-memory programming frameworks
+can&rsquo;t easily provide bounds checking due to their pointer-based C
+interface. Moreover, it can be challenging to debug these errors even
+when using an address sanitizer or similar tool.</li>
+<li>⚠️  <strong>Chapel:</strong> with <code>--checks</code> (the default), out-of-bounds array accesses
+on distributed arrays cause the program to halt; with <code>--fast</code> these
+checks are disabled to improve performance.</li>
+</ul>
+<h3 id="conclusion">
+  <a href="#conclusion">Conclusion</a>
+</h3>
+<p>Memory safety in Chapel provides for productivity, safety, and
+performance. Chapel is significantly safer than C and C++, and
+significantly safer than using MPI or OpenSHMEM for distributed-memory
+programming. Compared to Python, Chapel is able to achieve higher
+performance because it&rsquo;s a compiled, statically-typed language, and it
+does not need a garbage collector. Compared to Rust, Chapel is able to
+provide safety when requested without requiring programmers to prove to
+the compiler that the code is correct.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Memory&#43;Safety&#43;in&#43;Chapel&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fmemory-safety%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Memory&#43;Safety&#43;in&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fmemory-safety%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Memory&#43;Safety&#43;in&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fmemory-safety%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Memory&#43;Safety&#43;in&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fmemory-safety%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

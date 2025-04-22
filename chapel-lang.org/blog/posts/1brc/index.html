@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="A Chapel Implementation of the One Billion Row Challenge">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Parallel Processing of a Billion Rows of Data in Chapel</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Parallel Processing of a Billion Rows of Data in Chapel</h2>
+<div class="post-subscript">
+    <p>Posted on July 12, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/benchmarks">Benchmarks</a>
+        
+        <a class="button" href="../../tags/i/o">I/O</a>
+        
+        <a class="button" href="../../tags/parallel-i/o">Parallel I/O</a>
+        
+        <a class="button" href="../../tags/performance">Performance</a>
+        
+        <a class="button" href="../../tags/language-comparison">Language Comparison</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/andy-stone">Andy Stone</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#writing-a-straightforward-python-version">Writing a straightforward Python version</a></li>
+    <li><a href="#writing-a-serial-chapel-version">Writing a serial Chapel version</a></li>
+    <li><a href="#writing-a-parallel-chapel-version">Writing a parallel Chapel version</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>The need to analyze large datasets shows up everywhere: from scientific
+research to insurance risk analysis to modeling in healthcare, market research,
+economics, finance, and elsewhere.  Regardless of the field, a common task is
+to scan through a large dataset, often stored in something like a CSV file, and
+process it — for example, by finding averages, running sums, etc.  This type of
+computation has shown up recently in a viral coding competition called the
+&ldquo;<a href="https://github.com/gunnarmorling/1brc"target="_blank" rel="noopener">One Billion Row Challenge</a>&rdquo; (1BRC).
+In this blog post, we focus on creating a straightforward, yet parallel,
+implementation of the 1BRC in Chapel to execute on a multicore machine.</p>
+<p>The goal of the 1BRC is to read data from a file that (aptly enough) contains
+one billion rows of temperature data, consisting of pairs of weather station
+names and temperature values. As the data is read in, it is aggregated to find
+the min, max, and average temperatures for each weather station.</p>
+<p>On the <a href="https://github.com/gunnarmorling/1brc"target="_blank" rel="noopener">official GitHub page</a>, the
+challenge has contestants submit Java-based implementations.  These
+implementations are evaluated in terms of their execution times, but to remove the cost
+of I/O overhead, the data file is first loaded onto a RAM disk before starting
+the timer.  Competitive implementations are able to complete the task in less
+than 2 seconds, and do so by pulling every trick in the book: memory-mapping data,
+avoiding all unnecessary string copies, writing custom hashmaps, writing custom
+number parser functions with built-in assumptions that values have no more
+than three digits, using Java&rsquo;s &ldquo;Unsafe&rdquo; API, etc.  These implementations are
+clever and fascinating from a competitive-programming perspective. They
+demonstrate that it is possible to write low-level &ldquo;bare-metal&rdquo; style code in
+Java. That said, they&rsquo;re less interesting from a more practical perspective;
+namely, they&rsquo;re difficult to read and don&rsquo;t demonstrate how easy and performant
+it would be to use a given language to conduct this sort of analysis in
+general.</p>
+<p>So, rather than approaching this strictly from the competitive-programming
+perspective, this blog post tries to stay practical. I/O overhead is, of
+course, a big concern in the &ldquo;real world,&rdquo; so we&rsquo;ll consider it.  Let&rsquo;s start by
+looking at a straightforward Python implementation of the 1BRC: a version that
+is simple to implement and easy to understand.  Following that, we give a
+simple Chapel version, and then adapt it using Chapel&rsquo;s parallel programming
+features to eliminate overhead and improve performance.</p>
+<p>But before we get into code, let&rsquo;s first discuss a bit more about the input
+format. The challenge&rsquo;s input file consists of a billion rows of data, where
+each row is in the format:</p>
+<pre tabindex="0"><code>&lt;string: station name&gt;;&lt;double: measurement&gt;
+</code></pre><p>For example, the first few lines of the file might look like this:</p>
+<pre tabindex="0"><code>Tel Aviv;15.6
+Hong Kong;51.4
+Dikson;-15.4
+London;-4.0
+Entebbe;7.6
+Hong Kong;51.4
+Port Moresby;16.2
+Assab;35.6
+Lusaka;26.6
+</code></pre><p>Station names may repeat. The task is to calculate the minimum, maximum, and
+average temperature value for each weather station.  The output should sort the
+station names and report these values, looking something like this (where
+for each station, the first number is the minimum temperature, the second the
+average, and the third the maximum):</p>
+<pre tabindex="0"><code>       Abha:   -22.1    18.0    56.3
+    Abidjan:   -17.3    26.0    67.8
+     Abéché:    -7.9    29.4    71.9
+      Accra:   -18.5    26.4    63.0
+Addis Ababa:   -23.2    16.1    58.4
+</code></pre><h3 id="writing-a-straightforward-python-version">
+  <a href="#writing-a-straightforward-python-version">Writing a straightforward Python version</a>
+</h3>
+<p>If someone were given this task for a work or school assignment, they might
+start by writing a non-performant, albeit simple serial version of the 1BRC.
+Many programmers are familiar with Python, so let&rsquo;s start there.  In Python, you
+might write this:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/1brc.py download="1brc.py">1brc.py</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">time</span><span class="o">,</span> <span class="nn">csv</span><span class="o">,</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;measurements.txt&#39;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">mins</span>   <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl"><span class="n">maxes</span>  <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl"><span class="n">sums</span>   <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl"><span class="n">counts</span> <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csvfile</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">  <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csvfile</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">city_name</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">temperature</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">city_name</span> <span class="ow">in</span> <span class="n">mins</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">      <span class="n">mins</span> <span class="p">[</span><span class="n">city_name</span><span class="p">]</span>  <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">max</span>
+</span></span><span class="line"><span class="cl">      <span class="n">maxes</span><span class="p">[</span><span class="n">city_name</span><span class="p">]</span>  <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">min</span>
+</span></span><span class="line"><span class="cl">      <span class="n">sums</span> <span class="p">[</span><span class="n">city_name</span><span class="p">]</span>  <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">      <span class="n">counts</span><span class="p">[</span><span class="n">city_name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">mins</span> <span class="p">[</span><span class="n">city_name</span><span class="p">]</span>  <span class="o">=</span>  <span class="nb">min</span><span class="p">(</span><span class="n">temperature</span><span class="p">,</span> <span class="n">mins</span><span class="p">[</span><span class="n">city_name</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">    <span class="n">maxes</span><span class="p">[</span><span class="n">city_name</span><span class="p">]</span>  <span class="o">=</span>  <span class="nb">max</span><span class="p">(</span><span class="n">temperature</span><span class="p">,</span> <span class="n">maxes</span><span class="p">[</span><span class="n">city_name</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">    <span class="n">sums</span> <span class="p">[</span><span class="n">city_name</span><span class="p">]</span>  <span class="o">+=</span> <span class="n">temperature</span>
+</span></span><span class="line"><span class="cl">    <span class="n">counts</span><span class="p">[</span><span class="n">city_name</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># Report results:</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">city</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">mins</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+</span></span><span class="line"><span class="cl">  <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;</span><span class="si">%20s</span><span class="s2">: </span><span class="si">%7.1f</span><span class="s2"> </span><span class="si">%7.1f</span><span class="s2"> </span><span class="si">%7.1f</span><span class="s2">&#34;</span> <span class="o">%</span>
+</span></span><span class="line"><span class="cl">        <span class="p">(</span><span class="n">city</span><span class="p">,</span> <span class="n">mins</span><span class="p">[</span><span class="n">city</span><span class="p">],</span> <span class="n">sums</span><span class="p">[</span><span class="n">city</span><span class="p">]</span> <span class="o">/</span> <span class="n">counts</span><span class="p">[</span><span class="n">city</span><span class="p">],</span> <span class="n">maxes</span><span class="p">[</span><span class="n">city</span><span class="p">]))</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;elapsed time: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>This program is simple and easy-to-read. It uses Python&rsquo;s CSV parser to read
+the data, changing the separator from a comma to a semi-colon.  We store
+running results into dictionaries with the keys being the names of temperature
+stations and the values the current value.  The first time we encounter a city
+we populate the dictionary with &ldquo;identity&rdquo; values that will be replaced when we
+process the city&rsquo;s temperature.  To calculate averages, we need to keep a
+running sum of temperatures as well as a count of how many entries exist for a
+given weather station.  At the end, we sort and print out our results with a
+calculated average.</p>
+<h3 id="writing-a-serial-chapel-version">
+  <a href="#writing-a-serial-chapel-version">Writing a serial Chapel version</a>
+</h3>
+<p>Now, let&rsquo;s try doing the same in Chapel:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/1brc_serial.chpl download="1brc_serial.chpl">1brc_serial.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Time</span><span class="p">,</span><span class="w"> </span><span class="nx">Map</span><span class="p">,</span><span class="w"> </span><span class="nx">Sort</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;measurements.txt&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">mins</span><span class="p">,</span><span class="w"> </span><span class="nx">maxes</span><span class="p">,</span><span class="w"> </span><span class="nx">sums</span><span class="p">,</span><span class="w"> </span><span class="nx">counts</span><span class="p">:</span><span class="w"> </span><span class="nx">map</span><span class="p">(</span><span class="kt">bytes</span><span class="p">,</span><span class="w"> </span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">watch</span><span class="p">:</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">watch</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">open</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">ioMode</span><span class="p">.</span><span class="nx">r</span><span class="p">).</span><span class="nx">reader</span><span class="p">(</span><span class="nx">locking</span><span class="o">=</span><span class="kc">false</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">ct</span><span class="p">:</span><span class="w"> </span><span class="nx">cityTemp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">while</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="nx">ct</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">temp</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">ct</span><span class="p">.</span><span class="nx">temp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="nx">mins</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="nx">city</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">mins</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">maxes</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nx">min</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sums</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">counts</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">mins</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w">   </span><span class="o">=</span><span class="w">  </span><span class="nx">min</span><span class="p">(</span><span class="nx">temp</span><span class="p">,</span><span class="w"> </span><span class="nx">mins</span><span class="p">[</span><span class="nx">city</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">maxes</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w">  </span><span class="o">=</span><span class="w">  </span><span class="nx">max</span><span class="p">(</span><span class="nx">temp</span><span class="p">,</span><span class="w"> </span><span class="nx">maxes</span><span class="p">[</span><span class="nx">city</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">sums</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w">   </span><span class="o">+=</span><span class="w"> </span><span class="nx">temp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">counts</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">watch</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// Report results
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">cities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">mins</span><span class="p">.</span><span class="nx">keys</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">sort</span><span class="p">(</span><span class="nx">cities</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">for</span><span class="w"> </span><span class="nx">city</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">cities</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;%20s: %7.1dr %7.1dr %7.1dr\n&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="nx">city</span><span class="p">.</span><span class="nx">decode</span><span class="p">(),</span><span class="w"> </span><span class="nx">mins</span><span class="p">[</span><span class="nx">city</span><span class="p">],</span><span class="w"> </span><span class="nx">sums</span><span class="p">[</span><span class="nx">city</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">counts</span><span class="p">[</span><span class="nx">city</span><span class="p">],</span><span class="w">  </span><span class="nx">maxes</span><span class="p">[</span><span class="nx">city</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;elapsed time: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">watch</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">record</span><span class="w"> </span><span class="nc">cityTemp</span><span class="p">:</span><span class="w"> </span><span class="nx">readDeserializable</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">city</span><span class="p">:</span><span class="w"> </span><span class="kt">bytes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">temp</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">ref</span><span class="w"> </span><span class="nx">deserialize</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span><span class="w"> </span><span class="nx">fileReader</span><span class="p">(?),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">deserializer</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">this</span><span class="p">.</span><span class="nx">city</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">readThrough</span><span class="p">(</span><span class="nx">b</span><span class="s">&#34;;&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">stripSeparator</span><span class="o">=</span><span class="kc">true</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">this</span><span class="p">.</span><span class="nx">temp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">reader</span><span class="p">.</span><span class="nx">readNewline</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>The Chapel implementation isn&rsquo;t quite as compact as the Python version,
+though it is still fairly straightforward.</p>
+<p>One notable difference is that in the Chapel version, we represent the data
+read in from the file in a special <code>cityTemp</code> record.  We supply this record
+with a <code>deserialize</code> method that specifies how to read the value from a file.
+For more information about deserializers see this <a href="https://chapel-lang.org/docs/technotes/ioSerializers.html"target="_blank" rel="noopener">technical
+note</a>.</p>
+<p>When running the Python and Chapel versions, we can already see a difference in
+terms of performance. On a 64-core (AMD EPYC 7513) machine, the Python version
+takes 1312 seconds (21 minutes, 52 seconds) while the serial Chapel version
+takes 908 seconds (15 minutes, 8 seconds).  Both versions are running in serial,
+though, so despite running this on a beefy 64-core machine, we&rsquo;re only using one
+of its cores.</p>
+<figure><img src="../../posts/1brc/python-v-serial.png">
+</figure>
+
+<h3 id="writing-a-parallel-chapel-version">
+  <a href="#writing-a-parallel-chapel-version">Writing a parallel Chapel version</a>
+</h3>
+<p>Now let&rsquo;s try and make better use of our hardware and make the Chapel version
+faster by introducing parallelism.</p>
+<p>Given the large size of the input file, it makes sense to read and process its data
+in parallel.  We would like each task to process whole, unsplit, lines of
+data, but figuring out the exact byte-offset to split the file up can be
+difficult.  Thankfully, Chapel has a
+<a href="https://chapel-lang.org/docs/main/modules/packages/ParallelIO.html"target="_blank" rel="noopener"><code>ParallelIO</code></a>
+module that can handle these details for you.</p>
+<p>Using the <code>ParallelIO</code> module, one simple approach would be to read all the rows of
+the file in as an array, and then use a <code>forall</code> loop to iterate through that
+array in parallel.  This can be quite easily expressed as:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">cityTemps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readItemsAsArray</span><span class="p">(</span><span class="nx">filePath</span><span class="o">=</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">delim</span><span class="o">=</span><span class="s">&#34;\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">=</span><span class="nx">cityTemp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">ct</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">cityTemps</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w">
+</span></span></span></code></pre></div><p>An even better approach would be to avoid loading the entire file into memory
+by processing it a line at a time, and this is possible using the <code>ParallelIO</code>
+module&rsquo;s
+<a href="https://chapel-lang.org/docs/main/modules/packages/ParallelIO.html#ParallelIO.readDelimited"target="_blank" rel="noopener">readDelimited</a>
+iterator.</p>
+<p>So, we could replace our original loop:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">while</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="nx">ct</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>with:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">ct</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readDelimited</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">=</span><span class="nx">cityTemp</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span></code></pre></div><p>where the <code>t</code> argument specifies the type of data to load.  Note we&rsquo;re not
+just changing from using the serial <code>read</code> method to the parallel
+<code>readDelimited</code>, we&rsquo;re also changing from using a serial <code>while</code> loop to the
+parallel <code>forall</code> loop. This approach will keep all our cores busy reading and
+processing the file.</p>
+<p>By itself, this is a pretty trivial change; but alas, if you try and compile it,
+you&rsquo;ll soon run into an error:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">error: const actual is passed to &#39;ref&#39; formal &#39;this&#39; of addOrReplace()
+</span></span></span><span class="line"><span class="cl"><span class="go">note: to formal of type map(bytes,real(64),false)
+</span></span></span><span class="line"><span class="cl"><span class="go">note: The shadow variable &#39;mins&#39; is constant due to task intents in this loop
+</span></span></span></code></pre></div><p>The final note on the error is telling you that the <code>mins</code> map is constant within
+the loop due to task intents.  In parallel loops (like <code>forall</code>), variables used
+in the loop that come from outside the loop (like <code>mins</code> in this case) are
+given a &ldquo;task intent&rdquo;, which defines how the variable enters and can be used in
+the loop.  For example, variables with <code>ref</code> intent can be modified in the loop
+while variables with <code>const</code> intent cannot.  By default, objects like maps are
+given <code>const</code> intent, since modifying the map in a parallel loop can lead to
+bugs.</p>
+<p>You might find this error annoying, but by defaulting to <code>const</code> intent, Chapel
+saved us from accidentally introducing a potential bug, and not only that,
+one of the worst kinds of bugs: a race condition.  Race conditions can be
+particularly difficult to debug since, by definition, their behavior might not
+be consistent from run to run.  We could silence the error message by giving
+the map a <code>ref</code> intent using a <code>with</code> clause like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">ct</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readDelimited</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">=</span><span class="nx">cityTemp</span><span class="p">)</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">mins</span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>But, unfortunately, silencing the error message doesn&rsquo;t remove that nasty race
+condition. So what to do?  Well, Chapel has another map datatype that&rsquo;s meant
+for concurrent updates like this: the <code>ConcurrentMap</code> type, so let&rsquo;s use that!</p>
+<p>The way to do a parallel-safe update with <code>ConcurrentMap</code> is to use its
+<a href="https://chapel-lang.org/docs/modules/packages/ConcurrentMap.html#ConcurrentMap.ConcurrentMap.update"target="_blank" rel="noopener">update</a>
+method.  In our implementation, we&rsquo;ll call <code>update</code> like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">updater</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">temp</span><span class="p">),</span><span class="w"> </span><span class="nx">token</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>In this case, <code>ct.city</code> is the key to update in the <code>cityTempStats</code> map.  But,
+you may be asking, what&rsquo;s up with the <code>updater</code> and <code>token</code> arguments?</p>
+<p>The <code>updater</code> argument takes an object that indicates how to update the key.
+This object defines an updater method named <code>this</code> that takes a single argument of the element
+type to update with.  We can create a simple updater to do our aggregation like
+this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">updater</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">temp</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">this</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">td</span><span class="p">:</span><span class="w"> </span><span class="nx">tempData</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">min</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">td</span><span class="p">.</span><span class="nx">min</span><span class="p">,</span><span class="w"> </span><span class="nx">temp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="nx">td</span><span class="p">.</span><span class="nx">max</span><span class="p">,</span><span class="w"> </span><span class="nx">temp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">temp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>And since our updater is a function that can update multiple values, for this
+version, rather than have four separate maps for <code>min</code>, <code>max</code>, <code>total</code>, and
+<code>count</code>, we&rsquo;ll instead store these values together in a single <code>tempData</code>
+record and use a single <code>ConcurrentMap</code> object.</p>
+<p>The <code>update</code> method also takes a token, which is a special value used to
+coordinate between tasks.  We can get the task-specific instance of this token
+by calling the <code>getToken()</code> method on <code>ConcurrentMap</code> and assigning it to a
+task-specific variable in the <code>with</code> clause of our <code>forall</code> loop. Putting
+it all together looks like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">ct</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readDelimited</span><span class="p">(</span><span class="nx">fileName</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">=</span><span class="nx">cityTemp</span><span class="p">,</span><span class="w"> </span><span class="nx">delim</span><span class="o">=</span><span class="s">&#34;\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">nTasks</span><span class="o">=</span><span class="nx">nTasks</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="kd">var</span><span class="w"> </span><span class="nx">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">getToken</span><span class="p">())</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">do</span><span class="w"> </span><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">updater</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">temp</span><span class="p">),</span><span class="w"> </span><span class="nx">token</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>And in its entirety, the program is:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/1brc.chpl download="1brc.chpl">1brc.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Math</span><span class="p">,</span><span class="w"> </span><span class="nx">ParallelIO</span><span class="p">,</span><span class="w"> </span><span class="nx">ConcurrentMap</span><span class="p">,</span><span class="w"> </span><span class="nx">Sort</span><span class="p">,</span><span class="w"> </span><span class="nx">Time</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;measurements.txt&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">nTasks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">maxTaskPar</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">printOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">timeExecution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">timeExecution</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">t</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// map to store temperature statistics for each city
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">cityTempStats</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">ConcurrentMap</span><span class="p">(</span><span class="kt">bytes</span><span class="p">,</span><span class="w"> </span><span class="nx">tempData</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// read and aggregate temperature data for each city
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">ct</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">readDelimited</span><span class="p">(</span><span class="nx">fileName</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">=</span><span class="nx">cityTemp</span><span class="p">,</span><span class="w"> </span><span class="nx">delim</span><span class="o">=</span><span class="s">&#34;\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">nTasks</span><span class="o">=</span><span class="nx">nTasks</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">with</span><span class="w"> </span><span class="p">(</span><span class="kd">var</span><span class="w"> </span><span class="nx">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">getToken</span><span class="p">())</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">do</span><span class="w"> </span><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">updater</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">temp</span><span class="p">),</span><span class="w"> </span><span class="nx">token</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">timeExecution</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;elapsed time: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// print temperature statistics for each city
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">printOutput</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">toArray</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sort</span><span class="p">(</span><span class="nx">results</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">comparator</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">td</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">results</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;%20s: %?&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">city</span><span class="p">.</span><span class="nx">decode</span><span class="p">().</span><span class="nx">strip</span><span class="p">(),</span><span class="w"> </span><span class="nx">td</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// record to store temperature stats for a particular city
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">record</span><span class="w"> </span><span class="nc">tempData</span><span class="p">:</span><span class="w"> </span><span class="nx">writeSerializable</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">min</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Types</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">max</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Types</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">total</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">count</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// how to write a tempData record to a file (min/avg/max)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">tempData.serialize</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span><span class="w"> </span><span class="nx">fileWriter</span><span class="p">(?),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">serializer</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writer</span><span class="p">.</span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;%7.1dr %7.1dr %7.1dr\n&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="k">this</span><span class="p">.</span><span class="nx">min</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">count</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">max</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// record representing a &lt;city&gt;;&lt;temperature&gt; pair
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">record</span><span class="w"> </span><span class="nc">cityTemp</span><span class="p">:</span><span class="w"> </span><span class="nx">readDeserializable</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">city</span><span class="p">:</span><span class="w"> </span><span class="kt">bytes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">temp</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// how to read a cityTemp record from a file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">ref</span><span class="w"> </span><span class="nx">cityTemp</span><span class="p">.</span><span class="nx">deserialize</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span><span class="w"> </span><span class="nx">fileReader</span><span class="p">(?),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">deserializer</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">city</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">readThrough</span><span class="p">(</span><span class="nx">b</span><span class="s">&#34;;&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">stripSeparator</span><span class="o">=</span><span class="kc">true</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">temp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// used to facilitate atomic updates to tempData records
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">record</span><span class="w"> </span><span class="nc">updater</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">temp</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">this</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">td</span><span class="p">:</span><span class="w"> </span><span class="nx">tempData</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">min</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">td</span><span class="p">.</span><span class="nx">min</span><span class="p">,</span><span class="w"> </span><span class="nx">temp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="nx">td</span><span class="p">.</span><span class="nx">max</span><span class="p">,</span><span class="w"> </span><span class="nx">temp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">temp</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">td</span><span class="p">.</span><span class="nx">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// used to sort tempData records by city name
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">record</span><span class="w"> </span><span class="nc">comparator</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nx">keyComparator</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">comparator.key</span><span class="p">(</span><span class="nx">k</span><span class="p">:</span><span class="w"> </span><span class="p">(</span><span class="kt">bytes</span><span class="p">,</span><span class="w"> </span><span class="nx">tempData</span><span class="p">))</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">k</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">### Updates to this article
+</span></span></span><span class="line"><span class="cl"><span class="cm">
+</span></span></span><span class="line"><span class="cl"><span class="cm">{{&lt; changetable &gt;}}
+</span></span></span><span class="line"><span class="cl"><span class="cm">| Date         | Change                                                      |
+</span></span></span><span class="line"><span class="cl"><span class="cm">|:-------------|:------------------------------------------------------------|
+</span></span></span><span class="line"><span class="cl"><span class="cm">| Sep 27, 2024 | Updated to reflect custom `comparator`-related changes in Chapel 2.2 |
+</span></span></span><span class="line"><span class="cl"><span class="cm">*/</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>And sure enough, this version blows all our previous results out of the water.
+While the Python version took 1312 seconds (21 minutes, 52 seconds), and the
+serial Chapel version took 908 seconds (15 minutes, 8 seconds), when running
+the parallel Chapel version on all 64 cores of this machine, it took only 24
+seconds!</p>
+<figure><img src="../../posts/1brc/final-results.png">
+</figure>
+
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>In this post, we used the billion-row challenge to demonstrate Chapel&rsquo;s ability
+to process a massive amount of data on a multicore machine in parallel.</p>
+<p>Some key points to take away include:</p>
+<ul>
+<li>Chapel makes it easy to write a program to do parallel processing of a
+massive datafile.</li>
+<li>Chapel&rsquo;s <code>ParallelIO</code> module can be used to process the contents of a file in
+parallel.
+<ul>
+<li>To read in all the data in the file into an array, use
+<code>readItemsAsArray</code>.</li>
+<li>To iterate through the file in parallel, use a <code>forall</code> loop
+and the <code>readDelimited</code> iterator.</li>
+</ul>
+</li>
+<li>To aggregate data into a map, use Chapel&rsquo;s <code>ConcurrentMap</code> module.
+<ul>
+<li>Aggregation
+logic is encapsulated in a special function object that has a <code>this</code> method
+that takes a <code>ref</code> to the element of the map to update.</li>
+</ul>
+</li>
+</ul>
+<p>Given that Chapel supports distributed-memory parallelism in addition to the
+shared-memory, multicore parallelism that we used here, it&rsquo;d be interesting to
+consider what a distributed version of this code would look like; but we&rsquo;ll
+leave that question for another day.</p>
+<p>Altogether, in this post, we focused on creating a straightforward, yet
+parallel, implementation of the one billion row challenge in
+Chapel. The resulting code executes in 24 seconds on a multicore CPU, which is
+orders of magnitude faster than a similarly straightforward Python
+implementation.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Parallel&#43;Processing&#43;of&#43;a&#43;Billion&#43;Rows&#43;of&#43;Data&#43;in&#43;Chapel&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F1brc%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Parallel&#43;Processing&#43;of&#43;a&#43;Billion&#43;Rows&#43;of&#43;Data&#43;in&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F1brc%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Parallel&#43;Processing&#43;of&#43;a&#43;Billion&#43;Rows&#43;of&#43;Data&#43;in&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F1brc%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Parallel&#43;Processing&#43;of&#43;a&#43;Billion&#43;Rows&#43;of&#43;Data&#43;in&#43;Chapel&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F1brc%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>

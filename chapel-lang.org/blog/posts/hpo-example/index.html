@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="This post shows how to write a distributed tuning program in Chapel">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Distributed Tuning in Chapel with a Hyperparameter Optimization Example</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Distributed Tuning in Chapel with a Hyperparameter Optimization Example</h2>
+<div class="post-subscript">
+    <p>Posted on October 8, 2024.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+        <a class="button" href="../../tags/ai/ml">AI/ML</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/lydia-duncan">Lydia Duncan</a>, <a href="../../authors/michelle-strout">Michelle Strout</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#quickstart">QuickStart</a></li>
+    <li><a href="#how-the-chapel-tuning-program-works">How the Chapel Tuning Program Works</a></li>
+    <li><a href="#performing-distributed-parallel-tuning">Performing Distributed Parallel Tuning</a></li>
+    <li><a href="#distributed-tuning-used-for-hyper-parameter-optimization">Distributed Tuning Used for Hyper-Parameter Optimization</a></li>
+    <li><a href="#possible-additional-features">Possible Additional Features</a></li>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#updates-to-this-article">Updates to this article</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>
+
+
+</p>
+<p>Tuning a computation is a common challenge in science, engineering, and
+machine learning/AI.  Tuning involves calling the same program with a lot of
+different possible arguments and then analyzing the collection of results to
+determine the best argument combination.  A number of tools can be used to
+address this problem: <a href="https://dask.org"target="_blank" rel="noopener">Dask</a>, <a href="https://ray.io"target="_blank" rel="noopener">Ray</a>,
+<a href="https://hyperopt.github.io/hyperopt/scaleout/spark/"target="_blank" rel="noopener">HyperOpt with Spark</a>,
+and <a href="https://github.com/DragonHPC/dragon"target="_blank" rel="noopener">Dragon</a>, to name just a handful.
+This kind of tuning is generally useful for activities such as
+<a href="https://www.osti.gov/pages/biblio/1488544"target="_blank" rel="noopener">autotuning</a>, <a href="https://en.wikipedia.org/wiki/Ensemble_forecasting"target="_blank" rel="noopener">ensembles of
+simulations</a>, and
+<a href="https://en.wikipedia.org/wiki/Hyperparameter_optimization"target="_blank" rel="noopener">hyperparameter
+optimization</a>.</p>
+<p>This blog post shows how to perform distributed and multicore parallel tuning
+using a toy target program and a polynomial fitting program. Both target
+programs are written in Python, but this framework works with executables
+written in any language that support the expected interface (information on
+the expected interface can be found in the <a href="#distributed-tuning-used-for-hyper-parameter-optimization">Distributed
+Tuning</a> and
+<a href="#possible-additional-features">Additional Features</a> sections). The tuning
+program, written in the open-source <a href="https://chapel-lang.org"target="_blank" rel="noopener">Chapel Programming
+Language</a>, (1) randomly explores the argument space
+and (2) indicates which combination of arguments led to the best performance.
+The tuning program does this by <code>exec</code>ing instances of the given target
+program with different argument values in parallel over all the nodes and
+cores requested.  When the polynomial fitting program described below is
+passed to the tuning program, the tuning program written in Chapel is doing
+hyperparameter optimization.</p>
+<p>We hope you enjoy the tuning program and the example target programs—try it
+out on some of your own target programs, and consider giving Chapel a try!</p>
+<h3 id="quickstart">
+  <a href="#quickstart">QuickStart</a>
+</h3>
+<p>To try out this Chapel tuning program on a toy target program, here are
+some quickstart instructions.</p>
+<details>
+    <summary><strong>Commands to run the Chapel tuning program in this post.</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <ol>
+<li>
+<p><strong>Install Chapel</strong>: If you haven&rsquo;t already, install Chapel by following the
+relevant instructions at
+<a href="https://chapel-lang.org/download.html"target="_blank" rel="noopener">chapel-lang.org</a>.</p>
+</li>
+<li>
+<p><strong>Compile this file</strong>: Save <a href="code/tune.chpl">this file</a> as
+<code>tune.chpl</code> and compile it with the following command:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chpl tune.chpl
+</span></span></code></pre></div></li>
+<li>
+<p><strong>Download the toy target program</strong>: Download the <a href="toy.py">toy program</a>
+from here and save it as <code>toy.py</code>.</p>
+</li>
+<li>
+<p><strong>Run the Chapel program</strong>: Run the Chapel program with the following</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./tune
+</span></span></code></pre></div></li>
+</ol>
+
+    </div>
+</details>
+
+<p><strong>Here is the full program described in this post (which we recommend saving
+as <code>tune.chpl</code>).</strong>
+
+
+
+
+<div class="file" data-code-type="main">
+    <details>
+        <summary class="file-header">
+            <a href="./code/hpo-example.chpl" download="hpo-example.chpl">hpo-example.chpl</a>
+            
+        </summary>
+        
+        <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">Random</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">,</span><span class="w"> </span><span class="nx">Subprocess</span><span class="p">,</span><span class="w"> </span><span class="nx">OS</span><span class="p">.</span><span class="nx">POSIX</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="nx">targetProgram</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="nx">combo</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">currentCombo</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="w"> </span><span class="p">{</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">programCall</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetProgram</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Build the command-line call we should make
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">arg</span><span class="p">,</span><span class="w"> </span><span class="nx">val</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">args</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">programCall</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s">&#34; --&#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">arg</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&#34;=&#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">val</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">spawnshell</span><span class="p">(</span><span class="nx">programCall</span><span class="p">,</span><span class="w"> </span><span class="nx">stdout</span><span class="o">=</span><span class="nx">pipeStyle</span><span class="p">.</span><span class="nx">pipe</span><span class="p">,</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">                             </span><span class="nx">stderr</span><span class="o">=</span><span class="nx">pipeStyle</span><span class="p">.</span><span class="nx">pipe</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">process</span><span class="p">.</span><span class="nx">running</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentTask</span><span class="p">.</span><span class="nx">yieldExecution</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">process</span><span class="p">.</span><span class="nx">poll</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">process</span><span class="p">.</span><span class="nx">communicate</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">process</span><span class="p">.</span><span class="nx">stdout</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="nx">e</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;run failed: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">numTrials</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">121242412</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">targetProgram</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;python3 toy.py&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">argsString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;(&#39;x&#39;, (0, 30))&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">record</span><span class="w"> </span><span class="nc">combo</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">args</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">result</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parseArgSpace</span><span class="p">(</span><span class="nx">argsString</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetProgram</span><span class="p">.</span><span class="nx">strip</span><span class="p">(</span><span class="s">&#34;\&#34;&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">BlockSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numTrials</span><span class="p">});</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">BlockSpace</span><span class="p">]</span><span class="w"> </span><span class="nx">combo</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">randomSampling</span><span class="p">(</span><span class="nx">args</span><span class="p">,</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">evaluate</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">findBest</span><span class="p">(</span><span class="nx">combosToCheck</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// These five lines are useful output for the user for debugging, but might
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// want to comment out for production runs with a lot of trials.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Target program was: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">target</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Combos checked were:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">currentCombo</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">currentCombo</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Best found was:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">result</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">parseArgSpace</span><span class="p">(</span><span class="nx">argsString</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">):</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">argGroups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argsString</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s">&#34;;&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">arg</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">argGroups</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">arg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">arg</span><span class="p">.</span><span class="nx">strip</span><span class="p">()[</span><span class="mi">1</span><span class="o">..</span><span class="nx">arg</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">2</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">argParts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">arg</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s">&#34;,&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">argName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argParts</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">strip</span><span class="p">(</span><span class="s">&#34; \t\r\n(&#34;</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">argRangeLow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argParts</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="nx">strip</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">argRangeHigh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argParts</span><span class="p">[</span><span class="mi">2</span><span class="p">].</span><span class="nx">strip</span><span class="p">(</span><span class="s">&#34; \t\r\n)&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">low</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argRangeLow</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="p">].</span><span class="nx">strip</span><span class="p">():</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">high</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argRangeHigh</span><span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="nx">argRangeHigh</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="nx">strip</span><span class="p">():</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">args</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">((</span><span class="nx">argName</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">low</span><span class="p">,</span><span class="w"> </span><span class="nx">high</span><span class="p">)));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">args</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">private</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">rng</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">randomStream</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">seed</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">randomSampling</span><span class="p">(</span><span class="nx">optimizableArgs</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">))),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="nx">combo</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Determine the values to try for the arguments
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">currentCombo</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Based on the limits provided in the argument list, determine a
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// value to try for this particular tuning trial
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">low</span><span class="p">,</span><span class="w"> </span><span class="nx">high</span><span class="p">))</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">optimizableArgs</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rng</span><span class="p">.</span><span class="nx">next</span><span class="p">(</span><span class="nx">low</span><span class="p">,</span><span class="w"> </span><span class="nx">high</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">args</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">((</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="nx">val</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">findBest</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="nx">combo</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">bestVal</span><span class="p">,</span><span class="w"> </span><span class="nx">bestIndex</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">minloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="w"> </span><span class="p">(</span><span class="nx">combosToCheck</span><span class="p">.</span><span class="nx">result</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                                                  </span><span class="nx">combosToCheck</span><span class="p">.</span><span class="nx">indices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Return the argument/hyperparameter settings that led to that lowest value
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">[</span><span class="nx">bestIndex</span><span class="p">].</span><span class="nx">args</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </details>
+</div>
+</p>
+<p>The rest of this post describes how the Chapel tuning program works in detail,
+starting with the code that enables the tuning program to leverage all
+available distributed and multicore parallelism while executing many
+instances of a target program written in any programming language.</p>
+<h3 id="how-the-chapel-tuning-program-works">
+  <a href="#how-the-chapel-tuning-program-works">How the Chapel Tuning Program Works</a>
+</h3>
+<p>The Chapel tuning programs starts with some <code>use</code> statements to obtain access
+to the library functions used below.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">Random</span><span class="p">,</span><span class="w"> </span><span class="nx">List</span><span class="p">,</span><span class="w"> </span><span class="nx">Subprocess</span><span class="p">,</span><span class="w"> </span><span class="nx">OS</span><span class="p">.</span><span class="nx">POSIX</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The key piece of the Chapel tuning program is its ability to execute instances
+of the target program in parallel across all of the available nodes and cores.
+The <code>evaluate</code> procedure defined below does this by iterating over all of the
+possible combinations in parallel using Chapel&rsquo;s special <code>forall</code> loop syntax
+(see line 5) and by <code>exec</code>ing the
+target program within that parallel loop with the <code>spawnshell</code> procedure
+provided by the <code>SubProcess</code> module (see line 14).  The possible combinations are passed in as an
+array called <code>combosToCheck</code>.  We describe that array and the <code>combo</code> type a
+bit later in the post.</p>
+<p>The <code>evaluate</code> procedure is called by <code>main</code>, which is defined below. The
+arguments to <code>evaluate</code> include the command-line for executing the target
+program, which is passed as the argument <code>targetProgram</code>, as well as another argument
+that is a reference to an array of possible combinations (the <code>combo</code> data
+structure is described below). The first statement in the <code>evaluate</code> procedure
+is a <code>forall</code> parallel loop over all of the combinations in the
+<code>combosToCheck</code> array.</p>
+<details>
+    <summary><strong>The Chapel <code>forall</code> loop.</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        A <code>forall</code> is a special type of <code>for</code> loop in Chapel.  Its usage signals to
+the Chapel compiler that the programmer expects the iterations of the
+<code>for</code> loop can execute in parallel without issue.  The <code>forall</code> loop
+implementation will use all available cores and also uses all available nodes
+if it is iterating over a distributed data structure, which the array
+<code>combosToCheck</code> ends up being.  For more information about the various loop
+types supported by Chapel, see
+<a href="https://chapel-lang.org/docs/primers/loops.html"target="_blank" rel="noopener">https://chapel-lang.org/docs/primers/loops.html</a>
+    </div>
+</details>
+
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="nx">targetProgram</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="nx">combo</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">currentCombo</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="w"> </span><span class="p">{</span><span class="w"> 
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Each combination of arguments is used to build an individual call to
+the target program:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">programCall</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetProgram</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Build the command-line call we should make
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">arg</span><span class="p">,</span><span class="w"> </span><span class="nx">val</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">args</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">programCall</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s">&#34; --&#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">arg</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&#34;=&#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">val</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We then run the command we&rsquo;ve built as a subprocess using the
+<code>Subprocess</code> library&rsquo;s <code>spawnshell</code> function:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">spawnshell</span><span class="p">(</span><span class="nx">programCall</span><span class="p">,</span><span class="w"> </span><span class="nx">stdout</span><span class="o">=</span><span class="nx">pipeStyle</span><span class="p">.</span><span class="nx">pipe</span><span class="p">,</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">                             </span><span class="nx">stderr</span><span class="o">=</span><span class="nx">pipeStyle</span><span class="p">.</span><span class="nx">pipe</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The subprocess may still be running when the program returns from
+<code>spawnshell</code>.  To avoid the operating system prioritizing the loop over
+the task it is waiting on, and to allow other tasks to start their subprocess
+runs, the code must actively tell the current task to yield.  Each time the OS wakes up
+this Chapel task, it will re-poll to see if the subprocess is done.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nx">process</span><span class="p">.</span><span class="nx">running</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentTask</span><span class="p">.</span><span class="nx">yieldExecution</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">process</span><span class="p">.</span><span class="nx">poll</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>With the while-loop ensuring that the subprocess is no longer running, the
+code will next ensure the subprocess stores the most up-to-date version of
+its output in the subprocess&rsquo;s <code>stdout</code> by calling its <code>communicate</code> method,
+and saving the result into the <code>result</code> field of the combination we were
+running:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="nx">process</span><span class="p">.</span><span class="nx">communicate</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">process</span><span class="p">.</span><span class="nx">stdout</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="nx">e</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;run failed: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">max</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The rest of the program</p>
+<ul>
+<li>
+<p>reads in the target program name and the space of arguments to explore,</p>
+</li>
+<li>
+<p>randomly creates a distributed array of combinations to execute the target
+program on,</p>
+</li>
+<li>
+<p>calls the above <code>execute</code> procedure, passing in the possible combinations,</p>
+</li>
+<li>
+<p>and then prints out the best result found.</p>
+</li>
+</ul>
+<p>This tuning program has some configuration constants.  <code>numTrials</code> controls
+the number of argument combinations to try.  <code>seed</code> controls the random number
+generator, so it is possible to have reproducible results.  <code>targetProgram</code>
+is the name of the target program to tune.  <code>argsString</code> is a string that
+specifies the arguments to tune and their ranges:</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">numTrials</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">121242412</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">targetProgram</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;python3 toy.py&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">argsString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;(&#39;x&#39;, (0, 30))&#34;</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>These can be set to different values when running the tuning program.  For
+instance, if you wanted to try fifteen argument settings instead of ten,
+you could run the Chapel program like so:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./tune --numTrials<span class="o">=</span><span class="m">15</span>
+</span></span></code></pre></div><p>Then we define the <code>combo</code> type itself.  It stores two fields:</p>
+<ul>
+<li><code>args</code>, a list of arguments and the value used for this particular combo</li>
+<li><code>result</code>, which is where the <code>evaluate</code> function stores the output from the
+individual run.</li>
+</ul>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">combo</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">args</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">result</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>After defining the configuration constants and the <code>combo</code> type, we define the
+<code>main</code> procedure.  This procedure starts by parsing the <code>argsString</code>
+configuration constant to get the list of argument ranges.  This function
+helps ensure that the user does not have to modify the file itself to tune
+programs other than our toy example.  However, it is a bit esoteric for that
+reason, and so is only provided in the <a href="#parseArgSpace">detail block below</a>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parseArgSpace</span><span class="p">(</span><span class="nx">argsString</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">targetProgram</span><span class="p">.</span><span class="nx">strip</span><span class="p">(</span><span class="s">&#34;\&#34;&#34;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Next, a distributed domain is created with <code>blockDist.createDomain</code> and then a
+distributed array of <code>combo</code> objects is created with that domain.  Distributed
+domains and arrays enable distributed parallel processing of all kinds,
+including for this tuning program.  The distribution called
+<a href="https://chapel-lang.org/docs/latest/modules/dists/BlockDist.html"target="_blank" rel="noopener"><code>BlockDist</code></a>
+distributes the data in the <code>combosToCheck</code> array across locales (nodes) and
+enables any <code>forall</code> loop over <code>combosToCheck</code> — such as the one in our
+<code>evaluate</code> routine above — to create distributed parallel tasks.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">46
+</span><span class="lnt">47
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">BlockSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">numTrials</span><span class="p">});</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">BlockSpace</span><span class="p">]</span><span class="w"> </span><span class="nx">combo</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We then call the <code>randomSampling</code> procedure to randomly select argument
+values to try, and call the <code>evaluate</code> procedure defined above to run the
+target program with the selected argument combinations.  The result of each
+run is saved in the corresponding <code>combo</code>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">randomSampling</span><span class="p">(</span><span class="nx">args</span><span class="p">,</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">evaluate</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We then find the best result and print it to the screen (aka <code>stdout</code>).</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">findBest</span><span class="p">(</span><span class="nx">combosToCheck</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// These five lines are useful output for the user for debugging, but might
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="c1">// want to comment out for production runs with a lot of trials.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Target program was: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">target</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Combos checked were:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">currentCombo</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">currentCombo</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Best found was:&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">result</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><a name="parseArgSpace"></a></p>
+<details>
+    <summary><strong>The <code>parseArgSpace</code> function</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The <code>parseArgSpace</code> procedure takes the <code>argsString</code> configuration constant of
+the form <code>('x', (0, 30));('y', (10, 50))</code> and returns a list of tuples where
+the first element in each tuple is an argument name and the second element is
+a tuple of the range of possible values for that argument. For a value of the
+<code>argsString</code>, which is &ldquo;(&lsquo;x&rsquo;, (0, 30));(&lsquo;y&rsquo;, (10, 50))&rdquo;, <code>parseArgSpace</code> would
+return a list containing <code>('x', (0, 30))</code> and <code>('y', (10, 50))</code>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span><span class="lnt">80
+</span><span class="lnt">81
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">parseArgSpace</span><span class="p">(</span><span class="nx">argsString</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">):</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">argGroups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argsString</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s">&#34;;&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">arg</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">argGroups</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">arg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">arg</span><span class="p">.</span><span class="nx">strip</span><span class="p">()[</span><span class="mi">1</span><span class="o">..</span><span class="nx">arg</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">2</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">argParts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">arg</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s">&#34;,&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">argName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argParts</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">strip</span><span class="p">(</span><span class="s">&#34; \t\r\n(&#34;</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">argRangeLow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argParts</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="nx">strip</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">argRangeHigh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argParts</span><span class="p">[</span><span class="mi">2</span><span class="p">].</span><span class="nx">strip</span><span class="p">(</span><span class="s">&#34; \t\r\n)&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">low</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argRangeLow</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="p">].</span><span class="nx">strip</span><span class="p">():</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">high</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">argRangeHigh</span><span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="nx">argRangeHigh</span><span class="p">.</span><span class="nx">size</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="nx">strip</span><span class="p">():</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">args</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">((</span><span class="nx">argName</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">low</span><span class="p">,</span><span class="w"> </span><span class="nx">high</span><span class="p">)));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">args</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+    </div>
+</details>
+
+<p>Next is the definition for the <code>randomSampling</code> function.  It receives
+an allocated array of <code>combo</code> records and the possible range of values
+for each of the arguments to be optimized over while tuning.  It then
+uses the ranges of values to generate a random input for each argument per
+array element, storing that value in the element&rsquo;s <code>args</code> field along with the
+argument name.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">83
+</span><span class="lnt">84
+</span><span class="lnt">85
+</span><span class="lnt">86
+</span><span class="lnt">87
+</span><span class="lnt">88
+</span><span class="lnt">89
+</span><span class="lnt">90
+</span><span class="lnt">91
+</span><span class="lnt">92
+</span><span class="lnt">93
+</span><span class="lnt">94
+</span><span class="lnt">95
+</span><span class="lnt">96
+</span><span class="lnt">97
+</span><span class="lnt">98
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">private</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">rng</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">randomStream</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">seed</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">randomSampling</span><span class="p">(</span><span class="nx">optimizableArgs</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">((</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">))),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="nx">combo</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Determine the values to try for the arguments
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">currentCombo</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Based on the limits provided in the argument list, determine a
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// value to try for this particular tuning trial
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">low</span><span class="p">,</span><span class="w"> </span><span class="nx">high</span><span class="p">))</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">optimizableArgs</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rng</span><span class="p">.</span><span class="nx">next</span><span class="p">(</span><span class="nx">low</span><span class="p">,</span><span class="w"> </span><span class="nx">high</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">currentCombo</span><span class="p">.</span><span class="nx">args</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">((</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="nx">val</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Another procedure called in the <code>main</code> procedure is the <code>findBest</code> procedure.
+The <code>findBest</code> procedure iterates over all the run combinations, returning the
+best combination found.  It does this by using a combination of the
+<a href="https://chapel-lang.org/docs/latest/primers/reductions.html#maxloc-and-minloc-reductions"target="_blank" rel="noopener">minloc
+reduction</a>
+and
+<a href="https://chapel-lang.org/docs/latest/users-guide/base/zip.html"target="_blank" rel="noopener">zippering</a>.</p>
+<div class="highlight" data-code-type="main" data-code-section="middle"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">findBest</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="nx">combo</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">(</span><span class="nx">bestVal</span><span class="p">,</span><span class="w"> </span><span class="nx">bestIndex</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">minloc</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="k">zip</span><span class="w"> </span><span class="p">(</span><span class="nx">combosToCheck</span><span class="p">.</span><span class="nx">result</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                                                  </span><span class="nx">combosToCheck</span><span class="p">.</span><span class="nx">indices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// Return the argument/hyperparameter settings that led to that lowest value
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">combosToCheck</span><span class="p">[</span><span class="nx">bestIndex</span><span class="p">].</span><span class="nx">args</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="performing-distributed-parallel-tuning">
+  <a href="#performing-distributed-parallel-tuning">Performing Distributed Parallel Tuning</a>
+</h3>
+<p>Since the the above tuning program uses a distributed array of <code>combo</code> objects
+and iterates over them using a <code>forall</code> loop, it can be run in parallel across
+all the nodes and cores available on a system.  To run the program using
+distributed parallelism, the Chapel compiler and runtime must be built to
+support multi-locale execution (see <a href="https://chapel-lang.org/docs/latest/usingchapel/multilocale.html"target="_blank" rel="noopener">Chapel&rsquo;s multilocale
+documentation</a>
+for instructions), and the <code>tune</code> program needs to be executed by passing the
+<code>-nl</code> flag to specify the number of locales (compute nodes) to use:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ ./tune -nl <span class="m">4</span>  <span class="c1"># run the Chapel program across four compute nodes</span>
+</span></span></code></pre></div><p>In the above execution of <code>tune</code>, the number of nodes specified is 4, but any
+number could be passed, so long as the system has that number of nodes
+available.  Note that the number of trials (defined in the code as
+<code>numTrials</code>) and the number of nodes used interact, which can vary the
+performance of this solution.  We recommend playing around with both the
+number of trials and the number of nodes to determine the combination that
+best works on your system.</p>
+<p>Typically, Chapel will reserve the memory it can on a node.  Because we know
+Chapel will be spawning other tasks, we only want it to use half the memory so
+that the processes we spawn off can use the rest.  This can be accomplished by
+setting the environment variable <code>CHPL_RT_MAX_HEAP_SIZE</code> prior to execution.
+E.g.,</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ <span class="nb">export</span> <span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span><span class="s2">&#34;50%&#34;</span>
+</span></span><span class="line"><span class="cl">$ ./tune -nl <span class="m">4</span> --numTrials<span class="o">=</span><span class="m">1000000</span>
+</span></span></code></pre></div><p>or</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># to only apply it to this program</span>
+</span></span><span class="line"><span class="cl">$ <span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span><span class="s2">&#34;50%&#34;</span> ./tune -nl <span class="m">4</span> --numTrials<span class="o">=</span><span class="m">1000000</span>
+</span></span></code></pre></div><h3 id="distributed-tuning-used-for-hyper-parameter-optimization">
+  <a href="#distributed-tuning-used-for-hyper-parameter-optimization">Distributed Tuning Used for Hyper-Parameter Optimization</a>
+</h3>
+<p>Hyperparameter Optimization is the process of finding what set of
+hyperparameters (e.g., number of levels, size, etc.) sent to a machine
+learning training algorithm (e.g., neural network, etc.) results in the
+highest accuracy model being produced and/or fastest training time.  This
+means running the same ML training algorithm a LOT of times to search the
+hyperparameter space.  This all takes a lot of time and can be difficult to
+scale.  Scalable performance is something that the Chapel programming language
+excels at.</p>
+<p>You can replace the toy target program with a program of your own, as there are
+no assumptions about the programming language used to write the target
+program, just that the target program is capable of being run from the
+command-line.  For this blog post, we created a polynomial fitting algorithm as
+another target program, see <a href="polyfit.py">polyfit.py</a> for its description.
+Here is an example of how to run the Chapel tuning program with the polynomial
+fit target program (note that this involves installing <code>scikit-learn</code>):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ python3 -m venv myenv           <span class="c1"># Create virtual environment</span>
+</span></span><span class="line"><span class="cl">$ <span class="nb">source</span> myenv/bin/activate       <span class="c1"># Activate on macOS/Linux</span>
+</span></span><span class="line"><span class="cl">$ pip install numpy scikit-learn  <span class="c1"># Install required packages</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">$ ./tune --targetProgram<span class="o">=</span><span class="s2">&#34;python3 polyfit.py&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>         --argsString<span class="o">=</span><span class="s2">&#34;(&#39;degree&#39;, (2,5));(&#39;alpha_order&#39;,(-2,2))&#34;</span>
+</span></span></code></pre></div><p>If you want to hyperparameter optimize a program of your own, you&rsquo;ll want to
+understand what hyperparameters you want to optimize and how to summarize the
+results of each individual run so that they can be compared accurately.  Also,
+the target program will need to have hyperparameter arguments to tune and to
+output a single result/metric, where smaller is better.  This blog post does
+not go into details about choosing hyperparameters or defining the result
+(which is known as a Figure of Merit), but you can find information on
+choosing hyperparameters from
+<a href="https://docs.ray.io/en/master/tune/faq.html#what-are-hyperparameters"target="_blank" rel="noopener">RayTune</a>
+and in Ben Albrecht&rsquo;s <a href="https://chapel-lang.org/CHIUW/2019/Albrecht.pdf"target="_blank" rel="noopener">2019 CHIUW
+talk</a> on a tool written in
+Chapel called HPO.</p>
+<h3 id="possible-additional-features">
+  <a href="#possible-additional-features">Possible Additional Features</a>
+</h3>
+<p>There are a number of ways this <code>tune</code> example could benefit from additional
+features, and we encourage anyone interested in seeing these features or
+adding them to contact us on
+<a href="https://chapel.discourse.group/c/blog/21"target="_blank" rel="noopener">Discourse</a> and let us know.  It
+would be great to hear from you and collaborate!</p>
+<ul>
+<li>
+<p>Use one of the other distributions already available in Chapel to see if the
+tuning benefits from using a distribution other than <code>blockDist</code>.  E.g., the
+<a href="https://chapel-lang.org/docs/latest/modules/dists/CyclicDist.html"target="_blank" rel="noopener">cyclic
+distribution</a>
+might lead to a more even balance of subprocesses.  The number of code
+changes needed to use these other distributions is minimal, only two lines.</p>
+</li>
+<li>
+<p>Instead of iterating over the <code>combosToCheck</code> array itself and relying on its
+distribution to balance the subprocesses, you could use one of the dynamic
+load balancing iterators in the
+<a href="https://chapel-lang.org/docs/latest/modules/packages/DistributedIters.html"target="_blank" rel="noopener"><code>DistributedIters</code></a>
+package to ensure that all nodes are kept busy with work.</p>
+</li>
+<li>
+<p>Put the randomly selected argument space values in a set so that the target
+program is not run the same way more than once.</p>
+</li>
+<li>
+<p>Implement other ways to select argument space values, or potentially use
+the results of previous target program runs to guide the search.</p>
+</li>
+<li>
+<p>Enable different argument types.  Currently only integer arguments are
+handled.</p>
+</li>
+<li>
+<p>Rewrite a target program you have in Chapel so that lower levels of
+parallelism, such as vector or GPU parallelism, can be leveraged and the need
+to <code>exec</code> a subprocess is eliminated.</p>
+</li>
+</ul>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>This article shows how you can use Chapel to run a distributed tuning computation in
+parallel.  The example program shown can be copied and adapted to do whatever
+kind of tuning computation you would like on whichever cloud, cluster,
+or supercomputer you have access to.</p>
+<p>Thank you for reading this blog post, and feel free to make comments or ask
+questions by creating a thread in the <a href="https://chapel.discourse.group/c/blog/21"target="_blank" rel="noopener">Chapel Blog Discourse
+Category</a>.  We especially look
+forward to hearing all the cool ways people use this tuning program to tune or
+hyperoptimize their own target programs.</p>
+<hr>
+<p><em>The authors would like to thank Ben Albrecht and the HPO/CrayAI
+team, who inspired this article with their more extensive HPO
+implementation.</em></p>
+<h3 id="updates-to-this-article">
+  <a href="#updates-to-this-article">Updates to this article</a>
+</h3>
+<span class="change-table"></span>
+
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">Date</th>
+          <th style="text-align: left">Change</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">Oct 11, 2024</td>
+          <td style="text-align: left">Updated to strip leading and trailing parens from arguments</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">Oct 14, 2024</td>
+          <td style="text-align: left">Updated to strip quotes from test program name</td>
+      </tr>
+  </tbody>
+</table>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Distributed&#43;Tuning&#43;in&#43;Chapel&#43;with&#43;a&#43;Hyperparameter&#43;Optimization&#43;Example&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fhpo-example%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Distributed&#43;Tuning&#43;in&#43;Chapel&#43;with&#43;a&#43;Hyperparameter&#43;Optimization&#43;Example&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fhpo-example%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Distributed&#43;Tuning&#43;in&#43;Chapel&#43;with&#43;a&#43;Hyperparameter&#43;Optimization&#43;Example&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fhpo-example%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;Distributed&#43;Tuning&#43;in&#43;Chapel&#43;with&#43;a&#43;Hyperparameter&#43;Optimization&#43;Example&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fhpo-example%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>
