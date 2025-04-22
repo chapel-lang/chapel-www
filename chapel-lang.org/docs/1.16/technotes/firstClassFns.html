@@ -1,0 +1,378 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>First-class Functions in Chapel &mdash; Chapel Documentation 1.16</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.16" href="../index.html"/>
+        <link rel="up" title="Technical Notes" href="index.html"/>
+        <link rel="next" title="Forwarding Methods Calls" href="forwarding.html"/>
+        <link rel="prev" title="C Interoperability" href="extern.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Chapel Documentation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<?php   // Variables given by sphinx 
+   $chplTitle = "1.16";   $pagename = "./technotes/firstClassFns";   include "../versionButton.php";   ?>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel's Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auxIO.html">Auxiliary I/O Systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chpl-ipe.html">Interactive Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">First-class Functions in Chapel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#manipulating-first-class-functions">Manipulating first-class functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lambda-functions">Lambda functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#specifying-the-type-of-a-first-class-function">Specifying the type of a first-class function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reflection">Reflection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#future-directions">Future Directions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initializers.html">Initializers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The 'local' keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="voidVariables.html">Void Variables and Fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation 1.16</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      
+    <li>First-class Functions in Chapel</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/technotes/firstClassFns.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="first-class-functions-in-chapel">
+<span id="readme-firstclassfns"></span><h1>First-class Functions in Chapel<a class="headerlink" href="#first-class-functions-in-chapel" title="Permalink to this headline">¶</a></h1>
+<p>This README describes some initial support that we have added to the
+compiler for first-class functions in Chapel.  This mechanism should
+be considered a stopgap technology until we have developed and
+implemented a more robust story, which is why it's being described in
+this README rather than the language specification.</p>
+<div class="section" id="manipulating-first-class-functions">
+<h2>Manipulating first-class functions<a class="headerlink" href="#manipulating-first-class-functions" title="Permalink to this headline">¶</a></h2>
+<p>Functions defined with parentheses may be captured as values by
+referring to them by name without parentheses.  Once captured, these
+values may be passed around as other value types.</p>
+<p>For example:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">myfunc</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="kt">int</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> <span class="p">}</span>
+<span class="kd">var</span> <span class="nx">f</span> <span class="o">=</span> <span class="nx">myfunc</span><span class="p">;</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">f</span><span class="p">(</span><span class="mi">3</span><span class="p">));</span>  <span class="c1">// outputs: 4</span>
+</pre></div>
+</div>
+<p>To be captured, a function must not be any of the following:</p>
+<ul class="simple">
+<li>A generic function (all captured functions must be fully-qualified
+with no generic arguments)</li>
+<li>A function with special return types (type, param)</li>
+<li>An iterator</li>
+<li>The method of an object</li>
+<li>An operator</li>
+<li>An overloaded function</li>
+<li>A function referring to outer variable, other than globals</li>
+</ul>
+<p>Rationale. Generic functions would require manipulating generic,
+uninstantiated types, which is currently not available in Chapel.
+Functions with compile-time return types like type and param would
+require the ability to have param classes, to fit with the current
+implementation. Param classes are not currently part of Chapel.
+Iterators would require a new type of capture, one that works
+similarly to the current implementation but respects the yielding that
+occurs inside an iterator. Method capture requires the currying of
+the object as the first argument to the first-class function.
+Operators and overloaded functions require a type-based multiple
+dispatch mechanism. Functions referring to outer non-global variables
+are not currently supported in the implementation.</p>
+</div>
+<div class="section" id="lambda-functions">
+<span id="readme-lambdafns"></span><h2>Lambda functions<a class="headerlink" href="#lambda-functions" title="Permalink to this headline">¶</a></h2>
+<p>Lambda functions are anonymous first-class function objects. In other
+words, they are expressions rather than formally-defined named
+functions. They are available with the following syntax:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>lambda-declaration-expression:
+  lambda argument-list return-type_opt function-body
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">lambda</span></code> is a Chapel keyword and <code class="docutils literal"><span class="pre">return-type_opt</span></code> is an optional
+return-type.</p>
+<p>For example:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">f</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="kt">int</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span><span class="kt">int</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">x</span> <span class="o">+</span> <span class="nx">y</span><span class="p">;</span> <span class="p">};</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">f</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">));</span>  <span class="c1">// outputs: 3</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="specifying-the-type-of-a-first-class-function">
+<h2>Specifying the type of a first-class function<a class="headerlink" href="#specifying-the-type-of-a-first-class-function" title="Permalink to this headline">¶</a></h2>
+<p>The previous examples rely on type inference to determine the type
+for those variables that can be assigned to a first-class function.
+Chapel provides three type functions, all named <code class="docutils literal"><span class="pre">func</span></code>, that return the
+type that corresponds to a function signature as follows:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="c1">// Returns the type for a function of no arguments and void return type (returns no value)</span>
+<span class="k">proc</span> <span class="nf">func</span><span class="p">()</span> <span class="kd">type</span>
+
+<span class="c1">// Returns the type for a function of no arguments and return type &#39;retType&#39;</span>
+<span class="k">proc</span> <span class="nf">func</span><span class="p">(</span><span class="kd">type</span> <span class="nx">retType</span><span class="p">)</span> <span class="kd">type</span>
+
+<span class="c1">// Returns the type for a function with arguments argTypes and return type &#39;retType&#39;.</span>
+<span class="k">proc</span> <span class="nf">func</span><span class="p">(</span><span class="kd">type</span> <span class="nx">argTypes</span><span class="o">..</span><span class="p">.?</span><span class="nx">n</span><span class="p">,</span> <span class="kd">type</span> <span class="nx">retType</span><span class="p">)</span> <span class="kd">type</span>
+</pre></div>
+</div>
+<p>These can be used to declare the type of a variable that can be
+assigned to values of a function type.  For example:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span> <span class="c1">// Two ways to define a function with no arguments and no return value</span>
+ <span class="kd">var</span> <span class="nx">f1</span><span class="p">:</span> <span class="nx">func</span><span class="p">();</span>
+ <span class="kd">var</span> <span class="nx">f2</span><span class="p">:</span> <span class="nx">func</span><span class="p">(</span><span class="nx">void</span><span class="p">);</span>
+
+ <span class="c1">// A function with no arguments, returning int</span>
+ <span class="kd">var</span> <span class="nx">g</span> <span class="p">:</span> <span class="nx">func</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+
+<span class="c1">// A function with two bool arguments, returning int</span>
+ <span class="kd">var</span> <span class="nx">h</span> <span class="p">:</span> <span class="nx">func</span><span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="kt">bool</span><span class="p">,</span> <span class="kt">int</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reflection">
+<h2>Reflection<a class="headerlink" href="#reflection" title="Permalink to this headline">¶</a></h2>
+<p>First-class functions define a type method <code class="docutils literal"><span class="pre">retType</span></code> that returns the type
+of the value that would be returned if the function were to be invoked, and
+a type method <code class="docutils literal"><span class="pre">argTypes</span></code> that returns a tuple of the types of each formal.</p>
+<p>For example:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">F</span> <span class="o">=</span> <span class="k">lambda</span> <span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">x</span> <span class="o">+</span> <span class="mi">42</span><span class="p">;</span> <span class="p">};</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">F</span><span class="p">(</span><span class="mi">13</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">();</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;retType  = &quot;</span><span class="p">,</span> <span class="nx">F</span><span class="p">.</span><span class="nx">retType</span>  <span class="p">:</span> <span class="kt">string</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;argTypes = &quot;</span><span class="p">,</span> <span class="nx">F</span><span class="p">.</span><span class="nx">argTypes</span> <span class="p">:</span> <span class="kt">string</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>generates the output:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="mi">55</span>
+
+<span class="n">retType</span>  <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+<span class="n">argTypes</span> <span class="o">=</span> <span class="mi">1</span><span class="o">*</span><span class="nb">int</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="future-directions">
+<h2>Future Directions<a class="headerlink" href="#future-directions" title="Permalink to this headline">¶</a></h2>
+<p>Over time, we will be improving the support for first-class functions
+and their syntax.  If you have specific feature requests or
+suggestions, please let us know at: <b>c<!-- DISGUISE -->h<!-- DISGUISE -->a<!-- DISGUISE -->p<!-- DISGUISE -->e<!-- DISGUISE -->l<!-- DISGUISE -->_<!-- DISGUISE -->i<!-- DISGUISE -->n<!-- DISGUISE -->f<!-- DISGUISE -->o<!-- DISGUISE -->@<!-- DISGUISE -->c<!-- DISGUISE -->r<!-- DISGUISE -->a<!-- DISGUISE -->y<!-- DISGUISE -->.<!-- DISGUISE -->c<!-- DISGUISE -->o<!-- DISGUISE -->m</b>.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="forwarding.html" class="btn btn-neutral float-right" title="Forwarding Methods Calls" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="extern.html" class="btn btn-neutral" title="C Interoperability" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.16.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

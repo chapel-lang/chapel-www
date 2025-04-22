@@ -1,0 +1,625 @@
+.. default-domain:: chpl
+
+.. module:: Python
+   :synopsis: Library for interfacing with Python from Chapel code.
+
+Python
+======
+**Usage**
+
+.. code-block:: chapel
+
+   use Python;
+
+
+or
+
+.. code-block:: chapel
+
+   import Python;
+
+.. warning::
+
+   The Python module's interface is under active development and may change
+
+Library for interfacing with Python from Chapel code.
+
+This module provides a Chapel interface to a Python interpreter.
+It allows manipulating native Python objects and libraries with minimal
+wrapper code required.
+
+.. note::
+
+   This module is implemented using the Python C API, and as such, it is not
+   compatible with PyPy or other alternative Python implementations.
+
+Compiling Chapel code
+---------------------
+
+Compiling Chapel code that uses this module needs the ``Python.h`` header file
+and requires linking with the Python library. If ``python3`` is installed,
+this can be achieved with the following commands:
+
+.. code-block:: bash
+
+   PYTHON_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_paths()['include'])")
+   PYTHON_LIB_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+   PYTHON_LDVERSION=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LDVERSION'))")
+
+   chpl --ccflags -isystem$PYTHON_INCLUDE_DIR \
+        -L$PYTHON_LIB_DIR --ldflags -Wl,-rpath,$PYTHON_LIB_DIR \
+        -lpython$PYTHON_LDVERSION ...Chapel source files...
+
+Parallel Execution
+------------------
+
+Running any Python code in parallel from Chapel requires special care. Before
+any parallel execution with Python code can occur, the thread state needs to
+be saved. After the parallel execution, the thread state must to be restored.
+Then for each thread, the Global Interpreter Lock (GIL) must be acquired and
+released. This is necessary to prevent segmentation faults and deadlocks in
+the Python interpreter.
+
+The following demonstrates this when explicit tasks are introduced with a
+``coforall``:
+
+..
+   START_TEST
+   FILENAME: CoforallTest.chpl
+   START_GOOD
+   1 4 9 16 25 36 49 64 81 100
+   END_GOOD
+
+.. code-block:: chapel
+
+   use Python;
+
+   var Arr: [1..10] int = 1..10;
+
+   var interp = new Interpreter();
+   var func = new Function(interp, "lambda x,: x * x");
+
+   var ts = new threadState();
+   ts.save(); // save the thread state
+   coforall tid in 1..10 {
+     var gil = new GIL(); // acquire the GIL
+     Arr[tid] = func(int, tid);
+     // GIL is automatically released at the end of the block
+   }
+   ts.restore(); // restore the thread state
+   writeln(Arr);
+
+..
+   END_TEST
+
+When using a data-parallel ``forall``, the GIL should be acquired and released
+as a task private variable.
+
+..
+   START_TEST
+   FILENAME: ForallTest.chpl
+   START_GOOD
+   1 4 9 16 25 36 49 64 81 100
+   END_GOOD
+
+.. code-block:: chapel
+
+   use Python;
+
+   var Arr: [1..10] int = 1..10;
+
+   var interp = new Interpreter();
+   var func = new Function(interp, "lambda x,: x * x");
+
+   var ts = new threadState();
+   ts.save(); // save the thread state
+   forall tid in 1..10 with (var gil = new GIL()) {
+     Arr[tid] = func(int, tid);
+   }
+   ts.restore(); // restore the thread state
+   writeln(Arr);
+
+..
+   END_TEST
+
+In the examples above, because the GIL is being acquired and released for the
+entirety of each task, these examples will be no faster than running the tasks
+serially.
+
+.. note::
+
+   Newer Python versions offer a free-threading mode that allows multiple threads concurrently, without the need for the GIL. In this mode, users can either remove the GIL acquisition code or not. Without the GIL, the GIL acquisition code will have no effect.
+
+.. note::
+
+   In the future, it may be possible to achieve better parallelism with Python
+   by using sub-interpreters. However, sub-interpreters are not yet supported
+   in Chapel.
+
+Using Python Modules With Distributed Code
+-------------------------------------------
+
+Python has no built-in support for distributed memory, so each locale must create its own interpreter (and subsequent Python objects).
+
+The following example demonstrates how to create a Python interpreter and run a Python function on each locale:
+
+..
+   START_TEST
+   FILENAME: DistributedTest.chpl
+   EXECOPTS: --n=10
+   START_GOOD
+   2 3 4 5 6 7 8 9 10 11
+   END_GOOD
+
+.. code-block:: chapel
+
+    use Python, BlockDist;
+
+    config const n = 100;
+    var Arr = blockDist.createArray({1..n}, int);
+    Arr = 1..n;
+
+    coforall l in Arr.targetLocales() {
+      on l {
+        // each locale has its own interpreter
+        const interp = new Interpreter();
+        const func = new Function(interp, "lambda x,: x + 1");
+
+        var ts = new threadState();
+        ts.save();
+        forall i in Arr.localSubdomain() with (var gil = new GIL()) {
+          Arr[i] = func(Arr.eltType, Arr[i]);
+        }
+        ts.restore();
+      }
+    }
+    writeln(Arr);
+
+..
+   END_TEST
+
+In this example, ``interp`` and ``func`` only exist for the body of the
+``on`` block,Python objects can be made to persist beyond the scope of a
+given ``on`` block by creating a distributed array of Python objects.
+
+Defining Custom Types
+---------------------
+
+To translate custom Chapel types to Python objects, users should define and
+register custom :type:`TypeConverter` classes.
+
+More Examples:
+--------------
+
+For more examples of using the Python module, see the test cases in
+`$CHPL_HOME/test/library/packages/Python/examples <https://github.com/chapel-lang/chapel/tree/main/test/library/packages/Python/examples>`_.
+
+
+.. record:: NoneType
+
+   Represents the python NoneType 
+
+   .. method:: proc str(): string
+
+      
+      Returns the string representation of None.
+      
+      Equivalent to calling ``str(None)`` in Python.
+      
+
+.. data:: const None = new NoneType()
+
+   Represents the python value 'None' 
+
+.. class:: Interpreter
+
+   
+   Represents the python interpreter. All code using the Python module should
+   create and maintain a single instance of this class.
+   
+   .. warning::
+   
+      Multiple/sub interpreters are not yet supported.
+      Do not create more than one instance of this class.
+   
+
+   .. method:: proc run(code: string) throws
+
+      
+      Run a string of python code.
+      
+      This function will just run the code, it cannot be passed arguments or
+      return values.
+      
+
+   .. method:: proc registerConverter(in cvt: owned TypeConverter)
+
+      
+      Register a custom :type:`TypeConverter` with the interpreter. This allows
+      arbitrary Chapel types to be serialized/deserialized to and from Python
+      objects.
+      
+      The registered converter will take precedence over the default converters,
+      allowing users to override the default behavior.
+      
+
+   .. method:: proc checkException() throws
+
+      
+      Query to see if an Python exception has occurred. If there is an
+      exception, the Python exception will be thrown as a :type:`Exception`.
+      
+      .. note::
+      
+         This method should be called after any Python API call that may fail.
+         The wrapping types in this module will call this method automatically,
+         most users should not need to call this method directly.
+      
+
+   .. method:: proc toPython(const val: ?t): PyObjectPtr throws
+
+      
+      Convert a Chapel value to a python object. This clones the Chapel value.
+      
+      .. note::
+      
+         Most users should not need to call this directly, except when writing
+         a :type:`TypeConverter`.
+      
+
+   .. method:: proc fromPython(type t, obj: PyObjectPtr): t throws
+
+      
+      Convert a Python object to a Chapel value. This clones the Python value.
+      
+      .. note::
+      
+         Most users should not need to call this directly, except when writing
+         a :type:`TypeConverter`.
+      
+
+.. class:: Exception : Error
+
+   
+   Represents a Python exception, either forwarded from Python (i.e. :proc:`Interpreter.checkException`) or thrown directly in Chapel code.
+   
+
+   .. method:: proc init(in message: string)
+
+      
+      Creates a new exception with the given message.
+      
+
+.. class:: PythonException : Exception
+
+   
+   Represents an exception caused in the Python code, forwarded by Chapel code
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: ChapelException : Exception
+
+   
+   Represents an exception caused by code in the Chapel module, not forwarded from Python.
+   
+
+   .. method:: proc init(in message: string)
+
+.. class:: TypeConverter
+
+   
+   Base class for Chapel/Python type converters.
+   
+   To create a custom type converter, subclass this class and implement the
+   :proc:`~TypeConverter.handlesType`, :proc:`~TypeConverter.toPython`, and
+   :proc:`~TypeConverter.fromPython` methods. Then register an instance of this
+   class with the interpreter by calling :proc:`~Interpreter.registerConverter`.
+   
+
+   .. method:: proc handlesType(type T): bool
+
+      
+      Check if the converter can handle the given Chapel type.
+      
+      This method should return true if the converter can handle the given type,
+      and false otherwise.
+      
+
+   .. method:: proc toPython(interpreter: borrowed Interpreter, type T, const value: T): PyObjectPtr throws
+
+      
+      Convert a Chapel value to a Python object.
+      
+      This method should convert the Chapel value to a Python object and return
+      the :type:`~CTypes.c_ptr` to the underlying Python object.
+      
+      The :proc:`~Interpreter.toPython` method will call this method.
+      
+
+   .. method:: proc fromPython(interpreter: borrowed Interpreter, type T, obj: PyObjectPtr): T throws
+
+      
+      Convert a Python object to a Chapel value.
+      
+      This method should convert the Python object to a Chapel value and return
+      the Chapel value.
+      
+      The :proc:`~Interpreter.fromPython` method will call this method.
+      
+
+.. class:: Module
+
+   
+   Represents a Python module.
+   
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in modName: string) throws
+
+      
+      Import a Python module by name.
+      
+
+   .. method:: proc interpreter
+
+      
+      Get the interpreter associated with this module.
+      
+
+   .. method:: proc str(): string throws
+
+      
+      Returns the string representation of the object.
+      This is the same as casting to a string.
+      
+      Equivalent to calling ``str(obj)`` in Python.
+      
+
+.. class:: Function
+
+   
+   Represents a Python function.
+   
+
+   .. method:: proc init(mod: borrowed Module, in fnName: string) throws
+
+   .. method:: proc init(in fnName: string, in fn: owned PyObject) throws
+
+   .. method:: proc init(interpreter: borrowed Interpreter, in lambdaFn: string) throws
+
+   .. method:: proc interpreter
+
+      
+      Get the interpreter associated with this function.
+      
+
+   .. method:: proc str(): string throws
+
+      
+      Returns the string representation of the object.
+      This is the same as casting to a string.
+      
+      Equivalent to calling ``str(obj)`` in Python.
+      
+
+   .. method:: proc this(type retType, const args ...): retType throws
+
+      
+      Call a python function with Chapel arguments and get a Chapel return value
+      
+
+   .. method:: proc this(type retType): retType throws
+
+   .. method:: proc this(type retType, const args ..., kwargs: ?t = none): retType throws where kwargs.isAssociative()
+
+   .. method:: proc this(type retType, kwargs: ?t = none): retType throws where kwargs.isAssociative()
+
+   .. method:: proc getAttr(type t, attr: string): t throws
+
+.. class:: Class
+
+   
+   Represents a Python class.
+   
+
+   .. attribute:: var className: string
+
+   .. attribute:: var cls: owned PyObject
+
+   .. method:: proc init(mod: borrowed Module, in className: string) throws
+
+   .. method:: proc interpreter
+
+      
+      Get the interpreter associated with this class.
+      
+
+   .. method:: proc str(): string throws
+
+      
+      Returns the string representation of the object.
+      This is the same as casting to a string.
+      
+      Equivalent to calling ``str(obj)`` in Python.
+      
+
+   .. method:: proc newInstance(const args ...): owned PyObject throws
+
+      
+      Create a new instance of a python class
+      
+
+   .. method:: proc this(const args ...): owned ClassObject throws
+
+      
+      Create a new instance of a python class
+      
+
+   .. method:: proc this(): owned ClassObject throws
+
+.. class:: ClassObject
+
+   
+   Represents a Python class object.
+   
+
+   .. method:: proc init(cls: borrowed Class, const args ...) throws
+
+   .. method:: proc init(cls: borrowed Class) throws
+
+   .. method:: proc init(in obj: owned PyObject?) throws
+
+   .. method:: proc interpreter
+
+      
+      Get the interpreter associated with this object.
+      
+
+   .. method:: proc str(): string throws
+
+      
+      Returns the string representation of the object.
+      This is the same as casting to a string.
+      
+      Equivalent to calling ``str(obj)`` in Python.
+      
+
+   .. method:: proc getAttr(type t, attr: string): t throws
+
+   .. method:: proc setAttr(attr: string, value) throws
+
+   .. method:: proc this(type retType, const args ...): retType throws
+
+   .. method:: proc call(type retType, method: string, const args ...): retType throws
+
+   .. method:: proc call(type retType, method: string): retType throws
+
+.. record:: GIL
+
+   
+   Represents the Global Interpreter Lock, this is used to ensure that only one
+   thread is executing python code at a time. Each thread should have its own
+   :type:`GIL` instance.
+   
+   .. warning::
+   
+      This is not thread safe, do not attempt to use the same instance from
+      multiple threads. This may cause a segfault or deadlock.
+   
+
+   .. method:: proc init(param acquire: bool = true)
+
+      
+      Acquires the GIL on record creation by default.
+      Set ``acquire`` to false to delay acquisition.
+      
+
+   .. method:: proc ref acquire()
+
+      
+      Acquire the GIL. If the GIL is already acquired, this is a no-op.
+      
+
+   .. method:: proc ref release()
+
+      
+      Release the GIL. If the GIL is not acquired, this is a no-op.
+      
+      This method is called automatically when the record is destroyed.
+      
+
+.. record:: threadState
+
+   
+   Represents the current thread state. This saves and restores the current thread
+   state.
+   
+   .. warning::
+   
+      This is not thread safe, do not attempt to use the same instance from
+      multiple threads. This may cause a segfault or deadlock.
+   
+
+   .. method:: proc init(param save: bool = false)
+
+      
+      Saves the current thread state on record creation by default.
+      Set ``save`` to true to save the thread state on object creation.
+      
+
+   .. method:: proc ref save()
+
+      
+      Saves the current thread state. If the state is already saved, this is a no-op.
+      
+
+   .. method:: proc ref restore()
+
+      
+      Restores the thread state. If the state is not saved, this is a no-op.
+      
+      This method is called automatically when the record is destroyed.
+      
+
+.. class:: PyObject
+
+   
+   Represents a Python value, it handles reference counting and is owned by default.
+   
+   Most users should not need to use this directly.
+   
+
+   .. attribute:: var interpreter: borrowed Interpreter
+
+      
+      The interpreter that this object is associated with.
+      
+
+   .. method:: proc init(in interpreter: borrowed Interpreter, obj: PyObjectPtr, isOwned: bool = true)
+
+      
+      Takes ownership of an existing Python object, pointed to by ``obj``
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg obj: The :type:`~CTypes.c_ptr` to the existing object.
+      :arg isOwned: Whether this object owns the Python object. This is true by default.
+      
+
+   .. method:: proc init(in interpreter: borrowed Interpreter, value: ?)
+
+      
+      Creates a new Python object from a Chapel value.
+      
+      :arg interpreter: The interpreter that this object is associated with.
+      :arg value: The Chapel value to convert to a Python object.
+      
+
+   .. method:: proc check() throws
+
+   .. method:: proc get()
+
+      
+      Returns the :type:`~CTypes.c_ptr` to the underlying Python object.
+      
+
+   .. method:: proc value(type value) throws
+
+      
+      Returns the Chapel value of the object.
+      
+      This is a shortcut for calling :proc:`~Interpreter.fromPython` on this object.
+      
+
+   .. method:: proc type release(in self: owned PyObject): PyObjectPtr
+
+   .. method:: proc type release(in self: owned ClassObject): PyObjectPtr
+
+   .. method:: proc str(): string throws
+
+      
+      Returns the string representation of the object.
+      This is the same as casting to a string.
+      
+      Equivalent to calling ``str(obj)`` in Python.
+      
+

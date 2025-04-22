@@ -1,0 +1,822 @@
+.. default-domain:: chpl
+
+.. module:: Regex
+   :synopsis: Regular expression support.
+
+Regex
+=====
+**Usage**
+
+.. code-block:: chapel
+
+   use Regex;
+
+
+or
+
+.. code-block:: chapel
+
+   import Regex;
+
+
+
+Regular expression support.
+
+The regular expression support is built on top of the RE2 regular expression
+library. As such, the exact regular expression syntax available is the syntax
+from RE2, which is available within the RE2 project at
+https://github.com/google/re2 and included here for your convenience.
+
+
+Enabling Regular Expression Support
+-----------------------------------
+
+Setting the environment variable CHPL_RE2 to bundled will enable regular
+expression support with the RE2 library:
+
+.. code-block:: sh
+
+   export CHPL_RE2=bundled
+
+Then, rebuild Chapel. The RE2 library will be expanded from a release included
+in the Chapel distribution.
+
+.. note::
+
+  if re2 support is not enabled (which is the case in quickstart configurations
+  as in :ref:`chapelhome-quickstart`), the functionality described below will
+  result in either a compile-time or a run-time error.
+
+
+Using Regular Expression Support
+--------------------------------
+
+Chapel supports both string and bytes regular expressions.
+
+.. code-block:: chapel
+
+   use Regex;
+   var myRegex = new regex("a+");   // b"a+" for matching arbitrary bytes values
+
+Now you can use these methods on regular expressions: :proc:`regex.search`,
+:proc:`regex.match`, :proc:`regex.split`, :proc:`regex.matches`.
+
+Lastly, you can include regular expressions in the format string for
+:proc:`~FormattedIO.readf` for searching on QIO channels using the ``%/<regex>/``
+syntax.
+
+Regular Expression Examples
+---------------------------
+
+``a+``
+ Match one or more ``a`` characters
+
+``[[:space:]]*`` or ``\s*`` (which would be ``"\\s*"`` in a string)
+ Match zero or more spaces
+
+``[[:digit:]]+`` or ``\d+`` (which would be ``"\\d+"`` in a string)
+ Match one or more digits
+
+``([a-zA-Z0-9]+[[:space:]]+=[[:space:]]+[0-9]+``
+ Match sequences of the form *<letters-and-digits> <spaces>* ``=`` *<digits>*
+
+
+.. _regular-expression-syntax:
+
+RE2 regular expression syntax reference
+---------------------------------------
+
+::
+
+  Single characters:
+  .            any character, possibly including newline (s=true)
+  [xyz]        character class
+  [^xyz]       negated character class
+  \d           Perl character class (see below)
+  \D           negated Perl character class (see below)
+  [:alpha:]    ASCII character class
+  [:^alpha:]   negated ASCII character class
+  \pN          Unicode character class (one-letter name)
+  \p{Greek}    Unicode character class
+  \PN          negated Unicode character class (one-letter name)
+  \P{Greek}    negated Unicode character class
+
+  Composites:
+  xy           «x» followed by «y»
+  x|y          «x» or «y» (prefer «x»)
+
+  Repetitions:
+  x*           zero or more «x», prefer more
+  x+           one or more «x», prefer more
+  x?           zero or one «x», prefer one
+  x{n,m}       «n» or «n»+1 or ... or «m» «x», prefer more
+  x{n,}        «n» or more «x», prefer more
+  x{n}         exactly «n» «x»
+  x*?          zero or more «x», prefer fewer
+  x+?          one or more «x», prefer fewer
+  x??          zero or one «x», prefer zero
+  x{n,m}?      «n» or «n»+1 or ... or «m» «x», prefer fewer
+  x{n,}?       «n» or more «x», prefer fewer
+  x{n}?        exactly «n» «x»
+
+  Grouping:
+  (re)         numbered capturing group
+  (?P<name>re) named & numbered capturing group
+  (?:re)       non-capturing group
+  (?flags)     set flags within current group; non-capturing
+  (?flags:re)  set flags during re; non-capturing
+
+  Flags:
+  i            case-insensitive (default false)
+  m            multi-line mode: «^» and «$» match begin/end line in addition to
+                 begin/end text (default false)
+  s            let «.» match «\n» (default false)
+  U            ungreedy: swap meaning of «x*» and «x*?», «x+» and «x+?», etc.
+                 (default false)
+
+  Flag syntax is:
+    «xyz»   (set)
+    «-xyz»  (clear)
+    «xy-z»  (set «xy», clear «z»)
+
+  Empty strings:
+  ^            at beginning of text or line («m»=true)
+  $            at end of text (like «\z» not «\Z») or line («m»=true)
+  \A           at beginning of text
+  \b           at word boundary («\w» on one side and «\W», «\A», or «\z» on the
+                 other)
+  \B           not a word boundary
+  \z           at end of text
+
+  Escape sequences:
+  \a           bell (== \007)
+  \f           form feed (== \014)
+  \t           horizontal tab (== \011)
+  \n           newline (== \012)
+  \r           carriage return (== \015)
+  \v           vertical tab character (== \013)
+  \*           literal «*», for any punctuation character «*»
+  \123         octal character code (up to three digits)
+  \x7F         hex character code (exactly two digits)
+  \x{10FFFF}   hex character code
+  \C           match a single byte even in UTF-8 mode
+  \Q...\E      literal text «...» even if «...» has punctuation
+
+  Character class elements:
+  x            single character
+  A-Z          character range (inclusive)
+  \d           Perl character class (see below)
+  [:foo:]      ASCII character class «foo»
+  \p{Foo}      Unicode character class «Foo»
+  \pF          Unicode character class «F» (one-letter name)
+
+  Named character classes as character class elements:
+  [\d]         digits (== \d)
+  [^\d]        not digits (== \D)
+  [\D]         not digits (== \D)
+  [^\D]        not not digits (== \d)
+  [[:name:]]   named ASCII class inside character class (== [:name:])
+  [^[:name:]]  named ASCII class inside negated character class (== [:^name:])
+  [\p{Name}]   named Unicode property inside character class (== \p{Name})
+  [^\p{Name}]  named Unicode property inside negated character class (==\P{Name})
+
+  Perl character classes:
+  \d           digits (== [0-9])
+  \D           not digits (== [^0-9])
+  \s           whitespace (== [\t\n\f\r ])
+  \S           not whitespace (== [^\t\n\f\r ])
+  \w           word characters (== [0-9A-Za-z_])
+  \W           not word characters (== [^0-9A-Za-z_])
+
+  ASCII character classes::
+    Note -- you must use these within a [] group! so if you want
+            to match any number of spaces, use [[:space:]]* or \s*
+
+  [:alnum:]    alphanumeric (== [0-9A-Za-z])
+  [:alpha:]    alphabetic (== [A-Za-z])
+  [:ascii:]    ASCII (== [\x00-\x7F])
+  [:blank:]    blank (== [\t ])
+  [:cntrl:]    control (== [\x00-\x1F\x7F])
+  [:digit:]    digits (== [0-9])
+  [:graph:]    graphical (== [!-~] ==
+                 [A-Za-z0-9!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])
+  [:lower:]    lower case (== [a-z])
+  [:print:]    printable (== [ -~] == [[:graph:]])
+  [:punct:]    punctuation (== [!-/:-@[-`{-~])
+  [:space:]    whitespace (== [\t\n\v\f\r ])
+  [:upper:]    upper case (== [A-Z])
+  [:word:]     word characters (== [0-9A-Za-z_])
+  [:xdigit:]   hex digit (== [0-9A-Fa-f])
+
+  Unicode character class names--general category:
+  C            other
+  Cc           control
+  Cf           format
+  Co           private use
+  Cs           surrogate
+  L            letter
+  Ll           lowercase letter
+  Lm           modifier letter
+  Lo           other letter
+  Lt           titlecase letter
+  Lu           uppercase letter
+  M            mark
+  Mc           spacing mark
+  Me           enclosing mark
+  Mn           non-spacing mark
+  N            number
+  Nd           decimal number
+  Nl           letter number
+  No           other number
+  P            punctuation
+  Pc           connector punctuation
+  Pd           dash punctuation
+  Pe           close punctuation
+  Pf           final punctuation
+  Pi           initial punctuation
+  Po           other punctuation
+  Ps           open punctuation
+  S            symbol
+  Sc           currency symbol
+  Sk           modifier symbol
+  Sm           math symbol
+  So           other symbol
+  Z            separator
+  Zl           line separator
+  Zp           paragraph separator
+  Zs           space separator
+
+  Unicode character class names--scripts (with explanation where non-trivial):
+  Arabic
+  Armenian
+  Balinese
+  Bengali
+  Bopomofo
+  Braille
+  Buginese
+  Buhid
+  Canadian_Aboriginal
+  Carian
+  Cham
+  Cherokee
+  Common       characters not specific to one script
+  Coptic
+  Cuneiform
+  Cypriot
+  Cyrillic
+  Deseret
+  Devanagari
+  Ethiopic
+  Georgian
+  Glagolitic
+  Gothic
+  Greek
+  Gujarati
+  Gurmukhi
+  Han
+  Hangul
+  Hanunoo
+  Hebrew
+  Hiragana
+  Inherited    inherit script from previous character
+  Kannada
+  Katakana
+  Kayah_Li
+  Kharoshthi
+  Khmer
+  Lao
+  Latin
+  Lepcha
+  Limbu
+  Linear_B
+  Lycian
+  Lydian
+  Malayalam
+  Mongolian
+  Myanmar
+  New_Tai_Lue  aka Simplified Tai Lue
+  Nko
+  Ogham
+  Ol_Chiki
+  Old_Italic
+  Old_Persian
+  Oriya
+  Osmanya
+  Phags_Pa
+  Phoenician
+  Rejang
+  Runic
+  Saurashtra
+  Shavian
+  Sinhala
+  Sundanese
+  Syloti_Nagri
+  Syriac
+  Tagalog
+  Tagbanwa
+  Tai_Le
+  Tamil
+  Telugu
+  Thaana
+  Thai
+  Tibetan
+  Tifinagh
+  Ugaritic
+  Vai
+  Yi
+
+  Vim character classes:
+  \d      digits (== [0-9])
+  \D      not «\d»
+  \w      word character
+  \W      not «\w»
+
+Regular Expression Types and Methods
+------------------------------------
+
+ 
+
+.. class:: BadRegexError : Error
+
+   Error thrown if a regular expression fails to compile 
+
+.. record:: regexMatch
+
+   The regexMatch record records a regular expression search match
+   or a capture group.
+   
+   Regular expression search routines normally return one of these.
+   Also, this type can be passed as a capture group argument.
+   Lastly, something of type regexMatch can be checked for a match
+   in a simple if statement, as in:
+   
+   .. code-block:: chapel
+   
+     var m:regexMatch = ...;
+     if m then do_something_if_matched();
+     if !m then do_something_if_not_matched();
+   
+
+   .. attribute:: var matched: bool
+
+      true if the regular expression search matched successfully 
+
+   .. attribute:: var byteOffset: byteIndex
+
+      0-based offset into the string or channel that matched; -1 if matched=false 
+
+   .. attribute:: var numBytes: int
+
+      the length of the match. 0 if matched==false 
+
+.. method:: proc string.this(m: regexMatch)
+
+   This function extracts the part of a string matching a regular
+   expression or capture group. This method is intended to be
+   called on the same string used as the `text` in a regular
+   expression search.
+   
+   :arg m: a match (e.g. returned by :proc:`regex.search`)
+   :returns: the portion of ``this`` referred to by the match
+   
+
+.. method:: proc bytes.this(m: regexMatch)
+
+   This function extracts the part of a bytes matching a regular
+   expression or capture group. This method is intended to be
+   called on the same bytes used as the `text` in a regular
+   expression search.
+   
+   :arg m: a match (e.g. returned by :proc:`regex.search`)
+   :returns: the portion of ``this`` referred to by the match
+   
+
+.. record:: regex : serializable
+
+   This record represents a compiled regular expression. Regular expressions
+   are currently cached on a per-thread basis and are reference counted.
+   
+   A string-based regex can be cast to a string (resulting in the pattern that
+   was compiled). A string can be cast to a string-based regex (resulting in a
+   compiled regex). Same applies for bytes.
+   
+
+   .. method:: proc init(pattern: ?t, posix = false, literal = false, noCapture = false, ignoreCase = false, multiLine = posix, dotAll = false, nonGreedy = false) throws where t == string || t == bytes
+
+      
+      Initializer for a compiled regular expression. ``new regex()`` throws a
+      :class:`BadRegexError` if compilation failed.
+      
+      :arg pattern: the regular expression to compile. This argument can be
+                    string or bytes. See :ref:`regular-expression-syntax` for
+                    details.  Note that you may have to escape backslashes. For
+                    example, to get the regular expression ``\s``, you'd have to
+                    write ``"\\s"`` because the ``\`` is the escape character
+                    within Chapel string/bytes literals. Note that, Chapel
+                    supports triple-quoted raw string/bytes literals, which do
+                    not require escaping backslashes. For example ``"""\s"""`` or
+                    ``b"""\s"""`` can be used.
+      :arg posix: (optional) set to true to disable non-POSIX regular expression
+                  syntax and to prefer the left-most longest match, instead of
+                  the first match in the pattern. This mode is intended to match
+                  egrep regular expression syntax.
+      :arg literal: (optional) set to true to treat the regular expression as a
+                    literal (ie, create a regex matching ``pattern`` as a string
+                    rather than as a regular expression). If ``literal=true``,
+                    all other optional flags are ignored.
+      :arg noCapture: (optional) set to true in order to disable all capture
+                      groups in the regular expression
+      :arg ignoreCase: (optional) set to true in order to ignore case when
+                       matching. Note that this can be set inside the regular
+                       expression with ``(?i)``.
+      :arg multiLine: (optional) set to true in order to activate multiline mode
+                      (meaning that ``^`` and ``$`` match the beginning and end
+                      of a line instead of just the beginning and end of the
+                      text).  Note that this can be set inside a regular
+                      expression with ``(?m)``. The default is ``false`` for
+                      non-``posix`` regular expressions; and ``true`` for
+                      ``posix`` regular expressions.
+      :arg dotAll: (optional) set to true in order to allow ``.``
+                  to match a newline. Note that this can be set inside the
+                  regular expression with ``(?s)``.
+      :arg nonGreedy: (optional) set to true in order to prefer shorter matches
+                      for repetitions; for example, normally x* will match as
+                      many x characters as possible and x*? will match as few as
+                      possible.  This flag swaps the two, so that x* will match
+                      as few as possible and x*? will match as many as possible.
+                      Note that this flag has no effect when ``posix=true``.
+                      For non-posix regular expressions, it can alternatively
+                      be activated within a regular expression with ``(?U)``.
+      
+      :throws BadRegexError: If the argument 'pattern' has syntactical errors.
+                             Refer to https://github.com/google/re2/blob/master/re2/re2.h
+                             for more details about error codes.
+      
+
+   .. method:: proc init=(x: regex(?))
+
+      Creates a new :type:`regex` with the same pattern as ``x``. 
+
+   .. method:: proc init(type exprType)
+
+      
+      Default type initializer for a compiled regular expression. This does not
+      initialize any fields and the resulting :type:`regex` may produce erroneous
+      results when used. The behavior may differ based on values of
+      :param:`~ChplConfig.CHPL_COMM`.
+      
+      .. note::
+         If you are looking to default initialize a :type:`regex`, you might be
+         looking for ``new regex("")``, which will create a regular expression
+         matching the empty string.
+      
+
+   .. method:: proc search(text: exprType, ref captures ...?k): regexMatch
+
+      
+      Search within the passed text for the first match at any offset to this
+      regular expression.  This routine will try matching the regular expression
+      at different offsets until a match is found. If you want to only match at
+      the beginning of the pattern, you can start your pattern with ``^`` and
+      end it with ``$`` or use :proc:`regex.match`. If a capture group was not
+      matched, the corresponding argument will get the default value for its
+      type.
+      
+      :arg text: a string or bytes to search
+      :arg captures: (optional) what to capture from the regular expression.
+                     If the class:`regex` was based on string, then, these
+                     should be strings or types that strings can cast to. Same
+                     applies for bytes.
+      :returns: an :record:`regexMatch` object representing the offset in text
+                where a match occurred
+      
+      
+
+   .. method:: proc match(text: exprType, ref captures ...?k): regexMatch
+
+      
+      Check for a match to this regular expression at the start of the passed
+      text. If a capture group was not matched, the corresponding argument will
+      get the default value for its type.
+      
+      For example, this function can be used to check to see if a string
+      fits a particular template:
+      
+      .. code-block:: chapel
+      
+        if myRegex.match("some string") {
+          doSomethingIfMatched();
+        }
+      
+      :arg text: a string or bytes to search
+      :arg captures: what to capture from the regular expression.
+                     If the class:`regex` was based on string, then, these
+                     should be strings or types that strings can cast to. Same
+                     applies for bytes.
+      :returns: an :record:`regexMatch` object representing the offset in text
+                where a match occurred
+      
+
+   .. method:: proc fullMatch(text: exprType, ref captures ...?k): regexMatch
+
+      
+      Check for a match to this regular expression in the full passed text.
+      If a capture group was not matched, the corresponding argument will
+      get the default value for its type.
+      
+      :arg text: a string or bytes to search
+      :arg captures: what to capture from the regular expression.
+                     If the class:`regex` was based on string, then, these
+                     should be strings or types that strings can cast to. Same
+                     applies for bytes.
+      :returns: an :record:`regexMatch` object representing the offset in text
+                where a match occurred
+      
+
+   .. itermethod:: iter split(text: exprType, maxsplit: int = 0)
+
+      
+      Split the text by occurrences of this regular expression.
+      If capturing parentheses are used in pattern, then the text of all
+      groups in the pattern are also returned as part of the resulting array.
+      If *maxsplit* is nonzero, at most maxsplit splits occur, and the
+      remaining text is returned as the last element.
+      
+      :arg text: a string or bytes to split
+      :arg maxsplit: if nonzero, the maximum number of splits to do
+      :yields: each split portion, one at a time
+      
+
+   .. itermethod:: iter matches(text: exprType, param numCaptures = 0, maxMatches: int = max(int))
+
+      Yields matches and capture groups in the text, continuing until the end of
+      the text or ``maxMatches`` is reached.
+      
+      :arg text: the string or bytes to search
+      :arg numCaptures: (compile-time constant) the size of the captures to return
+      :arg maxMatches: the maximum number of matches to return
+      :yields: tuples of :record:`regexMatch` objects, the 1st is always
+               the match for the whole pattern and the rest are the capture groups.
+      
+
+.. function:: operator :(x: regex(?exprType), type t: exprType)
+
+   Returns the pattern of the :type:`regex`. 
+
+.. method:: proc string.find(pattern: regex(string)): byteIndex
+
+   Search the receiving string for the result of a compiled regular
+   expression. Search for matches at any offset.
+   
+   :arg pattern: the compiled regular expression to search for
+   :returns: a byteIndex representing the offset in the receiving string
+             where a match occurred
+   
+
+.. method:: proc bytes.find(pattern: regex(bytes)): byteIndex
+
+   Search the receiving bytes for the result of a compiled regular
+   expression. Search for matches at any offset.
+   
+   :arg pattern: the compiled regular expression to search for
+   :returns: a byteIndex representing the offset in the receiving bytes
+             where a match occurred
+   
+
+.. method:: proc string.replace(pattern: regex(string), replacement: string, count = -1): string
+
+   Search the receiving string for the pattern. Returns a new string where the
+   match(es) to the pattern is replaced with a replacement.
+   
+   The replacement string can include the sequences `\\1` to `\\9` to include
+   text matching the corresponding parenthesized capture group from the pattern,
+   and `\\0` to refer to the entire matching text.
+   
+   :arg pattern: the compiled regular expression to search for
+   :arg replacement: string to replace with
+   :arg count: number of maximum replacements to make, values less than zero
+               replaces all occurrences
+   
+
+.. method:: proc bytes.replace(pattern: regex(bytes), replacement: bytes, count = -1): bytes
+
+   Search the receiving bytes for the pattern. Returns a new bytes where the
+   match(es) to the pattern is replaced with a replacement.
+   
+   The replacement bytes can include the sequences `\\1` to `\\9` to include
+   text matching the corresponding parenthesized capture group from the pattern,
+   and `\\0` to refer to the entire matching text.
+   
+   :arg pattern: the compiled regular expression to search for
+   :arg replacement: bytes to replace with
+   :arg count: number of maximum replacements to make, values less than zero
+               replaces all occurrences
+   
+
+.. method:: proc string.replaceAndCount(pattern: regex(string), replacement: string, count = -1): (string, int)
+
+   Search the receiving string for the pattern. Returns a new string where the
+   match(es) to the pattern is replaced with a replacement and number of
+   replacements.
+   
+   The replacement string can include the sequences `\\1` to `\\9` to include
+   text matching the corresponding parenthesized capture group from the pattern,
+   and `\\0` to refer to the entire matching text.
+   
+   :arg pattern: the compiled regular expression to search for
+   :arg replacement: string to replace with
+   :arg count: number of maximum replacements to make, values less than zero
+               replaces all occurrences
+   
+
+.. method:: proc bytes.replaceAndCount(pattern: regex(bytes), replacement: bytes, count = -1): (bytes, int)
+
+   Search the receiving bytes for the pattern. Returns a new bytes where the
+   match(es) to the pattern is replaced with a replacement and number of
+   replacements.
+   
+   The replacement bytes can include the sequences `\\1` to `\\9` to include
+   text matching the corresponding parenthesized capture group from the pattern,
+   and `\\0` to refer to the entire matching text.
+   
+   :arg pattern: the compiled regular expression to search for
+   :arg replacement: bytes to replace with
+   :arg count: number of maximum replacements to make, values less than zero
+               replaces all occurrences
+   
+
+.. method:: proc string.startsWith(pattern: regex(string)): bool
+
+   Returns true if the start of the string matches the pattern.
+   
+   :arg pattern: the compiled regular expression to match
+   :returns: true if string starts with `pattern`, false otherwise
+   
+
+.. method:: proc bytes.startsWith(pattern: regex(bytes)): bool
+
+   Returns true if the start of the bytes matches the pattern.
+   
+   :arg pattern: the compiled regular expression to match
+   :returns: true if string starts with `pattern`, false otherwise
+   
+
+.. itermethod:: iter string.split(sep: regex(string), maxsplit: int = 0)
+
+   
+   Split the receiving string by occurrences of the passed regular
+   expression by calling :proc:`regex.split`.
+   
+   :arg sep: the regular expression to use to split
+   :arg maxsplit: if nonzero, the maximum number of splits to do
+   :yields: each split portion, one at a time
+   
+
+.. itermethod:: iter bytes.split(sep: regex(bytes), maxsplit: int = 0)
+
+   
+   Split the receiving bytes by occurrences of the passed regular
+   expression by calling :proc:`regex.split`.
+   
+   :arg sep: the regular expression to use to split
+   :arg maxsplit: if nonzero, the maximum number of splits to do
+   :yields: each split portion, one at a time
+   
+
+.. method:: proc fileReader.readThrough(separator: regex(?t), maxSize = -1, stripSeparator = false): t throws where t == string || t == bytes
+
+   
+   Read until a match with the given separator is found, returning the contents of
+   the ``fileReader`` through that point.
+   
+   If a match is found, the ``fileReader`` position is left immediately
+   after it. If the separator could not be found in the next ``maxSize``
+   codepoints/bytes, a ``BadFormatError`` is thrown and the ``fileReader``'s
+   position is not changed. If EOF is reached before finding the separator, the
+   remainder of the ``fileReader``'s contents are returned and the position is
+   left at EOF.
+   
+   :arg separator: The :type:`~Regex.regex` separator to match with.
+   :arg maxSize: The maximum number of codepoints/bytes to read. For the default
+     value of ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned
+     ``string`` or ``bytes``.  If ``true``, the returned value will not
+     include the captured separator.
+   :returns: A ``string`` or ``bytes`` with the contents of the ``fileReader``
+     up to (and possibly including) the match.
+   
+   :throws EofError: If nothing could be read because the ``fileReader``
+     was already at EOF.
+   :throws BadFormatError: If the separator was not found in the next ``maxSize``
+     bytes. The ``fileReader`` position is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readThrough(separator: regex(string), ref s: string, maxSize = -1, stripSeparator = false): bool throws
+
+   
+   Read until a match with the given separator is found, returning the contents of
+   the ``fileReader`` through that point.
+   
+   See the above :proc:`overload <fileReader.readThrough>` of this method for
+   more details.
+   
+   :arg separator: The :type:`~Regex.regex` separator to match with.
+   :arg s: The :type:`~String.string` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of codepoints to read. For the default value
+     of ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned
+     ``string``.  If ``true``, the captured separator will be removed from ``s``.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: If the separator was not found in the next ``maxSize``
+     bytes. The ``fileReader`` position is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readThrough(separator: regex(bytes), ref b: bytes, maxSize = -1, stripSeparator = false): bool throws
+
+   
+   Read until a match with the given separator is found, returning the contents of
+   the ``fileReader`` through that point.
+   
+   See the above :proc:`overload <fileReader.readThrough>` of this method for
+   more details.
+   
+   :arg separator: The :type:`~Regex.regex` separator to match with.
+   :arg b: The :type:`~Bytes.bytes` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value of
+     ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned
+     ``bytes``.  If ``true``, the captured separator will be removed from ``b``.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: If the separator was not found in the next ``maxSize``
+     bytes. The ``fileReader`` position is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readTo(separator: regex(?t), maxSize = -1): t throws where t == string || t == bytes
+
+   
+   Read until a match with the given separator is found, returning the
+   contents of the ``fileReader`` up to that point.
+   
+   If a match is found, the ``fileReader`` position is left immediately
+   before it. If the separator could not be found in the next ``maxSize``
+   codepoints/bytes, a ``BadFormatError`` is thrown and the ``fileReader``'s
+   position is not changed. If EOF is reached before finding the separator,
+   the remainder of the ``fileReader``'s contents are returned and the
+   position is left at EOF.
+   
+   :arg separator: The :type:`~Regex.regex` separator to match with.
+   :arg maxSize: The maximum number of bytes to read. For the default
+     value of ``-1``, this method can read until EOF.
+   :returns: A ``string`` or ``bytes`` with the contents of the channel up to
+     the ``separator``.
+   
+   :throws EofError: If nothing could be read because the ``fileReader``
+     was already at EOF.
+   :throws BadFormatError: If the separator was not found in the next
+     `maxSize` bytes. The ``fileReader`` position is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readTo(separator: regex(string), ref s: string, maxSize = -1): bool throws
+
+   
+   Read until a match with the given separator is found, returning the
+   contents of the ``fileReader`` up to that point.
+   
+   See the above :proc:`overload <fileReader.readTo>` of this method for
+   more details.
+   
+   :arg separator: The :type:`~Regex.regex` separator to match with.
+   :arg s: The :type:`~String.string` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of codepoints to read. For the default value
+     of ``-1``, this method can read until EOF.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: If the separator was not found in the next
+     `maxSize` codepoints. The ``fileReader`` position is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readTo(separator: regex(bytes), ref b: bytes, maxSize = -1): bool throws
+
+   
+   Read until a match with the given separator is found, returning the
+   contents of the ``fileReader`` up to that point.
+   
+   See the above :proc:`overload <fileReader.readTo>` of this method for
+   more details.
+   
+   :arg separator: The :type:`~Regex.regex` separator to match with.
+   :arg b: The :type:`~Bytes.bytes` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value
+     of ``-1``, this method can read until EOF.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: If the separator was not found in the next
+     `maxSize` bytes. The ``fileReader`` position is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+

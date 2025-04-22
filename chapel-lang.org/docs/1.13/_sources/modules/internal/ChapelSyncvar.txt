@@ -1,0 +1,146 @@
+.. default-domain:: chpl
+
+.. module:: ChapelSyncvar
+   :synopsis: Synchronization variables have a logical state associated with the value. The
+
+Synchronization Variables
+=========================
+
+Synchronization variables have a logical state associated with the value. The
+state of the variable is either full or empty. Normal reads of a
+synchronization variable cannot proceed until the variable's state is full.
+Normal writes of a synchronization variable cannot proceed until the variable's
+state is empty.
+
+Chapel supports two types of synchronization variables: sync and single. Both
+types behave similarly, except that a single variable may only be written once.
+Consequently, when a sync variable is read, its state transitions to empty,
+whereas when a single variable is read, its state does not change. When either
+type of synchronization variable is written, its state transitions to full.
+
+If a task attempts to read or write a synchronization variable that is not in
+the correct state, the task is suspended. When the variable transitions to the
+correct state, the task is resumed. If there are multiple tasks blocked waiting
+for the state transition, one is non-deterministically selected to proceed and
+the others continue to wait if it is a sync variable; all tasks are selected to
+proceed if it is a single variable.
+
+.. function:: proc isSyncType(type t) param
+
+   Returns true if `t` is a sync type, false otherwise. 
+
+.. method:: proc sync.readFE(): base_type
+
+   
+   This method blocks until the sync variable is full. The state of the sync
+   variable is set to empty when this method completes. This method
+   implements the default read of a sync variable.
+   
+   :returns: The value of the sync variable.
+   
+
+.. method:: proc sync.readFF()
+
+   
+   This method blocks until the sync variable is full. The state of the sync
+   variable remains full when this method completes.
+   
+   :returns: The value of the sync variable.
+   
+
+.. method:: proc sync.readXX()
+
+   
+   This method is non-blocking and the state of the sync variable is
+   unchanged when this method completes.
+   
+   :returns: The value of the sync variable.
+   
+
+.. method:: proc sync.writeEF(val: base_type)
+
+   
+   :arg val: New value of the sync variable.
+   
+   This method blocks until the sync variable is empty. The state of the sync
+   variable is set to full when this method completes. This method implements
+   the default write of a sync variable.
+   
+
+.. method:: proc sync.writeFF(val: base_type)
+
+   
+   :arg val: New value of the sync variable.
+   
+   This method blocks until the sync variable is full. The state
+   of the sync variable remains full when this method completes.
+   
+
+.. method:: proc sync.writeXF(val: base_type)
+
+   
+   :arg val: New value of the sync variable.
+   
+   This method is non-blocking and the state of the sync
+   variable is set to full when this method completes.
+   
+
+.. method:: proc sync.reset()
+
+   
+   Resets the value of this sync variable to the default value of
+   its type. This method is non-blocking and the state of the sync
+   variable is set to empty when this method completes.
+   
+
+.. method:: proc sync.isFull
+
+   
+   :returns: true if the state of the sync variable is full.
+   
+   This method is non-blocking and the state of the sync variable is
+   unchanged when this method completes.
+   
+
+.. function:: proc isSingleType(type t) param
+
+   Returns true if `t` is a single type, false otherwise. 
+
+.. method:: proc single.readFF()
+
+   
+   This method blocks until the single variable is full. The state of the single
+   variable remains full when this method completes. This method implements
+   the default read of a single variable.
+   
+   :returns: The value of the single variable.
+   
+
+.. method:: proc single.readXX()
+
+   
+   This method is non-blocking and the state of the single variable is
+   unchanged when this method completes.
+   
+   :returns: The value of the single variable.
+   
+
+.. method:: proc single.writeEF(val: base_type)
+
+   
+   :arg val: New value of the single variable.
+   
+   This method blocks until the single variable is empty. The state of the single
+   variable is set to full when this method completes. This method implements
+   the default write of a single variable.
+   
+
+.. method:: proc single.isFull
+
+   
+   :returns: true if the state of the single variable is full.
+   
+   This method is non-blocking and the state of the single variable is
+   unchanged when this method completes.
+   
+

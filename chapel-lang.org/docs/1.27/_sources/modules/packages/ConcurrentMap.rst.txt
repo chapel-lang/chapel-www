@@ -1,0 +1,347 @@
+.. default-domain:: chpl
+
+.. module:: ConcurrentMap
+   :synopsis: This module provides a fast, scalable, fine-grained concurrent map.
+
+ConcurrentMap
+=============
+**Usage**
+
+.. code-block:: chapel
+
+   use ConcurrentMap;
+
+
+or
+
+.. code-block:: chapel
+
+   import ConcurrentMap;
+
+This module provides a fast, scalable, fine-grained concurrent map.
+
+.. warning::
+
+  This module relies on the :mod:`AtomicObjects` package module, which
+  has several platform restrictions in its current state:
+
+    - It relies on Chapel ``extern`` code blocks and so requires that
+      the Chapel compiler is built with LLVM enabled.
+    - Currently only ``CHPL_TARGET_ARCH=x86_64`` is supported as it uses
+      the x86-64 instruction: CMPXCHG16B_.
+    - The implementation relies on ``GCC`` style inline assembly, and so
+      is restricted to a ``CHPL_TARGET_COMPILER`` value of ``gnu``,
+      ``clang``, or ``llvm``.
+
+  .. _CMPXCHG16B: https://www.felixcloutier.com/x86/cmpxchg8b:cmpxchg16b
+
+This module was
+inspired by the Interlocked Hash Table [#]_. It allows large critical
+sections that access a single table element, and can easily support multikey
+atomic operations. At the time of its development, ConcurrentMap outperformed
+Chapel's built-in map when used in a multithreaded mode by orders of
+magnitude.
+
+.. [#] L. Jenkins, T. Zhou and M. Spear, "Redesigning Go’s Built-In Map to
+  Support Concurrent Operations," 2017 26th International Conference on
+  Parallel Architectures and Compilation Techniques (PACT), 2017.
+
+.. data:: config param BUCKET_NUM_ELEMS = 8
+
+   
+   Maximum number of key-value pairs stored in each leaf bucket.
+   
+
+.. data:: config const DEFAULT_NUM_BUCKETS = 1024
+
+   
+   Maximum number of child buckets for the root bucket.
+   
+
+.. data:: config param MULTIPLIER_NUM_BUCKETS: real = 2
+
+   
+   Multiplier for child bucket size.
+   childBucketSize = MULTIPLIER_NUM_BUCKETS * parentBucketSize
+   
+
+.. class:: ConcurrentMap : Base
+
+   .. method:: proc init(type keyType, type valType)
+
+   .. method:: proc getToken(): owned TokenWrapper
+
+      
+      Register the task to epoch manager.
+      
+
+   .. itermethod:: iter these(): (keyType, valType)
+
+      
+      Serially iterates over the key-value pairs of this map.
+      
+      :yields: A tuple whose elements are a copy of one of the key-value
+               pairs contained in this map.
+      
+      .. note::
+        While iterating the map, pre-maturely breaking the iteration loop may
+        permanently lock the map.
+      
+
+   .. itermethod:: iter items(): (keyType, valType)
+
+      
+      Serially iterates over the key-value pairs of this map.
+      
+      :yields: A tuple whose elements are a copy of one of the key-value
+               pairs contained in this map.
+      
+
+   .. itermethod:: iter keys(): keyType
+
+      
+      Serially iterates over the keys of this map.
+      
+      :yields: A copy of one of the keys contained in this map.
+      
+
+   .. itermethod:: iter values(): valType
+
+      
+      Serially iterates over the values of this map.
+      
+      :yields: A copy of one of the values contained in this map.
+      
+
+   .. itermethod:: iter these(param tag: iterKind)
+
+      
+      Iterates over the key-value pairs of this map in parallel.
+      
+      :yields: A tuple whose elements are a copy of one of the key-value
+               pairs contained in this map.
+      
+
+   .. itermethod:: iter items(param tag: iterKind)
+
+      
+      Parallelly iterates over the key-value pairs of this map.
+      
+      :yields: A tuple whose elements are a copy of one of the key-value
+               pairs contained in this map.
+      
+
+   .. itermethod:: iter keys(param tag: iterKind)
+
+      
+      Parallelly iterates over the keys of this map.
+      
+      :yields: A copy of one of the keys contained in this map.
+      
+
+   .. itermethod:: iter values(param tag: iterKind)
+
+      
+      Parallelly iterates over the values of this map.
+      
+      :yields: A copy of one of the values contained in this map.
+      
+
+   .. method:: proc add(key: keyType, val: valType, tok: owned TokenWrapper = getToken()): bool throws
+
+      
+       Adds a key-value pair to the map. Method returns `false` if the key
+       already exists in the map.
+      
+      :arg key: The key to add to the map
+      :type key: keyType
+      
+      :arg val: The value that maps to ``k``
+      :type kal: valueType
+      
+      :arg tok: Token for EpochManager
+      
+      :returns: `true` if `key` was not in the map and added with value `val`.
+                `false` otherwise.
+      :rtype: bool
+      
+
+   .. method:: proc set(key: keyType, in val: valType, tok: owned TokenWrapper = getToken()): bool throws
+
+      
+       Sets the value associated with a key. Method returns `false` if the key
+       does not exist in the map.
+      
+      :arg key: The key whose value needs to change
+      :type key: keyType
+      
+      :arg val: The desired value to the key ``key``
+      :type val: valueType
+      
+      :arg tok: Token for EpochManager
+      
+      :returns: `true` if `key` was in the map and its value is updated with `val`.
+                `false` otherwise.
+      :rtype: bool
+      
+
+   .. method:: proc getValue(key: keyType, tok: owned TokenWrapper = getToken()): (bool, valType) throws
+
+      Get a copy of the element stored at position `key`.
+      
+
+   .. method:: proc contains(const key: keyType, tok: owned TokenWrapper = getToken()): bool throws
+
+      
+      Returns `true` if the given key is a member of this map, and `false`
+      otherwise.
+      :arg key: The key to test for membership.
+      :type key: keyType
+      :arg tok: Token for EpochManager
+      :returns: Whether or not the given key is a member of this map.
+      :rtype: `bool`
+      
+
+   .. method:: proc addOrSet(key: keyType, val: valType, tok: owned TokenWrapper = getToken()) throws
+
+      If the map doesn't contain a value at position `k` add one and
+      set it to `v`. If the map already contains a value at position
+      `k`, update it to the value `v`.
+      
+
+   .. method:: proc extend(m: ConcurrentMap(keyType, valType)) throws
+
+      
+      Extends this map with the contents of the other, overwriting the values
+      for already-existing keys.
+      
+      :arg m: The other map
+      
+
+   .. method:: proc getAndRemove(key: keyType, tok: owned TokenWrapper = getToken()) throws
+
+      Remove the element at position `key` from the map and return its value
+      
+
+   .. method:: proc remove(key: keyType, tok: owned TokenWrapper = getToken()): bool throws
+
+      
+      Removes a key-value pair from the map, with the given key.
+      
+      :arg key: The key to remove from the map
+      
+      :arg tok: Token for EpochManager
+      
+      :returns: `false` if `key` was not in the map.  `true` if it was and removed.
+      :rtype: bool
+      
+
+   .. method:: proc clearMap(tok: owned TokenWrapper = getToken()) throws
+
+      
+      Clears the contents of this map.
+      
+
+   .. method:: proc toArray(): [] (keyType, valType) throws
+
+      
+      Returns a new 0-based array containing a copy of key-value pairs as
+      tuples.
+      
+      :return: A new DefaultRectangular array.
+      :rtype: [] (keyType, valType)
+      
+
+   .. method:: proc tryReclaim()
+
+      
+      Trigger EpochManager to reclaim any reclaimable memory.
+      
+
+   .. method:: proc keysToArray(): [] keyType throws
+
+      
+      Returns a new 0-based array containing a copy of keys. Array is not
+      guaranteed to be in any particular order.
+      
+      :return: A new DefaultRectangular array.
+      :rtype: [] keyType
+      
+
+   .. method:: proc valuesToArray(): [] valType throws
+
+      
+      Returns a new 0-based array containing a copy of values. Array is not
+      guaranteed to be in any particular order.
+      
+      :return: A new DefaultRectangular array.
+      :rtype: [] valType
+      
+
+   .. method:: proc writeThis(f) throws
+
+      
+      Writes the contents of this map to a channel. The format looks like:
+      
+        .. code-block:: chapel
+      
+           {k1: v1, k2: v2, .... , kn: vn}
+      
+      :arg ch: A channel to write to.
+      
+
+   .. method:: proc readWriteThis(ch: channel) throws
+
+      
+      Writes the contents of this map to a channel. The format looks like:
+      
+        .. code-block:: chapel
+      
+           {k1: v1, k2: v2, .... , kn: vn}
+      
+      :arg ch: A channel to write to.
+      
+
+      .. warning::
+
+         'readWriteThis' methods are deprecated. Use 'readThis' and 'writeThis' methods instead.
+
+.. function:: proc =(ref lhs: ConcurrentMap, const ref rhs: ConcurrentMap)
+
+   
+   Replace the content of this map with the other's.
+   
+   :arg lhs: The map to assign to.
+   :arg rhs: The map to assign from.
+   
+
+.. function:: proc ==(const ref a: ConcurrentMap, const ref b: ConcurrentMap): bool throws
+
+   
+   Returns `true` if the contents of two maps are the same.
+   
+   :arg a: A map to compare.
+   :type a: map
+   
+   :arg b: A map to compare.
+   :type b: map (with same keyType and valType)
+   
+   :return: `true` if the contents of two maps are equal.
+   :rtype: `bool`
+   
+
+.. function:: proc !=(const ref a: ConcurrentMap, const ref b: ConcurrentMap): bool throws
+
+   
+   Returns `true` if the contents of two maps are not the same.
+   
+   :arg a: A map to compare.
+   :type a: map
+   
+   :arg b: A map to compare.
+   :type b: map (with same keyType and valType)
+   
+   :return: `true` if the contents of two maps are not equal.
+   :rtype: `bool`
+   
+

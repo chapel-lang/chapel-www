@@ -1,0 +1,306 @@
+.. default-domain:: chpl
+
+.. module:: ChapelRange
+   :synopsis: A ``range`` is a first-class, constant-space representation of a
+
+Ranges
+======
+A ``range`` is a first-class, constant-space representation of a
+regular sequence of integer indices. Ranges support iteration over the
+sequences they represent as well as operations such as slicing, shifting,
+comparisons, striding, counting and aligning.
+
+Range Construction Operations:
+New ranges can be constructed using the striding, counting, and alignment
+operators, ``by``, ``#`` and ``align``
+
+.. code-block:: chapel
+
+  0..#10 // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+  0..10 by 2 // 0, 2, 4, 6, 8, 10
+  0..10 by 2 align 1 // 1, 3, 5, 7, 9
+
+Range Slicing:
+A range can be sliced with another range to form a new range that is the intersection of the two ranges.
+
+.. code-block:: chapel
+
+  (1..10)(3..8) // 3..8
+  (0..20)(1..20 by 2) // 1..20 by 2
+  (1..10)(5..) // 5..10
+  (1..10)(..5) // 1..5
+
+Range Shifting:
+A range can be shifted by an integer using the ``+`` and ``-`` operators.
+
+.. code-block:: chapel
+
+  (1..10) + 5 // 6..15
+  (1..10) - 3 // -2..7
+  (1..) + 1 // 2..
+  (..10) + 1 // ..11
+
+Range Comparisons:
+Ranges can be compared for equality using the ``==`` and ``!=`` operators
+
+.. code-block:: chapel
+
+  1..10 == 1..10 // true
+  1.. == 1.. // true
+  1..10 != (1..10 by 2) // true
+
+Iteration over ranges:
+Ranges can be used as the iterable expression in for, forall, and coforall
+loops.
+
+.. code-block:: chapel
+
+  for i in 1..10 { ... f(i) ... }
+  forall i in 1..1000 { ... f(i) ... }
+  coforall i in 0..#numTasks { ... f(i) ... }
+
+When ranges that are not fully bounded are zipped with another iterator,
+the other iterator is used to determine an ending point.
+
+.. code-block:: chapel
+
+  // (i, j) will take the values: (1, 7), (2, 8), (3, 9), (4, 10)
+  for (i, j) in zip(1..4, 7..) { ... }
+
+  // (i, j) will take the values: (1, 10), (2, 9), (3, 8), (4, 7)
+  for (i,j) in zip(1..4, ..10 by -1) { ... }
+
+
+
+.. enum:: enum BoundedRangeType { bounded, boundedLow, boundedHigh, boundedNone }
+
+   
+   The BoundedRangeType enum is used to specify the types of bounds a range
+   is required to have.
+   
+   * bounded - The range has finite low and high bounds.
+   * boundedLow - The range starts at a given low bound, but conceptually goes up to infinity.
+   * boundedHigh - The range conceptually starts at negative infinity and ends at a given high bound.
+   * boundedNone - The range conceptually runs from negative infinity to infinity.
+   
+
+
+.. function:: proc isRangeType(type t) param
+
+   Return true if argument ``t`` is a range type, false otherwise 
+
+.. function:: proc isBoundedRange(r: range(?)) param
+
+   Return true if argument ``r`` is a fully bounded range, false otherwise 
+
+.. method:: proc range.hasLowBound() param
+
+   Return true if this range has a low bound, false otherwise 
+
+.. method:: proc range.hasHighBound() param
+
+   Returns true if this range has a high bound, false otherwise 
+
+.. method:: proc range.stride
+
+   Returns the stride of the range 
+
+.. method:: proc range.alignment
+
+   Returns the alignment of the range 
+
+.. method:: proc range.aligned
+
+   Returns true if the range is aligned 
+
+.. method:: proc range.first
+
+   Return the first element in the sequence the range represents 
+
+.. method:: proc range.last
+
+   Return the last element in the sequence the range represents 
+
+.. method:: proc range.low
+
+   Return the range's low bound. If the range does not have a low
+   bound the behavior is undefined. 
+
+.. method:: proc range.high
+
+   Return the range's high bound. If the range does not have a high
+   bound the behavior is undefined. 
+
+.. method:: proc range.alignedLow: idxType
+
+   Returns the range's aligned low bound. If the aligned low bound is
+   undefined (does not exist), the behavior is undefined.
+   
+
+.. method:: proc range.alignedHigh: idxType
+
+   Returns the range's aligned high bound. If the aligned high bound is
+   undefined, the behavior is undefined.
+   
+
+.. method:: proc range.isEmpty()
+
+   If the sequence represented by the range is empty, return true.  An
+   error is reported if the range is ambiguous.
+   
+
+.. method:: proc range.length: idxType
+
+   Returns the number of elements in this range, cast to the index type.
+   
+   Note: The result is undefined if the index is signed
+   and the low and high bounds differ by more than max(idxType).
+   
+
+.. method:: proc range.hasFirst() param
+
+   Return true if the range has a first index, false otherwise 
+
+.. method:: proc range.hasLast() param
+
+   Return true if the range has a last index, false otherwise 
+
+.. method:: proc range.isNaturallyAligned()
+
+   Returns true if this range is naturally aligned, false otherwise 
+
+.. method:: proc range.isAmbiguous() param
+
+   Returns true if the range is ambiguously aligned, false otherwise 
+
+.. method:: proc range.member(i: idxType)
+
+   Returns true if ``i`` is in this range, false otherwise 
+
+.. method:: proc range.member(other: range(?))
+
+   Returns true if the range ``other`` is contained within this one,
+   false otherwise
+   
+
+.. function:: proc ident(r1: range(?), r2: range(?))
+
+   Returns true if the two ranges are the same in every respect: i.e. the
+   two ranges have the same idxType, boundedType, stridable, low, high,
+   stride and alignment values.
+   
+
+.. method:: proc range.boundsCheck(other: range(?e, ?b, ?s))
+
+   Returns true if ``other`` lies entirely within this range and false
+   otherwise.  Returns false if either range is ambiguously aligned.
+   
+
+.. method:: proc range.boundsCheck(other: idxType)
+
+   Return true if ``other`` is a member of this range and false otherwise 
+
+.. method:: proc range.indexOrder(i: idxType)
+
+   
+        If ``i`` is a member of the range's represented sequence, returns an
+        integer giving the ordinal index of i within the sequence using
+        zero-based indexing. Otherwise, returns ``(-1):idxType``. It is an error
+        to invoke ``indexOrder`` if the represented sequence is not defined or
+        the range does not have a first index.
+   
+        The following calls show the order of index 4 in each of the given ranges:
+   
+   .. code-block:: chapel
+   
+          (0..10).indexOrder(4) == 4
+          (1..10).indexOrder(4) == 3
+          (3..5).indexOrder(4) == 1
+          (0..10 by 2).indexOrder(4) == 2
+          (3..5 by 2).indexOrder(4) == -1
+      
+
+.. method:: proc range.orderToIndex(ord: integral): idxType
+
+   Returns the zero-based ``ord``-th element of this range's represented
+   sequence. It is an error to invoke ``orderToIndex`` if the range is not
+   defined, or if ``ord`` is negative or greater than the range's length.
+   The ``orderToIndex`` procedure is the reverse of ``indexOrder``.
+   
+   Example:
+   
+   .. code-block:: chapel
+   
+     0..10.orderToIndex(4) == 4
+     1..10.orderToIndex(3) == 4
+     3..5.orderToIndex(1)  == 4
+     0..10 by 2.orderToIndex(2) == 4
+   
+
+.. method:: proc range.translate(i: integral)
+
+   Return a range with elements shifted from this range by ``i``.
+   
+   Example:
+   
+   .. code-block:: chapel
+   
+     0..9.translate(1) == 1..10
+     0..9.translate(2) == 2..11
+     0..9.translate(-1) == -1..8
+     0..9.translate(-2) == -2..7
+   
+
+.. method:: proc range.interior(i: idxType)
+
+   Return a range with ``i`` elements from the interior portion of this
+   range. If ``i`` is positive, take elements from the high end, and if
+   ``i`` is negative, take elements from the low end.
+   
+   Example:
+   
+   .. code-block:: chapel
+   
+     0..9.interior(1)  == 9..9
+     0..9.interior(2)  == 8..9
+     0..9.interior(-1) == 0..0
+     0..9.interior(-2) == 0..1
+   
+
+.. method:: proc range.exterior(i: idxType)
+
+   Return a range with ``i`` elements from the exterior portion of this
+   range. If ``i`` is positive, take elements from the high end, and if
+   ``i`` is negative, take elements from the low end.
+   
+   Example:
+   
+   .. code-block:: chapel
+   
+     0..9.exterior(1)  = 10..10
+     0..9.exterior(2)  = 10..11
+     0..9.exterior(-1) = -1..-1
+     0..9.exterior(-2) = -2..-1
+   
+
+.. method:: proc range.expand(i: idxType)
+
+   Return a range expanded by ``i`` elements from each end.  If ``i`` is
+   negative, the range will be contracted.
+   
+   Example:
+   
+   .. code-block:: chapel
+   
+     0..9.expand(1)  == -1..10
+     0..9.expand(2)  == -2..11
+     0..9.expand(-1) == 1..8
+     0..9.expand(-2) == 2..7
+   
+
+.. method:: proc range.offset(offs: idxType)
+
+   Returns a range whose alignment is this range's first index plus ``n``.
+   If the range has no first index, a runtime error is generated.
+   
+

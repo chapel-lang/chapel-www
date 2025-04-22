@@ -1,0 +1,465 @@
+.. default-domain:: chpl
+
+.. module:: CTypes
+   :synopsis: Defines C types and related routines to support interoperability.
+
+CTypes
+======
+**Usage**
+
+.. code-block:: chapel
+
+   use CTypes;
+
+
+or
+
+.. code-block:: chapel
+
+   import CTypes;
+
+
+
+Defines C types and related routines to support interoperability.
+
+This module provides access to common C types for the purpose of
+calling between Chapel and C, declaring variables using C's types,
+etc.  It also contains routines in support of working with C types.
+
+See :ref:`readme-extern`, and :ref:`Chapter-Interoperability` for
+additional information about interoperating between Chapel and C (or
+other languages).
+
+.. include:: ChapelSysCTypes.rst
+
+
+.. type:: type c_float = real(32)
+
+   The Chapel type corresponding to the C 'float' type 
+
+.. type:: type c_double = real(64)
+
+   The Chapel type corresponding to the C 'double' type 
+
+.. type:: type c_FILE
+
+   
+   Chapel type alias for a C ``FILE``
+   
+   A ``FILE*`` can be represented with ``c_ptr(c_FILE)``
+   
+
+.. type:: c_ptr : writeSerializable
+
+   
+   
+   Represents a local C pointer for the purpose of C integration. This type
+   represents the equivalent to a C language pointer ``eltType*``. Instances of
+   this type support assignment to other instances or ``nil``, ``==`` or ``!=``
+   comparison with ``nil``, and casting to another ``c_ptr`` type.
+   
+   ``c_ptr(void)`` represents an opaque pointer with special functionality,
+   corresponding to ``void*`` in C. Casts from integral types to
+   ``c_ptr(void)`` as well as casts from ``c_ptr(void)`` to integral types are
+   supported and behave similarly to those operations in C. Casting a
+   ``c_ptr(void)`` to or from a ``c_ptr(t)`` of any pointee type is allowed.
+   
+   Casting directly to a ``c_ptr`` of another pointee type is supported, but
+   will emit a safety warning for casts that can lead to violation of C's
+   strict aliasing rule. Casting to a char pointee type or across signedness,
+   or through an intermediate cast to ``c_ptr(void)``, will not generate a
+   warning.
+   
+   As with a Chapel class, a ``c_ptr`` can be tested non-nil simply
+   by including it in an if statement conditional, like so:
+   
+   .. code-block:: chapel
+   
+     var x: c_ptr = c_ptrTo(...);
+     if x then do writeln("x is not nil");
+     if !x then do writeln("x is nil");
+   
+   Additionally, a ``c_ptr`` can be output like so:
+   
+   .. code-block:: chapel
+   
+     var x: c_ptr = c_ptrTo(...);
+     writeln(x); // outputs nil or e.g. 0xabc123000000
+   
+   
+
+   .. attribute:: type eltType
+
+      
+      The type that this pointer points to, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_ptr = c_ptrTo(...);
+        if x.eltType == c_int then do writeln("x is an int pointer");
+      
+
+   .. method:: proc this(i: integral) ref
+
+      Retrieve the i'th element (zero based) from a pointer to an array.
+      Does the equivalent of ptr[i] in C.
+      
+
+   .. method:: proc deref() ref
+
+      Get element pointed to directly by this pointer. If the pointer
+      refers to an array, this will return ptr[0].
+      
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+      Print this pointer 
+
+.. type:: c_ptrConst : writeSerializable
+
+   
+   Like :type:`c_ptr`, but for a pointer to const data. In C, this is
+   equivalent to the type `const eltType*`.
+   
+
+   .. attribute:: type eltType
+
+      
+      The type that this pointer points to, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_ptrConst = c_ptrToConst(...);
+        if x.eltType == c_int then do writeln("x is a const int pointer");
+      
+
+   .. method:: proc this(i: integral) const ref
+
+      Retrieve the i'th element (zero based) from a pointer to an array.
+      Does the equivalent of ptr[i] in C.
+      Provides a ``const ref`` which cannot be used to modify the element.
+      
+
+   .. method:: proc deref() const ref
+
+      Get element pointed to directly by this pointer. If the pointer
+      refers to an array, this will return ptr[0].
+      Provides a ``const ref`` which cannot be used to modify the element.
+      
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+      Print this pointer 
+
+.. type:: c_array : writeSerializable
+
+   
+   This type represents a C array with fixed size.  A variable of type
+   ``c_array`` can coerce to a ``c_ptr`` with the same element type.  In that
+   event, the pointer will be equivalent to ``c_ptrTo(array[0])``.  A ``c_array``
+   behaves similarly to a homogeneous tuple except that its indices start at 0
+   and it is guaranteed to be stored in contiguous memory.  A ``c_array``
+   variable has value semantics. Declaring one as a function-local variable will
+   create the array elements in the function's stack. Assigning or copy
+   initializing will result in copying the elements (vs resulting in two pointers
+   that refer to the same elements).  A ``nil`` ``c_array`` is not representable
+   in Chapel.
+   
+
+   .. attribute:: type eltType
+
+      
+      The array element type, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_array = c_ptrToConst(...);
+        if x.eltType == c_int then do writeln("x is an array of ints");
+      
+
+   .. attribute:: param size
+
+      
+      The fixed number of elements, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_array = c_ptrToConst(...);
+        writeln("x has ", x.size, " elements.");
+      
+
+   .. method:: proc init(type eltType, param size)
+
+      
+      Default-initializes a :type:`c_array`, where each element gets the default value of ``eltType``.
+      
+
+   .. method:: proc ref this(i: integral) ref: eltType
+
+      Retrieve the i'th element (zero based) from the array.
+      Does the equivalent of arr[i] in C.
+      Includes bounds checking when such checks are enabled.
+      
+
+   .. method:: proc ref this(param i: integral) ref: eltType
+
+      As with the previous function, returns the i'th element (zero based)
+      from the array. This one emits a compilation error if i is out of bounds.
+      
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+      Print the elements 
+
+   .. method:: proc init=(other: c_array)
+
+      
+      Moves the elements from ``other`` to ``this``.
+      
+
+.. method:: operator c_array. = (ref lhs: c_array, rhs: c_array)
+
+   Copy the elements from one :type:`c_array` to another.
+   Raises an error at compile time if the array sizes or
+   element types do not match. 
+
+.. function:: operator  = (ref lhs: c_ptr, ref rhs: c_array)
+
+   
+   Get a pointer to the first element in ``rhs``, essentially decaying the :type:`c_array` to a :type:`c_ptr`.
+   
+
+.. function:: proc c_ptrTo(ref x: ?t)
+
+   
+   Returns a :type:`c_ptr` to any Chapel object.
+   
+   For most types, the returned :type:`c_ptr` will simply point to the memory
+   address of the Chapel variable, and have element type matching the type of
+   the passed-in variable. However, this procedure has special behavior for
+   variables of the following types, and will return a pointer that is
+   potentially more useful:
+   
+   * ``array`` types: Returns a pointer to the first element of the array, with
+     pointer element type matching the array's element type.
+   * ``class`` types: Returns a ``c_ptr(void)`` to the heap instance of the
+     class variable.
+   * ``string`` type: Returns a ``c_ptr(c_uchar)`` to the underlying buffer of
+     the ``string``.
+   * ``bytes`` type: Returns a ``c_ptr(c_uchar)`` to the underlying buffer of
+     the ``bytes``.
+   
+   To avoid this special behavior and just get the variable address naively
+   regardless of type, use :proc:`c_addrOf` instead.
+   
+   Domains, non-local arrays, and non-rectangular arrays are not supported,
+   and will cause a compiler error.
+   
+   .. note::
+   
+     The existence of the ``c_ptr`` has no impact on the lifetime
+     of the object it points to. In many cases the object will be stack
+     allocated and could go out of scope even if this ``c_ptr`` remains.
+   
+   :arg x:   The by-reference argument to get a pointer to.
+   :returns: A :type:`c_ptr` to the argument passed by reference, with address
+             and element type potentially depending on special behavior for the
+             the type as described above.
+   
+   
+
+.. function:: proc c_ptrToConst(const ref x: ?t): c_ptrConst(t)
+
+   
+   Like :proc:`c_ptrTo`, but returns a :type:`c_ptrConst` which disallows direct
+   modification of the pointee.
+   
+
+.. function:: proc c_addrOf(ref x: ?t): c_ptr(t)
+
+   
+   Returns a :type:`c_ptr` to the address of any Chapel object.
+   
+   Note that the behavior of this procedure is identical to :proc:`c_ptrTo`
+   for scalar types and records. It only differs for arrays, strings, bytes,
+   and class variables; see documentation of :proc:`c_ptrTo` for special
+   behavior on those types. It also allows passing in any type, including those
+   disallowed by :proc:`c_ptrTo`.
+   
+
+.. function:: proc c_addrOfConst(const ref x: ?t): c_ptrConst(t)
+
+   
+   Like :proc:`c_addrOf`, but returns a :type:`c_ptrConst` which disallows
+   direct modification of the pointee.
+   
+
+.. function:: proc c_sizeof(type t): c_size_t
+
+   
+   Return the size in bytes of a type, as with the C ``sizeof`` built-in.
+   
+   .. warning::
+   
+     This method is intended for C interoperability. To enhance
+     flexibility, it is possible to request the sizes of Chapel types.
+     However, be aware:
+   
+        * Chapel types are not necessarily stored in contiguous memory
+        * Behavior of ``c_sizeof`` with Chapel types may change
+        * Behavior given a Chapel class type is not well-defined
+   
+
+.. function:: proc c_offsetof(type t, param fieldname: string): c_size_t where isRecordType(t)
+
+   
+   Return the offset of a field in a record.
+   
+   .. warning::
+   
+     This method is intended for C interoperability.  To enhance flexibility,
+     it is possible to request the offset of elements within a Chapel record.
+     However, be aware:
+   
+     * Chapel types are not necessary stored in contiguous memory
+     * Behavior of ``c_offsetof`` may change
+     * Behavior given a Chapel class type field is not well-defined
+   
+
+.. function:: proc allocate(type eltType, size: c_size_t, clear: bool = false, alignment: c_size_t = 0): c_ptr(eltType)
+
+   .. warning::
+
+      'allocate' is unstable, and may be renamed or moved
+
+   Allocate memory.
+   
+    This uses the Chapel allocator. Memory allocated with this function should
+    eventually be freed with :proc:`deallocate`.
+   
+   :arg eltType: the type of the elements to allocate
+   :arg size: the number of elements to allocate space for
+   :arg clear: whether to initialize all bits of allocated memory to 0
+   :arg alignment: Memory alignment of the allocation, which must be a power of
+                   two and a multiple of `c_sizeof(c_ptr(void))`. Alignment of 0
+                   is invalid and taken to mean default alignment.
+   :returns: a c_ptr(eltType) to allocated memory
+   
+
+.. function:: proc deallocate(data: c_ptr(void))
+
+   .. warning::
+
+      'deallocate' is unstable, and may be renamed or moved
+
+   Free memory that was allocated with :proc:`allocate`.
+   
+   :arg data: the c_ptr to memory that was allocated. Note that both
+              `c_ptr(t)` and `c_ptr(void)` can be passed to this argument.
+   
+
+.. function:: proc strLen(x: c_ptr(?t)): int
+
+   .. warning::
+
+      the strLen function is unstable and may change or go away in a future release
+
+   
+   Get the number of bytes in a c_ptr(int(8)) or c_ptr(uint(8)), excluding the
+   terminating null.
+   
+   :arg x: c_ptr(int(8)) or c_ptr(uint(8)) to get length of
+   
+   :returns: the number of bytes in x, excluding the terminating null
+   
+
+.. function:: proc strLen(x: c_ptrConst(?t)): int
+
+   .. warning::
+
+      the strLen function is unstable and may change or go away in a future release
+
+   
+   Get the number of bytes in a c_ptrConst(int(8)) or c_ptrConst(uint(8)),
+   excluding the terminating NULL.
+   
+   :arg x: c_ptrConst(int(8)) or c_ptrConst(uint(8)) to get length of
+   
+   :returns: the number of bytes in x, excluding the terminating NULL
+   
+
+.. method:: proc string.c_str(): c_ptrConst(c_char)
+
+   .. warning::
+
+      'string.c_str()' is unstable and may change in a future release
+
+   
+   Get a `c_ptrConst(c_char)` from a :type:`~String.string`. The returned
+   `c_ptrConst(c_char)` shares the buffer with the :type:`~String.string`.
+   
+   .. warning::
+   
+       This can only be called safely on a :type:`~String.string` whose home is
+       the current locale.  This property can be enforced by calling
+       :proc:`~String.string.localize()` before :proc:`string.c_str()`.
+       If the string is remote, the program will halt.
+   
+   For example:
+   
+   .. code-block:: chapel
+   
+     var myString = "Hello!";
+     on differentLocale {
+       writef("%s", myString.localize().c_str());
+     }
+   
+   .. warning::
+   
+       A Chapel :type:`~String.string` is capable of containing NULL characters
+       and any C routines relying on NULL terminated buffers may incorrectly
+       process the mid-string NULL as the terminating NULL.
+   
+   :returns:
+       A `c_ptrConst(c_char)` that points to the underlying buffer used by this
+       :type:`~String.string`. The returned `c_ptrConst(c_char)` is only valid
+       when used on the same locale as the string.
+   
+
+.. method:: proc bytes.c_str(): c_ptrConst(c_char)
+
+   .. warning::
+
+      'bytes.c_str()' is unstable and may change in a future release
+
+   
+   Gets a `c_ptrConst(c_char)` from a :type:`~Bytes.bytes`. The returned
+   `c_ptrConst(c_char)` shares the buffer with the :type:`~Bytes.bytes`.
+   
+   .. warning::
+   
+     This can only be called safely on a :type:`~Bytes.bytes` whose home is
+     the current locale.  This property can be enforced by calling
+     :proc:`~Bytes.bytes.localize()` before :proc:`bytes.c_str()`.
+     If the bytes is remote, the program will halt.
+   
+   For example:
+   
+   .. code-block:: chapel
+   
+       var myBytes = b"Hello!";
+       on differentLocale {
+         writef("%s", myBytes.localize().c_str());
+       }
+   
+   .. warning::
+   
+       Chapel :type:`~Bytes.bytes` are capable of containing NULL bytes and
+       any C routines relying on NULL terminated buffers may incorrectly
+       process the mid-buffer NULL as the terminating NULL.
+   
+   :returns: A `c_ptrConst(c_char)` that points to the underlying buffer used
+             by this :type:`~Bytes.bytes`. The returned `c_ptrConst(c_char)`
+             is only valid when used on the same locale as the bytes.
+   
+

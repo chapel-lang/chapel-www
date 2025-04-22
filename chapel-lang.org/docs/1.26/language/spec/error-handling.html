@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Error Handling &mdash; Chapel Documentation 1.26</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Tuples" href="tuples.html" />
+    <link rel="prev" title="Methods" href="methods.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.26
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.26";
+$pagename = "language/spec/error-handling";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Specification</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#introductory-material">Introductory Material</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#code-structures">Code Structures</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="modules.html">Modules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="procedures.html">Procedures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="iterators.html">Iterators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="methods.html">Methods</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Error Handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#throwing-errors">Throwing Errors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#handling-errors">Handling Errors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#defer-statement">Defer statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#methods">Methods</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#multilocale">Multilocale</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#parallelism">Parallelism</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#creating-new-error-types">Creating New Error Types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#error-handling-modes">Error Handling Modes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#composite-types">Composite Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#generic-programming">Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-programming">Parallel Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#distributed-programming">Distributed Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#additional-topics">Additional Topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#appendices">Appendices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Chapel Documentation Index</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Chapel Language Specification</a> &raquo;</li>
+      <li>Error Handling</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/language/spec/error-handling.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="error-handling">
+<span id="chapter-error-handling"></span><h1>Error Handling<a class="headerlink" href="#error-handling" title="Permalink to this headline">¶</a></h1>
+<p>The Chapel language supports <code class="docutils literal notranslate"><span class="pre">throw</span></code>, <code class="docutils literal notranslate"><span class="pre">try</span></code>, <code class="docutils literal notranslate"><span class="pre">try</span></code>!, <code class="docutils literal notranslate"><span class="pre">catch</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">throws</span></code> which are described below. Chapel supports several error
+handling modes, including a mode suitable for prototype development and
+a less-permissive mode intended for production code.</p>
+<blockquote>
+<div><p><em>Implementation Notes</em>.</p>
+<p>Additional information about the current implementation of
+error handling and the <em>strict</em> error handling mode, which is not
+defined here, is available in the
+<a class="reference internal" href="../../technotes/errorHandling.html#readme-errorhandling"><span class="std std-ref">errorHandling technical note</span></a></p>
+</div></blockquote>
+<div class="section" id="throwing-errors">
+<span id="id1"></span><h2>Throwing Errors<a class="headerlink" href="#throwing-errors" title="Permalink to this headline">¶</a></h2>
+<p>Errors may be thrown from a function to its callee with a <code class="docutils literal notranslate"><span class="pre">throw</span></code>
+statement. For a function to throw an error, its signature must include
+a <code class="docutils literal notranslate"><span class="pre">throws</span></code> declaration. The declaration is put after the return type
+and before any <code class="docutils literal notranslate"><span class="pre">where</span></code> clauses.</p>
+<p>Only <code class="docutils literal notranslate"><span class="pre">owned</span></code> instances of a type inheriting from <code class="docutils literal notranslate"><span class="pre">Error</span></code> can be
+thrown.</p>
+<blockquote>
+<div><p><em>Example (throwing.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">canThrow</span><span class="p">(</span><span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">):</span> <span class="kt">int</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">then</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">Error</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="nx">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">alwaysThrows</span><span class="p">():</span><span class="kt">int</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">Error</span><span class="p">();</span>
+  <span class="c1">// never reached</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="handling-errors">
+<span id="id2"></span><h2>Handling Errors<a class="headerlink" href="#handling-errors" title="Permalink to this headline">¶</a></h2>
+<p>There are three ways to handle an error:</p>
+<ul class="simple">
+<li><p>Halt with <code class="docutils literal notranslate"><span class="pre">try</span></code>!.</p></li>
+<li><p>Handle the error with <code class="docutils literal notranslate"><span class="pre">catch</span></code> blocks.</p></li>
+<li><p>Propagate the error out of the current function with <code class="docutils literal notranslate"><span class="pre">throws</span></code>.</p></li>
+</ul>
+<div class="section" id="halting-on-error-with-try">
+<span id="halting-on-error-with-try-bang"></span><h3>Halting on error with try!<a class="headerlink" href="#halting-on-error-with-try" title="Permalink to this headline">¶</a></h3>
+<p>If an error is thrown by a call within the lexical scope of a <code class="docutils literal notranslate"><span class="pre">try</span></code>!
+block or a <code class="docutils literal notranslate"><span class="pre">try</span></code>! expression prefix, the program halts.</p>
+<blockquote>
+<div><p><em>Example (try-bang.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">haltsOnError</span><span class="p">():</span><span class="kt">int</span> <span class="p">{</span>
+  <span class="c1">// the try! next to the throwing call</span>
+  <span class="c1">// halts the program if an error occurs.</span>
+  <span class="k">return</span> <span class="k">try</span><span class="o">!</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">haltsOnErrorBlock</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+    <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="handling-an-error-with-catch">
+<span id="id3"></span><h3>Handling an error with catch<a class="headerlink" href="#handling-an-error-with-catch" title="Permalink to this headline">¶</a></h3>
+<p>When an error is raised by a call in a <code class="docutils literal notranslate"><span class="pre">try</span></code> or <code class="docutils literal notranslate"><span class="pre">try</span></code>! block, the
+rest of the block is abandoned and control flow is passed to its
+<code class="docutils literal notranslate"><span class="pre">catch</span></code> clause(s), if any.</p>
+<div class="section" id="catch-clauses">
+<span id="id4"></span><h4>Catch clauses<a class="headerlink" href="#catch-clauses" title="Permalink to this headline">¶</a></h4>
+<p>A <code class="docutils literal notranslate"><span class="pre">try</span></code> or <code class="docutils literal notranslate"><span class="pre">try</span></code>! block can have one or more <code class="docutils literal notranslate"><span class="pre">catch</span></code> clauses.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">catch</span></code> clause can specify the variable that refers to the caught
+error within the <code class="docutils literal notranslate"><span class="pre">catch</span></code> block. If the variable is given a type, for
+example <code class="docutils literal notranslate"><span class="pre">catch</span> <span class="pre">e:SomeError</span></code>, it is a <em>type filter</em>. The corresponding
+<code class="docutils literal notranslate"><span class="pre">catch</span></code> clause <em>matches</em> the errors that are of the class
+<code class="docutils literal notranslate"><span class="pre">SomeError</span></code> or its subclass. If no type filter is present on a catch
+clause, or if no variable is present at all, then it is a <em>catchall</em>
+clause, which matches all errors.</p>
+<p>The type filters are evaluated in the order that the <code class="docutils literal notranslate"><span class="pre">catch</span></code> clauses
+appear in the program. If a <code class="docutils literal notranslate"><span class="pre">catch</span></code> clause’s type filter matches, then
+its block is executed to the exclusion of the others. Hence there is no
+notion of best match, only a first match.</p>
+<p>If the <code class="docutils literal notranslate"><span class="pre">catch</span></code> block itself throws an error, it is handled in the same
+manner as if that error were thrown by a statement adjacent to the
+<code class="docutils literal notranslate"><span class="pre">try</span></code>-<code class="docutils literal notranslate"><span class="pre">catch</span></code> blocks. Otherwise, after the execution of the
+<code class="docutils literal notranslate"><span class="pre">catch</span></code> block completes, the program execution proceeds to the next
+statement after the <code class="docutils literal notranslate"><span class="pre">try</span></code>-<code class="docutils literal notranslate"><span class="pre">catch</span></code> blocks.</p>
+<blockquote>
+<div><p><em>Example (catching-errors.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">SysError</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">catchingErrors</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="nx">alwaysThrows</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught an error, unnamed catchall clause&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">alwaysThrows</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;never reached&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span><span class="p">:</span><span class="nx">FileNotFoundError</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught an error, FileNotFoundError type filter matched&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught an error in a named catchall clause&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="try-with-catch">
+<span id="try-bang-with-catch"></span><h4>try! with catch<a class="headerlink" href="#try-with-catch" title="Permalink to this headline">¶</a></h4>
+<p>If an error is thrown within a <code class="docutils literal notranslate"><span class="pre">try</span></code>! block and none of its <code class="docutils literal notranslate"><span class="pre">catch</span></code>
+clauses, if any, match that error, the program halts.</p>
+<blockquote>
+<div><p><em>Example (catching-errors-halt.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">SysError</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">catchingErrorsHalt</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">alwaysThrows</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;never reached&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span><span class="p">:</span><span class="nx">FileNotFoundError</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught a file not found error&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="c1">// errors other than FileNotFoundError cause a halt</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="nested-try">
+<span id="id5"></span><h4>Nested try<a class="headerlink" href="#nested-try" title="Permalink to this headline">¶</a></h4>
+<p>If an error is thrown within a <code class="docutils literal notranslate"><span class="pre">try</span></code> block and none of its <code class="docutils literal notranslate"><span class="pre">catch</span></code>
+clauses, if any, match that error, the error is directed to the
+enclosing <code class="docutils literal notranslate"><span class="pre">try</span></code> block, when present.</p>
+<blockquote>
+<div><p><em>Example (nested-try.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">DemoError</span> <span class="p">:</span> <span class="nx">Error</span> <span class="p">{</span> <span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">nestedTry</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">try</span> <span class="p">{</span>
+      <span class="nx">alwaysThrows</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span><span class="p">:</span> <span class="nx">DemoError</span> <span class="p">{</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught a DemoError&quot;</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;never reached&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught an Error from inner try&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="propagating-an-error-with-throws">
+<span id="id6"></span><h3>Propagating an error with throws<a class="headerlink" href="#propagating-an-error-with-throws" title="Permalink to this headline">¶</a></h3>
+<p>A function marked <code class="docutils literal notranslate"><span class="pre">throws</span></code> can pass along an error thrown by a
+function called within it. This can be done in several ways.</p>
+<div class="section" id="after-catch-clauses">
+<span id="id7"></span><h4>After catch clauses<a class="headerlink" href="#after-catch-clauses" title="Permalink to this headline">¶</a></h4>
+<p>Propagation can occur when no matching <code class="docutils literal notranslate"><span class="pre">catch</span></code> clause is found for an
+error raised in a <code class="docutils literal notranslate"><span class="pre">try</span></code> block.</p>
+<blockquote>
+<div><p><em>Example (catching-errors-propagate.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">SysError</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">catchingErrorsPropagate</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">alwaysThrows</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;never reached&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span><span class="p">:</span><span class="nx">FileNotFoundError</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught a file not found error&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="c1">// errors other than FileNotFoundError propagate</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="catch-less-try">
+<span id="id8"></span><h4>catch-less try<a class="headerlink" href="#catch-less-try" title="Permalink to this headline">¶</a></h4>
+<p>A logical extension of the above is the case where no <code class="docutils literal notranslate"><span class="pre">catch</span></code> blocks
+are attached to the <code class="docutils literal notranslate"><span class="pre">try</span></code>. Here the <code class="docutils literal notranslate"><span class="pre">try</span></code> keyword marks throwing
+calls to clarify control flow.</p>
+<blockquote>
+<div><p><em>Example (propagates-error.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">propagatesError</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="c1">// control flow changes if an error was thrown;</span>
+  <span class="c1">// could be indicated more clearly with try</span>
+  <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+
+  <span class="k">try</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="k">try</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="k">try</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="try-expressions">
+<span id="id9"></span><h4>try expressions<a class="headerlink" href="#try-expressions" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">try</span></code> and <code class="docutils literal notranslate"><span class="pre">try</span></code>! are available as expressions to clarify control
+flow at expression granularity. The expression form may not be used with
+<code class="docutils literal notranslate"><span class="pre">catch</span></code> clauses.</p>
+<blockquote>
+<div><p><em>Example (expression-try.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">expressionTry</span><span class="p">():</span> <span class="kt">int</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="k">try</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="k">try</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="complete-handling">
+<span id="id10"></span><h3>Complete handling<a class="headerlink" href="#complete-handling" title="Permalink to this headline">¶</a></h3>
+<p>For a function to handle errors from its calls without itself throwing,
+its <code class="docutils literal notranslate"><span class="pre">try</span></code>/<code class="docutils literal notranslate"><span class="pre">catch</span></code> must be complete. This may be accomplished in two
+ways:</p>
+<ul>
+<li><p>A catchall clause on <code class="docutils literal notranslate"><span class="pre">try</span></code>. This prevents <code class="docutils literal notranslate"><span class="pre">try</span></code> from propagating
+the error out of the function as described above.</p>
+<blockquote>
+<div><p><em>Example (warns-on-error.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">warnsOnError</span><span class="p">(</span><span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">):</span> <span class="kt">int</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="nx">alwaysThrows</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Warning: caught a error &quot;</span><span class="p">,</span> <span class="nx">e</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">try</span></code>! instead of <code class="docutils literal notranslate"><span class="pre">try</span></code>. This will halt the program if no
+matching <code class="docutils literal notranslate"><span class="pre">catch</span></code> clause is found, instead of propagating.</p>
+<blockquote>
+<div><p><em>Example (halts-on-error.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">DemoError</span> <span class="p">:</span> <span class="nx">Error</span> <span class="p">{</span> <span class="p">}</span>
+<span class="k">proc</span> <span class="nf">haltsOnError</span><span class="p">(</span><span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">):</span> <span class="kt">int</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="nx">canThrow</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span><span class="p">:</span> <span class="nx">DemoError</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught a DemoError&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="defer-statement">
+<span id="errors-defer"></span><h2>Defer statement<a class="headerlink" href="#defer-statement" title="Permalink to this headline">¶</a></h2>
+<p>When an error is thrown, it is sometimes necessary to clean up state and
+allocated memory. <code class="docutils literal notranslate"><span class="pre">defer</span></code> statements facilitate that by running when a
+scope is exited, regardless of how it is exited.</p>
+<blockquote>
+<div><p><em>Example (defer.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">deferredDelete</span><span class="p">(</span><span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">huge</span> <span class="o">=</span> <span class="nx">allocateLargeObject</span><span class="p">();</span>
+    <span class="k">defer</span> <span class="p">{</span>
+      <span class="k">delete</span> <span class="nx">huge</span><span class="p">;</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;huge has been deleted&quot;</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="nx">canThrow</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+    <span class="nx">processObject</span><span class="p">(</span><span class="nx">huge</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;no memory leaks&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>It is not possible to throw errors out of a <code class="docutils literal notranslate"><span class="pre">defer</span></code> statement because
+the atomicity of all <code class="docutils literal notranslate"><span class="pre">defer</span></code> statements must be guaranteed, and the
+handling context would be unclear.</p>
+<p>Errors also cannot be thrown by <code class="docutils literal notranslate"><span class="pre">deinit()</span></code> for similar reasons.</p>
+</div>
+<div class="section" id="methods">
+<span id="errors-methods"></span><h2>Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
+<p>Errors can be thrown by methods, just as with any other function. An
+overriding method must throw if the overridden method throws, or not
+throw if the overridden method does not throw.</p>
+<blockquote>
+<div><p><em>Example (throwing-methods.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">ThrowingObject</span> <span class="p">{</span>
+  <span class="k">proc</span> <span class="nf">f</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">Error</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">SubThrowingObject</span> <span class="p">:</span> <span class="nx">ThrowingObject</span> <span class="p">{</span>
+  <span class="c1">// must be marked throws even though it doesn&#39;t throw</span>
+  <span class="k">proc</span> <span class="nf">f</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;this version doesn&#39;t throw&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="multilocale">
+<span id="errors-multilocale"></span><h2>Multilocale<a class="headerlink" href="#multilocale" title="Permalink to this headline">¶</a></h2>
+<p>Errors can be thrown within <code class="docutils literal notranslate"><span class="pre">on</span></code> statements. In that event, the error
+will be propagated out of the <code class="docutils literal notranslate"><span class="pre">on</span></code> statement.</p>
+<blockquote>
+<div><p><em>Example (handle-from-on.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">handleFromOn</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">on</span> <span class="nx">Locales</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">{</span>
+      <span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught from Locale 0&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="parallelism">
+<span id="errors-parallelism"></span><h2>Parallelism<a class="headerlink" href="#parallelism" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="taskerrors">
+<span id="id11"></span><h3>TaskErrors<a class="headerlink" href="#taskerrors" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">TaskErrors</span></code> class helps coordinate errors among groups of tasks by
+collecting them for centralized handling. It can be iterated on and
+filtered for different kinds of errors. See also
+the module documentation for <a class="reference internal" href="../../modules/standard/Errors.html#Errors.TaskErrors" title="Errors.TaskErrors"><code class="xref chpl chpl-class docutils literal notranslate"><span class="pre">TaskErrors</span></code></a>.</p>
+<p>Nested <code class="docutils literal notranslate"><span class="pre">coforall</span></code> statements do not produce nested <code class="docutils literal notranslate"><span class="pre">TaskErrors</span></code>.
+Instead, the nested errors are flattened into the <code class="docutils literal notranslate"><span class="pre">TaskErrors</span></code> error
+thrown by the outer loop.</p>
+</div>
+<div class="section" id="begin">
+<span id="errors-begin"></span><h3>begin<a class="headerlink" href="#begin" title="Permalink to this headline">¶</a></h3>
+<p>Errors can be thrown within a <code class="docutils literal notranslate"><span class="pre">begin</span></code> statement. In that event, the
+error will be propagated to the <code class="docutils literal notranslate"><span class="pre">sync</span></code> statement that waits for that
+task.</p>
+<blockquote>
+<div><p><em>Example (handle-from-begin.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">handleFromBegin</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="k">sync</span> <span class="p">{</span>
+      <span class="k">begin</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+      <span class="k">begin</span> <span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">e</span><span class="p">:</span> <span class="nx">TaskErrors</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;caught from Locale 0&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="coforall-and-cobegin">
+<span id="errors-coforall-and-cobegin"></span><h3>coforall and cobegin<a class="headerlink" href="#coforall-and-cobegin" title="Permalink to this headline">¶</a></h3>
+<p>Errors can be thrown from <code class="docutils literal notranslate"><span class="pre">coforall</span></code> and <code class="docutils literal notranslate"><span class="pre">cobegin</span></code> statements and
+handled as <code class="docutils literal notranslate"><span class="pre">TaskErrors</span></code>. The nested <code class="docutils literal notranslate"><span class="pre">coforall</span></code> loops will emit a
+flattened <code class="docutils literal notranslate"><span class="pre">TaskErrors</span></code> error.</p>
+<blockquote>
+<div><p><em>Example (handle-from-coforall.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">handleFromCoforall</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;before coforall block&quot;</span><span class="p">);</span>
+    <span class="k">coforall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span> <span class="p">{</span>
+      <span class="k">coforall</span> <span class="nx">j</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span> <span class="p">{</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">DemoError</span><span class="p">();</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;after coforall block&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">errors</span><span class="p">:</span> <span class="nx">TaskErrors</span> <span class="p">{</span> <span class="c1">// not nested</span>
+    <span class="c1">// all of e will be of runtime type DemoError in this example</span>
+    <span class="k">for</span> <span class="nx">e</span> <span class="kd">in</span> <span class="nx">errors</span> <span class="p">{</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Caught task error e &quot;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">());</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<blockquote>
+<div><p><em>Example (handle-from-cobegin.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">handleFromCobegin</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;before cobegin block&quot;</span><span class="p">);</span>
+    <span class="k">cobegin</span> <span class="p">{</span>
+      <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">DemoError</span><span class="p">();</span>
+      <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">DemoError</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;after cobegin block&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">errors</span><span class="p">:</span> <span class="nx">TaskErrors</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="nx">e</span> <span class="kd">in</span> <span class="nx">errors</span> <span class="p">{</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Caught task error e &quot;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">());</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="forall">
+<span id="errors-forall"></span><h3>forall<a class="headerlink" href="#forall" title="Permalink to this headline">¶</a></h3>
+<p>Errors can be thrown from <code class="docutils literal notranslate"><span class="pre">forall</span></code> loops, too. Although the <code class="docutils literal notranslate"><span class="pre">forall</span></code>
+may execute serially within a single task, it will always throw a
+<code class="docutils literal notranslate"><span class="pre">TaskErrors</span></code> error if error(s) are thrown in the loop body.</p>
+<blockquote>
+<div><p><em>Example (handle-from-forall.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">handleFromForall</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span><span class="o">!</span> <span class="p">{</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;before forall block&quot;</span><span class="p">);</span>
+    <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span> <span class="p">{</span>
+      <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">DemoError</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;after forall block&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="nx">errors</span><span class="p">:</span> <span class="nx">TaskErrors</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="nx">e</span> <span class="kd">in</span> <span class="nx">errors</span> <span class="p">{</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Caught task error e &quot;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">());</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="creating-new-error-types">
+<span id="id12"></span><h2>Creating New Error Types<a class="headerlink" href="#creating-new-error-types" title="Permalink to this headline">¶</a></h2>
+<p>Errors in Chapel are implemented as classes, with a base class <code class="docutils literal notranslate"><span class="pre">Error</span></code>
+defined in the standard modules. <code class="docutils literal notranslate"><span class="pre">Error</span></code> may be used directly, and new
+subclass hierarchies may be created from it. See also
+the module documentation for <a class="reference internal" href="../../modules/standard/Errors.html#module-Errors" title="Errors: This module contains several features related to error conditions and error"><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">Errors</span></code></a>.</p>
+<p>A hierarchy for system errors is included in the <code class="docutils literal notranslate"><span class="pre">SysError</span></code> module,
+accessed with a <code class="docutils literal notranslate"><span class="pre">use</span></code> statement. See also
+the module documentation for <a class="reference internal" href="../../modules/standard/SysError.html#module-SysError" title="SysError: This module helps handle system errors."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">SysError</span></code></a>.</p>
+<blockquote>
+<div><p><em>Example (defining-errors.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">SysError</span><span class="p">;</span>
+
+<span class="k">class</span> <span class="nc">DemoError</span> <span class="p">:</span> <span class="nx">Error</span> <span class="p">{</span> <span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">DemoSysError</span> <span class="p">:</span> <span class="nx">SystemError</span> <span class="p">{</span> <span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="error-handling-modes">
+<span id="id13"></span><h2>Error Handling Modes<a class="headerlink" href="#error-handling-modes" title="Permalink to this headline">¶</a></h2>
+<p>Certain error handling details depend on the <em>error handling mode</em>:</p>
+<ul class="simple">
+<li><p>Code in <code class="docutils literal notranslate"><span class="pre">prototype</span></code> modules (<a class="reference internal" href="modules.html#prototype-modules"><span class="std std-ref">Prototype Modules</span></a>),
+including implicit modules (<a class="reference internal" href="modules.html#implicit-modules"><span class="std std-ref">Files and Implicit Modules</span></a>), is
+handled in the <em>prototype</em> mode.</p></li>
+<li><p>Otherwise, code is handled in the <em>production</em> mode.</p></li>
+</ul>
+<p>Code that is legal in the production mode is always legal in the
+prototype mode.</p>
+<div class="section" id="prototype-mode">
+<span id="errors-prototype-mode"></span><h3>Prototype Mode<a class="headerlink" href="#prototype-mode" title="Permalink to this headline">¶</a></h3>
+<p>In the prototype mode, it is not necessary to explicitly handle errors
+from a function that throws. If an error is thrown and the calling
+function throws, the error will be propagated out of the function.
+However, if an error is thrown and the calling function does not include
+a <code class="docutils literal notranslate"><span class="pre">throws</span></code> declaration, the program will halt.</p>
+<p>In the following example, the code is in an implicit module. It is legal
+in the prototype mode:</p>
+<blockquote>
+<div><p><em>Example (fatal-mode.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// handling can be omitted; halts if an error occurs</span>
+
+<span class="k">proc</span> <span class="nf">throwsErrorsOn</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="c1">// error propagates out of this function</span>
+  <span class="nx">canThrow</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">doesNotThrowErrorsOn</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// causes a halt if called</span>
+  <span class="nx">alwaysThrows</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>The following module is explicitly marked as a prototype module, so the
+prototype mode applies here, too.</p>
+<blockquote>
+<div><p><em>Example (PrototypeModule.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">prototype</span> <span class="k">module</span> <span class="nc">PrototypeModule</span> <span class="p">{</span>
+
+  <span class="nx">canThrow</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// handling can be omitted; halts if an error occurs</span>
+
+  <span class="k">proc</span> <span class="nf">throwsErrorsOn</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="c1">// error propagates out of this function</span>
+    <span class="nx">alwaysThrows</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">doesNotThrowErrorsOn</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">// causes a halt if called</span>
+    <span class="nx">alwaysThrows</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">canThrow</span><span class="p">(</span><span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">):</span> <span class="kt">int</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">then</span>
+      <span class="k">throw</span> <span class="k">new</span> <span class="k">owned</span> <span class="nx">Error</span><span class="p">();</span>
+
+    <span class="k">return</span> <span class="nx">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="production-mode">
+<span id="production-mode-for-explicit-modules"></span><h3>Production Mode<a class="headerlink" href="#production-mode" title="Permalink to this headline">¶</a></h3>
+<p>In the production mode, it is necessary to handle errors if the calling
+function does not throw. If the calling function does throw, then the
+error will be propagated out, as with the prototype mode.</p>
+<blockquote>
+<div><p><em>Example (ProductionModule.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">module</span> <span class="nc">ProductionModule</span> <span class="p">{</span>
+  <span class="c1">// This would cause a compilation error since the error is not handled:</span>
+  <span class="c1">// canThrow(1);</span>
+
+  <span class="k">proc</span> <span class="nf">throwsErrorsOn</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="c1">// any error thrown by alwaysThrows will propagate out</span>
+    <span class="nx">alwaysThrows</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="c1">// this function does not compile because the error is not handled</span>
+  <span class="c1">// proc doesNotThrowErrorsOn() {</span>
+  <span class="c1">//   alwaysThrows();</span>
+  <span class="c1">// }</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="methods.html" class="btn btn-neutral float-left" title="Methods" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tuples.html" class="btn btn-neutral float-right" title="Tuples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

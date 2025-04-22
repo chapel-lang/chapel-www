@@ -1,0 +1,819 @@
+.. default-domain:: chpl
+
+.. module:: GMP
+   :synopsis: Support for GNU Multiple Precision Arithmetic
+
+Module: GMP
+===========
+
+
+Support for GNU Multiple Precision Arithmetic
+
+This module supports integration with the GMP library (the GNU Multiple
+Precision Arithmetic Library. See the `GMP homepage <https://gmplib.org/>`_
+for more information on this library.
+
+This module is a prototype implementation of a standard GMP (GNU
+Multiple Precision Arithmetic Library) module in Chapel.  It should be
+considered incomplete in that (a) only a subset of the full GMP interface is
+supported, and (b) the performance is currently lacking due to extraneous
+copies in the Chapel code that have not yet been optimized away.  If there is
+sufficient interest, this protype can be expanded to support the full GMP
+interface and performance.
+
+This prototype GMP module has been used to implement a port of the standard GMP
+Chudnovsky algorithm for computing pi to arbitrary digits.  If you are
+interested in receiving a copy of this Chapel program, or simply in expressing
+your support for GMP within Chapel, please contact us at chapel_info@cray.com.
+
+
+Using the GMP Module
+--------------------
+
+Step 1:
+  Build Chapel with GMP
+
+  .. code-block:: sh
+
+            # To use the already-installed GMP
+            export CHPL_GMP=system
+            # To use the distributed GMP
+            export CHPL_GMP=gmp
+            # From $CHPL_HOME
+            make clean; make
+
+
+Step 2:
+  Have your Chapel program ``use`` the standard GMP module
+
+  .. code-block:: chapel
+
+            use GMP;   // put this statement in your Chapel program
+
+
+Step 3:
+  Start using the supported subset of GMP types and routines
+  or the BigInt class (see below for a complete listing).
+
+
+Using the BigInt class
+----------------------
+
+The GMP Chapel module provides a :class:`BigInt` class wrapping GMP integers.
+At the present time, only the functions for ``mpz`` (ie signed integer)
+GMP types are supported with :class:`BigInt`; future work will be to
+extend this support to floating-point types. Also, in the future,
+we hope to provide these GMP functions as records that support
+operators like ``+``, ``*``, ``-``, etc.
+
+:class:`BigInt` methods all wrap GMP functions with obviously similar names.
+The :class:`BigInt` methods are locale aware - so Chapel programs can create a
+distributed array of GMP numbers. The method of :class:`BigInt` objects are
+setting the receiver, so e.g. myBigInt.add(x,y) sets myBigInt to ``x + y``.
+
+A code example::
+
+ use GMP;
+
+ var a = new BigInt(); // initialize a GMP value, set it to zero
+
+ a.fac_ui(100); // set a to 100!
+
+ writeln(a); // output 100!
+
+ delete a; // free memory used by the GMP value
+
+ var b = new BigInt("48473822929893829847"); // initialize from a decimal string
+ b.add_ui(b, 1); // add one to b
+
+ delete b; // free memory used by b
+
+Calling GMP functions directly
+------------------------------
+
+The second option for Chapel programs using this module is to call the GMP
+functions directly. For a full reference to GMP capabilities, please refer to
+the `GMP website <http://gmplib.org>`_ and the
+`GMP documentation <https://gmplib.org/manual/>`_.
+
+
+At present, Chapel's GMP module supports the following GMP types:
+
+  * :type:`mp_bitcnt_t`
+  * :type:`mpf_t`
+  * :type:`mpz_t`
+
+And all :type:`mpz_t` GMP routines, as well as the following routines:
+
+  * :proc:`gmp_fprintf()`
+  * :proc:`gmp_printf()`
+  * :proc:`mpf_add()`
+  * :proc:`mpf_clear()`
+  * :proc:`mpf_div_2exp()`
+  * :proc:`mpf_get_d()`
+  * :proc:`mpf_get_prec()`
+  * :proc:`mpf_init()`
+  * :proc:`mpf_mul()`
+  * :proc:`mpf_mul_ui()`
+  * :proc:`mpf_out_str()`
+  * :proc:`mpf_set_d()`
+  * :proc:`mpf_set_default_prec()`
+  * :proc:`mpf_set_prec_raw()`
+  * :proc:`mpf_set_z()`
+  * :proc:`mpf_sub()`
+  * :proc:`mpf_ui_div()`
+  * :proc:`mpf_ui_sub()`
+
+
+ 
+
+.. type:: type mpf_t = 1*(__mpf_struct)
+
+   The GMP ``mpf_t`` type 
+
+.. type:: type mpz_t = 1*(__mpz_struct)
+
+   The GMP ``mpz_t`` type 
+
+.. type:: type gmp_randstate_t = 1*(__gmp_randstate_struct)
+
+   The GMP ``gmp_randstate_t`` type 
+
+.. type:: type mp_bitcnt_t = c_ulong
+
+   The GMP ``mp_bitcnt_t`` type 
+
+.. type:: type mp_size_t = size_t
+
+   The GMP ``mp_size_t`` type 
+
+.. type:: type mp_limb_t = uint(64)
+
+   The GMP ``mp_limb_t`` type 
+
+.. type:: type mp_ptr
+
+   The GMP ``mp_ptr`` type 
+
+.. data:: const mp_bits_per_limb: c_int
+
+   The GMP `mp_bits_per_limb`` constant 
+
+.. function:: proc gmp_randinit_default(ref STATE: gmp_randstate_t)
+
+   
+
+.. function:: proc gmp_randinit_mt(ref STATE: gmp_randstate_t)
+
+.. function:: proc gmp_randinit_lc_2exp(ref STATE: gmp_randstate_t, ref A: mpz_t, C: c_ulong, M2EXP: c_ulong)
+
+.. function:: proc gmp_randinit_lc_2exp_size(ref STATE: gmp_randstate_t, SIZE: c_ulong)
+
+.. function:: proc gmp_randinit_set(ref ROP: gmp_randstate_t, ref OP: gmp_randstate_t)
+
+.. function:: proc gmp_randclear(ref STATE: gmp_randstate_t)
+
+.. function:: proc mpz_init2(ref X: mpz_t, N: c_ulong)
+
+.. function:: proc mpz_init(ref X: mpz_t)
+
+.. function:: proc mpz_clear(ref X: mpz_t)
+
+.. function:: proc mpz_realloc2(ref X: mpz_t, NBITS: c_ulong)
+
+.. function:: proc mpz_set(ref ROP: mpz_t, OP: mpz_t)
+
+.. function:: proc mpz_set_ui(ref ROP: mpz_t, OP: c_ulong)
+
+.. function:: proc mpz_set_si(ref ROP: mpz_t, OP: c_long)
+
+.. function:: proc mpz_set_d(ref ROP: mpz_t, OP: c_double)
+
+.. function:: proc mpz_set_str(ref ROP: mpz_t, STR: c_string, BASE: c_int)
+
+.. function:: proc mpz_swap(ref ROP1: mpz_t, ref ROP2: mpz_t)
+
+.. function:: proc mpz_init_set(ref ROP: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_init_set_ui(ref ROP: mpz_t, OP: c_ulong)
+
+.. function:: proc mpz_init_set_si(ref ROP: mpz_t, OP: c_long)
+
+.. function:: proc mpz_init_set_d(ref ROP: mpz_t, OP: c_double)
+
+.. function:: proc mpz_init_set_str(ref ROP: mpz_t, STR: c_string, BASE: c_int): c_int
+
+.. function:: proc mpz_get_ui(ref OP: mpz_t): c_ulong
+
+.. function:: proc mpz_get_si(ref OP: mpz_t): c_long
+
+.. function:: proc mpz_get_d(ref OP: mpz_t): c_double
+
+.. function:: proc mpz_get_d_2exp(ref exp: c_long, ref OP: mpz_t): c_double
+
+.. function:: proc mpz_get_str(STR: c_string, BASE: c_int, ref OP: mpz_t): c_string
+
+.. function:: proc mpz_add(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_add_ui(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_sub(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_sub_ui(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_ui_sub(ref ROP: mpz_t, OP1: c_ulong, ref OP2: mpz_t)
+
+.. function:: proc mpz_mul(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_mul_si(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_long)
+
+.. function:: proc mpz_mul_ui(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_addmul(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_addmul_ui(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: c_ulong)
+
+.. function:: proc mpz_submul(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_submul_ui(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_mul_2exp(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_neg(ref ROP: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_abs(ref ROP: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_cdiv_q(ref Q: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_fdiv_q(ref Q: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_tdiv_q(ref Q: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_cdiv_r(ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_fdiv_r(ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_tdiv_r(ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_cdiv_qr(ref Q: mpz_t, ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_fdiv_qr(ref Q: mpz_t, ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_tdiv_qr(ref Q: mpz_t, ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_cdiv_q_ui(ref Q: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_fdiv_q_ui(ref Q: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_tdiv_q_ui(ref Q: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_cdiv_r_ui(ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_fdiv_r_ui(ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_tdiv_r_ui(ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_cdiv_qr_ui(ref Q: mpz_t, ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_fdiv_qr_ui(ref Q: mpz_t, ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_tdiv_qr_ui(ref Q: mpz_t, ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_cdiv_ui(ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_fdiv_ui(ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_tdiv_ui(ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_cdiv_q_2exp(ref Q: mpz_t, ref N: mpz_t, B: c_ulong)
+
+.. function:: proc mpz_fdiv_q_2exp(ref Q: mpz_t, ref N: mpz_t, B: c_ulong)
+
+.. function:: proc mpz_tdiv_q_2exp(ref Q: mpz_t, ref N: mpz_t, B: c_ulong)
+
+.. function:: proc mpz_cdiv_r_2exp(ref R: mpz_t, ref N: mpz_t, B: c_ulong)
+
+.. function:: proc mpz_fdiv_r_2exp(ref R: mpz_t, ref N: mpz_t, B: c_ulong)
+
+.. function:: proc mpz_tdiv_r_2exp(ref R: mpz_t, ref N: mpz_t, B: c_ulong)
+
+.. function:: proc mpz_mod(ref R: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_mod_ui(ref R: mpz_t, ref N: mpz_t, D: c_ulong): c_ulong
+
+.. function:: proc mpz_divexact(ref Q: mpz_t, ref N: mpz_t, ref D: mpz_t)
+
+.. function:: proc mpz_divexact_ui(ref Q: mpz_t, ref N: mpz_t, D: c_ulong)
+
+.. function:: proc mpz_divisible_p(ref N: mpz_t, ref D: mpz_t): c_int
+
+.. function:: proc mpz_divisible_ui_p(ref N: mpz_t, D: c_ulong): c_int
+
+.. function:: proc mpz_divisible_2exp_p(ref N: mpz_t, B: c_ulong): c_int
+
+.. function:: proc mpz_conguent_p(ref N: mpz_t, ref C: mpz_t, ref D: mpz_t): c_int
+
+.. function:: proc mpz_congruent_ui_p(ref N: mpz_t, C: c_ulong, D: c_ulong): c_int
+
+.. function:: proc mpz_congruent_2exp_p(ref N: mpz_t, ref C: mpz_t, B: c_int): c_int
+
+.. function:: proc mpz_powm(ref ROP: mpz_t, ref BASE: mpz_t, ref EXP: mpz_t, ref MOD: mpz_t)
+
+.. function:: proc mpz_powm_ui(ref ROP: mpz_t, ref BASE: mpz_t, EXP: c_ulong, ref MOD: mpz_t)
+
+.. function:: proc mpz_pow_ui(ref ROP: mpz_t, ref BASE: mpz_t, EXP: c_ulong)
+
+.. function:: proc mpz_ui_pow_ui(ref ROP: mpz_t, BASE: c_ulong, EXP: c_ulong)
+
+.. function:: proc mpz_root(ref ROP: mpz_t, ref OP: mpz_t, N: c_ulong): c_int
+
+.. function:: proc mpz_rootrem(ref ROOT: mpz_t, ref REM: mpz_t, ref U: mpz_t, N: c_ulong)
+
+.. function:: proc mpz_sqrt(ref ROP: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_sqrtrem(ref ROP1: mpz_t, ref ROP2: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_perfect_power_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_perfect_square_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_probab_prime_p(ref N: mpz_t, REPS: c_int): c_int
+
+.. function:: proc mpz_nextprime(ref ROP: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_gcd(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_gcd_ui(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_gcdext(ref G: mpz_t, ref S: mpz_t, ref T: mpz_t, ref A: mpz_t, ref B: mpz_t)
+
+.. function:: proc mpz_lcm(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_lcm_ui(ref ROP: mpz_t, ref OP1: mpz_t, OP2: c_ulong)
+
+.. function:: proc mpz_invert(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t): c_int
+
+.. function:: proc mpz_jacobi(ref A: mpz_t, ref B: mpz_t): c_int
+
+.. function:: proc mpz_legendre(ref A: mpz_t, ref P: mpz_t): c_int
+
+.. function:: proc mpz_kronecker(ref A: mpz_t, ref B: mpz_t): c_int
+
+.. function:: proc mpz_kronecker_si(ref A: mpz_t, B: c_long): c_int
+
+.. function:: proc mpz_kronecker_ui(ref A: mpz_t, B: c_ulong): c_int
+
+.. function:: proc mpz_si_kronecker(A: c_long, ref B: mpz_t): c_int
+
+.. function:: proc mpz_ui_kronecker(A: c_ulong, ref B: mpz_t): c_int
+
+.. function:: proc mpz_remove(ref ROP: mpz_t, ref OP: mpz_t, ref F: mpz_t): c_ulong
+
+.. function:: proc mpz_fac_ui(ref ROP: mpz_t, OP: c_ulong)
+
+.. function:: proc mpz_bin_ui(ref ROP: mpz_t, N: mpz_t, K: c_ulong)
+
+.. function:: proc mpz_bin_uiui(ref ROP: mpz_t, N: c_ulong, K: c_ulong)
+
+.. function:: proc mpz_fib_ui(ref FN: mpz_t, N: c_ulong)
+
+.. function:: proc mpz_fib2_ui(ref FN: mpz_t, FNSUB1: mpz_t, N: c_ulong)
+
+.. function:: proc mpz_lucnum_ui(ref LN: mpz_t, N: c_ulong)
+
+.. function:: proc mpz_lucnum2_ui(ref LN: mpz_t, LNSUB1: mpz_t, N: c_ulong)
+
+.. function:: proc mpz_cmp(ref OP1: mpz_t, ref OP2: mpz_t): c_int
+
+.. function:: proc mpz_cmp_d(ref OP1: mpz_t, OP2: c_double): c_int
+
+.. function:: proc mpz_cmp_si(ref OP1: mpz_t, OP2: c_long): c_int
+
+.. function:: proc mpz_cmp_ui(ref OP1: mpz_t, OP2: c_ulong): c_int
+
+.. function:: proc mpz_cmpabs(ref OP1: mpz_t, ref OP2: mpz_t): c_int
+
+.. function:: proc mpz_cmpabs_d(ref OP1: mpz_t, OP2: c_double): c_int
+
+.. function:: proc mpz_cmpabs_ui(ref OP1: mpz_t, OP2: c_ulong): c_int
+
+.. function:: proc mpz_sgn(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_and(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_ior(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_xor(ref ROP: mpz_t, ref OP1: mpz_t, ref OP2: mpz_t)
+
+.. function:: proc mpz_com(ref ROP: mpz_t, ref OP: mpz_t)
+
+.. function:: proc mpz_popcount(ref OP: mpz_t): c_ulong
+
+.. function:: proc mpz_hamdist(ref OP1: mpz_t, ref OP2: mpz_t): c_ulong
+
+.. function:: proc mpz_scan0(ref OP: mpz_t, STARTING_BIT: c_ulong): c_ulong
+
+.. function:: proc mpz_scan1(ref OP: mpz_t, STARTING_BIT: c_ulong): c_ulong
+
+.. function:: proc mpz_setbit(ref ROP: mpz_t, BIT_INDEX: c_ulong)
+
+.. function:: proc mpz_clrbit(ref ROP: mpz_t, BIT_INDEX: c_ulong)
+
+.. function:: proc mpz_combit(ref ROP: mpz_t, BIT_INDEX: c_ulong)
+
+.. function:: proc mpz_tstbit(ref OP: mpz_t, BIT_INDEX: c_ulong): c_int
+
+.. function:: proc mpz_urandomb(ref ROP: mpz_t, STATE: gmp_randstate_t, N: c_ulong)
+
+.. function:: proc mpz_urandomm(ref ROP: mpz_t, STATE: gmp_randstate_t, N: mpz_t)
+
+.. function:: proc mpz_rrandomb(ref ROP: mpz_t, STATE: gmp_randstate_t, N: c_ulong)
+
+.. function:: proc gmp_randseed(ref STATE: gmp_randstate_t, SEED: mpz_t)
+
+.. function:: proc gmp_randseed_ui(ref STATE: gmp_randstate_t, SEED: c_ulong)
+
+.. function:: proc gmp_urandomb_ui(ref STATE: gmp_randstate_t, N: c_ulong): c_ulong
+
+.. function:: proc gmp_urandomm_ui(ref STATE: gmp_randstate_t, N: c_ulong): c_ulong
+
+.. function:: proc mpz_fits_ulong_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_fits_slong_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_fits_uint_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_fits_sint_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_fits_ushort_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_fits_sshort_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_odd_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_even_p(ref OP: mpz_t): c_int
+
+.. function:: proc mpz_sizeinbase(ref OP: mpz_t, BASE: c_int): size_t
+
+.. function:: proc mpf_set_default_prec(PREC: mp_bitcnt_t)
+
+.. function:: proc mpz_addmul_ui(ref ROP: mpz_t, ref OP1: mpz_t, OPT2: c_ulong)
+
+.. function:: proc mpf_init(ref X: mpf_t)
+
+.. function:: proc mpf_set_z(ref ROP: mpf_t, ref OP: mpz_t)
+
+.. function:: proc mpf_get_prec(ref OP: mpf_t): mp_bitcnt_t
+
+.. function:: proc mpf_get_d(ref OP: mpf_t): c_double
+
+.. function:: proc mpf_set_d(ref ROP: mpf_t, OP: c_double)
+
+.. function:: proc mpf_set_prec_raw(ref ROP: mpf_t, PREC: mp_bitcnt_t)
+
+.. function:: proc mpf_ui_div(ref ROP: mpf_t, OP1: c_ulong, ref OP2: mpf_t)
+
+.. function:: proc mpf_mul(ref ROP: mpf_t, ref OP1: mpf_t, ref OP2: mpf_t)
+
+.. function:: proc mpf_ui_sub(ref ROP: mpf_t, OP1: c_ulong, ref OP2: mpf_t)
+
+.. function:: proc mpf_add(ref ROP: mpf_t, ref OP1: mpf_t, ref OP2: mpf_t)
+
+.. function:: proc mpf_sub(ref ROP: mpf_t, ref OP1: mpf_t, ref OP2: mpf_t)
+
+.. function:: proc mpf_mul_ui(ref ROP: mpf_t, ref OP1: mpf_t, OP2: c_ulong)
+
+.. function:: proc mpf_div_2exp(ref ROP: mpf_t, ref OP1: mpf_t, OP2: mp_bitcnt_t)
+
+.. function:: proc mpf_out_str(STREAM: _file, BASE: c_int, N_DIGITS: size_t, ref OP: mpf_t)
+
+.. function:: proc mpf_clear(ref X: mpf_t)
+
+.. function:: proc gmp_printf(fmt: c_string, arg ...)
+
+.. function:: proc gmp_fprintf(fp: _file, fmt: c_string, arg ...)
+
+.. function:: proc gmp_fprintf(fp: _file, fmt: c_string, arg ...)
+
+.. function:: proc gmp_asprintf(ref ret: c_string, fmt: c_string, arg ...)
+
+.. function:: proc chpl_gmp_get_randstate(not_inited_state: gmp_randstate_t, src_locale: int, from: __gmp_randstate_struct)
+
+   Get a randstate value stored on another locale 
+
+.. function:: proc chpl_gmp_mpz_nlimbs(from: __mpz_struct): uint(64)
+
+   Return the number of limbs in an __mpz_struct 
+
+.. function:: proc chpl_gmp_mpz_print(x: mpz_t)
+
+   Print out an mpz_t (for debugging) 
+
+.. function:: proc chpl_gmp_mpz_get_str(base: c_int, x: mpz_t): c_string_copy
+
+   Get an mpz_t as a string 
+
+.. enum:: enum Round { UP, DOWN, ZERO }
+
+.. class:: BigInt
+
+   
+   The BigInt class provides a more Chapel-friendly interface to the
+   GMP integer functions. In particular, this class supports GMP
+   numbers that are stored in distributed arrays.
+   
+   All methods on BigInt work with Chapel types. Many of them use the gmp
+   functions directly, which use C types. Runtime checks are used to ensure the
+   Chapel types can safely be cast to the C types (e.g. when casting a Chapel
+   uint it checks that it fits in the C ulong which could be a 32bit type if
+   running on linux32 platform).
+   
+   The checks are controlled by the compiler options ``--[no-]cast-checks``,
+   ``--fast``, etc.
+   
+   TODO: When a Chapel will not safely cast to a C type, it would be better to
+   promte the Chapel value to a BigInt, then run the operation on that
+   BigInt. This would make the BigInt interface consistent across all
+   platforms (already true today) _and_ always work regardless of platform
+   (not true today).
+   
+
+
+   .. attribute:: var mpz: mpz_t
+
+   .. method:: proc BigInt(init2: bool, nbits: uint)
+
+   .. method:: proc BigInt(num: int)
+
+   .. method:: proc BigInt(str: string, base: int = 0)
+
+   .. method:: proc BigInt(str: string, base: int = 0, out error: syserr)
+
+   .. method:: proc BigInt(num: BigInt)
+
+   .. method:: proc BigInt()
+
+   .. method:: proc BigInt.~BigInt()
+
+   .. method:: proc numLimbs: uint(64)
+
+   .. method:: proc mpzStruct(): __mpz_struct
+
+   .. method:: proc maybeCopy(): (bool, BigInt)
+
+   .. method:: proc set(a: BigInt)
+
+   .. method:: proc set_ui(num: uint)
+
+   .. method:: proc set_si(num: int)
+
+   .. method:: proc set(num: int)
+
+   .. method:: proc set_d(num: real)
+
+   .. method:: proc set_str(str: string, base: int = 0)
+
+   .. method:: proc swap(a: BigInt)
+
+   .. method:: proc get_ui(): uint
+
+   .. method:: proc get_si(): int
+
+   .. method:: proc get_d(): real
+
+   .. method:: proc get_d_2exp(): (int, real)
+
+   .. method:: proc get_str(base: int = 10): string
+
+   .. method:: proc add(a: BigInt, b: BigInt)
+
+   .. method:: proc add_ui(a: BigInt, b: uint)
+
+   .. method:: proc sub(a: BigInt, b: BigInt)
+
+   .. method:: proc sub_ui(a: BigInt, b: uint)
+
+   .. method:: proc ui_sub(a: uint, b: BigInt)
+
+   .. method:: proc mul(a: BigInt, b: BigInt)
+
+   .. method:: proc mul_si(a: BigInt, b: int)
+
+   .. method:: proc mul_ui(a: BigInt, b: uint)
+
+   .. method:: proc addmul(a: BigInt, b: BigInt)
+
+   .. method:: proc addmul_ui(a: BigInt, b: uint)
+
+   .. method:: proc submul(a: BigInt, b: BigInt)
+
+   .. method:: proc submul_ui(a: BigInt, b: uint)
+
+   .. method:: proc mul_2exp(a: BigInt, b: uint)
+
+   .. method:: proc neg(a: BigInt)
+
+   .. method:: proc abs(a: BigInt)
+
+   .. method:: proc div_q(param rounding: Round, n: BigInt, d: BigInt)
+
+   .. method:: proc div_r(param rounding: Round, n: BigInt, d: BigInt)
+
+   .. method:: proc div_qr(param rounding: Round, r: BigInt, n: BigInt, d: BigInt)
+
+   .. method:: proc div_q_ui(param rounding: Round, n: BigInt, d: uint): uint
+
+   .. method:: proc div_r_ui(param rounding: Round, n: BigInt, d: uint): uint
+
+   .. method:: proc div_qr_ui(param rounding: Round, r: BigInt, n: BigInt, d: uint): uint
+
+   .. method:: proc div_ui(param rounding: Round, n: BigInt, d: uint): uint
+
+   .. method:: proc div_q_2exp(param rounding: Round, n: BigInt, b: uint)
+
+   .. method:: proc div_r_2exp(param rounding: Round, n: BigInt, b: uint)
+
+   .. method:: proc mod(n: BigInt, d: BigInt)
+
+   .. method:: proc mod_ui(n: BigInt, d: uint): uint
+
+   .. method:: proc divexact(n: BigInt, d: BigInt)
+
+   .. method:: proc divexact_ui(n: BigInt, d: uint)
+
+   .. method:: proc divisible_p(d: BigInt): int
+
+   .. method:: proc divisible_ui_p(d: uint): int
+
+   .. method:: proc divisible_2exp_p(b: uint): int
+
+   .. method:: proc congruent_p(c: BigInt, d: BigInt): int
+
+   .. method:: proc congruent_ui_p(c: uint, d: uint): int
+
+   .. method:: proc congruent_2exp_p(c: BigInt, b: uint): int
+
+   .. method:: proc powm(base: BigInt, exp: BigInt, mod: BigInt)
+
+   .. method:: proc powm_ui(base: BigInt, exp: uint, mod: BigInt)
+
+   .. method:: proc pow_ui(base: BigInt, exp: uint)
+
+   .. method:: proc ui_pow_ui(base: uint, exp: uint)
+
+   .. method:: proc root(a: BigInt, n: uint): int
+
+   .. method:: proc mpz_rootrem(rem: BigInt, u: BigInt, n: uint)
+
+   .. method:: proc sqrt(a: BigInt)
+
+   .. method:: proc sqrtrem(rem: BigInt, a: BigInt)
+
+   .. method:: proc perfect_power_p(): int
+
+   .. method:: proc perfect_square(): int
+
+   .. method:: proc probab_prime_p(reps: int): int
+
+   .. method:: proc nextprime(a: BigInt)
+
+   .. method:: proc gcd(a: BigInt, b: BigInt)
+
+   .. method:: proc gcd_ui(a: BigInt, b: uint)
+
+   .. method:: proc gcdext(s: BigInt, t: BigInt, a: BigInt, b: BigInt)
+
+   .. method:: proc lcm(a: BigInt, b: BigInt)
+
+   .. method:: proc lcm_ui(a: BigInt, b: uint)
+
+   .. method:: proc invert(a: BigInt, b: BigInt): int
+
+   .. method:: proc remove(a: BigInt, f: BigInt): uint
+
+   .. method:: proc fac_ui(a: uint)
+
+   .. method:: proc bin_ui(n: BigInt, k: uint)
+
+   .. method:: proc bin_uiui(n: uint, k: uint)
+
+   .. method:: proc fib_ui(n: uint)
+
+   .. method:: proc fib2_ui(fnsub1: BigInt, n: uint)
+
+   .. method:: proc lucnum_ui(n: uint)
+
+   .. method:: proc lucnum2_ui(lnsub1: BigInt, n: uint)
+
+   .. method:: proc cmp(b: BigInt): int
+
+   .. method:: proc cmp_d(b: real): int
+
+   .. method:: proc cmp_si(b: int): int
+
+   .. method:: proc cmp_ui(b: uint): int
+
+   .. method:: proc cmpabs(b: BigInt): int
+
+   .. method:: proc cmpabs_d(b: real): int
+
+   .. method:: proc cmp_abs_ui(b: uint): int
+
+   .. method:: proc sgn(): int
+
+   .. method:: proc and(a: BigInt, b: BigInt)
+
+   .. method:: proc ior(a: BigInt, b: BigInt)
+
+   .. method:: proc xor(a: BigInt, b: BigInt)
+
+   .. method:: proc com(a: BigInt)
+
+   .. method:: proc popcount(): uint
+
+   .. method:: proc hamdist(b: BigInt): uint
+
+   .. method:: proc scan0(starting_bit: uint): uint
+
+   .. method:: proc scan1(starting_bit: uint): uint
+
+   .. method:: proc setbit(bit_index: uint)
+
+   .. method:: proc clrbit(bit_index: uint)
+
+   .. method:: proc combit(bit_index: uint)
+
+   .. method:: proc tstbit(bit_index: uint): int
+
+   .. method:: proc fits_ulong_p(): int
+
+   .. method:: proc fits_slong_p(): int
+
+   .. method:: proc fits_uint_p(): int
+
+   .. method:: proc fits_sint_p(): int
+
+   .. method:: proc fits_ushort_p(): int
+
+   .. method:: proc fits_sshort_p(): int
+
+   .. method:: proc odd_p(): int
+
+   .. method:: proc even_p(): int
+
+   .. method:: proc sizeinbase(base: int): uint
+
+   .. method:: proc realloc2(nbits: uint)
+
+   .. method:: proc get_limbn(n: uint): uint
+
+   .. method:: proc size(): size_t
+
+   .. method:: proc debugprint()
+
+.. method:: proc BigInt.writeThis(writer: Writer)
+
+.. function:: proc jacobi(a: BigInt, b: BigInt): int
+
+.. function:: proc legendre(a: BigInt, p: BigInt): int
+
+.. function:: proc kronecker(a: BigInt, b: BigInt): int
+
+.. function:: proc kronecker_si(a: BigInt, b: int): int
+
+.. function:: proc kronecker_ui(a: BigInt, b: uint): int
+
+.. function:: proc si_kronecker(a: int, b: BigInt): int
+
+.. function:: proc ui_kronecker(a: uint, b: BigInt): int
+
+.. class:: GMPRandom
+
+   .. attribute:: var state: gmp_randstate_t
+
+   .. method:: proc GMPRandom()
+
+   .. method:: proc GMPRandom(twister: bool)
+
+   .. method:: proc GMPRandom(a: BigInt, c: uint, m2exp: uint)
+
+   .. method:: proc GMPRandom(size: uint)
+
+   .. method:: proc GMPRandom(a: GMPRandom)
+
+   .. method:: proc GMPRandom.~GMPRandom()
+
+   .. method:: proc seed(seed: BigInt)
+
+   .. method:: proc seed(seed: uint)
+
+   .. method:: proc urandomb_ui(nbits: uint): uint
+
+   .. method:: proc urandomm_ui(n: uint): uint
+
+   .. method:: proc urandomb(r: BigInt, nbits: uint)
+
+   .. method:: proc urandomm(r: BigInt, n: BigInt)
+
+   .. method:: proc rrandomb(r: BigInt, nbits: uint)
+

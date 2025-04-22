@@ -1,0 +1,210 @@
+.. default-domain:: chpl
+
+.. module:: CyclicDist
+   :synopsis: Support for round-robin distribution of domains/arrays to target locales. 
+
+CyclicDist
+==========
+**Usage**
+
+.. code-block:: chapel
+
+   use CyclicDist;
+
+
+or
+
+.. code-block:: chapel
+
+   import CyclicDist;
+.. record:: cyclicDist : writeSerializable
+
+   
+   
+   The ``cyclicDist`` distribution uses a round-robin partitioning to map
+   d-dimensional indices to a d-dimensional array of locales, starting
+   from a given index.
+   
+   .. Warning::
+   
+     The ``cyclicDist`` distribution was, until recently, a class named
+     ``Cyclic``.  Today, ``Cyclic`` is still supported in a deprecated
+     form, yet is an alias to the ``cyclicDist`` record here.  In our
+     experience, most uses of ``Cyclic`` in distribution contexts should
+     continue to work, but updating to ``cyclicDist`` is requested going
+     forward due to the deprecation.
+   
+   More precisely, for a ``cyclicDist`` distribution with:
+   
+     =============  ====================================================
+     rank           ``d``
+     start index    ``(s_1, ...., s_d)``
+     over locales   ``targetLocales: [0..<N_1, ...., 0..<N_d] locale``
+     =============  ====================================================
+   
+   Each index ``(i_1, ...., i_d)``
+   is mapped to the locale ``targetLocales[j_1, ...., j_d]``
+   where, for each ``k`` in ``1..d``,
+   we have:
+   
+     ``j_k = (i_k - s_k) (mod N_k)``
+   
+   
+   **Example**
+   
+   The following code declares a domain ``D`` distributed
+   using a ``cyclicDist`` distribution with a start index of ``(1,1)``,
+   and declares an array ``A`` over that domain.
+   The `forall` loop sets each array element
+   to the ID of the locale to which it is mapped.
+   
+     .. code-block:: chapel
+   
+       use CyclicDist;
+   
+       const Dist = new cyclicDist(startIdx=(1,1));
+       const D = Dist.createDomain({1..8, 1..8});
+       var A: [D] int;
+   
+       forall a in A do
+         a = here.id;
+   
+       writeln(A);
+   
+   When run on 6 locales, the output is:
+   
+     ::
+   
+       0 1 0 1 0 1 0 1
+       2 3 2 3 2 3 2 3
+       4 5 4 5 4 5 4 5
+       0 1 0 1 0 1 0 1
+       2 3 2 3 2 3 2 3
+       4 5 4 5 4 5 4 5
+       0 1 0 1 0 1 0 1
+       2 3 2 3 2 3 2 3
+   
+   
+   **Data-Parallel Iteration**
+   
+   As demonstrated by the above example, a `forall` loop over a
+   ``cyclicDist``-distributed domain or array executes each iteration on
+   the locale owning the index in question.
+   
+   By default, parallelism within each locale is applied to that locale's
+   local, strided block of indices by creating a task for each available
+   processor core (or the number of local indices if it is less than the
+   number of cores). The local domain indices are then statically divided
+   as evenly as possible between those tasks.
+   
+   **Initializer Arguments**
+   
+   The ``cyclicDist`` initializer is defined as follows:
+   
+     .. code-block:: chapel
+   
+       proc cyclicDist.init(
+         startIdx,
+         targetLocales: [] locale = Locales)
+   
+   The argument ``startIdx`` is a tuple of integers defining an index that
+   will be distributed to the first locale in ``targetLocales``.
+   In the 1-dimensional case, ``startIdx`` can be an integer
+   or a tuple with a single element.
+   
+   The argument ``targetLocales`` is an array containing the target
+   locales to which this distribution maps indices and data.
+   The rank of ``targetLocales`` must match the rank of the distribution,
+   or be ``1``.  If the rank of ``targetLocales`` is ``1``, a greedy
+   heuristic is used to reshape the array of target locales so that it
+   matches the rank of the distribution and each dimension contains an
+   approximately equal number of indices.
+   
+   **Convenience Factory Methods**
+   
+   It is common for a ``cyclicDist``-distributed domain or array to use
+   its first index as the start Index in a Cyclic distribution.  It is
+   also common not to override any of the other defaulted initializer
+   arguments.  In such cases, factory methods are provided for
+   convenience.
+   
+   These methods take a domain or series of ranges as arguments and
+   return a cyclic-distributed domain or array.  For example, the
+   following declarations create new ``5 x 5`` cyclic-distributed domains
+   and arrays using `(1, 1)` as the starting index:
+   
+     .. code-block:: chapel
+   
+       use CyclicDist;
+   
+       var CyclicDom1 = cyclicDist.createDomain({1..5, 1..5});
+       var CyclicArr1 = cyclicDist.createArray({1..5, 1..5}, real);
+       var CyclicDom2 = cyclicDist.createDomain(1..5, 1..5);
+       var CyclicArr2 = cyclicDist.createArray(1..5, 1..5, real);
+   
+   The helper methods on ``Cyclic`` have the following signatures:
+   
+     .. function:: proc type cyclicDist.createDomain(dom: domain(?), targetLocales = Locales)
+   
+       Create a cyclic-distributed domain. The lower bounds of the domain are used
+       as the starting indices.
+   
+     .. function:: proc type cyclicDist.createDomain(rng: range(?)..., targetLocales = Locales)
+   
+       Create a cyclic-distributed domain from a series of ranges. The lower
+       bounds of the ranges are used as the starting indices.
+   
+     .. function:: proc type cyclicDist.createArray(dom: domain(?), type eltType, targetLocales = Locales)
+   
+       Create a default-initialized cyclic-distributed array whose indices
+       match those of the given domain.
+   
+     .. function:: proc type cyclicDist.createArray(rng: range(?)..., type eltType, targetLocales = Locales)
+   
+       Create a default-initialized cyclic-distributed array using a
+       domain constructed from the series of ranges.
+   
+     .. function:: proc type cyclicDist.createArray(dom: domain(?), type eltType, initExpr, targetLocales = Locales)
+   
+       Create a cyclic-distributed array whose indices match those of the
+       given domain.
+   
+       The array's values are initialized using ``initExpr`` which can be any of
+       the following:
+   
+       * a value coercible to ``eltType`` — all elements of the array will be
+         assigned with this value
+       * an iterator expression with compatible size and type — the array elements
+         will be initialized with the values yielded by the iterator
+       * an array of compatible size and type — the array will be assigned into
+         the distributed array
+   
+     .. function:: proc type cyclicDist.createArray(rng: range(?)..., type eltType, initExpr, targetLocales = Locales)
+   
+       Create a cyclic-distributed array using a domain constructed from
+       the series of ranges.
+   
+       The array's values are initialized using ``initExpr`` which can be any of
+       the following:
+   
+       * a value coercible to ``eltType`` — all elements of the array will be
+         assigned with this value
+       * an iterator expression with compatible size and type — the array elements
+         will be initialized with the values yielded by the iterator
+       * an array of compatible size and type — the array will be assigned into
+         the distributed array
+   
+     .. function:: proc cyclicDist.createDomain(dom: domain(?))
+   
+       Create a cyclic-distributed domain over an existing ``cyclicDist`` by copying
+       the index space from the passed domain.
+   
+     .. function:: proc cyclicDist.createDomain(rng: range(?)...)
+   
+       Create a cyclic-distributed domain from a series of ranges over an existing
+       ``cyclicDist``.
+   
+   **Limitations**
+   
+   This distribution has not been tuned for performance.
+

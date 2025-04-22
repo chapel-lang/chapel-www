@@ -1,0 +1,212 @@
+.. default-domain:: chpl
+
+.. module:: Heap
+   :synopsis: This module contains the implementation of a 'heap' type.
+
+Heap
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use Heap;
+
+
+or
+
+.. code-block:: chapel
+
+   import Heap;
+
+
+This module contains the implementation of a 'heap' type.
+
+A heap is a specialized tree-based data structure
+that supports extracting the maximal or the minimal element quickly,
+which can serve as a priority queue.
+
+* Both `push` and `pop` operations are O(lgN).
+* Querying the top element is O(1).
+* Initialization from an array is O(N).
+
+The heap accepts a :ref:`comparator <comparators>` to determine how
+elements are compared. The default comparator is `defaultComparator` and makes
+a max-heap. In this case, ``top`` will return the greatest element in the
+heap.
+
+If a ``reverseComparator`` is passed to ``init``,
+``top`` will return the minimal element.
+
+
+.. warning::
+
+   The 'Heap' module is unstable
+
+.. record:: heap : writeSerializable
+
+   .. attribute:: type eltType
+
+      The type of the elements contained in this heap. 
+
+   .. attribute:: param parSafe = false
+
+      If `true`, this heap will perform parallel safe operations. 
+
+   .. attribute:: var comparator: record
+
+      
+      Comparator record that defines how the
+      data is compared. The greatest element will be on the top.
+      
+
+   .. method:: proc init(type eltType, param parSafe = false, comparator: record = defaultComparator)
+
+      
+      Initializes an empty heap.
+      
+      :arg eltType: The type of the elements
+      
+      :arg comparator: The comparator to use
+      
+      :arg parSafe: If `true`, this heap will use parallel safe operations.
+      :type parSafe: `param bool`
+      
+
+   .. method:: proc init=(other: heap(this.type.eltType))
+
+      
+      Initializes a heap containing elements that are copy initialized from
+      the elements contained in another heap.
+      
+      :arg other: The heap to initialize from.
+      
+
+   .. method:: proc size: int
+
+      
+      Return the size of the heap.
+      
+      :return: The size of the heap
+      :rtype: int
+      
+
+   .. method:: proc isEmpty(): bool
+
+      
+      Returns `true` if the heap is empty (has size == 0), `false` otherwise
+      
+      :return: `true` if this heap is empty.
+      :rtype: `bool`
+      
+
+   .. method:: proc top()
+
+      
+      Return the top element in the heap.
+      
+      :return: The top element in the heap
+      :rtype: `eltType`
+      
+      
+
+   .. method:: proc ref push(in element: eltType)
+
+      
+      Push an element into the heap.
+      
+      :arg element: The element to push
+      :type element: `eltType`
+      
+
+   .. method:: proc push(const ref x: list(eltType))
+
+      
+      Push elements of a list into the heap.
+      
+      :arg x: The list of elements to push
+      :type x: `list(eltType)`
+      
+
+   .. method:: proc push(const ref x: [?d] eltType)
+
+      
+      Push elements in an array into a heap.
+      
+      :arg x: The array of elements to push
+      :type x: `[?d] eltType`
+      
+
+   .. method:: proc ref pop(): eltType
+
+      
+      Pop an element and return it.
+      
+      :return: the top element
+      :rtype: eltType
+      
+
+   .. itermethod:: iter these() ref
+
+      
+      Iterate over the elements of this heap in an arbitrary order.
+      
+
+   .. itermethod:: iter consume()
+
+      
+      Iterate over the elements of this heap in order,
+      while removing the yielded elements.
+      
+
+   .. method:: proc toArray(): [] eltType
+
+      
+      Returns a new array containing a copy of each of the
+      elements contained in this heap in arbitrary order.
+      
+      :return: A new array.
+      
+
+   .. method:: proc writeThis(ch: fileWriter) throws
+
+      
+      Write the contents of this heap to a channel in arbitrary order.
+      
+      :arg ch: A channel to write to.
+      
+
+.. method:: operator heap. = (ref lhs: heap(?t, ?), ref rhs: heap(t, ?))
+
+   
+   Copy elements to this heap from another heap.
+   
+   :arg lhs: The heap to assign to.
+   :arg rhs: The heap to assign from.
+   
+
+.. function:: proc createHeap(const ref x: list(?t), param parSafe: bool = false, comparator = defaultComparator)
+
+   
+   Create a heap from a list.
+   
+   :arg x: The list to initialize the heap from.
+   :type x: `list(?t)`
+   
+   :arg comparator: The comparator to use
+   
+   :rtype: heap(t, comparator)
+   
+
+.. function:: proc createHeap(const ref x: [?d] ?t, param parSafe: bool = false, comparator = defaultComparator)
+
+   
+   Create a heap from an array.
+   
+   :arg x: The array to initialize the heap from.
+   :type x: `[?d] ?t`
+   
+   :arg comparator: The comparator to use
+   
+   :rtype: heap(t, comparator)
+   
+

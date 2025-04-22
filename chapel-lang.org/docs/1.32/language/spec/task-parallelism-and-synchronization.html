@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Parallelism and Synchronization &mdash; Chapel Documentation 1.32</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Data Parallelism" href="data-parallelism.html" />
+    <link rel="prev" title="Generics" href="generics.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.32
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.32";
+$pagename = "language/spec/task-parallelism-and-synchronization";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Specification</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#introductory-material">Introductory Material</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#code-structures">Code Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#composite-types">Composite Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#generic-programming">Generic Programming</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#parallel-programming">Parallel Programming</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Task Parallelism and Synchronization</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#tasks-and-task-parallelism">Tasks and Task Parallelism</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-begin-statement">The Begin Statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#synchronization-variables">Synchronization Variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#functions-on-atomic-variables">Atomic Variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-cobegin-statement">The Cobegin Statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-coforall-loop">The Coforall Loop</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#task-intents">Task Intents</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-sync-statement">The Sync Statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-serial-statement">The Serial Statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#yielding-task-execution">Yielding Task Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="data-parallelism.html">Data Parallelism</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#distributed-programming">Distributed Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#additional-topics">Additional Topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#appendices">Appendices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Chapel Language Specification</a> &raquo;</li>
+      <li>Task Parallelism and Synchronization</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/language/spec/task-parallelism-and-synchronization.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="task-parallelism-and-synchronization">
+<span id="chapter-task-parallelism-and-synchronization"></span><h1>Task Parallelism and Synchronization<a class="headerlink" href="#task-parallelism-and-synchronization" title="Permalink to this headline">¶</a></h1>
+<p>Chapel supports both task parallelism and data parallelism. This chapter
+details task parallelism as follows:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#task-parallelism"><span class="std std-ref">Tasks and Task Parallelism</span></a> introduces tasks and task
+parallelism.</p></li>
+<li><p><a class="reference internal" href="#begin"><span class="std std-ref">The Begin Statement</span></a> describes the begin statement, an unstructured
+way to introduce concurrency into a program.</p></li>
+<li><p><a class="reference internal" href="#synchronization-variables"><span class="std std-ref">Synchronization Variables</span></a> describes synchronization
+variables, an unstructured mechanism for synchronizing tasks.</p></li>
+<li><p><a class="reference internal" href="#atomic-variables"><span class="std std-ref">Atomic Variables</span></a> describes atomic variables, a
+mechanism for supporting atomic operations.</p></li>
+<li><p><a class="reference internal" href="#cobegin"><span class="std std-ref">The Cobegin Statement</span></a> describes the cobegin statement, a structured
+way to introduce concurrency into a program.</p></li>
+<li><p><a class="reference internal" href="#coforall"><span class="std std-ref">The Coforall Loop</span></a> describes the coforall loop, another
+structured way to introduce concurrency into a program.</p></li>
+<li><p><a class="reference internal" href="#task-intents"><span class="std std-ref">Task Intents</span></a> specifies how variables from outer scopes
+are handled within <code class="docutils literal notranslate"><span class="pre">begin</span></code>, <code class="docutils literal notranslate"><span class="pre">cobegin</span></code> and <code class="docutils literal notranslate"><span class="pre">coforall</span></code>
+statements.
+<a class="reference internal" href="data-parallelism.html#task-private-variables"><span class="std std-ref">Task-Private Variables</span></a> are also available.</p></li>
+<li><p><a class="reference internal" href="#sync-statement"><span class="std std-ref">The Sync Statement</span></a> describes the sync statement, a
+structured way to control parallelism.</p></li>
+<li><p><a class="reference internal" href="#serial"><span class="std std-ref">The Serial Statement</span></a> describes the serial statement, a structured
+way to suppress parallelism.</p></li>
+<li><dl class="simple">
+<dt><a class="reference internal" href="#yield-task-execution"><span class="std std-ref">Yielding Task Execution</span></a> describes yielding the current tasks</dt><dd><p>execution.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<div class="section" id="tasks-and-task-parallelism">
+<span id="task-parallelism"></span><h2>Tasks and Task Parallelism<a class="headerlink" href="#tasks-and-task-parallelism" title="Permalink to this headline">¶</a></h2>
+<p>A Chapel <em>task</em> is a distinct context of execution that may be running
+concurrently with other tasks. Chapel provides a simple construct, the
+<code class="docutils literal notranslate"><span class="pre">begin</span></code> statement, to create tasks, introducing concurrency into a
+program in an unstructured way. In addition, Chapel introduces the type
+qualifier <code class="docutils literal notranslate"><span class="pre">sync</span></code> for synchronization between tasks.</p>
+<p>Chapel provides two constructs, the <code class="docutils literal notranslate"><span class="pre">cobegin</span></code> and <code class="docutils literal notranslate"><span class="pre">coforall</span></code>
+statements, to introduce concurrency in a more structured way. These
+constructs create multiple tasks but do not continue until these tasks
+have completed. In addition, Chapel provides two constructs, the
+<code class="docutils literal notranslate"><span class="pre">sync</span></code> and <code class="docutils literal notranslate"><span class="pre">serial</span></code> statements, to insert synchronization and
+suppress parallelism. All four of these constructs can be implemented
+through judicious uses of the unstructured task-parallel constructs
+described in the previous paragraph.</p>
+<p>Tasks are considered to be created when execution reaches the start of a
+<code class="docutils literal notranslate"><span class="pre">begin</span></code>, <code class="docutils literal notranslate"><span class="pre">cobegin</span></code>, or <code class="docutils literal notranslate"><span class="pre">coforall</span></code> statement. When the tasks are
+actually executed depends on the Chapel implementation and run-time
+execution state.</p>
+<p>A task is represented as a call to a <em>task function</em>, whose body
+contains the Chapel code for the task. Variables defined in outer scopes
+are considered to be passed into a task function by default intent,
+unless a different <em>task intent</em> is specified explicitly by a
+<code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code>.</p>
+<p>Accesses to the same variable from different tasks are subject to the
+Memory Consistency Model
+(<a class="reference internal" href="memory-consistency-model.html#chapter-memory-consistency-model"><span class="std std-ref">Memory Consistency Model</span></a>). Such
+accesses can result from aliasing due to <code class="docutils literal notranslate"><span class="pre">ref</span></code> argument intents or
+task intents, among others.</p>
+</div>
+<div class="section" id="the-begin-statement">
+<span id="begin"></span><h2>The Begin Statement<a class="headerlink" href="#the-begin-statement" title="Permalink to this headline">¶</a></h2>
+<p>The begin statement creates a task to execute a statement. The syntax
+for the begin statement is given by</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>begin-statement:
+  &#39;begin&#39; task-intent-clause[OPT] statement
+</pre></div>
+</div>
+<p>Control continues concurrently with the statement following the begin
+statement.</p>
+<blockquote>
+<div><p><em>Example (beginUnordered.chpl)</em>.</p>
+<p>The code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">begin</span> <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;output from spawned task&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;output from main task&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>executes two <code class="docutils literal notranslate"><span class="pre">writeln</span></code> statements that output the strings to the
+terminal, but the ordering is purposely unspecified. There is no
+guarantee as to which statement will execute first. When the begin
+statement is executed, a new task is created that will execute the
+<code class="docutils literal notranslate"><span class="pre">writeln</span></code> statement within it. However, execution will continue
+immediately after task creation with the next statement.</p>
+</div></blockquote>
+<p>A begin statement creates a single task function, whose body is the body
+of the begin statement. The handling of the outer variables within the
+task function and the role of <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code> are defined in
+<a class="reference internal" href="#task-intents"><span class="std std-ref">Task Intents</span></a>.</p>
+<p>Yield and return statements are not allowed in begin blocks. Break and
+continue statements may not be used to exit a begin block.</p>
+</div>
+<div class="section" id="synchronization-variables">
+<span id="id1"></span><h2>Synchronization Variables<a class="headerlink" href="#synchronization-variables" title="Permalink to this headline">¶</a></h2>
+<p>Synchronization variables have a logical state associated with the
+value. The state of the variable is either <em>full</em> or <em>empty</em>. Normal
+reads of a synchronization variable cannot proceed until the variable’s
+state is full. Normal writes of a synchronization variable cannot
+proceed until the variable’s state is empty.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">sync</span></code> type qualifier precedes the type of the variable’s value in
+the declaration. <code class="docutils literal notranslate"><span class="pre">sync</span></code> is supported for the primitive types
+<code class="docutils literal notranslate"><span class="pre">nothing</span></code>, <code class="docutils literal notranslate"><span class="pre">bool</span></code>, <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span></code>, <code class="docutils literal notranslate"><span class="pre">real</span></code>, <code class="docutils literal notranslate"><span class="pre">imag</span></code>,
+<code class="docutils literal notranslate"><span class="pre">complex</span></code>, <code class="docutils literal notranslate"><span class="pre">range</span></code>, <code class="docutils literal notranslate"><span class="pre">bytes</span></code>, and <code class="docutils literal notranslate"><span class="pre">string</span></code>
+( <a class="reference internal" href="types.html#primitive-types"><span class="std std-ref">Primitive Types</span></a>); for enumerated types
+( <a class="reference internal" href="types.html#enumerated-types"><span class="std std-ref">Enumerated Types</span></a>); and for class types (<a class="reference internal" href="classes.html#class-types"><span class="std std-ref">Class Types</span></a>) and
+record types (<a class="reference internal" href="records.html#record-types"><span class="std std-ref">Record Types</span></a>). For sync variables of class type,
+the full/empty state applies to the reference to the class object, not
+to its member fields.</p>
+<p>If a task attempts to read or write a synchronization variable that is
+not in the correct state, the task is suspended. When the variable
+transitions to the correct state, the task is resumed. If there are
+multiple tasks blocked waiting for the state transition one task is
+non-deterministically selected to proceed and the others continue to
+wait.</p>
+<p>A synchronization variable is specified with a <code class="docutils literal notranslate"><span class="pre">sync</span></code> type given by
+the following syntax:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>sync-type:
+  &#39;sync&#39; type-expression
+</pre></div>
+</div>
+<p>A default-initialized synchronization variable will be empty. A
+synchronization variable initialized from another expression will be
+full and store the value from that expression.</p>
+<blockquote>
+<div><p><em>Example (beginWithSyncVar.chpl)</em>.</p>
+<p>The code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Tree</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">isLeaf</span><span class="p">:</span> <span class="kt">bool</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">:</span> <span class="k">unmanaged</span> <span class="nx">Tree</span><span class="p">?;</span>
+  <span class="kd">var</span> <span class="nx">value</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">sum</span><span class="p">():</span><span class="kt">int</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">isLeaf</span><span class="p">)</span> <span class="k">then</span>
+       <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+
+    <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">int</span><span class="p">;</span>
+    <span class="k">begin</span> <span class="nx">x</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="nx">left</span><span class="o">!</span><span class="p">.</span><span class="nx">sum</span><span class="p">());</span>
+    <span class="kd">var</span> <span class="nx">y</span> <span class="o">=</span> <span class="nx">right</span><span class="o">!</span><span class="p">.</span><span class="nx">sum</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nx">x</span><span class="p">.</span><span class="nx">readFE</span><span class="p">()</span> <span class="o">+</span> <span class="nx">y</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>the sync variable <code class="docutils literal notranslate"><span class="pre">x</span></code> is assigned by an
+asynchronous task created with the begin statement. The task
+returning the sum waits on the reading of <code class="docutils literal notranslate"><span class="pre">x</span></code>
+until it has been assigned.</p>
+</div></blockquote>
+<blockquote>
+<div><p><em>Example (syncVar.chpl)</em>.</p>
+<p>The following code implements a simple split-phase barrier using a
+sync variable.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">count</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">int</span> <span class="o">=</span> <span class="nx">n</span><span class="p">;</span>  <span class="c1">// counter which also serves as a lock</span>
+<span class="kd">var</span> <span class="nx">release</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">bool</span><span class="p">;</span> <span class="c1">// barrier release</span>
+
+<span class="k">forall</span> <span class="nx">t</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">do</span> <span class="k">begin</span> <span class="p">{</span>
+  <span class="nx">work</span><span class="p">(</span><span class="nx">t</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">myc</span> <span class="o">=</span> <span class="nx">count</span><span class="p">.</span><span class="nx">readFE</span><span class="p">();</span>  <span class="c1">// read the count, set state to empty</span>
+  <span class="k">if</span> <span class="nx">myc</span><span class="o">!=</span><span class="mi">1</span> <span class="p">{</span>
+    <span class="nx">write</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">);</span>
+    <span class="nx">count</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="nx">myc</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>   <span class="c1">// update the count, set state to full</span>
+    <span class="c1">// we could also do some work here before blocking</span>
+    <span class="nx">release</span><span class="p">.</span><span class="nx">readFF</span><span class="p">();</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="nx">release</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>  <span class="c1">// last one here, release everyone</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;done&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In each iteration of the forall loop after the work is completed, the
+task reads the <code class="docutils literal notranslate"><span class="pre">count</span></code> variable, which is used
+to tally the number of tasks that have arrived. All tasks except the
+last task to arrive will block while trying to read the variable
+<code class="docutils literal notranslate"><span class="pre">release</span></code>. The last task to arrive will write
+to <code class="docutils literal notranslate"><span class="pre">release</span></code>, setting its state to full at
+which time all the other tasks can be unblocked and run.</p>
+</div></blockquote>
+<p>If a formal argument with a default intent either has a synchronization
+type or the formal is generic
+(<a class="reference internal" href="generics.html#formal-arguments-of-generic-type"><span class="std std-ref">Formal Arguments of Generic Type</span></a>) and the actual has a
+synchronization type, the actual must be an lvalue and is passed by
+reference. In these cases the formal itself is an lvalue, too. The
+actual argument is not read or written during argument passing; its
+state is not changed or waited on. The qualifier <code class="docutils literal notranslate"><span class="pre">sync</span></code> without the
+value type can be used to specify a generic formal argument that
+requires a <code class="docutils literal notranslate"><span class="pre">sync</span></code> actual.</p>
+<div class="section" id="predefined-sync-methods">
+<span id="functions-on-synchronization-variables"></span><h3>Predefined Sync Methods<a class="headerlink" href="#predefined-sync-methods" title="Permalink to this headline">¶</a></h3>
+<p>The following methods are defined for variables of <code class="docutils literal notranslate"><span class="pre">sync</span></code> type:</p>
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.readFE">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">readFE</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.readFE" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a full <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable, leaving it empty.</p>
+<ol class="arabic simple">
+<li><p>Block until the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable is full.</p></li>
+<li><p>Read the value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable and set the variable to empty.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.readFF">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">readFF</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.readFF" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a full <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable, leaving it full.</p>
+<ol class="arabic simple">
+<li><p>Block until the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable is full.</p></li>
+<li><p>Read the value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable and leave the variable full.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.readXX">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">readXX</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.readXX" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable regardless of its state, leaving its state unchanged.</p>
+<ol class="arabic simple">
+<li><p>Without blocking, read the value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable</p></li>
+<li><p>Leaving the state unchanged, return a value based on the current state:</p></li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li><p>full: return a copy of the stored value.</p></li>
+<li><p>empty: return either a new default-initialized value of the stored type
+or, the last value stored (implementation dependent).</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘readXX’ is unstable</p>
+</div>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.writeEF">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">writeEF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">in</span> <span class="pre">val:</span> <span class="pre">valType</span></em><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.writeEF" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write into an empty <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable, leaving it full.</p>
+<ol class="arabic simple">
+<li><p>Block until the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable is empty.</p></li>
+<li><p>Write the value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable and leave the variable full.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Arguments</dt>
+<dd class="field-odd"><p><strong>val</strong> – New value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.writeFF">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">writeFF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">in</span> <span class="pre">val:</span> <span class="pre">valType</span></em><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.writeFF" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write into a full <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable, leaving it full.</p>
+<ol class="arabic simple">
+<li><p>Block until the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable is full.</p></li>
+<li><p>Write the value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable and leave the variable full.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Arguments</dt>
+<dd class="field-odd"><p><strong>val</strong> – New value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘writeFF’ is unstable</p>
+</div>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.writeXF">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">writeXF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">in</span> <span class="pre">val:</span> <span class="pre">valType</span></em><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.writeXF" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write into a <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable regardless of its state, leaving it full.</p>
+<ol class="arabic simple">
+<li><p>Do not block.</p></li>
+<li><p>Write the value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable, leave it’s state full.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Arguments</dt>
+<dd class="field-odd"><p><strong>val</strong> – New value of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘writeXF’ is unstable</p>
+</div>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.reset">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ChapelSyncvar.sync.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resets the value of this <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable to the default value of
+its type. This method is non-blocking and the state of the <code class="docutils literal notranslate"><span class="pre">sync</span></code>
+variable is set to empty when this method completes.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘reset’ is unstable</p>
+</div>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="ChapelSyncvar.sync.isFull">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-prename descclassname"><span class="pre">sync.</span></span><span class="sig-name descname"><span class="pre">isFull</span></span><a class="headerlink" href="#ChapelSyncvar.sync.isFull" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable is full without blocking.
+Does not alter the state of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">true</span></code> if the state of the <code class="docutils literal notranslate"><span class="pre">sync</span></code> variable is full, <code class="docutils literal notranslate"><span class="pre">false</span></code> if it’s empty.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘isFull’ is unstable</p>
+</div>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="functions-on-atomic-variables">
+<span id="atomic-variables"></span><span id="id2"></span><h2>Atomic Variables<a class="headerlink" href="#functions-on-atomic-variables" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">atomic</span></code> is a type qualifier that precedes the variable’s type in the
+declaration.  An atomic variable is specified with an atomic type given
+by the following syntax:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>atomic-type:
+  &#39;atomic&#39; type-expression
+</pre></div>
+</div>
+<p>For example, the following code declares an atomic variable <code class="docutils literal notranslate"><span class="pre">x</span></code> that
+stores an <code class="docutils literal notranslate"><span class="pre">int</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Such an atomic variable that is declared without an initialization expression
+will store the default value of the contained type (i.e. <code class="docutils literal notranslate"><span class="pre">0</span></code> or <code class="docutils literal notranslate"><span class="pre">false</span></code>).</p>
+<p>Atomic variables can also be declared with an initial value:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Similarly, a temporary <code class="docutils literal notranslate"><span class="pre">atomic</span></code> value can be created by casting to atomic:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">one</span><span class="p">:</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="o">..</span><span class="p">.</span> <span class="nx">one</span> <span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="o">..</span><span class="p">.</span> <span class="c1">// creates an `atomic int` initialized with 1</span>
+</pre></div>
+</div>
+<p>Assignment is supported between atomic variables as well:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+
+<span class="nx">x</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span> <span class="c1">// equivalent to x.write(y.read())</span>
+</pre></div>
+</div>
+<p>Chapel currently supports atomic operations for bools, all supported sizes of
+signed and unsigned integers, as well as all supported sizes of reals.  Note
+that not all operations are supported for all atomic types. The supported types
+are listed for each operation.</p>
+<blockquote>
+<div><p><em>Rationale</em>.</p>
+<p>The choice of supported atomic variable types as well as the atomic
+operations was strongly influenced by the C11 standard.</p>
+</div></blockquote>
+<p>Most atomic methods accept an optional argument named <code class="docutils literal notranslate"><span class="pre">order</span></code> of type
+<code class="docutils literal notranslate"><span class="pre">memoryOrder</span></code>. The <code class="docutils literal notranslate"><span class="pre">order</span></code> argument is used to specify the ordering
+constraints of atomic operations. The supported memoryOrder values are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>memoryOrder.relaxed</p></li>
+<li><p>memoryOrder.acquire</p></li>
+<li><p>memoryOrder.release</p></li>
+<li><p>memoryOrder.acqRel</p></li>
+<li><p>memoryOrder.seqCst</p></li>
+</ul>
+</div></blockquote>
+<p>See also <a class="reference internal" href="memory-consistency-model.html#chapter-memory-consistency-model"><span class="std std-ref">Memory Consistency Model</span></a> and in particular
+<a class="reference internal" href="memory-consistency-model.html#non-sc-atomics"><span class="std std-ref">Non-Sequentially Consistent Atomic Operations</span></a> for more information on the meaning of these memory
+orders.</p>
+<p>Unless specified, the default for the memoryOrder parameter is
+memoryOrder.seqCst.</p>
+<blockquote>
+<div><p><em>Implementors’ note</em>.</p>
+<p>Not all architectures or implementations may support all memoryOrder
+values. In these cases, the implementation should default to a more
+conservative ordering than specified.</p>
+</div></blockquote>
+<dl class="chpl function">
+<dt class="sig sig-object chpl" id="Atomics.atomicFence">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">atomicFence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><a class="headerlink" href="#Atomics.atomicFence" title="Permalink to this definition">¶</a></dt>
+<dd><p>An atomic fence that establishes an ordering of non-atomic and relaxed
+atomic operations.</p>
+</dd></dl>
+
+<dl class="chpl type">
+<dt class="sig sig-object chpl">
+<span class="sig-name descname"><span class="pre">atomic</span> <span class="pre">(bool)</span> <span class="pre">:</span> <span class="pre">writeSerializable</span></span></dt>
+<dd><dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.read">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span><a class="headerlink" href="#Atomics.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the stored value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.write">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores <cite>val</cite> as the new value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.exchange">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">exchange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span><a class="headerlink" href="#Atomics.exchange" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores <cite>val</cite> as the new value and returns the original value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.compareExchange">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span><a class="headerlink" href="#Atomics.compareExchange" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores <cite>desired</cite> as the new value, if and only if the original value is
+equal to <cite>expected</cite>. Returns <cite>true</cite> if <cite>desired</cite> was stored, otherwise
+updates <cite>expected</cite> to the original value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">success:</span> <span class="pre">memoryOrder</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">failure:</span> <span class="pre">memoryOrder</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span></dt>
+<dd></dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.compareExchangeWeak">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchangeWeak</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span><a class="headerlink" href="#Atomics.compareExchangeWeak" title="Permalink to this definition">¶</a></dt>
+<dd><p>Similar to <a class="reference internal" href="#Atomics.compareExchange" title="Atomics.compareExchange"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">compareExchange</span></code></a>, except that this function may
+return <cite>false</cite> even if the original value was equal to <cite>expected</cite>. This
+may happen if the value could not be updated atomically.</p>
+<p>This weak version is allowed to spuriously fail, but when
+compareExchange is already in a loop, it can offer better
+performance on some platforms.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchangeWeak</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">success:</span> <span class="pre">memoryOrder</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">failure:</span> <span class="pre">memoryOrder</span></em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.compareAndSwap">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareAndSwap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">expected:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span><a class="headerlink" href="#Atomics.compareAndSwap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores <cite>desired</cite> as the new value, if and only if the original value is
+equal to <cite>expected</cite>. Returns <cite>true</cite> if <cite>desired</cite> was stored.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘compareAndSwap’ is unstable</p>
+</div>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.testAndSet">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">testAndSet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span><a class="headerlink" href="#Atomics.testAndSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores <cite>true</cite> as the new value and returns the old value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.clear">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores <cite>false</cite> as the new value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.waitFor">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">waitFor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">bool</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.waitFor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Waits until the stored value is equal to <cite>val</cite>. The implementation may
+yield the running task while waiting.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.serialize">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">serialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">writer</span></em>, <em class="sig-param"><span class="pre">ref</span> <span class="pre">serializer</span></em><span class="sig-paren">)</span> <span class="pre">throws</span><a class="headerlink" href="#Atomics.serialize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="chpl type">
+<dt class="sig sig-object chpl">
+<span class="sig-name descname"><span class="pre">atomic</span> <span class="pre">(valType)</span> <span class="pre">:</span> <span class="pre">writeSerializable</span></span></dt>
+<dd><dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span></dt>
+<dd><p>Returns the stored value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span></dt>
+<dd><p>Stores <cite>val</cite> as the new value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">exchange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span></dt>
+<dd><p>Stores <cite>val</cite> as the new value and returns the original value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span></dt>
+<dd><p>Stores <cite>desired</cite> as the new value, if and only if the original value is
+equal to <cite>expected</cite>. Returns <cite>true</cite> if <cite>desired</cite> was stored, otherwise
+updates <cite>expected</cite> to the original value.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">success:</span> <span class="pre">memoryOrder</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">failure:</span> <span class="pre">memoryOrder</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span></dt>
+<dd></dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchangeWeak</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span></dt>
+<dd><p>Similar to <a class="reference internal" href="#Atomics.compareExchange" title="Atomics.compareExchange"><code class="xref chpl chpl-proc docutils literal notranslate"><span class="pre">compareExchange</span></code></a>, except that this function may
+return <cite>false</cite> even if the original value was equal to <cite>expected</cite>. This
+may happen if the value could not be updated atomically.</p>
+<p>This weak version is allowed to spuriously fail, but when
+compareExchange is already in a loop, it can offer better
+performance on some platforms.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareExchangeWeak</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ref</span> <span class="pre">expected:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">success:</span> <span class="pre">memoryOrder</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">failure:</span> <span class="pre">memoryOrder</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span></dt>
+<dd></dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">compareAndSwap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">expected:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">desired:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">bool</span></dt>
+<dd><p>Stores <cite>desired</cite> as the new value, if and only if the original value is
+equal to <cite>expected</cite>. Returns <cite>true</cite> if <cite>desired</cite> was stored.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>‘compareAndSwap’ is unstable</p>
+</div>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.fetchAdd">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">fetchAdd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span><a class="headerlink" href="#Atomics.fetchAdd" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The original value.</p>
+</dd>
+</dl>
+<p>Adds <cite>val</cite> to the original value and stores the result. Defined for
+integer and real atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.add">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds <cite>val</cite> to the original value and stores the result. Defined for
+integer and real atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.fetchSub">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">fetchSub</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span><a class="headerlink" href="#Atomics.fetchSub" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The original value.</p>
+</dd>
+</dl>
+<p>Subtracts <cite>val</cite> from the original value and stores the result. Defined
+for integer and real atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.sub">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">sub</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.sub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subtracts <cite>val</cite> from the original value and stores the result. Defined
+for integer and real atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.fetchOr">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">fetchOr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span><a class="headerlink" href="#Atomics.fetchOr" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The original value.</p>
+</dd>
+</dl>
+<p>Applies the <code class="docutils literal notranslate"><span class="pre">|</span></code> operator to <cite>val</cite> and the original value, then stores
+the result.</p>
+<p>Only defined for integer atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.or">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">or</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.or" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies the <code class="docutils literal notranslate"><span class="pre">|</span></code> operator to <cite>val</cite> and the original value, then stores
+the result.</p>
+<p>Only defined for integer atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.fetchAnd">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">fetchAnd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span><a class="headerlink" href="#Atomics.fetchAnd" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The original value.</p>
+</dd>
+</dl>
+<p>Applies the <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> operator to <cite>val</cite> and the original value, then stores
+the result.</p>
+<p>Only defined for integer atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.and">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">and</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.and" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies the <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> operator to <cite>val</cite> and the original value, then stores
+the result.</p>
+<p>Only defined for integer atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.fetchXor">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">fetchXor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">valType</span><a class="headerlink" href="#Atomics.fetchXor" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The original value.</p>
+</dd>
+</dl>
+<p>Applies the <code class="docutils literal notranslate"><span class="pre">^</span></code> operator to <cite>val</cite> and the original value, then stores
+the result.</p>
+<p>Only defined for integer atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl" id="Atomics.xor">
+<em class="property"><span class="pre">proc</span> <span class="pre">ref</span> </em><span class="sig-name descname"><span class="pre">xor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span><a class="headerlink" href="#Atomics.xor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies the <code class="docutils literal notranslate"><span class="pre">^</span></code> operator to <cite>val</cite> and the original value, then stores
+the result.</p>
+<p>Only defined for integer atomic types.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">waitFor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">val:</span> <span class="pre">valType</span></em>, <em class="sig-param"><span class="pre">param</span> <span class="pre">order:</span> <span class="pre">memoryOrder</span> <span class="pre">=</span> <span class="pre">memoryOrder.seqCst</span></em><span class="sig-paren">)</span><span class="pre">:</span> <span class="pre">void</span></dt>
+<dd><p>Waits until the stored value is equal to <cite>val</cite>. The implementation may
+yield the running task while waiting.</p>
+</dd></dl>
+
+<dl class="chpl method">
+<dt class="sig sig-object chpl">
+<em class="property"><span class="pre">proc</span> </em><span class="sig-name descname"><span class="pre">serialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">writer</span></em>, <em class="sig-param"><span class="pre">ref</span> <span class="pre">serializer</span></em><span class="sig-paren">)</span> <span class="pre">throws</span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="the-cobegin-statement">
+<span id="cobegin"></span><h2>The Cobegin Statement<a class="headerlink" href="#the-cobegin-statement" title="Permalink to this headline">¶</a></h2>
+<p>The cobegin statement is used to introduce concurrency within a block.
+The <code class="docutils literal notranslate"><span class="pre">cobegin</span></code> statement syntax is</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>cobegin-statement:
+  &#39;cobegin&#39; task-intent-clause[OPT] block-statement
+</pre></div>
+</div>
+<p>A new task and a corresponding task function are created for each
+statement in the <code class="docutils literal notranslate"><span class="pre">block-statement</span></code>. Control continues when all of the
+tasks have finished. The handling of the outer variables within each
+task function and the role of <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code> are defined in
+<a class="reference internal" href="#task-intents"><span class="std std-ref">Task Intents</span></a>.</p>
+<p>Return statements are not allowed in cobegin blocks. Yield statement may
+only be lexically enclosed in cobegin blocks in parallel
+iterators (<a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a>). Break and continue
+statements may not be used to exit a cobegin block.</p>
+<blockquote>
+<div><p><em>Example (cobeginAndEquivalent.chpl)</em>.</p>
+<p>The cobegin statement</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">cobegin</span> <span class="p">{</span>
+  <span class="nx">stmt1</span><span class="p">();</span>
+  <span class="nx">stmt2</span><span class="p">();</span>
+  <span class="nx">stmt3</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>is equivalent to the following code that uses only begin statements
+and sync variables to introduce concurrency and synchronize:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">s1</span><span class="p">,</span> <span class="nx">s2</span><span class="p">,</span> <span class="nx">s3</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">bool</span><span class="p">;</span>
+<span class="k">begin</span> <span class="p">{</span> <span class="nx">stmt1</span><span class="p">();</span> <span class="nx">s1</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span> <span class="p">}</span>
+<span class="k">begin</span> <span class="p">{</span> <span class="nx">stmt2</span><span class="p">();</span> <span class="nx">s2</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span> <span class="p">}</span>
+<span class="k">begin</span> <span class="p">{</span> <span class="nx">stmt3</span><span class="p">();</span> <span class="nx">s3</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span> <span class="p">}</span>
+<span class="nx">s1</span><span class="p">.</span><span class="nx">readFF</span><span class="p">();</span> <span class="nx">s2</span><span class="p">.</span><span class="nx">readFF</span><span class="p">();</span> <span class="nx">s3</span><span class="p">.</span><span class="nx">readFF</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Each begin statement is executed concurrently but control does not
+continue past the final line above until each of the sync variables
+is written, thereby ensuring that each of the functions has finished.</p>
+</div></blockquote>
+</div>
+<div class="section" id="the-coforall-loop">
+<span id="coforall"></span><h2>The Coforall Loop<a class="headerlink" href="#the-coforall-loop" title="Permalink to this headline">¶</a></h2>
+<p>The coforall loop is a variant of the cobegin statement in loop form.
+The syntax for the coforall loop is given by</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>coforall-statement:
+  &#39;coforall&#39; index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] &#39;do&#39; statement
+  &#39;coforall&#39; index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] block-statement
+  &#39;coforall&#39; iteratable-expression task-intent-clause[OPT] &#39;do&#39; statement
+  &#39;coforall&#39; iteratable-expression task-intent-clause[OPT] block-statement
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">coforall</span></code> loop creates a separate task for each iteration of the
+loop. Control continues with the statement following the <code class="docutils literal notranslate"><span class="pre">coforall</span></code>
+loop after all tasks corresponding to the iterations of the loop have
+completed.</p>
+<p>The single task function created for a <code class="docutils literal notranslate"><span class="pre">coforall</span></code> and invoked by each
+task contains the loop body. The handling of the outer variables within
+the task function and the role of <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code> are defined in
+<a class="reference internal" href="#task-intents"><span class="std std-ref">Task Intents</span></a>.</p>
+<p>Return statements are not allowed in coforall blocks. Yield statement
+may only be lexically enclosed in coforall blocks in parallel
+iterators (<a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a>). Break and continue
+statements may not be used to exit a coforall block.</p>
+<blockquote>
+<div><p><em>Example (coforallAndEquivalent.chpl)</em>.</p>
+<p>The coforall statement</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">coforall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">iterator</span><span class="p">()</span> <span class="p">{</span>
+  <span class="nx">body</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>is equivalent to the following code that uses only begin statements
+and sync variables to introduce concurrency and synchronize:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">runningCount</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">finished</span><span class="p">:</span> <span class="k">sync</span> <span class="kt">bool</span><span class="p">;</span>
+<span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">iterator</span><span class="p">()</span> <span class="p">{</span>
+  <span class="nx">runningCount</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="nx">runningCount</span><span class="p">.</span><span class="nx">readFE</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="k">begin</span> <span class="p">{</span>
+    <span class="nx">body</span><span class="p">();</span>
+    <span class="kd">var</span> <span class="nx">tmp</span> <span class="o">=</span> <span class="nx">runningCount</span><span class="p">.</span><span class="nx">readFE</span><span class="p">();</span>
+    <span class="nx">runningCount</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="nx">tmp</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+    <span class="k">if</span> <span class="nx">tmp</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">then</span> <span class="nx">finished</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">tmp</span> <span class="o">=</span> <span class="nx">runningCount</span><span class="p">.</span><span class="nx">readFE</span><span class="p">();</span>
+<span class="nx">runningCount</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="nx">tmp</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+<span class="k">if</span> <span class="nx">tmp</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">then</span> <span class="nx">finished</span><span class="p">.</span><span class="nx">writeEF</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="nx">finished</span><span class="p">.</span><span class="nx">readFF</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Each call to <code class="docutils literal notranslate"><span class="pre">body()</span></code> executes concurrently because it is in a
+begin statement. The sync variable
+<code class="docutils literal notranslate"><span class="pre">runningCount</span></code> is used to keep track of the
+number of executing tasks plus one for the main task. When this
+variable reaches zero, the sync variable
+<code class="docutils literal notranslate"><span class="pre">finished</span></code> is used to signal that all of the
+tasks have completed. Thus control does not continue past the last
+line until all of the tasks have completed.</p>
+</div></blockquote>
+</div>
+<div class="section" id="task-intents">
+<span id="id3"></span><h2>Task Intents<a class="headerlink" href="#task-intents" title="Permalink to this headline">¶</a></h2>
+<p>If a variable is referenced within the lexical scope of a <code class="docutils literal notranslate"><span class="pre">begin</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cobegin</span></code>, or <code class="docutils literal notranslate"><span class="pre">coforall</span></code> statement and is declared outside that
+statement, it is subject to <em>task intents</em>. That is, this <em>outer variable</em>
+is considered to
+be passed as an actual argument to the corresponding task function at
+task creation time. All references to the variable within the task
+function implicitly refer to a <em>shadow variable</em>, i.e. the task
+function’s corresponding formal argument.</p>
+<p>When the task construct is inside a method on a record, accesses a
+field of <code class="docutils literal notranslate"><span class="pre">this</span></code>, and does not contain an explicit task intent on <code class="docutils literal notranslate"><span class="pre">this</span></code>
+(see below), the field itself is treated as an outer variable. That is,
+it is passed as an actual argument to the task function and all
+references to the field within the task function implicitly refer to the
+corresponding shadow variable.</p>
+<p>Each formal argument of a task function has the default argument intent
+by default. See also <a class="reference internal" href="procedures.html#the-default-intent"><span class="std std-ref">The Default Intent</span></a>. Note that the default
+intent usually allows the compiler to assume that the value will not be
+concurrently modified. For variables of primitive and class types, this
+has the effect of capturing the value of the variable at task creation
+time and referencing that value instead of the original variable within
+the lexical scope of the task construct.</p>
+<p>A formal can be given another argument intent explicitly by listing it
+with that intent in the optional <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code>. For example,
+for variables of most types, the <code class="docutils literal notranslate"><span class="pre">ref</span></code> intent allows the task
+construct to modify the corresponding original variable or to read its
+updated value after concurrent modifications.</p>
+<p>The syntax of the task intent clause is:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>task-intent-clause:
+  &#39;with&#39; ( task-intent-list )
+
+task-intent-list:
+  task-intent-item
+  task-intent-item, task-intent-list
+
+task-intent-item:
+  formal-intent identifier
+  reduce-scan-operator &#39;reduce&#39; identifier
+  class-type &#39;reduce&#39; identifier
+  task-private-var-decl
+</pre></div>
+</div>
+<p>where the following intents can be used as a <code class="docutils literal notranslate"><span class="pre">formal-intent</span></code>:
+<code class="docutils literal notranslate"><span class="pre">ref</span></code>, <code class="docutils literal notranslate"><span class="pre">in</span></code>, <code class="docutils literal notranslate"><span class="pre">const</span></code>, <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">in</span></code>, <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code>.
+<code class="docutils literal notranslate"><span class="pre">task-private-var-decl</span></code> is defined in <a class="reference internal" href="data-parallelism.html#task-private-variables"><span class="std std-ref">Task-Private Variables</span></a>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">reduce</span></code> task intent specifies a reduction into the outer variable,
+which is provided to the right of the <code class="docutils literal notranslate"><span class="pre">reduce</span></code> keyword.
+The reduction operator is specified by either the <code class="docutils literal notranslate"><span class="pre">reduce-scan-operator</span></code>
+or the <code class="docutils literal notranslate"><span class="pre">class-type</span></code> in the same way as for a Reduction Expressions
+(see <a class="reference internal" href="data-parallelism.html#reduce"><span class="std std-ref">Reduction Expressions</span></a>). At the start of each task the corresponding shadow
+variable is initialized to the identity value of the reduction operator.
+Within the task it behaves as a regular variable. In addition, it can be
+the left-hand side of the <code class="docutils literal notranslate"><span class="pre">reduce=</span></code> operator, which accumulates its
+right-hand side onto the shadow variable.
+At the end of each task its shadow variable is combined into the outer
+variable.</p>
+<blockquote>
+<div><p><em>Open issue</em>.</p>
+<p>How should <code class="docutils literal notranslate"><span class="pre">reduce</span></code> task intent be defined for <code class="docutils literal notranslate"><span class="pre">begin</span></code> tasks?
+A reduction is legal only when the task completes before the program
+has exited the dynamic scope of the outer variable.</p>
+<p>Reduce intents are currently work-in-progress. See also
+<a class="reference internal" href="../../technotes/reduceIntents.html#readme-reduceintents"><span class="std std-ref">Reduce Intents technical note</span></a>.</p>
+</div></blockquote>
+<p>The implicit treatment of outer scope variables as the task function’s
+formal arguments applies to both module level and local variables. It
+applies to variable references within the lexical scope of a task
+construct, but does not extend to its dynamic scope, i.e., to the
+functions called from the task(s) but declared outside of the lexical
+scope. The loop index variables of a <code class="docutils literal notranslate"><span class="pre">coforall</span></code> statement are not
+subject to such treatment within that statement; however, they are
+subject to such treatment within nested task constructs, if any.</p>
+<blockquote>
+<div><p><em>Rationale</em>.</p>
+<p>The primary motivation for task intents is to avoid some races on
+scalar/record variables, which are possible when one task modifies a
+variable and another task reads it. Without task intents, for
+example, it would be easy to introduce and overlook a bug illustrated
+by this simplified example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">while</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="p">{</span>
+    <span class="k">begin</span> <span class="p">{</span>
+      <span class="nx">f</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="nx">i</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If all the tasks created by the <code class="docutils literal notranslate"><span class="pre">begin</span></code> statement start executing
+only after the <code class="docutils literal notranslate"><span class="pre">while</span></code> loop completes, and <code class="docutils literal notranslate"><span class="pre">i</span></code> within the
+<code class="docutils literal notranslate"><span class="pre">begin</span></code> is treated as a reference to the original <code class="docutils literal notranslate"><span class="pre">i</span></code>, there will
+be ten tasks executing <code class="docutils literal notranslate"><span class="pre">f(10)</span></code>. However, the user most likely
+intended to generate ten tasks executing <code class="docutils literal notranslate"><span class="pre">f(0)</span></code>, <code class="docutils literal notranslate"><span class="pre">f(1)</span></code>, …,
+<code class="docutils literal notranslate"><span class="pre">f(9)</span></code>. Task intents ensure that, regardless of the timing of task
+execution.</p>
+<p>Another motivation for task intents is that referring to a captured
+copy in a task is often more efficient than referring to the original
+variable. That’s because the copy is a local constant, e.g. it could
+be placed in a register when it fits. Without task intents,
+references to the original variable would need to be implemented
+using a pointer dereference. This is less efficient and can hinder
+optimizations in the surrounding code, for example loop-invariant
+code motion.</p>
+<p>Furthermore, in the above example the scope where <code class="docutils literal notranslate"><span class="pre">i</span></code> is declared
+may exit before all the ten tasks complete. Without task intents, the
+user would have to protect <code class="docutils literal notranslate"><span class="pre">i</span></code> to make sure its lexical scope
+doesn’t exit before the tasks referencing it complete.</p>
+<p>We decided to treat <code class="docutils literal notranslate"><span class="pre">cobegin</span></code> and <code class="docutils literal notranslate"><span class="pre">coforall</span></code> statements the same
+way as <code class="docutils literal notranslate"><span class="pre">begin</span></code>. This is for consistency and to make the
+race-avoidance benefit available to more code.</p>
+<p>We decided to apply task intents to module level variables, in
+addition to local variables. Again, this is for consistency. One
+could view module level variables differently than local variables
+(e.g. a module level variable is “always available”), but we favored
+consistency over such an approach.</p>
+<p>We decided not to apply task intents to “closure” variables, i.e.,
+the variables in the dynamic scope of a task construct. This is to
+keep this feature manageable, so that all variables subject to task
+intents can be obtained by examining just the lexical scope of the
+task construct. In general, the set of closure variables can be hard
+to determine, unwieldy to implement and reason about, it is unclear
+what to do with extern functions, etc.</p>
+<p>We do not provide <code class="docutils literal notranslate"><span class="pre">inout</span></code> or <code class="docutils literal notranslate"><span class="pre">out</span></code> as task intents because they
+will necessarily create a data race in a <code class="docutils literal notranslate"><span class="pre">cobegin</span></code> or <code class="docutils literal notranslate"><span class="pre">coforall</span></code>.
+<code class="docutils literal notranslate"><span class="pre">type</span></code> and <code class="docutils literal notranslate"><span class="pre">param</span></code> intents are not available either as they do
+not seem useful as task intents.</p>
+</div></blockquote>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><em>Future</em>.</p>
+<p>For a given intent, we would also like to provide a blanket clause,
+which would apply the intent to all variables. An example of syntax
+for a blanket <code class="docutils literal notranslate"><span class="pre">ref</span></code> intent would be <code class="docutils literal notranslate"><span class="pre">ref</span> <span class="pre">*</span></code>.</p>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="the-sync-statement">
+<span id="sync-statement"></span><h2>The Sync Statement<a class="headerlink" href="#the-sync-statement" title="Permalink to this headline">¶</a></h2>
+<p>The sync statement acts as a join of all dynamically encountered begins
+from within a statement. The syntax for the sync statement is given by</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>sync-statement:
+  &#39;sync&#39; statement
+  &#39;sync&#39; block-statement
+</pre></div>
+</div>
+<p>Return statements are not allowed in sync statement blocks. Yield
+statement may only be lexically enclosed in sync statement blocks in
+parallel iterators (<a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a>). Break and
+continue statements may not be used to exit a sync statement block.</p>
+<blockquote>
+<div><p><em>Example (syncStmt1.chpl)</em>.</p>
+<p>The sync statement can be used to wait for many dynamically created
+tasks.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">sync</span> <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">do</span> <span class="k">begin</span> <span class="nx">work</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>The for loop is within a sync statement and thus the tasks created in
+each iteration of the loop must complete before the continuing past
+the sync statement.</p>
+</div></blockquote>
+<blockquote>
+<div><p><em>Example (syncStmt2.chpl)</em>.</p>
+<p>The sync statement</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">sync</span> <span class="p">{</span>
+  <span class="k">begin</span> <span class="nx">stmt1</span><span class="p">();</span>
+  <span class="k">begin</span> <span class="nx">stmt2</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>is similar to the following cobegin statement</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">cobegin</span> <span class="p">{</span>
+  <span class="nx">stmt1</span><span class="p">();</span>
+  <span class="nx">stmt2</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>except that if begin statements are dynamically encountered when
+<code class="docutils literal notranslate"><span class="pre">stmt1()</span></code> or <code class="docutils literal notranslate"><span class="pre">stmt2()</span></code> are executed, then the former code will
+wait for these begin statements to complete whereas the latter code
+will not.</p>
+</div></blockquote>
+</div>
+<div class="section" id="the-serial-statement">
+<span id="serial"></span><h2>The Serial Statement<a class="headerlink" href="#the-serial-statement" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">serial</span></code> statement can be used to dynamically disable parallelism.
+The syntax is:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>serial-statement:
+  &#39;serial&#39; expression[OPT] &#39;do&#39; statement
+  &#39;serial&#39; expression[OPT] block-statement
+</pre></div>
+</div>
+<p>where the optional <code class="docutils literal notranslate"><span class="pre">expression</span></code> evaluates to a boolean value. If the
+expression is omitted, it is as though ’true’ were specified. Whatever
+the expression’s value, the statement following it is evaluated. If the
+expression is true, any dynamically encountered code that would normally
+create new tasks within the statement is instead executed by the
+original task without creating any new ones. In effect, execution is
+serialized. If the expression is false, code within the statement will
+generates task according to normal Chapel rules.</p>
+<blockquote>
+<div><p><em>Example (serialStmt1.chpl)</em>.</p>
+<p>In the code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">f</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">serial</span> <span class="nx">i</span><span class="o">&lt;</span><span class="mi">13</span> <span class="p">{</span>
+    <span class="k">cobegin</span> <span class="p">{</span>
+      <span class="nx">work</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+      <span class="nx">work</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">lo</span><span class="o">..</span><span class="nx">hi</span> <span class="p">{</span>
+  <span class="nx">f</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>the serial statement in procedure f() inhibits concurrent execution
+of work() if the variable i is less than 13.</p>
+</div></blockquote>
+<blockquote>
+<div><p><em>Example (serialStmt2.chpl)</em>.</p>
+<p>The code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">serial</span> <span class="p">{</span>
+  <span class="k">begin</span> <span class="nx">stmt1</span><span class="p">();</span>
+  <span class="k">cobegin</span> <span class="p">{</span>
+    <span class="nx">stmt2</span><span class="p">();</span>
+    <span class="nx">stmt3</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">coforall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">do</span> <span class="nx">stmt4</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>is equivalent to</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">stmt1</span><span class="p">();</span>
+<span class="p">{</span>
+  <span class="nx">stmt2</span><span class="p">();</span>
+  <span class="nx">stmt3</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span> <span class="k">do</span> <span class="nx">stmt4</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>because the expression evaluated to determine whether to serialize
+always evaluates to true.</p>
+</div></blockquote>
+</div>
+<div class="section" id="yielding-task-execution">
+<span id="yield-task-execution"></span><h2>Yielding Task Execution<a class="headerlink" href="#yielding-task-execution" title="Permalink to this headline">¶</a></h2>
+<p>Execution of the current task can be explicitly yielded with
+<code class="docutils literal notranslate"><span class="pre">currentTask.yieldExecution()</span></code>, providing an opportunity for other tasks to
+execute.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="generics.html" class="btn btn-neutral float-left" title="Generics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="data-parallelism.html" class="btn btn-neutral float-right" title="Data Parallelism" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

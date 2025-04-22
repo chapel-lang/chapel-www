@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Parallelism &mdash; Chapel Documentation 2.4</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=4d935f96"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Locales" href="locales.html" />
+    <link rel="prev" title="Task Parallelism and Synchronization" href="task-parallelism-and-synchronization.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.4
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.4";
+$pagename = "language/spec/data-parallelism";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Specification</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#introductory-material">Introductory Material</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#code-structures">Code Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#composite-types">Composite Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#generic-programming">Generic Programming</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#parallel-programming">Parallel Programming</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="task-parallelism-and-synchronization.html">Task Parallelism and Synchronization</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Data Parallelism</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-forall-statement">The Forall Statement</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-forall-expression">The Forall Expression</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#forall-intents">Forall Intents</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#task-private-variables">Task-Private Variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#promotion">Promotion</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#reductions-and-scans">Reductions and Scans</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration-constants-for-default-data-parallelism">Configuration Constants for Default Data Parallelism</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#distributed-programming">Distributed Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#additional-topics">Additional Topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#appendices">Appendices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Chapel Language Specification</a></li>
+      <li class="breadcrumb-item active">Data Parallelism</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/language/spec/data-parallelism.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="data-parallelism">
+<span id="chapter-data-parallelism"></span><span id="index-0"></span><h1>Data Parallelism<a class="headerlink" href="#data-parallelism" title="Link to this heading">¶</a></h1>
+<p>Chapel provides two explicit data-parallel constructs (the
+forall-statement and the forall-expression) and several idioms that
+support data parallelism implicitly (whole-array assignment, function
+and operator promotion, reductions, and scans).</p>
+<p>This chapter details data parallelism as follows:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#forall"><span class="std std-ref">The Forall Statement</span></a> describes the forall statement.</p></li>
+<li><p><a class="reference internal" href="#forall-expressions"><span class="std std-ref">The Forall Expression</span></a> describes forall expressions</p></li>
+<li><p><a class="reference internal" href="#forall-intents"><span class="std std-ref">Forall Intents</span></a> specifies how variables from outer
+scopes are handled within forall statements and expressions.
+<a class="reference internal" href="#task-private-variables"><span class="std std-ref">Task-Private Variables</span></a> provide a related functionality.</p></li>
+<li><p><a class="reference internal" href="#promotion"><span class="std std-ref">Promotion</span></a> describes promotion.</p></li>
+<li><p><a class="reference internal" href="#reductions-and-scans"><span class="std std-ref">Reductions and Scans</span></a> describes reductions and scans.</p></li>
+<li><p><a class="reference internal" href="#data-parallel-knobs"><span class="std std-ref">Configuration Constants for Default Data Parallelism</span></a> describes the configuration
+constants for controlling default data parallelism.</p></li>
+</ul>
+<p>Data-parallel constructs may result in accesses to the same variable
+from different tasks, possibly due to aliasing using <code class="docutils literal notranslate"><span class="pre">ref</span></code> argument
+intents or forall intents, among others. Such accesses are subject to
+the Memory Consistency Model
+(<a class="reference internal" href="memory-consistency-model.html#chapter-memory-consistency-model"><span class="std std-ref">Memory Consistency Model</span></a>).</p>
+<section id="the-forall-statement">
+<span id="forall"></span><span id="index-1"></span><h2>The Forall Statement<a class="headerlink" href="#the-forall-statement" title="Link to this heading">¶</a></h2>
+<p>The forall statement is a concurrent variant of the for statement
+described in <a class="reference internal" href="statements.html#the-for-loop"><span class="std std-ref">The For Loop</span></a>.</p>
+<section id="syntax">
+<span id="forall-syntax"></span><span id="index-2"></span><h3>Syntax<a class="headerlink" href="#syntax" title="Link to this heading">¶</a></h3>
+<p>The syntax of the forall statement is given by</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>forall-statement:
+  &#39;forall&#39; index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] &#39;do&#39; statement
+  &#39;forall&#39; index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] block-statement
+  &#39;forall&#39; iteratable-expression task-intent-clause[OPT] &#39;do&#39; statement
+  &#39;forall&#39; iteratable-expression task-intent-clause[OPT] block-statement
+  [ index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] ] statement
+  [ iteratable-expression task-intent-clause[OPT] ] statement
+</pre></div>
+</div>
+<p>As with the for statement, the indices may be omitted if they are
+unnecessary and the <code class="docutils literal notranslate"><span class="pre">do</span></code> keyword may be omitted before a block
+statement.</p>
+<p>The square bracketed form will resort to order-independent iteration
+(i.e. <code class="docutils literal notranslate"><span class="pre">foreach</span></code>) when <code class="docutils literal notranslate"><span class="pre">iteratable-expression</span></code> does not support parallel
+iteration. The <code class="docutils literal notranslate"><span class="pre">forall</span></code> form will result in an error when parallel
+iteration is not available.</p>
+<p>The handling of the outer variables within the forall statement and the
+role of <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code> are defined in
+<a class="reference internal" href="#forall-intents"><span class="std std-ref">Forall Intents</span></a>.</p>
+</section>
+<section id="execution-and-serializability">
+<span id="forall-semantics"></span><span id="index-3"></span><h3>Execution and Serializability<a class="headerlink" href="#execution-and-serializability" title="Link to this heading">¶</a></h3>
+<p>The forall statement evaluates the loop body once for each element
+yielded by the <code class="docutils literal notranslate"><span class="pre">iteratable-expression</span></code>. Each instance of the forall
+loop’s body may be executed concurrently with the others, but this is
+not guaranteed. In particular, the loop must be serializable. Details
+regarding concurrency and iterator implementation are described
+in <a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a>.</p>
+<p>This differs from the semantics of the <code class="docutils literal notranslate"><span class="pre">coforall</span></code> loop, discussed
+in <a class="reference internal" href="task-parallelism-and-synchronization.html#coforall"><span class="std std-ref">The Coforall Loop</span></a>, where each iteration is guaranteed to run
+using a distinct task. The <code class="docutils literal notranslate"><span class="pre">coforall</span></code> loop thus has potentially higher
+overhead than a forall loop with the same number of iterations, but in
+cases where concurrency is required for correctness, it is essential.</p>
+<p>In practice, the number of tasks that will be used to evaluate a
+<code class="docutils literal notranslate"><span class="pre">forall</span></code> loop is determined by the object or iterator that is
+<em>leading</em> the execution of the loop, as is the mapping of iterations to
+tasks.</p>
+<p>This concept will be formalized in future drafts of the Chapel
+specification. For now, the
+<a class="reference internal" href="../../primers/parIters.html#primers-pariters"><span class="std std-ref">primer on parallel iterators</span></a>
+provides a brief introduction.
+Please also refer to <em>User-Defined Parallel Zippered Iterators in
+Chapel</em>, published in the PGAS 2011 workshop.</p>
+<p>Control continues with the statement following the forall loop only
+after every iteration has been completely evaluated. At this point, all
+data accesses within the body of the forall loop will be guaranteed to
+be completed.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">return</span></code> statement may not be lexically enclosed in a forall
+statement. A <code class="docutils literal notranslate"><span class="pre">yield</span></code> statement may only be lexically enclosed in a
+forall statement that is within a parallel iterator
+<a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a>. A <code class="docutils literal notranslate"><span class="pre">break</span></code> statement may not be used
+to exit a forall statement. A <code class="docutils literal notranslate"><span class="pre">continue</span></code> statement skips the rest of
+the current iteration of the forall loop.</p>
+<blockquote>
+<div><p><em>Example (forallStmt.chpl)</em>.</p>
+<p>In the code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">N</span> <span class="k">with</span> <span class="p">(</span><span class="kd">ref</span> <span class="nx">a</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">a</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="o">=</span> <span class="nx">b</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>the user has stated that the element-wise assignments can execute
+concurrently. This loop may be executed serially with a single task,
+or by using a distinct task for every iteration, or by using a number
+of tasks where each task executes a number of iterations. This loop
+can also be written as</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">N</span> <span class="k">with</span> <span class="p">(</span><span class="kd">ref</span> <span class="nx">a</span><span class="p">)]</span> <span class="nx">a</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="o">=</span> <span class="nx">b</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="zippered-iteration">
+<span id="forall-zipper"></span><span id="index-4"></span><h3>Zippered Iteration<a class="headerlink" href="#zippered-iteration" title="Link to this heading">¶</a></h3>
+<p>Zippered iteration has the same semantics as described
+in <a class="reference internal" href="statements.html#zippered-iteration"><span class="std std-ref">Zippered Iteration</span></a>
+and <a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a> for parallel iteration.</p>
+</section>
+</section>
+<section id="the-forall-expression">
+<span id="forall-expressions"></span><span id="index-5"></span><h2>The Forall Expression<a class="headerlink" href="#the-forall-expression" title="Link to this heading">¶</a></h2>
+<p>The forall expression is a concurrent variant of the for expression
+described in <a class="reference internal" href="expressions.html#for-expressions"><span class="std std-ref">For Expressions</span></a>.</p>
+<section id="forall-expr-syntax">
+<span id="index-6"></span><span id="id1"></span><h3>Syntax<a class="headerlink" href="#forall-expr-syntax" title="Link to this heading">¶</a></h3>
+<p>The syntax of a forall expression is given by</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>forall-expression:
+  &#39;forall&#39; index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] &#39;do&#39; expression
+  &#39;forall&#39; iteratable-expression task-intent-clause[OPT] &#39;do&#39; expression
+  [ index-var-declaration &#39;in&#39; iteratable-expression task-intent-clause[OPT] ] expression
+  [ iteratable-expression task-intent-clause[OPT] ] expression
+</pre></div>
+</div>
+<p>As with the for expression, the indices may be omitted if they are
+unnecessary. The <code class="docutils literal notranslate"><span class="pre">do</span></code> keyword is always required in the keyword-based
+notation.</p>
+<p>As with the forall statement, the square bracketed form will resort to
+order-independent iteration (i.e. <code class="docutils literal notranslate"><span class="pre">foreach</span></code>) when
+<code class="docutils literal notranslate"><span class="pre">iteratable-expression</span></code> does not support parallel iteration. The
+<code class="docutils literal notranslate"><span class="pre">forall</span></code> form will result in an error when parallel iteration is not
+available.</p>
+<p>The handling of the outer variables within the forall expression and the
+role of <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code> are defined in
+<a class="reference internal" href="#forall-intents"><span class="std std-ref">Forall Intents</span></a>.</p>
+</section>
+<section id="execution">
+<span id="forall-expression-execution"></span><span id="index-7"></span><h3>Execution<a class="headerlink" href="#execution" title="Link to this heading">¶</a></h3>
+<p>A forall expression is an iterator that executes a forall loop
+(<a class="reference internal" href="#forall"><span class="std std-ref">The Forall Statement</span></a>), evaluates the body expression on each iteration
+of the loop, and yields each resulting value.</p>
+<p>When a forall expression is used to initialize a variable, such as</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">X</span> <span class="o">=</span> <span class="k">forall</span> <span class="nx">iterableExpression</span><span class="p">()</span> <span class="k">do</span> <span class="nx">computeValue</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>the variable will be inferred to have an array type. The array’s domain
+is defined by the <code class="docutils literal notranslate"><span class="pre">iterable-expression</span></code> following the same rules as
+for promotion, both in the regular case <a class="reference internal" href="#promotion"><span class="std std-ref">Promotion</span></a> and in
+the zippered case <a class="reference internal" href="#zippered-promotion"><span class="std std-ref">Zippered Promotion</span></a>.</p>
+<blockquote>
+<div><p><em>Example (forallExpr.chpl)</em>.</p>
+<p>The code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span> <span class="k">reduce</span> <span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span> <span class="nx">i</span><span class="o">**</span><span class="mi">2</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>applies a reduction to a forall-expression that evaluates the square
+of the indices in the range <code class="docutils literal notranslate"><span class="pre">1..10</span></code>.</p>
+</div></blockquote>
+<p>The forall expression follows the semantics of the forall statement as
+described in <a class="reference internal" href="#forall-semantics"><span class="std std-ref">Execution and Serializability</span></a>.</p>
+</section>
+<section id="index-8">
+<span id="id2"></span><h3>Zippered Iteration<a class="headerlink" href="#index-8" title="Link to this heading">¶</a></h3>
+<p>Forall expression also support zippered iteration semantics as described
+in <a class="reference internal" href="statements.html#zippered-iteration"><span class="std std-ref">Zippered Iteration</span></a>
+and <a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a> for parallel iteration.</p>
+</section>
+<section id="filtering-predicates-in-forall-expressions">
+<span id="filtering-predicates-forall"></span><span id="index-9"></span><h3>Filtering Predicates in Forall Expressions<a class="headerlink" href="#filtering-predicates-in-forall-expressions" title="Link to this heading">¶</a></h3>
+<p>A filtering predicate is an if expression that is immediately enclosed
+by a forall expression and does not have an else clause. Such an if
+expression filters the iterations of the forall expression. The
+iterations for which the condition does not hold are not reflected in
+the result of the forall expression.</p>
+<p>When a forall expression with a filtering predicate is captured into a
+variable, the resulting array has a 0-based one-dimensional domain.</p>
+<blockquote>
+<div><p><em>Example (forallFilter.chpl)</em>.</p>
+<p>The following expression returns every other element starting with
+the first:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">s</span><span class="p">.</span><span class="nx">size</span><span class="p">]</span> <span class="k">if</span> <span class="nx">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">then</span> <span class="nx">s</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+</section>
+<section id="forall-intents">
+<span id="index-10"></span><span id="id3"></span><h2>Forall Intents<a class="headerlink" href="#forall-intents" title="Link to this heading">¶</a></h2>
+<p>If a variable is referenced within the lexical scope of a forall
+statement or expression and is declared outside that forall construct,
+it is subject to <em>forall intents</em>, analogously to task intents
+for task-parallel constructs (see <a class="reference internal" href="task-parallelism-and-synchronization.html#task-intents"><span class="std std-ref">Task Intents</span></a>). That is, the
+outer variable is considered to be passed as an actual argument to an
+implicit formal of the iterator leading the execution of the loop.
+From there, it is passed down to each task created by that iterator,
+if any, as an actual argument to an implicit formal of the corresponding
+task function. A top-level task passes it down recursively to its
+child tasks, if any. All references to the
+variable within the forall construct implicitly refer to a <em>shadow
+variable</em>, i.e. the corresponding formal argument of the task function
+or the leading iterator.</p>
+<p>When the forall construct is inside a method on a record, accesses a
+field of <code class="docutils literal notranslate"><span class="pre">this</span></code>, and does not contain an explicit forall intent on <code class="docutils literal notranslate"><span class="pre">this</span></code>
+(see below), the field itself is treated as an outer variable. That is,
+it is subject to forall intents and all references to this field within
+the forall construct implicitly refer to the corresponding shadow
+variable.</p>
+<p>The implicit formals of task functions and iterators generally have
+<a class="reference internal" href="procedures.html#the-default-intent"><span class="std std-ref">the default argument intent</span></a> by default. Note that
+the default intent allows the compiler to assume that the value will not be
+concurrently modified, except for values of <code class="docutils literal notranslate"><span class="pre">sync</span></code> or <code class="docutils literal notranslate"><span class="pre">atomic</span></code> type.</p>
+<p>Implicit formals of array types are an exception: they inherit their default
+intent from the array actual. An immutable array has a default intent of
+<code class="docutils literal notranslate"><span class="pre">const</span></code> and a mutable array has a default intent of <code class="docutils literal notranslate"><span class="pre">ref</span></code>. This allows
+arrays to be modified inside the body of a forall if it is modifiable outside
+the body of the forall. A mutable array can have an explicit <code class="docutils literal notranslate"><span class="pre">const</span></code> forall
+intent to make it immutable inside the body of a forall.</p>
+<p>For variables of primitive, enum, and class types,
+this has the effect of capturing the value of the variable at task
+creation time. Within the lexical scope of the forall construct, the
+variable name references the captured value instead of the original
+value.</p>
+<p>A formal can be given another intent explicitly by listing it with
+that intent in the optional <code class="docutils literal notranslate"><span class="pre">task-intent-clause</span></code>. For example, for
+variables of most types, the <code class="docutils literal notranslate"><span class="pre">ref</span></code> intent allows the body of the
+forall loop to modify the corresponding original variable or to read
+its updated value after concurrent modifications. The <code class="docutils literal notranslate"><span class="pre">in</span></code> intent is
+an alternative way to obtain task-private variables
+(see <a class="reference internal" href="#task-private-variables"><span class="std std-ref">Task-Private Variables</span></a>).</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">reduce</span></code> forall intent can be used to reduce values across iterations
+of a forall loop. While it is similar to the <code class="docutils literal notranslate"><span class="pre">reduce</span></code> task intent
+(see <a class="reference internal" href="task-parallelism-and-synchronization.html#task-intents"><span class="std std-ref">Task Intents</span></a>), there is a difference in how values
+are combined at the end of a task. With a <code class="docutils literal notranslate"><span class="pre">reduce</span></code> forall intent,
+each child task combines its accumulated value into its parent task
+rather than into an outer variable.
+The <code class="docutils literal notranslate"><span class="pre">reduce=</span></code> operator accumulates its right-hand side values
+computed for all iterations executed by a given task into the same
+shadow variable for that task.</p>
+<blockquote>
+<div><p><em>Rationale</em>.</p>
+<p>A forall statement or expression may create tasks in its
+implementation. Forall intents affect those tasks in the same way
+that task intents <a class="reference internal" href="task-parallelism-and-synchronization.html#task-intents"><span class="std std-ref">Task Intents</span></a> affect the behavior of
+a task construct such as a <code class="docutils literal notranslate"><span class="pre">coforall</span></code> loop.</p>
+</div></blockquote>
+</section>
+<section id="task-private-variables">
+<span id="index-11"></span><span id="id4"></span><h2>Task-Private Variables<a class="headerlink" href="#task-private-variables" title="Link to this heading">¶</a></h2>
+<p>A <em>task-private variable</em> declared in a forall loop results in a
+separate shadow variable in each task created by the forall loop’s
+parallel iterator, as well as a “top-level” shadow variable created at
+the top level of the parallel iterator itself. In contrast to regular
+forall intents <a class="reference internal" href="#forall-intents"><span class="std std-ref">Forall Intents</span></a>, these shadow variables are
+unrelated to outer variables of the same name, if any.</p>
+<p>A given shadow variable is created at the start and destroyed at the end
+of its task. Within the lexical scope of the body of the forall
+statement or expression, the variable name refers to the shadow variable
+created in the task that executed the current yield statement.</p>
+<p>The “top-level” shadow variable is created at the start and destroyed at
+the end of the parallel iterator. It is referenced in those iterations
+of the forall loop that are due to “top-level” yields, i.e. yields that
+are outside any of the task constructs that the iterator may have.</p>
+<p>The syntax of a task-private variable declaration in a forall
+statement’s with-clause is:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>task-private-var-decl:
+  task-private-var-kind identifier type-part[OPT] initialization-part[OPT]
+
+task-private-var-kind:
+  &#39;const&#39;
+  &#39;var&#39;
+  &#39;ref&#39;
+</pre></div>
+</div>
+<p>The declaration of a <code class="docutils literal notranslate"><span class="pre">const</span></code> or <code class="docutils literal notranslate"><span class="pre">var</span></code> task-private variable must
+have at least one of <code class="docutils literal notranslate"><span class="pre">type-part</span></code> and <code class="docutils literal notranslate"><span class="pre">initialization-part</span></code>. A
+<code class="docutils literal notranslate"><span class="pre">ref</span></code> task-private variable must have <code class="docutils literal notranslate"><span class="pre">initialization-part</span></code> and
+cannot have <code class="docutils literal notranslate"><span class="pre">type-part</span></code>. A <code class="docutils literal notranslate"><span class="pre">ref</span></code> shadow variable is a reference to
+the <code class="docutils literal notranslate"><span class="pre">initialization-part</span></code> as calculated at the start of the
+corresponding task or the iterator. <code class="docutils literal notranslate"><span class="pre">ref</span></code> shadow variables are never
+destroyed.</p>
+<blockquote>
+<div><p><em>Example (task-private-variable.chpl)</em>.</p>
+<p>In the following example, the <code class="docutils literal notranslate"><span class="pre">writeln()</span></code> statement will observe
+the first shadow variable 4 times: twice each for the yields “before
+coforall” and “after coforall”. An additional shadow variable will be
+created and observed twice for each of the three <code class="docutils literal notranslate"><span class="pre">coforall</span></code> tasks.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">cnt</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="p">;</span>                     <span class="c1">// count our shadow variables</span>
+<span class="k">record</span> <span class="nc">R</span> <span class="p">{</span> <span class="kd">var</span> <span class="nx">id</span> <span class="o">=</span> <span class="nx">cnt</span><span class="p">.</span><span class="nx">fetchAdd</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="p">}</span>
+
+<span class="k">iter</span> <span class="nf">myIter</span><span class="p">()</span> <span class="p">{</span> <span class="k">yield</span> <span class="s">&quot;&quot;</span><span class="p">;</span> <span class="p">}</span>              <span class="c1">// serial iterator, unused</span>
+
+<span class="k">iter</span> <span class="nf">myIter</span><span class="p">(</span><span class="kd">param</span> <span class="nx">tag</span><span class="p">)</span> <span class="k">where</span> <span class="nx">tag</span> <span class="o">==</span> <span class="nx">iterKind</span><span class="p">.</span><span class="nx">standalone</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span> <span class="k">do</span>
+    <span class="k">yield</span> <span class="s">&quot;before coforall&quot;</span><span class="p">;</span>             <span class="c1">// shadow var 0 (&quot;top-level&quot;)</span>
+  <span class="k">coforall</span> <span class="mi">1</span><span class="o">..</span><span class="mi">3</span> <span class="k">do</span>
+    <span class="k">for</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span> <span class="k">do</span>
+      <span class="k">yield</span> <span class="s">&quot;inside coforall&quot;</span><span class="p">;</span>           <span class="c1">// shadow vars 1..3</span>
+  <span class="k">for</span> <span class="mi">1</span><span class="o">..</span><span class="mi">2</span> <span class="k">do</span>
+    <span class="k">yield</span> <span class="s">&quot;after coforall&quot;</span><span class="p">;</span>              <span class="c1">// shadow var 0, again</span>
+<span class="p">}</span>
+
+<span class="k">forall</span> <span class="nx">str</span> <span class="kd">in</span> <span class="nx">myIter</span><span class="p">()</span>
+  <span class="k">with</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">tpv</span><span class="p">:</span> <span class="nx">R</span><span class="p">)</span>                      <span class="c1">// declare a task-private variable</span>
+<span class="k">do</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;shadow var: &quot;</span><span class="p">,</span> <span class="nx">tpv</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s">&quot;  yield: &quot;</span><span class="p">,</span> <span class="nx">str</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="promotion">
+<span id="index-12"></span><span id="id5"></span><h2>Promotion<a class="headerlink" href="#promotion" title="Link to this heading">¶</a></h2>
+<p>A function that expects one or more scalar arguments but is called with
+one or more arrays, domains, ranges, or iterators is promoted if the
+element types of the arrays, the index types of the domains and/or
+ranges, or the yielded types of the iterators can be resolved to the
+type of the argument. The rules of when an overloaded function can be
+promoted are discussed in <a class="reference internal" href="procedures.html#function-resolution"><span class="std std-ref">Function Resolution</span></a>.</p>
+<p>Functions that can be promoted include procedures, operators, casts, and
+methods. Also note that since class and record field access is performed
+with getter methods (<a class="reference internal" href="classes.html#getter-methods"><span class="std std-ref">Field Getter Methods</span></a>), field access can
+also be promoted.</p>
+<p>If the original function returns a value or a reference, the
+corresponding promoted expression is an iterator yielding each computed
+value or reference.</p>
+<p>When a promoted expression is used to initialize a variable, such as
+<code class="docutils literal notranslate"><span class="pre">var</span> <span class="pre">X</span> <span class="pre">=</span> <span class="pre">A.x;</span></code> in the above example, the variable’s type will be
+inferred to be an array. The array’s domain is defined by the expression
+that causes promotion:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>input expression</p></th>
+<th class="head"><p>resulting array’s domain</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>array</p></td>
+<td><p>that array’s domain</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain</p></td>
+<td><p>that domain</p></td>
+</tr>
+<tr class="row-even"><td><p>range</p></td>
+<td><p>one-dimensional domain built from that range</p></td>
+</tr>
+<tr class="row-odd"><td><p>iterator</p></td>
+<td><p>0-based one-dimensional domain</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><em>Future</em></p>
+<p>We would like to allow the iterator author to specify the shape of
+the iterator, i.e. the domain of the array that would capture the
+result of the corresponding promoted expression, such as</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">myArray</span> <span class="o">=</span> <span class="nx">myScalarFunction</span><span class="p">(</span><span class="nx">myIterator</span><span class="p">());</span>
+</pre></div>
+</div>
+<p>This will be helpful, for example, when the iterator yields one value
+per an array or domain element that it iterates over internally.</p>
+<p><em>Example (promotion.chpl)</em>.</p>
+<p>Given the array</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span> <span class="kt">int</span> <span class="o">=</span> <span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span> <span class="nx">i</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>and the function</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">square</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="k">do</span> <span class="k">return</span> <span class="nx">x</span><span class="o">**</span><span class="mi">2</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>then the call <code class="docutils literal notranslate"><span class="pre">square(A)</span></code> results in the promotion of the
+<code class="docutils literal notranslate"><span class="pre">square</span></code> function over the values in the array <code class="docutils literal notranslate"><span class="pre">A</span></code>. The result is
+an iterator that returns the values <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">4</span></code>, <code class="docutils literal notranslate"><span class="pre">9</span></code>, <code class="docutils literal notranslate"><span class="pre">16</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">25</span></code>.</p>
+</div>
+<blockquote>
+<div><p><em>Example (field-promotion.chpl)</em>.</p>
+<p>Given an array of points, such as <code class="docutils literal notranslate"><span class="pre">A</span></code> defined below:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span> <span class="nx">Point</span> <span class="o">=</span> <span class="p">[</span><span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span> <span class="k">new</span> <span class="nx">Point</span><span class="p">(</span><span class="nx">x</span><span class="o">=</span><span class="nx">i</span><span class="p">,</span> <span class="nx">y</span><span class="o">=</span><span class="nx">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>the following statement will create a new array consisting of the
+<code class="docutils literal notranslate"><span class="pre">x</span></code> field value for each value in A:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">X</span> <span class="o">=</span> <span class="nx">A</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>and the following call will set the <code class="docutils literal notranslate"><span class="pre">y</span></code> field values for each
+element in A to 1.0:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">A</span><span class="p">.</span><span class="nx">y</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+</pre></div>
+</div>
+</div></blockquote>
+<section id="default-arguments">
+<span id="promotion-default-arguments"></span><span id="index-13"></span><h3>Default Arguments<a class="headerlink" href="#default-arguments" title="Link to this heading">¶</a></h3>
+<p>When a call is promoted and that call relied upon default
+arguments (<a class="reference internal" href="procedures.html#default-values"><span class="std std-ref">Default Values</span></a>), the default argument
+expression can be evaluated many times. For example:</p>
+<blockquote>
+<div><p><em>Example (promotes-default.chpl)</em>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">counter</span><span class="p">:</span> <span class="k">atomic</span> <span class="kt">int</span><span class="p">;</span>
+
+<span class="k">proc</span> <span class="nf">nextCounterValue</span><span class="p">():</span><span class="kt">int</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="nx">counter</span><span class="p">.</span><span class="nx">fetchAdd</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="k">return</span> <span class="nx">i</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">assignCounter</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span><span class="kt">int</span><span class="p">,</span> <span class="nx">counter</span><span class="o">=</span><span class="nx">nextCounterValue</span><span class="p">())</span> <span class="p">{</span>
+  <span class="nx">x</span> <span class="o">=</span> <span class="nx">counter</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here the function assignCounter has a default argument providing the
+next value from an atomic counter as the value to set.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+<span class="nx">assignCounter</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The assignCounter call uses both the default argument for counter as
+well as promotion. When these features are combined, the default
+argument will be evaluated once per promoted element. As a result,
+after this command, A will contain the elements 0 1 2 3 4 in some
+order.</p>
+</div></blockquote>
+</section>
+<section id="zippered-promotion">
+<span id="index-14"></span><span id="id6"></span><h3>Zippered Promotion<a class="headerlink" href="#zippered-promotion" title="Link to this heading">¶</a></h3>
+<p>Promotion also supports zippered iteration semantics as described
+in <a class="reference internal" href="statements.html#zippered-iteration"><span class="std std-ref">Zippered Iteration</span></a>
+and <a class="reference internal" href="iterators.html#parallel-iterators"><span class="std std-ref">Parallel Iterators</span></a> for parallel iteration.</p>
+<p>Consider a function <code class="docutils literal notranslate"><span class="pre">f</span></code> with formal arguments <code class="docutils literal notranslate"><span class="pre">s1</span></code>, <code class="docutils literal notranslate"><span class="pre">s2</span></code>, … that
+are promoted and formal arguments <code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">a2</span></code>, … that are not
+promoted. The call</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">f</span><span class="p">(</span><span class="nx">s1</span><span class="p">,</span> <span class="nx">s2</span><span class="p">,</span> <span class="o">..</span><span class="p">.,</span> <span class="nx">a1</span><span class="p">,</span> <span class="nx">a2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)</span>
+</pre></div>
+</div>
+<p>is equivalent to</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">[(</span><span class="nx">e1</span><span class="p">,</span> <span class="nx">e2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">s1</span><span class="p">,</span> <span class="nx">s2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)]</span> <span class="nx">f</span><span class="p">(</span><span class="nx">e1</span><span class="p">,</span> <span class="nx">e2</span><span class="p">,</span> <span class="o">..</span><span class="p">.,</span> <span class="nx">a1</span><span class="p">,</span> <span class="nx">a2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)</span>
+</pre></div>
+</div>
+<p>The usual constraints of zippered iteration apply to zippered promotion, so
+the promoted actuals must have the same shape.</p>
+<p>Formal arguments that are not promoted are evaluated once and stored in a
+temporary variable. If formal <code class="docutils literal notranslate"><span class="pre">a1</span></code> is an expression, then the call</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">f</span><span class="p">(</span><span class="nx">s1</span><span class="p">,</span> <span class="nx">s2</span><span class="p">,</span> <span class="o">..</span><span class="p">.,</span> <span class="nx">a1</span><span class="p">,</span> <span class="nx">a2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)</span>
+</pre></div>
+</div>
+<p>is equivalent to</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">tmp</span> <span class="o">=</span> <span class="nx">a1</span><span class="p">;</span>
+<span class="p">[(</span><span class="nx">e1</span><span class="p">,</span> <span class="nx">e2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">s1</span><span class="p">,</span> <span class="nx">s2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)]</span> <span class="nx">f</span><span class="p">(</span><span class="nx">e1</span><span class="p">,</span> <span class="nx">e2</span><span class="p">,</span> <span class="o">..</span><span class="p">.,</span> <span class="nx">tmp</span><span class="p">,</span> <span class="nx">a2</span><span class="p">,</span> <span class="o">..</span><span class="p">.)</span>
+</pre></div>
+</div>
+<p>In this instance, if formal <code class="docutils literal notranslate"><span class="pre">a1</span></code> is an expression that has side effects
+(such as printing), those side effects will only occur once.</p>
+<p>A zippered promotion can be captured in a variable, such as
+<code class="docutils literal notranslate"><span class="pre">var</span> <span class="pre">X</span> <span class="pre">=</span> <span class="pre">f(s1,</span> <span class="pre">s2,</span> <span class="pre">...,</span> <span class="pre">a1,</span> <span class="pre">a2,</span> <span class="pre">...);</span></code> using the above example. If so,
+the domain of the resulting array is defined by the first argument that
+causes promotion. The rules are the same as in the non-zippered case.</p>
+<blockquote>
+<div><p><em>Example (zipper-promotion.chpl)</em>.</p>
+<p>Given a function defined as</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">foo</span><span class="p">(</span><span class="nx">i</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">j</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>and a call to this function written</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">foo</span><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="o">..</span><span class="mi">6</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>then the output is</p>
+<div class="highlight-printoutput notranslate"><div class="highlight"><pre><span></span>(1, 4) (2, 5) (3, 6)
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="whole-array-operations-and-evaluation-order">
+<span id="whole-array-operations"></span><span id="index-15"></span><h3>Whole Array Operations and Evaluation Order<a class="headerlink" href="#whole-array-operations-and-evaluation-order" title="Link to this heading">¶</a></h3>
+<p>Whole array operations are a form of promotion as applied to operators
+rather than functions.</p>
+<p>Whole array assignment is one example. It is is implicitly parallel. The
+array assignment statement:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">LHS</span> <span class="o">=</span> <span class="nx">RHS</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>is equivalent to</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">e1</span><span class="p">,</span><span class="nx">e2</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">LHS</span><span class="p">,</span><span class="nx">RHS</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">e1</span> <span class="o">=</span> <span class="nx">e2</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The semantics of whole array assignment and promotion are different from
+most array programming languages. Specifically, the compiler does not
+insert array temporaries for such operations if any of the right-hand
+side array expressions alias the left-hand side expression.</p>
+<blockquote>
+<div><p><em>Example</em>.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">A</span></code> is an array declared over the indices <code class="docutils literal notranslate"><span class="pre">1..5</span></code>, then the
+following codes are not equivalent:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">A</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="nx">A</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">5</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>and</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">T</span> <span class="o">=</span> <span class="nx">A</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="nx">A</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="mi">5</span><span class="p">];</span>
+<span class="nx">A</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="nx">T</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This follows because, in the former code, some of the new values that
+are assigned to <code class="docutils literal notranslate"><span class="pre">A</span></code> may be read to compute the sum depending on the
+number of tasks used to implement the data parallel statement.</p>
+</div></blockquote>
+</section>
+<section id="promoted-array-indexing">
+<span id="index-16"></span><span id="id7"></span><h3>Promoted Array Indexing<a class="headerlink" href="#promoted-array-indexing" title="Link to this heading">¶</a></h3>
+<p>Array indexing operations can also be promoted.
+For example, an array of indices can be used to index into another array,
+as in the following expression:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">A</span><span class="p">[</span><span class="nx">B</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>which results in the promoted expression:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">b</span> <span class="kd">in</span> <span class="nx">B</span><span class="p">]</span> <span class="nx">A</span><span class="p">[</span><span class="nx">b</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Modifying promoted expressions may introduce undesirable race conditions in
+code. For example, the following code will potentially result in an incorrect
+result:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">B</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">];</span>
+<span class="nx">A</span><span class="p">[</span><span class="nx">B</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">3</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>To avoid this race, the above code could be written using an explicit loop
+statement and the proper intents, for example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">b</span> <span class="kd">in</span> <span class="nx">B</span> <span class="k">with</span> <span class="p">(</span><span class="o">+</span> <span class="k">reduce</span> <span class="nx">A</span><span class="p">)]</span> <span class="nx">A</span><span class="p">[</span><span class="nx">b</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">3</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="reductions-and-scans">
+<span id="index-17"></span><span id="id8"></span><h2>Reductions and Scans<a class="headerlink" href="#reductions-and-scans" title="Link to this heading">¶</a></h2>
+<p>Chapel provides reduction and scan expressions that apply operators to
+aggregate expressions in stylized ways. Reduction expressions collapse
+the aggregate’s values down to a summary value. Scan expressions compute
+an aggregate of results where each result value stores the result of a
+reduction applied to all of the elements in the aggregate up to that
+expression. Chapel provides a number of predefined reduction and scan
+operators, and also supports a mechanism for the user to define
+additional reductions and scans
+(<a class="reference internal" href="user-defined-reductions-and-scans.html#chapter-user-defined-reductions-and-scans"><span class="std std-ref">User-Defined Reductions and Scans</span></a>).</p>
+<section id="reduction-expressions">
+<span id="reduce"></span><span id="index-18"></span><h3>Reduction Expressions<a class="headerlink" href="#reduction-expressions" title="Link to this heading">¶</a></h3>
+<p>A reduction expression applies a reduction operator to an aggregate
+expression, collapsing the aggregate’s dimensions down into a result
+value (typically a scalar or summary expression that is independent of
+the input aggregate’s size). For example, a sum reduction computes the
+sum of all the elements in the input aggregate expression.</p>
+<p>The syntax for a reduction expression is given by:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>reduce-expression:
+  reduce-scan-operator &#39;reduce&#39; iteratable-expression
+  class-type &#39;reduce&#39; iteratable-expression
+
+reduce-scan-operator: one of
+  + * &amp;&amp; || &amp; | ^ &#39;min&#39; &#39;max&#39; &#39;minmax&#39; &#39;minloc&#39; &#39;maxloc&#39;
+</pre></div>
+</div>
+<p>Chapel’s predefined reduction operators are defined by
+<code class="docutils literal notranslate"><span class="pre">reduce-scan-operator</span></code> above. In order, they are: sum, product,
+logical-and, logical-or, bitwise-and, bitwise-or, bitwise-exclusive-or,
+minimum, maximum, minimum-and-maximum,
+minimum-with-location, and maximum-with-location. The
+minimum reduction returns the minimum value as defined by the <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>
+operator. The maximum reduction returns the maximum value as defined by
+the <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> operator. The minimum-and-maximum reduction returns a tuple
+with the first component being the result of the minimum reduction
+and the second component being the result of the maximum reduction.
+The minimum-with-location reduction returns the lowest
+index position with the minimum value (as defined by the <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> operator).
+The maximum-with-location reduction returns the lowest index position
+with the maximum value (as defined by the <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> operator). When a minimum,
+maximum, minimum-and-maximum, minimum-with-location,
+or maximum-with-location reduction encounters a NaN, the result
+is or contains a NaN.</p>
+<p>The expression on the right-hand side of the <code class="docutils literal notranslate"><span class="pre">reduce</span></code> keyword can be
+of any type that can be iterated over, provided the reduction operator
+can be applied to the values yielded by the iteration. For example, the
+bitwise-and operator can be applied to arrays of boolean or integral
+types to compute the bitwise-and of all the values in the array.</p>
+<p>For the minimum-with-location and maximum-with-location reductions, the
+argument on the right-hand side of the <code class="docutils literal notranslate"><span class="pre">reduce</span></code> keyword must be a
+2-tuple. Its first component is the collection of values for which the
+minimum/maximum value is to be computed. The second argument component
+is a collection of indices with the same size and shape that provides
+names for the locations of the values in the first component. The
+reduction returns a tuple containing the minimum/maximum value in the
+first argument component and the value at the corresponding location in
+the second argument component.</p>
+<blockquote>
+<div><p><em>Example (reduce-loc.chpl)</em>.</p>
+<p>The first line below computes the smallest element in an array <code class="docutils literal notranslate"><span class="pre">A</span></code>
+as well as its index, storing the results in <code class="docutils literal notranslate"><span class="pre">minA</span></code> and
+<code class="docutils literal notranslate"><span class="pre">minALoc</span></code>, respectively. It then computes the largest element in a
+forall expression making calls to a function <code class="docutils literal notranslate"><span class="pre">foo()</span></code>, storing the
+value and its number in <code class="docutils literal notranslate"><span class="pre">maxVal</span></code> and <code class="docutils literal notranslate"><span class="pre">maxValNum</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="p">(</span><span class="nx">minA</span><span class="p">,</span> <span class="nx">minALoc</span><span class="p">)</span> <span class="o">=</span> <span class="nx">minloc</span> <span class="k">reduce</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">A</span><span class="p">.</span><span class="k">domain</span><span class="p">);</span>
+<span class="kd">var</span> <span class="p">(</span><span class="nx">maxVal</span><span class="p">,</span> <span class="nx">maxValNum</span><span class="p">)</span> <span class="o">=</span> <span class="nx">maxloc</span> <span class="k">reduce</span> <span class="k">zip</span><span class="p">([</span><span class="nx">i</span> <span class="kd">in</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span> <span class="nx">foo</span><span class="p">(</span><span class="nx">i</span><span class="p">),</span> <span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>User-defined reductions are specified by preceding the keyword
+<code class="docutils literal notranslate"><span class="pre">reduce</span></code> by the class type that implements the reduction interface as
+described
+in <a class="reference internal" href="user-defined-reductions-and-scans.html#chapter-user-defined-reductions-and-scans"><span class="std std-ref">User-Defined Reductions and Scans</span></a>.</p>
+</section>
+<section id="scan-expressions">
+<span id="scan"></span><span id="index-19"></span><h3>Scan Expressions<a class="headerlink" href="#scan-expressions" title="Link to this heading">¶</a></h3>
+<p>A scan expression applies a scan operator to an aggregate expression,
+resulting in an aggregate expression of the same size and shape. The
+output values represent the result of the operator applied to all
+elements up to and including the corresponding element in the input.</p>
+<p>The syntax for a scan expression is given by:</p>
+<div class="highlight-syntax notranslate"><div class="highlight"><pre><span></span>scan-expression:
+  reduce-scan-operator &#39;scan&#39; iteratable-expression
+  class-type &#39;scan&#39; iteratable-expression
+</pre></div>
+</div>
+<p>The predefined scans are defined by <code class="docutils literal notranslate"><span class="pre">reduce-scan-operator</span></code>. These are
+identical to the predefined reductions and are described
+in <a class="reference internal" href="#reduce"><span class="std std-ref">Reduction Expressions</span></a>.</p>
+<p>The expression on the right-hand side of the scan can be of any type
+that can be iterated over and to which the operator can be applied.</p>
+<blockquote>
+<div><p><em>Example</em>.</p>
+<p>Given an array</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">]</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>that is initialized such that each element contains one, then the
+code</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="o">+</span> <span class="k">scan</span> <span class="nx">A</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>outputs the results of scanning the array with the sum operator. The
+output is</p>
+<div class="highlight-printoutput notranslate"><div class="highlight"><pre><span></span>1 2 3
+</pre></div>
+</div>
+</div></blockquote>
+<p>User-defined scans are specified by preceding the keyword <code class="docutils literal notranslate"><span class="pre">scan</span></code> by
+the class type that implements the scan interface as described
+in <a class="reference internal" href="user-defined-reductions-and-scans.html#chapter-user-defined-reductions-and-scans"><span class="std std-ref">User-Defined Reductions and Scans</span></a>.</p>
+</section>
+</section>
+<section id="configuration-constants-for-default-data-parallelism">
+<span id="data-parallel-knobs"></span><span id="index-20"></span><h2>Configuration Constants for Default Data Parallelism<a class="headerlink" href="#configuration-constants-for-default-data-parallelism" title="Link to this heading">¶</a></h2>
+<p>The following configuration constants are provided to control the degree
+of data parallelism over ranges, default domains, and default arrays:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Config Const</strong></p></th>
+<th class="head"><p><strong>Type</strong></p></th>
+<th class="head"><p><strong>Default</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dataParTasksPerLocale</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>top level <code class="docutils literal notranslate"><span class="pre">.maxTaskPar</span></code>   (see <a class="reference internal" href="locales.html#locale-methods"><span class="std std-ref">Locale Methods</span></a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dataParIgnoreRunningTasks</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dataParMinGranularity</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>The configuration constant <code class="docutils literal notranslate"><span class="pre">dataParTasksPerLocale</span></code> specifies the
+number of tasks to use when executing a forall loop over a range,
+default domain, or default array. The actual number of tasks may be
+fewer depending on the other two configuration constants. A value of
+zero results in using the default value.</p>
+<p>The configuration constant <code class="docutils literal notranslate"><span class="pre">dataParIgnoreRunningTasks</span></code>, when true, has
+no effect on the number of tasks to use to execute the forall loop. When
+false, the number of tasks per locale is decreased by the number of
+tasks that are already running on the locale, with a minimum value of
+one.</p>
+<p>The configuration constant <code class="docutils literal notranslate"><span class="pre">dataParMinGranularity</span></code> specifies the
+minimum number of iterations per task created. The number of tasks is
+decreased so that the number of iterations per task is never less than
+the specified value.</p>
+<p>For distributed domains and arrays that have these same configuration
+constants (<em>e.g.</em>, Block and Cyclic distributions), these same module
+level configuration constants are used to specify their default behavior
+within each locale.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="task-parallelism-and-synchronization.html" class="btn btn-neutral float-left" title="Task Parallelism and Synchronization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="locales.html" class="btn btn-neutral float-right" title="Locales" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

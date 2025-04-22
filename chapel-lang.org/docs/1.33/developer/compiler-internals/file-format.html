@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Format for ‘.dyno’ Files &mdash; Chapel Documentation 1.33</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Parsing" href="parsing.html" />
+    <link rel="prev" title="Depths of the Query System" href="queries-impl.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.33
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.33";
+$pagename = "developer/compiler-internals/file-format";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bestPractices/index.html">Best Practices for Contributors</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Frontend Library API Docs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="queries.html">Query Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="queries-impl.html">Depths of the Query System</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">File Format for ‘.dyno’ Files</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#what-is-a-dyno-file">What is a .dyno file?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#endianness">Endianness</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#overall-format">Overall Format</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-block-variable-byte-encoding">Building Block: Variable Byte Encoding</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-block-storing-a-string">Building Block: Storing a String</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#file-header">File Header</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-section-header">Module Section Header</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#symbol-table-section">Symbol Table Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#uast-section">uAST Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#long-strings-table-section">Long Strings Table Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#location-section">Location Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#generated-code-section">Generated Code Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#types-section">Types Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#functions-section">Functions Section</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-dependencies-section">Module Dependencies Section</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="parsing.html">Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="resolution.html">Resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="types.html">Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="uast.html">Untyped AST (uAST)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="base.html">Base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="libraries.html">Library Support</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Docs for Contributors</a> &raquo;</li>
+          <li><a href="index.html">Frontend Library API Docs</a> &raquo;</li>
+      <li>File Format for ‘.dyno’ Files</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/compiler-internals/file-format.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="file-format-for-dyno-files">
+<span id="chapter-dyno-file-format"></span><h1>File Format for ‘.dyno’ Files<a class="headerlink" href="#file-format-for-dyno-files" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="what-is-a-dyno-file">
+<h2>What is a .dyno file?<a class="headerlink" href="#what-is-a-dyno-file" title="Permalink to this headline">¶</a></h2>
+<p>‘.dyno’ files are experimental work that is building towards separate
+compilation. These files have some similarities to a C compiler’s
+precompiled header files, but we are working towards making them have
+some of the capabilities of a C compiler’s .o (object file).</p>
+<p>The .dyno file format is a binary format.</p>
+<p>There is an expectation that a different file extension will be chosen
+once further work is done on the file format.</p>
+</div>
+<div class="section" id="endianness">
+<h2>Endianness<a class="headerlink" href="#endianness" title="Permalink to this headline">¶</a></h2>
+<p>At present, ‘.dyno’ files are assumed to be in native endianness.
+However, the file format makes it possible to detect reversed endianness,
+so this should be possible to address in the future if needed.</p>
+</div>
+<div class="section" id="overall-format">
+<h2>Overall Format<a class="headerlink" href="#overall-format" title="Permalink to this headline">¶</a></h2>
+<p>Overall, the file format consists of a header followed by a number of
+contiguous modules sections. In this way, the file can store information
+for different modules. The file format is designed so that libraries for
+individual modules can be concatenated together (if the file header and
+file module table is adjusted appropriately). To support that, offsets
+are generally relative within the section referred to. Each module
+section contains its own sections that contain details of the module.</p>
+<p>Each section in the file is padded to start at an 8 byte alignment.</p>
+</div>
+<div class="section" id="building-block-variable-byte-encoding">
+<h2>Building Block: Variable Byte Encoding<a class="headerlink" href="#building-block-variable-byte-encoding" title="Permalink to this headline">¶</a></h2>
+<p>When storing a length (such as a string length) where short lengths are
+common, the file format uses a variable byte encoding. This encoding
+stores a variable number of bytes to represent a number and uses fewer
+bytes for smaller numbers. Portions of the number are stored in a
+variable number of component bytes. Each component byte has part of the
+number stored in the bottom 7 bits and uses the top bit to indicate if
+there are more components. The components store portions of the original
+number in a little-endian way (i.e., starting with the least-significant
+group of 7 bits).</p>
+<p>For example, the variable byte encoding of 0b110110 is just 0b00110110
+because it fits in 7 bits.</p>
+<p>In contrast, to find the variable byte encoding of 0b1010111011:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>first, divide the number into 7-bit groups: 0b101 0b0111011</p></li>
+<li><p>next, store the groups in little-endian order, and set the high
+bit on each other than the last: 0b10111011 0b00000101</p></li>
+</ul>
+</div></blockquote>
+<p>Signed integers can be stored in a variable-length byte encoding as well,
+using the “ZigZag” encoding (following Google Protocol Buffers). In the
+ZigZag encoding, the number is transformed to an unsigned number before
+encoding. A positive number <em>i</em> will be encoded as <em>2*i</em>. A negative
+number will be encoded as <em>2*|i|-1</em>.</p>
+</div>
+<div class="section" id="building-block-storing-a-string">
+<h2>Building Block: Storing a String<a class="headerlink" href="#building-block-storing-a-string" title="Permalink to this headline">¶</a></h2>
+<p>Strings can be stored in 2 ways, depending on if a long-strings
+table is in use.</p>
+<p>When not using a long-strings table, a string is stored as:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>the string length, using variable-byte encoding</p></li>
+<li><p>string data</p></li>
+</ul>
+</div></blockquote>
+<p>These strings are not null-terminated.</p>
+<p>When using a long-strings table, a string is stored in two ways which
+depend on the first byte:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>if the first byte does not have the high bit set</p>
+<ul>
+<li><p>the first byte stores the length
+(only possible for strings &lt; 128 bytes)</p></li>
+<li><p>followed by that number of bytes of string data</p></li>
+</ul>
+</li>
+<li><p>if the first byte does have the high bit set</p>
+<ul>
+<li><p>there are 3 more bytes that, combined with the bottom 7 bits of the
+first byte, form an index into the long strings table.</p></li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="file-header">
+<h2>File Header<a class="headerlink" href="#file-header" title="Permalink to this headline">¶</a></h2>
+<p>The ‘.dyno’ file format header consists of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>8 bytes of magic number 0x4c50484342494c7f
+(‘&lt;7F&gt;LIBCHPL’ or the reverse of it, depending on endianness)</p></li>
+<li><p>4 bytes of library file format major version number</p></li>
+<li><p>4 bytes of library file format minor version number</p></li>
+<li><p>4 bytes of chpl major version number</p></li>
+<li><p>4 bytes of chpl minor version number</p></li>
+<li><p>4 bytes of chpl update version number</p></li>
+<li><p>4 bytes of N, the number of module sections contained herein</p></li>
+<li><p>256 bits / 32 bytes of SHA-256 hash of the ‘.dyno’ file contents
+* the hash is computed assuming that the hash is 0</p></li>
+<li><p>a module section table, consisting of N entries, each consists of:
+* 8 bytes of module section offset (pointing to a module section header)</p></li>
+<li><p>8 bytes storing the offset just after the last module</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="module-section-header">
+<h2>Module Section Header<a class="headerlink" href="#module-section-header" title="Permalink to this headline">¶</a></h2>
+<p>The module section header uses relative section offsets. These relative
+offsets store offsets relative to the module section header. The ‘end’
+offsets are the offset just after the section; so the length of a section
+is endOffset - startOffset.</p>
+<p>Each module section begins with a header that consists of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>8 bytes of magic number 0x4d4dd01e5ec14d4d</p></li>
+<li><p>8 bytes of reserved space for future flags</p></li>
+<li><p>8 bytes of symbol table section start offset</p></li>
+<li><p>8 bytes of symbol table section end offset</p></li>
+<li><p>8 bytes of uAST section start offset</p></li>
+<li><p>8 bytes of uAST section end offset</p></li>
+<li><p>8 bytes of long strings table start offset</p></li>
+<li><p>8 bytes of long strings table end offset</p></li>
+<li><p>8 bytes of location section start offset</p></li>
+<li><p>8 bytes of location section end offset</p></li>
+<li><p>8 bytes of types section start offset</p></li>
+<li><p>8 bytes of types section end offset</p></li>
+<li><p>8 bytes of functions section start offset</p></li>
+<li><p>8 bytes of functions section end offset</p></li>
+<li><p>8 bytes of dependencies section start offset</p></li>
+<li><p>8 bytes of dependencies section end offset</p></li>
+<li><p>a string storing the module symbol ID
+(e.g. “TopLevelModule” or “MyModule.SubModule”)
+(note that this string does not use the long strings table)</p></li>
+<li><p>a string storing the file path that generated the module
+(note that this string does not use the long strings table)</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="symbol-table-section">
+<h2>Symbol Table Section<a class="headerlink" href="#symbol-table-section" title="Permalink to this headline">¶</a></h2>
+<p>The symbol table section has an entry for each public, top-level symbol
+contained in the module, as well as the module itself. These are sorted
+by symbol table ID.</p>
+<p>For a symbol, the symbol table ID consists of:</p>
+<blockquote>
+<div><ul>
+<li><p>“” for the module itself</p></li>
+<li><p>the name of the symbol, for anything top-level to a module</p></li>
+<li><p>the regular ID minus the module name, for anything else</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Normally, symbol IDs are stored as e.g.  ‘MyModule.MyClass.myMethod’,
+but since this entire section of the file contains things within
+‘MyModule’, that part is omitted; so the symbol table ID for the example
+would just be ‘MyClass.myMethod’.</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+<p>This section consists of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>8 bytes of magic number 0x4d59531e5ec110e0</p></li>
+<li><p>4 bytes of N, the number of entries</p></li>
+<li><p>4 bytes reserved for future use</p></li>
+<li><p>entries sorted by symbol table ID.  For each entry, it stores:</p>
+<ul>
+<li><p>4 byte relative offset from the uAST section start,
+pointing to the serialized uAST for this symbol</p></li>
+<li><p>4 byte relative offset from the location section start,
+pointing to the location group for this symbol</p></li>
+<li><p>a byte storing flags / kind information</p></li>
+<li><p>the symbol table ID, stored in a compressed form. It is formed by
+concatenating the first A bytes of the previous symbol table ID with
+the B bytes of suffix:</p>
+<ul>
+<li><p>unsigned variable-byte encoded, prefix A to copy from the
+previous symbol table ID</p></li>
+<li><p>unsigned variable-byte encoded, suffix size B stored here</p></li>
+<li><p>B bytes of suffix</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<div><ul>
+<li><p>unsigned variable-byte encoded number, G, of code-generated versions</p></li>
+<li><p>for each of the G code-generated versions</p>
+<ul>
+<li><p>byte indicating 0 if it is concrete and nonzero for an
+instantiation</p></li>
+<li><p>additional information TBD for instantiations</p></li>
+<li><p>the name of the symbol in the generated code, also called a “cname”,
+stored in a compressed form. It is formed by concatenating the first
+A bytes of the previous cname with the B bytes of suffix:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>unsigned variable-byte encoded, prefix A to copy from the
+previous symbol’s cname</p></li>
+<li><p>unsigned variable-byte encoded, suffix size B stored here</p></li>
+<li><p>B bytes of suffix</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div></blockquote>
+</div>
+<div class="section" id="uast-section">
+<h2>uAST Section<a class="headerlink" href="#uast-section" title="Permalink to this headline">¶</a></h2>
+<p>The uAST section consists of serialized uAST entries in the order they
+appear within the file. The top-level entry will be the uAST for the
+corresponding module. Note that the symbol table can point to an
+individual entry within the serialized uAST.</p>
+<p>IDs are not stored here. They are recomputed when the uAST is read.</p>
+<p>The uAST section consists of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>8 bytes of magic number 0x5453411e5ec110e0</p></li>
+<li><p>8 bytes: the total number of uAST entries</p></li>
+<li><p>the contained entries, where each entry consists of:</p>
+<ul>
+<li><p>1 byte, tag indicating which uAST element it is (e.g. Variable or Forall)</p></li>
+<li><p>attribute group child num (variable-byte encoded)</p></li>
+<li><p>L bytes storing the additional information for the uAST element
+(where L can be determined from the tag)</p></li>
+<li><p>variable-byte encoded number of children</p></li>
+<li><p>the children, where each is stored as a uAST entry as described here</p></li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="long-strings-table-section">
+<h2>Long Strings Table Section<a class="headerlink" href="#long-strings-table-section" title="Permalink to this headline">¶</a></h2>
+<p>Long strings might occur many times, and so space can be saved by
+replacing them with an integer. Since there are a lot of short strings,
+and the long string table adds indirection, this only applies to long
+strings. The threshold length is not set by the file format, but it
+must be less than 128.</p>
+<p>The long strings table section does not store strings in any particular
+order.</p>
+<p>The long strings table consists of the following:</p>
+<blockquote>
+<div><ul>
+<li><p>4 bytes magic number 0x52545301</p></li>
+<li><p>4 bytes N counting the number of long strings, including two unused ones:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>offset 0 is unused</p></li>
+<li><p>the last offset is also unused</p></li>
+<li><p>so, valid long string indices are in 1 &lt;= i &lt; N</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>relative offsets of each string, from the start of the long strings section</p>
+<ul class="simple">
+<li><p>each offset is 4 bytes</p></li>
+</ul>
+</li>
+<li><p>string data</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="location-section">
+<h2>Location Section<a class="headerlink" href="#location-section" title="Permalink to this headline">¶</a></h2>
+<p>The Location section represents source locations of uAST elements.
+It is stored in the same order as the uAST elements, but it is stored
+separately because it is only relevant for error messages.</p>
+<p>The locations are stored in location groups. Each location group can be
+read independently, but some basic compression is used within each group,
+so that the whole group might need to be read in order to compute a
+location.</p>
+<p>The Location section consists of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>8 bytes of magic number 0x434F4C075ec110e0</p></li>
+<li><p>4 bytes, the number of file paths used here</p></li>
+<li><p>4 bytes storing the number of location groups. There will be
+a location group for the module under consideration and then
+for each uAST referred to by the symbol table. However, these
+are in uAST order rather than symbol table order.</p></li>
+<li><p>for each file path</p>
+<ul>
+<li><p>a string storing the file path</p></li>
+<li><p>256 bits / 32 bytes of SHA-256 hash of the input file that was parsed</p></li>
+</ul>
+</li>
+<li><p>information for each location group, consisting of the following:</p>
+<ul>
+<li><p>unsigned variable-byte encoded index into the file paths stored in the
+location section to indicate which file this location group came from</p></li>
+<li><p>signed variable-byte encoded starting line number</p></li>
+<li><p>a number of location entries, each consisting of:</p>
+<ul>
+<li><p>the first line, stored as a signed variable-byte encoded
+difference from the previous entry’s last line, or a difference
+from the starting line number if this is the first entry - i.e.
+the first line is prevEntry.lastLine + decodedDifference.</p></li>
+<li><p>the last line, stored as a signed variable-byte encoded difference
+from this entry’s first line</p></li>
+<li><p>unsigned variable-byte encoded first column</p></li>
+<li><p>unsigned variable-byte encoded first last column</p></li>
+<li><p>variable-byte encoded M, number of additional locations associated
+with this uAST item</p></li>
+<li><p>for each of the M additional locations:</p>
+<ul>
+<li><p>unsigned variable-byte encoded additional location tag</p></li>
+<li><p>first line, stored as a signed variable-byte encoded difference
+from the containing entry’s first line</p></li>
+<li><p>last line, stored as a signed variable-byte encoded difference
+from the additional location’s first line</p></li>
+<li><p>unsigned variable-byte encoded first column</p></li>
+<li><p>unsigned variable-byte encoded first last column</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="generated-code-section">
+<h2>Generated Code Section<a class="headerlink" href="#generated-code-section" title="Permalink to this headline">¶</a></h2>
+<p>The generated code contains serialized LLVM IR for the result of
+compilation for the module (with the exception of generic functions that
+are not yet instantiated).</p>
+<p>The generated code section consists of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>8 bytes of magic number 0x4e4547075ec110e0</p></li>
+<li><p>8 bytes, M, the size of the serialized LLVM IR bytecode</p></li>
+<li><p>M bytes of serialized LLVM IR bytecode</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="types-section">
+<h2>Types Section<a class="headerlink" href="#types-section" title="Permalink to this headline">¶</a></h2>
+<p>TODO</p>
+</div>
+<div class="section" id="functions-section">
+<h2>Functions Section<a class="headerlink" href="#functions-section" title="Permalink to this headline">¶</a></h2>
+<p>TODO</p>
+</div>
+<div class="section" id="module-dependencies-section">
+<h2>Module Dependencies Section<a class="headerlink" href="#module-dependencies-section" title="Permalink to this headline">¶</a></h2>
+<p>TODO</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="queries-impl.html" class="btn btn-neutral float-left" title="Depths of the Query System" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="parsing.html" class="btn btn-neutral float-right" title="Parsing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

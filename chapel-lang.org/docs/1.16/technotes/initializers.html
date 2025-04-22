@@ -1,0 +1,625 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Initializers &mdash; Chapel Documentation 1.16</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.16" href="../index.html"/>
+        <link rel="up" title="Technical Notes" href="index.html"/>
+        <link rel="next" title="Exporting Chapel as a Library" href="libraries.html"/>
+        <link rel="prev" title="Forwarding Methods Calls" href="forwarding.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Chapel Documentation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<?php   // Variables given by sphinx 
+   $chplTitle = "1.16";   $pagename = "./technotes/initializers";   include "../versionButton.php";   ?>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel's Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auxIO.html">Auxiliary I/O Systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chpl-ipe.html">Interactive Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Initializers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#the-initializer-method">The Initializer Method</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#user-defined-initializers">User-Defined Initializers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#order-of-initialization">Order of Initialization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-initializer-body">The Initializer Body</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1">Phase 1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-division-indicator">Phase Division Indicator</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2">Phase 2</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#generics">Generics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#copy-initializers">Copy Initializers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#remaining-work">Remaining Work</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#compiler-generated-initializers">Compiler Generated Initializers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#interaction-with-error-handling">Interaction With Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#noinit">Noinit</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1">Bugs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#other-todos">Other TODOs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The 'local' keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="voidVariables.html">Void Variables and Fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation 1.16</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      
+    <li>Initializers</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/technotes/initializers.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="initializers">
+<span id="readme-initializers"></span><h1>Initializers<a class="headerlink" href="#initializers" title="Permalink to this headline">¶</a></h1>
+<p>The Chapel team is implementing a new approach to user-defined
+initialization of variables with record type or instances of class
+type.  This approach relies on methods known as initializers rather
+than the original methods known as constructors.</p>
+<p>A discussion of the current design and rationale is provided in <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/10.rst">CHIP 10</a>.</p>
+<p>Release Chapel 1.16.0 provides a strong preview implementation of this
+new feature.  Though some known bugs remain, the feature is rapidly
+approaching full support and developers should feel encouraged to
+write initializers where previously they had relied on constructors.</p>
+<p>It is anticipated that the implementation will continue to advance
+steadily after this release and that many aspects of the internal
+implementation of Chapel will transition from constructor methods to
+initializer methods during this release.</p>
+<div class="section" id="the-initializer-method">
+<h2>The Initializer Method<a class="headerlink" href="#the-initializer-method" title="Permalink to this headline">¶</a></h2>
+<p>An initializer is a method on a class or record named &quot;init&quot;.  It is invoked
+by the <code class="docutils literal"><span class="pre">new</span></code> operator, where the type name and initializer arguments are
+preceded with the <code class="docutils literal"><span class="pre">new</span></code> keyword.</p>
+<p>If the program declares an initializer method on a type, it is a user-defined
+initializer.  If the program declares no initializers or constructors for a
+class or record, a compiler generated constructor for that type is created
+automatically.  Work has begun on having the compiler generate an initializer
+instead a constructor, but it is not yet complete (see below for the status on
+<a class="reference internal" href="#compiler-generated-initializers">Compiler Generated Initializers</a>).</p>
+</div>
+<div class="section" id="user-defined-initializers">
+<h2>User-Defined Initializers<a class="headerlink" href="#user-defined-initializers" title="Permalink to this headline">¶</a></h2>
+<p>A user-defined initializer is an initializer method explicitly declared in the
+program.  An initializer declaration has the same syntax as a method
+declaration, except that the name of the function is &quot;init&quot;, and there is no
+return type specifier.</p>
+<p>When an initializer is invoked, the usual function resolution mechanism is
+applied to determine which user-defined initializer is required.</p>
+<p>The following example shows a class with two initializers:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MessagePoint</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">message</span><span class="p">:</span> <span class="kt">string</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">y</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">message</span> <span class="o">=</span> <span class="s">&quot;a point&quot;</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">message</span><span class="p">:</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">y</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">message</span> <span class="o">=</span> <span class="nx">message</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span> <span class="c1">// class MessagePoint</span>
+
+<span class="c1">// create two objects</span>
+<span class="kd">var</span> <span class="nx">mp1</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MessagePoint</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">2.0</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">mp2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MessagePoint</span><span class="p">(</span><span class="s">&quot;point mp2&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The first initializer lets the user specify the initial coordinates and the
+second initializer lets the user specify the initial message when creating a
+MessagePoint.</p>
+</div>
+<div class="section" id="order-of-initialization">
+<h2>Order of Initialization<a class="headerlink" href="#order-of-initialization" title="Permalink to this headline">¶</a></h2>
+<p>The specification of a class may be derived from, or inherit from, the
+specification of one or more other classes.  The initialization of an
+instance of a derived class requires that the initializer for each parent
+class be executed in some well defined order.</p>
+<p>Chapel initializes an instance in two phases that we refer to as &quot;Phase 1&quot;
+and &quot;Phase 2&quot;.</p>
+<p>Phase 1 proceeds from the most derived class to the base class, and the fields
+for each class are initialized in field declaration order. This implies that
+the fields of any parent classes will be in an undefined state during phase 1.
+This in turn requires that certain constraints be observed during phase 1.
+These are described in more detail below.</p>
+<p>Phase 2 proceeds from the base class to the most derived class once phase 1
+has been completed for the base class.  At this point every field of the
+instance is in a well defined state and so there are no restrictions on
+the operations that may be performed.</p>
+<p>Note that this protocol is well-defined for instances of classes that do
+not include inheritance.  The fields of the instance are initialized in
+field declaration order during Phase 1 and then Phase 2 may be used to
+perform additional initialization.</p>
+<p>Records in Chapel do not currently provide support for inheritance but we
+choose to view the initialization of record values in the same manner.</p>
+</div>
+<div class="section" id="the-initializer-body">
+<h2>The Initializer Body<a class="headerlink" href="#the-initializer-body" title="Permalink to this headline">¶</a></h2>
+<p>The code written in an initializer is divided into two sequentially-ordered
+categories that define the operations to be performed in phase 1 and then
+phase 2.  The two phases are separated by a phase division indicator.  When
+the phase division indicator is not present, the body of an initializer is
+assumed to be entirely composed of Phase 2 statements.  Otherwise, any code
+prior to the phase division indicator is considered to be in Phase 1, and any
+code following it is considered to be in Phase 2.  Phase 1 and Phase 2 will
+be described in the next few subsections, and additional details and rationale
+can be found in <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/10.rst">CHIP 10</a>.</p>
+<p>Note that aside from <code class="docutils literal"><span class="pre">try!</span></code> statements without a <code class="docutils literal"><span class="pre">catch</span></code> block, error
+handling constructs are not allowed in initializers.  An initializer cannot
+be declared as <code class="docutils literal"><span class="pre">throws</span></code>.  See <a class="reference internal" href="#interaction-with-error-handling">Interaction With Error Handling</a>.</p>
+<div class="section" id="phase-1">
+<h3>Phase 1<a class="headerlink" href="#phase-1" title="Permalink to this headline">¶</a></h3>
+<p>The code residing in Phase 1 must follow a set of strong requirements.</p>
+<p>Other methods on the <code class="docutils literal"><span class="pre">this</span></code> instance cannot be called.  The <code class="docutils literal"><span class="pre">this</span></code>
+instance may not be passed to another function.</p>
+<p>Fields must be initialized in declaration order; however, fields can be
+omitted. Omitted fields are given the declared initial value if present,
+or the default of its declared type.  Fields with neither a declared initial
+value nor a declared type cannot be omitted.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">bar</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">baz</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">dip</span><span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">barVal</span><span class="p">,</span> <span class="nx">dipVal</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">bar</span> <span class="o">=</span> <span class="nx">barVal</span><span class="p">;</span>
+    <span class="c1">// omitted initialization: baz = false;</span>
+    <span class="nx">dip</span> <span class="o">=</span> <span class="nx">dipVal</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">foo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Foo</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Both explicit and implicit initialization of a field can depend on the values
+of prior fields.  However, later fields may not be referenced.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo2</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">bar</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">baz</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">dip</span> <span class="o">=</span> <span class="nx">baz</span> <span class="o">*</span> <span class="mi">3</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">barVal</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">bar</span> <span class="o">=</span> <span class="nx">barVal</span><span class="p">;</span>
+    <span class="nx">baz</span> <span class="o">=</span> <span class="nx">divceil</span><span class="p">(</span><span class="nx">bar</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="c1">// omitted initialization: dip = baz * 3;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">foo2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Foo2</span><span class="p">(</span><span class="mi">11</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Parent fields may not be accessed or initialized during Phase 1.</p>
+<p><code class="docutils literal"><span class="pre">const</span></code> fields may be initialized during Phase 1.  Local variables may be
+created and used.  Functions that are not methods on the <code class="docutils literal"><span class="pre">this</span></code> instance
+may be called, so long as <code class="docutils literal"><span class="pre">this</span></code> is not provided as an argument.</p>
+<p>Loops and parallel statements are allowed during Phase 1, but field
+initialization within them is forbidden.  <code class="docutils literal"><span class="pre">on</span></code> statements whose bodies
+extend into Phase 2 are not allowed, but more limited <code class="docutils literal"><span class="pre">on</span></code> statements are
+acceptable.</p>
+<p>When Phase 1 of the initializer body has completed and the phase division
+indicator has been processed, it can safely be assumed that all fields are
+in a usable state.</p>
+</div>
+<div class="section" id="phase-division-indicator">
+<h3>Phase Division Indicator<a class="headerlink" href="#phase-division-indicator" title="Permalink to this headline">¶</a></h3>
+<p>An explicit call to another initializer ends Phase 1 and begins Phase 2.
+This call takes one of two forms:</p>
+<p>Form 1: call to an initializer defined on the parent type</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Form 2: call to another initializer defined on the same type</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">this</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>If the type has no parent, an argument-less call of the first form will still
+be valid, but otherwise treated as a no-op.</p>
+<p>Example of initializers using the first form:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span> <span class="c1">// no parent type</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">xVal</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="nx">xVal</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span> <span class="c1">// argument-less call ends Phase 1</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">Bar</span><span class="p">:</span> <span class="nx">Foo</span> <span class="p">{</span> <span class="c1">// inherits from Foo</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">bool</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">yVal</span><span class="p">:</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">y</span> <span class="o">=</span> <span class="nx">yVal</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span> <span class="c1">// Calls the parent initializer</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">bar</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Bar</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>When using the second form, field initialization statements are not permitted
+in Phase 1, though other statements are allowed.  Omitted field initialization
+will not be inserted prior to calls of the second form.</p>
+<p>Example of an initializer using the second form:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Rectangle</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">len</span><span class="p">,</span> <span class="nx">width</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">val</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">init</span><span class="p">(</span><span class="nx">val</span><span class="p">,</span> <span class="nx">val</span><span class="p">);</span> <span class="c1">// calls the other initializer</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Making a square&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">lenVal</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">widthVal</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">len</span> <span class="o">=</span> <span class="nx">lenVal</span><span class="p">;</span>
+    <span class="nx">width</span> <span class="o">=</span> <span class="nx">widthVal</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">square</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Rectangle</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>For a single control flow path through the body, only one phase division
+indicator is allowed.  It is forbidden to have both calls, or multiple of
+either, in a single control flow path.  It is forbidden to enclose the phase
+division indicator in a parallel statement, on statement, or a loop statement.
+If the phase division indicator is enclosed by a conditional, it must be a
+<code class="docutils literal"><span class="pre">param</span></code> conditional.</p>
+<p>If no phase division indicator is provided, an argument-less first form call
+will be inserted at the beginning of the body.  The
+<a class="reference internal" href="#compiler-generated-initializers">Compiler Generated Initializers</a> will also include an argument-less first
+form call after completing the initialization of its fields.  If the parent
+type has defined an initializer that this call cannot resolve to, attempts
+to initialize the child with the compiler generated initializer will result
+in an error.</p>
+</div>
+<div class="section" id="phase-2">
+<h3>Phase 2<a class="headerlink" href="#phase-2" title="Permalink to this headline">¶</a></h3>
+<p>Code in Phase 2 is functionally similar to other methods on the type, and less
+restrictive than code in Phase 1.  Modifications to the fields are considered
+assignment rather than initialization.  Other methods may be called on the
+<code class="docutils literal"><span class="pre">this</span></code> instance, and the <code class="docutils literal"><span class="pre">this</span></code> instance may be passed as an argument to
+another function.  Parent fields may be accessed.</p>
+<p>As in other methods, code in Phase 2 may not redefine <code class="docutils literal"><span class="pre">const</span></code>, <code class="docutils literal"><span class="pre">param</span></code>,
+and <code class="docutils literal"><span class="pre">type</span></code> fields.</p>
+</div>
+</div>
+<div class="section" id="generics">
+<h2>Generics<a class="headerlink" href="#generics" title="Permalink to this headline">¶</a></h2>
+<p>A class or record with a <code class="docutils literal"><span class="pre">param</span></code> field, <code class="docutils literal"><span class="pre">type</span></code> field, or a <code class="docutils literal"><span class="pre">var</span></code> /
+<code class="docutils literal"><span class="pre">const</span></code> field with no type or initial value is considered generic over that
+field.  Generic fields are treated similarly to other fields, with some
+exceptions.  Only generic fields are capable of being declared without a type
+or initial value, so only those generic fields without either must have an
+explicit initialization in Phase 1 - other generic fields may rely on omitted
+initialization like other fields do.  Like <code class="docutils literal"><span class="pre">const</span></code> fields, <code class="docutils literal"><span class="pre">type</span></code> and
+<code class="docutils literal"><span class="pre">param</span></code> fields may not be updated during Phase 2.</p>
+<p>Note: user-defined constructors for generic classes and records required an
+argument per generic field and did not allow generic fields to be set during
+the constructor body.  Initializers do not have this constraint.</p>
+</div>
+<div class="section" id="copy-initializers">
+<h2>Copy Initializers<a class="headerlink" href="#copy-initializers" title="Permalink to this headline">¶</a></h2>
+<p>An initializer may be defined to control the behavior when a copy of an
+instance is made.  This initializer is define with a single argument on
+the same type as the type being created:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">wasCopied</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">xVal</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="nx">xVal</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="c1">// copy initializer</span>
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span> <span class="nx">Foo</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+    <span class="nx">wasCopied</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">foo1</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Foo</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">foo2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Foo</span><span class="p">(</span><span class="nx">foo1</span><span class="p">);</span> <span class="c1">// user inserted copy</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">foo1</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">foo2</span><span class="p">);</span>
+<span class="k">delete</span> <span class="nx">foo1</span><span class="p">;</span>
+<span class="k">delete</span> <span class="nx">foo2</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>For more details on when the copy initializer would be called, please refer to
+<a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/13.rst">CHIP 13 - When Do Records and Array Copies Occur</a></p>
+</div>
+<div class="section" id="remaining-work">
+<h2>Remaining Work<a class="headerlink" href="#remaining-work" title="Permalink to this headline">¶</a></h2>
+<p>With the 1.16.0 release, support for initializers is mostly stable with a few
+bugs and some unimplemented features remaining.  It is recommended for
+developers writing new classes and records to write initializers when possible.
+Please report any bugs encountered using the guidance described at the <a class="reference external" href="https://chapel-lang.org/docs/usingchapel/bugs.html">bugs</a>
+page.</p>
+<div class="section" id="compiler-generated-initializers">
+<h3>Compiler Generated Initializers<a class="headerlink" href="#compiler-generated-initializers" title="Permalink to this headline">¶</a></h3>
+<p>Prototypical support of compiler generated initializers has been added.  With
+the 1.16.0 release and the developer-oriented flag <code class="docutils literal"><span class="pre">--force-initializers</span></code>,
+user-defined classes will attempt to generate default initializers instead of
+default constructors.  User-defined records, and records and classes defined in
+the internal, standard, or package modules will not yet generate default
+initializers with this flag.  However, there are still failures with even that
+limited application.</p>
+<p>It is anticipated that compiler generated initializers will be fully supported
+in the next release.</p>
+</div>
+<div class="section" id="interaction-with-error-handling">
+<h3>Interaction With Error Handling<a class="headerlink" href="#interaction-with-error-handling" title="Permalink to this headline">¶</a></h3>
+<p>Due to time constraints, the 1.16.0 release went out with very limited support
+for error handling constructs: an initializer cannot be declared as <code class="docutils literal"><span class="pre">throws</span></code>,
+and only <code class="docutils literal"><span class="pre">try!</span></code> statements without <code class="docutils literal"><span class="pre">catch</span></code> blocks are allowed in the body.</p>
+<p>In later releases, we hope to support <code class="docutils literal"><span class="pre">throw</span></code>, and <code class="docutils literal"><span class="pre">try</span></code> and <code class="docutils literal"><span class="pre">try!</span></code>
+statements with <code class="docutils literal"><span class="pre">catch</span></code> blocks during Phase 2, allowing initializers to be
+declared as <code class="docutils literal"><span class="pre">throws</span></code>.  It may be possible to allow these constructs in Phase
+1, though for simplicity's sake they will likely still be banned around field
+initialization statements and forbidden from crossing the Phase 1/Phase 2
+divide.</p>
+<p>In the world where initializers can <code class="docutils literal"><span class="pre">throw</span></code>, we will only allow child classes
+to <code class="docutils literal"><span class="pre">throw</span></code> if the parent initializer <code class="docutils literal"><span class="pre">throws</span></code> (though there may be
+complications with chains of initializers, such as an initializer that calls
+another initializer on the type, which calls a parent initializer that
+<code class="docutils literal"><span class="pre">throws</span></code>, etc.).</p>
+</div>
+<div class="section" id="noinit">
+<h3>Noinit<a class="headerlink" href="#noinit" title="Permalink to this headline">¶</a></h3>
+<p>Variable initialization when provided the <code class="docutils literal"><span class="pre">noinit</span></code> keyword in place of an
+initial value for a class or record should generate a call to an initializer
+that has defined what <code class="docutils literal"><span class="pre">noinit</span></code> means for that type.  More details on the
+direction for this support can be found in the <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/10.rst#noinit">noinit section</a> of CHIP 10.</p>
+</div>
+<div class="section" id="id1">
+<h3>Bugs<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>secondary initializers in outside modules when the type doesn't define an
+initializer in its original module</li>
+<li>nested types when the outer type and/or the inner type defines an initializer
+and the outer type and/or the inner type is generic.</li>
+<li>others</li>
+</ul>
+</div>
+<div class="section" id="other-todos">
+<h3>Other TODOs<a class="headerlink" href="#other-todos" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Convert library types to utilize initializers instead of constructors</li>
+<li>Improve some slightly cryptic error messages</li>
+<li>Ensure we <em>always</em> error when a method is called in Phase 1 (we only
+sometimes do today)</li>
+<li>Extend on statement support to allow field initialization within its bounds
+after getting larger team buy in.</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="libraries.html" class="btn btn-neutral float-right" title="Exporting Chapel as a Library" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="forwarding.html" class="btn btn-neutral" title="Forwarding Methods Calls" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.16.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

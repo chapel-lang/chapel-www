@@ -1,0 +1,205 @@
+.. default-domain:: chpl
+
+.. module:: LibYamlUtils
+
+LibYamlUtils
+============
+**Usage**
+
+.. code-block:: chapel
+
+   use Yaml.LibYamlUtils;
+
+
+or
+
+.. code-block:: chapel
+
+   import Yaml.LibYamlUtils;
+
+.. data:: config param YamlUtilsVerbose = false
+
+.. data:: const YAML_NO_EVENT: c_int
+
+.. data:: const YAML_STREAM_START_EVENT: c_int
+
+.. data:: const YAML_STREAM_END_EVENT: c_int
+
+.. data:: const YAML_DOCUMENT_START_EVENT: c_int
+
+.. data:: const YAML_DOCUMENT_END_EVENT: c_int
+
+.. data:: const YAML_ALIAS_EVENT: c_int
+
+.. data:: const YAML_SCALAR_EVENT: c_int
+
+.. data:: const YAML_SEQUENCE_START_EVENT: c_int
+
+.. data:: const YAML_SEQUENCE_END_EVENT: c_int
+
+.. data:: const YAML_MAPPING_START_EVENT: c_int
+
+.. data:: const YAML_MAPPING_END_EVENT: c_int
+
+.. enum:: enum EventType { None, StreamStart, StreamEnd, DocumentStart, DocumentEnd, Alias, Scalar, SequenceStart, SequenceEnd, MappingStart, MappingEnd }
+
+.. function:: proc getEvent(flag: c_int): EventType
+
+.. function:: operator :(e: EventType, type t: string)
+
+.. record:: yaml_parser_t
+
+.. record:: yaml_emitter_t
+
+.. record:: yaml_event_t
+
+   .. attribute:: var t: c_int
+
+   .. attribute:: var start_mark: yaml_mark_t
+
+   .. attribute:: var end_mark: yaml_mark_t
+
+.. record:: yaml_mark_t
+
+   .. attribute:: var idx: c_size_t
+
+   .. attribute:: var line: c_size_t
+
+   .. attribute:: var column: c_size_t
+
+.. record:: yaml_version_directive_t
+
+   .. attribute:: var major: c_int
+
+   .. attribute:: var minor: c_int
+
+.. record:: yaml_tag_directive_t
+
+   .. attribute:: var handle: c_string
+
+   .. attribute:: var prefix: c_string
+
+.. data:: const YAML_ANY_ENCODING: c_int
+
+.. data:: const YAML_UTF8_ENCODING: c_int
+
+.. data:: const YAML_UTF16LE_ENCODING: c_int
+
+.. data:: const YAML_UTF16BE_ENCODING: c_int
+
+.. data:: const YAML_ANY_SEQUENCE_STYLE: c_int
+
+.. data:: const YAML_BLOCK_SEQUENCE_STYLE: c_int
+
+.. data:: const YAML_FLOW_SEQUENCE_STYLE: c_int
+
+.. data:: const YAML_ANY_MAPPING_STYLE: c_int
+
+.. data:: const YAML_BLOCK_MAPPING_STYLE: c_int
+
+.. data:: const YAML_FLOW_MAPPING_STYLE: c_int
+
+.. data:: const YAML_ANY_SCALAR_STYLE: c_int
+
+.. data:: const YAML_PLAIN_SCALAR_STYLE: c_int
+
+.. data:: const YAML_SINGLE_QUOTED_SCALAR_STYLE: c_int
+
+.. data:: const YAML_DOUBLE_QUOTED_SCALAR_STYLE: c_int
+
+.. data:: const YAML_LITERAL_SCALAR_STYLE: c_int
+
+.. data:: const YAML_FOLDED_SCALAR_STYLE: c_int
+
+.. function:: proc seqStyleToFlag(style: YamlSequenceStyle): c_int
+
+.. function:: proc mapStyleToFlag(style: YamlMappingStyle): c_int
+
+.. function:: proc scalarStyleToFlag(style: YamlScalarStyle): c_int
+
+.. class:: LibYamlEmitter
+
+   .. attribute:: var seqStyle: YamlSequenceStyle
+
+   .. attribute:: var mapStyle: YamlMappingStyle
+
+   .. attribute:: var scalarStyle: YamlScalarStyle
+
+   .. attribute:: var documentStyle: YamlDocumentStyle
+
+   .. attribute:: var emitter: yaml_emitter_t
+
+   .. attribute:: var event: yaml_event_t
+
+   .. attribute:: var file: c_ptr(c_FILE) = nil
+
+.. method:: proc LibYamlEmitter.init(sequences = YamlSequenceStyle.Any, mappings = YamlMappingStyle.Any, scalars = YamlScalarStyle.Any, documents = YamlDocumentStyle.Explicit)
+
+.. method:: proc LibYamlEmitter.deinit()
+
+.. method:: proc LibYamlEmitter.serialize(fw, serializer) throws
+
+.. method:: proc LibYamlEmitter.openContext(styleHint = YamlDocumentStyle.Default) throws
+
+.. method:: proc LibYamlEmitter.closeContext(): bytes throws
+
+.. method:: proc LibYamlEmitter.openFile(path: string, styleHint = YamlDocumentStyle.Default) throws
+
+.. method:: proc LibYamlEmitter.emitEvent(param name: string) throws
+
+.. method:: proc LibYamlEmitter.startSequence(ref tag: bytes = b"", styleHint = YamlSequenceStyle.Default) throws
+
+.. method:: proc LibYamlEmitter.endSequence() throws
+
+.. method:: proc LibYamlEmitter.startMapping(ref tag: bytes = b"", styleHint = YamlMappingStyle.Default) throws
+
+.. method:: proc LibYamlEmitter.endMapping() throws
+
+.. method:: proc LibYamlEmitter.emitScalar(value: bytes, ref tag: bytes = b"", styleHint = YamlScalarStyle.Default) throws
+
+.. method:: proc LibYamlEmitter.emitAlias(ref value: bytes) throws
+
+.. method:: proc LibYamlEmitter.startDocument(styleHint = YamlDocumentStyle.Default) throws
+
+.. method:: proc LibYamlEmitter.endDocument(styleHint = YamlDocumentStyle.Default) throws
+
+.. method:: proc LibYamlEmitter._startOutputStream() throws
+
+.. method:: proc LibYamlEmitter._endOutputStream() throws
+
+.. method:: proc LibYamlEmitter.chooseSeqStyle(styleHint: YamlSequenceStyle): c_int
+
+.. method:: proc LibYamlEmitter.chooseMapStyle(styleHint: YamlMappingStyle): c_int
+
+.. method:: proc LibYamlEmitter.chooseScalarStyle(styleHint: YamlScalarStyle): c_int
+
+.. method:: proc LibYamlEmitter.chooseDocumentStyle(hint: YamlDocumentStyle): c_int
+
+.. method:: proc LibYamlEmitter.yamlStringifyPrimitive(const val: ?t, processStrings: bool): bytes
+
+.. class:: LibYamlParser
+
+   .. attribute:: var parser: yaml_parser_t
+
+   .. attribute:: var event: yaml_event_t
+
+   .. attribute:: var cachedEvent: (EventType, uint, uint)
+
+   .. attribute:: var fileIsAttached = false
+
+   .. attribute:: var f: c_ptr(c_FILE) = nil
+
+.. method:: proc LibYamlParser.init()
+
+.. method:: proc LibYamlParser.deinit()
+
+.. method:: proc LibYamlParser.attachFile(fr) throws
+
+.. method:: proc LibYamlParser.finishFile(fr) throws
+
+.. method:: proc LibYamlParser.expectEvent(fr, e: EventType): 2*(uint) throws
+
+.. method:: proc LibYamlParser.peekFor(fr, e: EventType): bool throws
+
+.. method:: proc LibYamlParser.parseNext(fr): (EventType, uint, uint) throws
+

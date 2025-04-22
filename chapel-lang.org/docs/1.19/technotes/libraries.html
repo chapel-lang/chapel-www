@@ -1,0 +1,810 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Exporting Chapel as a Library &mdash; Chapel Documentation 1.19</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.19" href="../index.html"/>
+        <link rel="up" title="Technical Notes" href="index.html"/>
+        <link rel="next" title="Lifetime Checking" href="lifetimeChecking.html"/>
+        <link rel="prev" title="The &#39;init=&#39; Method" href="initequals.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.19
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.19";
+$pagename = "technotes/libraries";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel's Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auxIO.html">Auxiliary I/O Systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fortranInterop.html">Fortran Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initTypeAlias.html">Invoking Initializers with a Generic Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initequals.html">The 'init=' Method</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Exporting Chapel as a Library</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#static-and-dynamic-libraries">Static and Dynamic Libraries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#location-of-the-generated-library">Location of the Generated Library</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#how-to-define-your-library">How to Define Your Library</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#library-name">Library Name</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#using-your-library-in-c">Using Your Library in C</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-header-file">The Header File</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initializing-your-library">Initializing Your Library</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#compiling-c-code-with-the-library">Compiling C Code with the Library</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#using-your-library-in-python">Using Your Library in Python</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#compiling-your-chapel-library">Compiling Your Chapel Library</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#python-module-name">Python Module Name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pythonpath">PYTHONPATH</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initializing-and-using-your-library-in-python">Initializing and Using Your Library in Python</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#argument-default-values">Argument Default Values</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#c-ptr-arguments">c_ptr Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#debugging-issues-with-library-python">Debugging Issues with --library-python</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#using-your-library-in-fortran">Using Your Library in Fortran</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id2">Prerequisites</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3">Compiling Your Chapel Library</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initializing-and-using-your-library-from-fortran">Initializing and Using Your Library From Fortran</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#arrays">Arrays</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#chpl-external-array">chpl_external_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#chpl-opaque-array">chpl_opaque_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fortran-arrays">Fortran arrays</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#using-your-library-in-chapel">Using Your Library in Chapel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#caveats">Caveats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#multiple-chapel-libraries">Multiple Chapel Libraries</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#llvm">LLVM</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#exporting-symbols">Exporting Symbols</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lifetimeChecking.html">Lifetime Checking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The 'local' keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nilChecking.html">Checking for Nil Dereferences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="voidVariables.html">Void Variables and Fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      
+    <li>Exporting Chapel as a Library</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/technotes/libraries.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="exporting-chapel-as-a-library">
+<span id="readme-libraries"></span><h1>Exporting Chapel as a Library<a class="headerlink" href="#exporting-chapel-as-a-library" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The features described in this document are still under development.
+If you encounter a bug or limitation not yet documented as a <a class="reference external" href="https://github.com/chapel-lang/chapel/issues">Github
+issue</a>, consider filing
+an issue as described in <a class="reference internal" href="../usingchapel/bugs.html#readme-bugs"><span>Reporting Chapel Issues</span></a>.</p>
+</div>
+<p>To build a Chapel program as a library, compile with the <code class="docutils literal"><span class="pre">--library</span></code> flag.
+Without this flag, Chapel assumes that you are building a main program and
+produces a main routine, whether one is explicitly defined or not.</p>
+<div class="section" id="static-and-dynamic-libraries">
+<h2>Static and Dynamic Libraries<a class="headerlink" href="#static-and-dynamic-libraries" title="Permalink to this headline">¶</a></h2>
+<p>The type of library produced can be specified through the <code class="docutils literal"><span class="pre">--static</span></code> and
+<code class="docutils literal"><span class="pre">--dynamic</span></code> flags.  If neither <code class="docutils literal"><span class="pre">--static</span></code> nor <code class="docutils literal"><span class="pre">--dynamic</span></code> is specified, a
+platform-dependent default library type is produced.</p>
+<p>Some platforms support linking against both static and dynamic versions of
+the same library.  On those platforms, the <code class="docutils literal"><span class="pre">--static</span></code> or <code class="docutils literal"><span class="pre">--dynamic</span></code>
+flag can be used to select which type of library (and thus which kind of
+linking) is performed by default.  Library files which are named explicitly on
+the <code class="docutils literal"><span class="pre">chpl</span></code> command line take precedence over any found through object
+library paths (<code class="docutils literal"><span class="pre">-L</span></code>).  When there is a conflict, the last library
+specified takes precedence.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">When building a dynamic library, building position independent code is
+recommended.  To do this, set the environment variable <code class="docutils literal"><span class="pre">CHPL_LIB_PIC</span></code> to
+<code class="docutils literal"><span class="pre">pic</span></code> and ensure this configuration is built by performing a <code class="docutils literal"><span class="pre">make</span></code>
+command from <code class="docutils literal"><span class="pre">$CHPL_HOME</span></code>.  Note that position independent code will likely
+encounter some performance degradation as opposed to normal Chapel code.
+For this reason, we recommend only using <code class="docutils literal"><span class="pre">CHPL_LIB_PIC</span></code> when position
+independent code is required.</p>
+</div>
+</div>
+<div class="section" id="location-of-the-generated-library">
+<span id="id1"></span><h2>Location of the Generated Library<a class="headerlink" href="#location-of-the-generated-library" title="Permalink to this headline">¶</a></h2>
+<p>The library will be placed by default in a sub-directory named <code class="docutils literal"><span class="pre">lib</span></code> (which
+will be created if it does not already exist).  The location for the generated
+library and associated files can be changed using the compilation flag
+<code class="docutils literal"><span class="pre">--library-dir</span></code>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span># Library built into bar/libfoo.a
+chpl --library --library-dir=bar foo.chpl
+</pre></div>
+</div>
+</div>
+<div class="section" id="how-to-define-your-library">
+<h2>How to Define Your Library<a class="headerlink" href="#how-to-define-your-library" title="Permalink to this headline">¶</a></h2>
+<p>When creating a library file from Chapel code, only those symbols with
+<code class="docutils literal"><span class="pre">export</span></code> attached to them will be available from outside the library.  For
+example, one can define a Chapel file <code class="docutils literal"><span class="pre">foo.chpl</span></code> like this:</p>
+<div class="highlight-Chapel"><div class="highlight"><pre><span></span><span class="c1">// This function will be available to the library user</span>
+<span class="k">export</span> <span class="k">proc</span> <span class="nf">bar</span><span class="p">():</span> <span class="kt">int</span> <span class="p">{</span>
+  <span class="c1">// Does something</span>
+  <span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+
+<span class="c1">// As will this one</span>
+<span class="k">export</span> <span class="k">proc</span> <span class="nf">baz</span><span class="p">(</span><span class="kt">int</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Does something different</span>
+  <span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+
+<span class="c1">// but this function will not be, though it can be used by the exported</span>
+<span class="c1">// functions</span>
+<span class="k">proc</span> <span class="nf">gloop</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Does something else</span>
+  <span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="#exporting-symbols"><span>Exporting Symbols</span></a> for the current limitations on what can be
+exported.</p>
+</div>
+<div class="section" id="library-name">
+<h2>Library Name<a class="headerlink" href="#library-name" title="Permalink to this headline">¶</a></h2>
+<p>The generated library name will be the same as the file being compiled, except
+it will start with <code class="docutils literal"><span class="pre">lib</span></code> if the name does not already, and it will be followed
+by a <code class="docutils literal"><span class="pre">.so</span></code> or <code class="docutils literal"><span class="pre">.a</span></code> suffix.  Thus, in the example above, the generated
+library will be named <code class="docutils literal"><span class="pre">libfoo.so</span></code> or <code class="docutils literal"><span class="pre">libfoo.a</span></code>.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Builds library as lib/libfoo.a</span>
+chpl --library --static foo.chpl
+
+<span class="c1"># Builds library as lib/libfoo.so</span>
+chpl --library --dynamic foo.chpl
+
+<span class="c1"># Builds library as lib/libfoo.so (note: file named libfoo.chpl)</span>
+chpl --library --dynamic libfoo.chpl
+</pre></div>
+</div>
+<p>The basename used (the <code class="docutils literal"><span class="pre">foo</span></code> portion) can be changed with the <code class="docutils literal"><span class="pre">-o</span></code> or
+<code class="docutils literal"><span class="pre">--output</span></code> compilation flag.</p>
+<p>This flag is required if multiple top level modules or files are being compiled
+into the same library, as the default name is determined by the top-most module.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Builds library as lib/libbar.so</span>
+chpl --library --dynamic foo.chpl -o bar
+
+<span class="c1"># -o flag required because of multiple modules</span>
+<span class="c1"># Builds library as lib/libfoo.so</span>
+chpl --library --dynamic foo.chpl bar.chpl -o foo
+</pre></div>
+</div>
+</div>
+<div class="section" id="using-your-library-in-c">
+<h2>Using Your Library in C<a class="headerlink" href="#using-your-library-in-c" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="the-header-file">
+<h3>The Header File<a class="headerlink" href="#the-header-file" title="Permalink to this headline">¶</a></h3>
+<p>A header file will be generated for the library by default, using the same base
+name as the library (replacing <code class="docutils literal"><span class="pre">.so</span></code> or <code class="docutils literal"><span class="pre">.a</span></code> with <code class="docutils literal"><span class="pre">.h</span></code> and omitting the
+<code class="docutils literal"><span class="pre">lib</span></code> portion).  This name can be changed independently of the generated
+library name using the flag <code class="docutils literal"><span class="pre">--library-header</span></code> at compilation.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Builds header as lib/foo.h</span>
+chpl --library --dynamic foo.chpl
+
+<span class="c1"># Builds header as lib/bar.h, library is still lib/libfoo.so</span>
+chpl --library --dynamic --library-header<span class="o">=</span>bar foo.chpl
+</pre></div>
+</div>
+<p>The header file will contain any exported function, including the exported
+module initialization functions (which are generated by default).  It will also
+contain a <code class="docutils literal"><span class="pre">#include</span></code> for <code class="docutils literal"><span class="pre">stdchpl.h</span></code> and any <code class="docutils literal"><span class="pre">.h</span></code> files specified in the
+program via a <code class="docutils literal"><span class="pre">require</span></code> clause.</p>
+</div>
+<div class="section" id="initializing-your-library">
+<h3>Initializing Your Library<a class="headerlink" href="#initializing-your-library" title="Permalink to this headline">¶</a></h3>
+<p>When using a Chapel library from C, one must first initialize the Chapel runtime
+and standard modules.  This is done by calling the function
+<code class="docutils literal"><span class="pre">chpl_library_init()</span></code> before the Chapel library function calls and by calling
+<code class="docutils literal"><span class="pre">chpl_library_finalize()</span></code> after all the Chapel library function calls are
+finished.  These functions are defined in
+<code class="docutils literal"><span class="pre">$CHPL_HOME/runtime/include/chpl-init.h</span></code> and accessible when you <code class="docutils literal"><span class="pre">#include</span></code>
+the generated header file:</p>
+<div class="highlight-C"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">chpl_library_init</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span> <span class="n">argv</span><span class="p">[]);</span>
+<span class="kt">void</span> <span class="nf">chpl_library_finalize</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Here is an example program which uses the <code class="docutils literal"><span class="pre">foo</span></code> library:</p>
+<div class="highlight-C"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;foo.h&quot;</span><span class="cp"></span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+    <span class="n">chpl_library_init</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">);</span>
+
+    <span class="n">baz</span><span class="p">(</span><span class="mi">7</span><span class="p">);</span> <span class="c1">// Call into a library function</span>
+
+    <span class="n">chpl_library_finalize</span><span class="p">();</span>
+
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If your exported functions rely upon any global variables defined in your module
+(or modules it relies upon), then you must additionally call the generated
+module initialization function.  This function will be named
+<code class="docutils literal"><span class="pre">chpl__init_&lt;moduleName&gt;</span></code>, and you can find its declaration in your generated
+<code class="docutils literal"><span class="pre">.h</span></code> file.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">It is recommended that you always call the module initialization function
+before calling any of the exported functions in your library.  You do not
+need to do this more than once per program.</p>
+</div>
+</div>
+<div class="section" id="compiling-c-code-with-the-library">
+<h3>Compiling C Code with the Library<a class="headerlink" href="#compiling-c-code-with-the-library" title="Permalink to this headline">¶</a></h3>
+<p>When using a Chapel library file in C code, a fairly exact incantation is
+required.  If compiling dynamically, update the <code class="docutils literal"><span class="pre">$LD_LIBRARY_PATH</span></code> environment
+variable to include the directory where the new library file lives and the
+directory where the Chapel build lives.  The latter can be found by looking at
+the output of a <code class="docutils literal"><span class="pre">$CHPL_HOME/util/printchplenv</span></code> call and finding the
+appropriate directory under <code class="docutils literal"><span class="pre">$CHPL_HOME/lib</span></code>; the directory name can be found
+by running <code class="docutils literal"><span class="pre">$CHPL_HOME/util/printchplenv</span> <span class="pre">--runtime</span> <span class="pre">--path</span></code>.</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="c1"># Replace the first lib with the appropriate path to your library file if its</span>
+<span class="c1"># location has been changed by --library-dir, or if you are not in its parent</span>
+<span class="c1"># directory</span>
+<span class="nb">export</span> <span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span>lib/:<span class="nv">$CHPL_HOME</span>/lib/<span class="sb">`</span><span class="nv">$CHPL_HOME</span>/util/printchplenv --runtime --path<span class="sb">`</span>:<span class="nv">$LD_LIBRARY_PATH</span>
+</pre></div>
+</div>
+<div class="section" id="makefile-helper">
+<h4>Makefile Helper<a class="headerlink" href="#makefile-helper" title="Permalink to this headline">¶</a></h4>
+<p>Compilation of the C program involves some additional command line includes and
+links.  For your convenience, a sample Makefile can be generated using
+<code class="docutils literal"><span class="pre">--library-makefile</span></code>.  This will generate a file named
+<code class="docutils literal"><span class="pre">Makefile.&lt;basename&gt;</span></code>:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Builds makefile as lib/Makefile.foo</span>
+chpl --library --dynamic --library-makefile foo.chpl
+
+<span class="c1"># Builds makefile as lib/Makefile.bar</span>
+chpl --library --dynamic --library-makefile foo.chpl -o bar
+</pre></div>
+</div>
+<p>This Makefile can then be included and its variables referenced in your own
+Makefile.</p>
+<p>The generated Makefile will contain the user-facing and internal variables.  The
+user-facing variables intended for use in your own Makefile are:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">CHPL_CFLAGS</span></code> contains the flags and <code class="docutils literal"><span class="pre">-I</span></code> directories needed at compile
+time.</li>
+<li><code class="docutils literal"><span class="pre">CHPL_LDFLAGS</span></code> contains the <code class="docutils literal"><span class="pre">-L</span></code> directories and <code class="docutils literal"><span class="pre">-l</span></code> libraries needed
+at link time, including libraries specified by your program via <code class="docutils literal"><span class="pre">require</span></code>
+statements.</li>
+<li><code class="docutils literal"><span class="pre">CHPL_COMPILER</span></code> stores the compiler used when compiling your library.  Using
+a different compiler when linking to your library from another code may cause
+ABI incompatibility issues or problems when the flags specified in
+<code class="docutils literal"><span class="pre">CHPL_CFLAGS</span></code> are not applicable in that compiler.</li>
+<li><code class="docutils literal"><span class="pre">CHPL_LINKER</span></code> and <code class="docutils literal"><span class="pre">CHPL_LINKERSHARED</span></code> store linker commands.</li>
+</ul>
+<p>The internal variables support those others in an attempt to make their contents
+slightly more readable.</p>
+<p>An example Makefile which uses the generated <code class="docutils literal"><span class="pre">Makefile.foo</span></code> looks like this:</p>
+<div class="highlight-make"><div class="highlight"><pre><span></span><span class="cp">include lib/Makefile.foo</span>
+
+<span class="nf">myCProg</span><span class="o">:</span> <span class="n">myCProg</span>.<span class="n">c</span> <span class="n">lib</span>/<span class="n">libfoo</span>.<span class="n">a</span>
+  <span class="k">$(</span>CHPL_COMPILER<span class="k">)</span> <span class="k">$(</span>CHPL_CFLAGS<span class="k">)</span> -o myCProg myCProg.c <span class="k">$(</span>CHPL_LDFLAGS<span class="k">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="makefile-less-compilation">
+<h4>Makefile-less Compilation<a class="headerlink" href="#makefile-less-compilation" title="Permalink to this headline">¶</a></h4>
+<p>You can also generate the compilation flags necessary to compile a C program
+using a Chapel library by using the <code class="docutils literal"><span class="pre">compileline</span> <span class="pre">--compile</span></code> and <code class="docutils literal"><span class="pre">compileline</span>
+<span class="pre">--libraries</span></code> tools we provide.  The compilation command would then look like
+this (replacing <code class="docutils literal"><span class="pre">myCProg.c</span></code> with the name of your C program that will use the
+library):</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="sb">`</span><span class="nv">$CHPL_HOME</span>/util/config/compileline --compile<span class="sb">`</span> myCProg.c -Llib/ -lfoo <span class="sb">`</span><span class="nv">$CHPL_HOME</span>/util/config/compileline --libraries<span class="sb">`</span>
+</pre></div>
+</div>
+<p>Note that <code class="docutils literal"><span class="pre">compileline</span> <span class="pre">--compile-c++</span></code> is also available for compiling a C++
+program.</p>
+</div>
+</div>
+</div>
+<div class="section" id="using-your-library-in-python">
+<span id="readme-libraries-python"></span><h2>Using Your Library in Python<a class="headerlink" href="#using-your-library-in-python" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="prerequisites">
+<h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h3>
+<p>To make use of your library in Python with minimal work, the Chapel compiler
+requires the following:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">python3</span></code> installed in your <code class="docutils literal"><span class="pre">$PATH</span></code></li>
+<li><code class="docutils literal"><span class="pre">Cython</span></code></li>
+<li><code class="docutils literal"><span class="pre">numpy</span></code></li>
+</ul>
+<p>If you are on a system where libraries are built to be position dependent by
+default (e.g.  not OSx), you will need to set the environment variable
+<code class="docutils literal"><span class="pre">CHPL_LIB_PIC</span></code> to <code class="docutils literal"><span class="pre">pic</span></code> and perform a <code class="docutils literal"><span class="pre">make</span></code> command from <code class="docutils literal"><span class="pre">$CHPL_HOME</span></code>.
+This will cause the Chapel runtime and third-party libraries to be built with
+position independent code, which Python interoperability requires.  Note that
+position independent code will likely encounter some performance degradation as
+opposed to normal Chapel code.  For this reason, we recommend only using
+<code class="docutils literal"><span class="pre">CHPL_LIB_PIC=pic</span></code> when position independent code is required (e.g. when
+calling Chapel code from Python).</p>
+</div>
+<div class="section" id="compiling-your-chapel-library">
+<h3>Compiling Your Chapel Library<a class="headerlink" href="#compiling-your-chapel-library" title="Permalink to this headline">¶</a></h3>
+<p>To create a Python-compatible module in addition to the normally generated
+library and header, add <code class="docutils literal"><span class="pre">--library-python</span></code> to the compilation.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">When compiling on a Cray, or a machine with multiple C compilers, you should
+ensure your <code class="docutils literal"><span class="pre">CHPL_TARGET_COMPILER</span></code> is the same as the compiler used to
+install Cython (usually the default C compiler for the machine, or
+<code class="docutils literal"><span class="pre">cray-prgenv-gnu</span></code> on Cray systems).  Using a different
+<code class="docutils literal"><span class="pre">CHPL_TARGET_COMPILER</span></code> may lead to ABI incompatibility issues or the use of
+unexpected flags when compiling your Python module.  See
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-compiler"><span>CHPL_*_COMPILER</span></a> for more information on the values of
+<code class="docutils literal"><span class="pre">CHPL_TARGET_COMPILER</span></code></p>
+</div>
+</div>
+<div class="section" id="python-module-name">
+<h3>Python Module Name<a class="headerlink" href="#python-module-name" title="Permalink to this headline">¶</a></h3>
+<p>By default, the name of the generated Python module will match the basename
+of the generated library, but can be changed independently of the generated
+library name using the compilation flag <code class="docutils literal"><span class="pre">--library-python-name</span></code>:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Builds python module as lib/foo.py</span>
+chpl --library --library-python foo.chpl
+
+<span class="c1"># Build python module as lib/bar.py</span>
+chpl --library --library-python --library-python-name<span class="o">=</span>bar foo.chpl
+</pre></div>
+</div>
+</div>
+<div class="section" id="pythonpath">
+<h3>PYTHONPATH<a class="headerlink" href="#pythonpath" title="Permalink to this headline">¶</a></h3>
+<p>To use your library in a Python program, you will need to extend your
+<code class="docutils literal"><span class="pre">PYTHONPATH</span></code> environment variable to include the directory where your library
+files are generated, e.g.:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">PYTHONPATH</span><span class="o">=</span>lib/:<span class="nv">$PYTHONPATH</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="#location-of-the-generated-library"><span>Location of the Generated Library</span></a> for where your library files are
+generated, and how to change this location when compiling your Chapel library.</p>
+</div>
+<div class="section" id="initializing-and-using-your-library-in-python">
+<h3>Initializing and Using Your Library in Python<a class="headerlink" href="#initializing-and-using-your-library-in-python" title="Permalink to this headline">¶</a></h3>
+<p>Once your <code class="docutils literal"><span class="pre">PYTHONPATH</span></code> is set up and the Python module created, you can
+<code class="docutils literal"><span class="pre">import</span></code> the module like a normal Python module.</p>
+<p>Similarly to using your library with C, you will need to call a set up function
+to ensure the Chapel runtime and standard modules are initialized, as well as
+a clean up function.</p>
+<p>Unlike the C case, the set up function is called <code class="docutils literal"><span class="pre">chpl_setup()</span></code> and will also
+handle initializing your module.   This function will still need to be called
+prior to any Chapel library function calls.</p>
+<p>Also unlike the C case, the clean up function is called <code class="docutils literal"><span class="pre">chpl_cleanup()</span></code>.
+This function will still need to be called after all the Chapel library function
+calls are finished.</p>
+<p>For example:</p>
+<div class="highlight-Python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">foo</span>
+
+<span class="n">foo</span><span class="o">.</span><span class="n">chpl_setup</span><span class="p">()</span>
+
+<span class="n">foo</span><span class="o">.</span><span class="n">baz</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span> <span class="o">//</span> <span class="n">Call</span> <span class="n">into</span> <span class="n">a</span> <span class="n">library</span> <span class="n">function</span>
+
+<span class="n">foo</span><span class="o">.</span><span class="n">chpl_cleanup</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The <code class="docutils literal"><span class="pre">chpl_cleanup()</span></code> function will also cause the Python program to exit.
+Make sure your Python functionality is also complete before calling this
+function.</p>
+</div>
+</div>
+<div class="section" id="argument-default-values">
+<h3>Argument Default Values<a class="headerlink" href="#argument-default-values" title="Permalink to this headline">¶</a></h3>
+<p>Python has the capacity to support default values for arguments.  The ability to
+call Chapel exported functions with argument default values from Python is
+present, but is not yet fully supported.  See <a class="reference internal" href="#default-values"><span>the Caveat section</span></a> for more details.</p>
+<p>For the cases that are not supported, the compiler will generate a warning. The
+argument must always be provided when calling the function.</p>
+</div>
+<div class="section" id="c-ptr-arguments">
+<h3>c_ptr Arguments<a class="headerlink" href="#c-ptr-arguments" title="Permalink to this headline">¶</a></h3>
+<p>Python code can pass <code class="docutils literal"><span class="pre">numpy</span></code> arrays or <code class="docutils literal"><span class="pre">ctypes</span></code> pointers to <code class="docutils literal"><span class="pre">c_ptr</span></code>
+arguments.</p>
+</div>
+<div class="section" id="debugging-issues-with-library-python">
+<h3>Debugging Issues with --library-python<a class="headerlink" href="#debugging-issues-with-library-python" title="Permalink to this headline">¶</a></h3>
+<p>This compilation strategy uses Cython under the covers, generating a
+<code class="docutils literal"><span class="pre">chpl_foo.pxd</span></code> file, a <code class="docutils literal"><span class="pre">foo.pyx</span></code> file, and a <code class="docutils literal"><span class="pre">foo.py</span></code> file by default for
+a <code class="docutils literal"><span class="pre">libfoo.a</span></code> / <code class="docutils literal"><span class="pre">libfoo.so</span></code>, which are then called using a Cython command
+(this command is rather long due to the need to include the Chapel runtime and
+third-party libraries).  These files are currently left in the same location as
+the generated library - if compilation fails due to generating one or more of
+these files incorrectly, you may be able to modify the file and re-run the
+Cython command yourself.</p>
+</div>
+</div>
+<div class="section" id="using-your-library-in-fortran">
+<span id="readme-libraries-fortran"></span><h2>Using Your Library in Fortran<a class="headerlink" href="#using-your-library-in-fortran" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id2">
+<h3>Prerequisites<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>To make use of your library in Fortran, a Fortran compiler that implements
+the ISO_Fortran_binding.h header and interface defined by ISO/IEC TS 29113
+is required.</p>
+</div>
+<div class="section" id="id3">
+<h3>Compiling Your Chapel Library<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p>To create a Fortran compatible module in addition to the normally generated
+library and header, add <code class="docutils literal"><span class="pre">--library-fortran</span></code> to the compilation. This will
+create a Fortran module containing declarations for each Chapel function
+declared with <code class="docutils literal"><span class="pre">export</span></code>. This module can be used from Fortran in order to
+make the functions exported from Chapel available.  At present, the generated
+module only handles basic types for function arguments and return types, and
+the compiler will emit warnings for any types it is unable to handle properly.</p>
+</div>
+<div class="section" id="initializing-and-using-your-library-from-fortran">
+<h3>Initializing and Using Your Library From Fortran<a class="headerlink" href="#initializing-and-using-your-library-from-fortran" title="Permalink to this headline">¶</a></h3>
+<p>Once the library and Fortran interface module are generated, you can <code class="docutils literal"><span class="pre">use</span></code>
+the interface module and make calls to the functions it declares.</p>
+<p>Similarly to using your library with C and Python, you will need to call a
+set up function to ensure the Chapel runtime and standard modules are
+initialize. Unlike C and Python, your library currently needs to define
+this function itself.  The following should work after replacing
+<code class="docutils literal"><span class="pre">MyModuleName</span></code> with the name of the actual module:</p>
+<div class="highlight-Chapel"><div class="highlight"><pre><span></span><span class="k">export</span> <span class="k">proc</span> <span class="nf">chpl_library_init_ftn</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Make the runtime/library initialization function visible</span>
+  <span class="k">extern</span> <span class="k">proc</span> <span class="nf">chpl_library_init</span><span class="p">(</span><span class="nx">argc</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">,</span> <span class="nx">argv</span><span class="p">:</span> <span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_char</span><span class="p">)));</span>
+  <span class="kd">var</span> <span class="nx">filename</span> <span class="o">=</span> <span class="nx">c</span><span class="s">&quot;fake&quot;</span><span class="p">;</span>
+  <span class="c1">// Initialize the internal runtime/library</span>
+  <span class="nx">chpl_library_init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">filename</span><span class="p">):</span> <span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_char</span><span class="p">)));;</span>
+  <span class="c1">// Initialize the main user module</span>
+  <span class="nx">chpl__init_MyModuleName</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A simple Fortran example using a function <code class="docutils literal"><span class="pre">myChapelFunction</span></code> from the
+<code class="docutils literal"><span class="pre">MyModuleName</span></code> library is:</p>
+<div class="highlight-Fortran"><div class="highlight"><pre><span></span><span class="k">program </span><span class="n">Example</span>
+  <span class="c">! use the interface module generated with --library-fortran</span>
+  <span class="k">use </span><span class="n">MyModuleName</span>
+  <span class="k">implicit none</span>
+
+<span class="k">  </span><span class="kt">integer</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span> <span class="kd">::</span> <span class="n">arg</span><span class="p">,</span> <span class="n">ret</span>
+  <span class="n">arg</span> <span class="o">=</span> <span class="mi">3</span>
+
+  <span class="c">! initialize the Chapel library using the function defined above</span>
+  <span class="k">call </span><span class="n">chpl_library_init_ftn</span><span class="p">()</span>
+
+  <span class="c">! call a function from the Chapel library</span>
+  <span class="n">ret</span> <span class="o">=</span> <span class="n">myChapelFunction</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+  <span class="k">print</span> <span class="o">*</span><span class="p">,</span> <span class="n">ret</span>
+<span class="k">end program </span><span class="n">Example</span>
+</pre></div>
+</div>
+<p>This would then be compiled with commands to first build the interface module,
+then to build the example program and link with the Chapel library and Chapel
+runtime libraries:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>ftn -c lib/MyModuleName.f90
+ftn Example.f90 -Llib -lMyModuleName <span class="sb">`</span><span class="nv">$CHPL_HOME</span>/util/config/compileline --libraries<span class="sb">`</span> -o Example
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="arrays">
+<h2>Arrays<a class="headerlink" href="#arrays" title="Permalink to this headline">¶</a></h2>
+<p>Arrays can be returned by exported Chapel functions as one of two C types:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">chpl_external_array</span></code><ul>
+<li>For arrays that can be translated into native C or Python arrays.  In
+Python, the contents of this type is copied into a Python array.</li>
+</ul>
+</li>
+<li><code class="docutils literal"><span class="pre">chpl_opaque_array</span></code><ul>
+<li>For arrays that are not currently translated.  In Python, this is used as a
+field in a Python class named <code class="docutils literal"><span class="pre">ChplOpaqueArray</span></code>.</li>
+</ul>
+</li>
+</ul>
+<div class="section" id="chpl-external-array">
+<h3>chpl_external_array<a class="headerlink" href="#chpl-external-array" title="Permalink to this headline">¶</a></h3>
+<p>A <code class="docutils literal"><span class="pre">chpl_external_array</span></code> can be created in C or returned by a Chapel function
+declared as returning specific Chapel array types.  To create a
+<code class="docutils literal"><span class="pre">chpl_external_array</span></code> in C, you can call:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">chpl_make_external_array(elt_size,</span> <span class="pre">num_elts)</span></code> to create an empty array of
+the given size.</li>
+<li><code class="docutils literal"><span class="pre">chpl_make_external_array_ptr(elts,</span> <span class="pre">num_elts)</span></code> where <code class="docutils literal"><span class="pre">elts</span></code> is an existing
+array of the given size.</li>
+</ul>
+<p>Users should call <code class="docutils literal"><span class="pre">chpl_free_external_array</span></code> to indicate that they are done
+using the <code class="docutils literal"><span class="pre">chpl_external_array</span></code> instance if it was created for them by a
+Chapel function or via <code class="docutils literal"><span class="pre">chpl_make_external_array</span></code>.  Users should explicitly
+free any memory that was stored in a <code class="docutils literal"><span class="pre">chpl_external_array</span></code> using
+<code class="docutils literal"><span class="pre">chpl_make_external_array_ptr</span></code>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The names of these functions may change.</p>
+</div>
+</div>
+<div class="section" id="chpl-opaque-array">
+<h3>chpl_opaque_array<a class="headerlink" href="#chpl-opaque-array" title="Permalink to this headline">¶</a></h3>
+<p>Chapel arrays that cannot be returned using <code class="docutils literal"><span class="pre">chpl_external_array</span></code> will be
+returned using <code class="docutils literal"><span class="pre">chpl_opaque_array</span></code>.  <code class="docutils literal"><span class="pre">chpl_opaque_array</span></code> instances cannot be
+created outside of Chapel, nor can their contents be accessed.
+<code class="docutils literal"><span class="pre">chpl_opaque_array</span></code> instances can only be received and sent to Chapel
+functions.</p>
+<p>Users should call <code class="docutils literal"><span class="pre">cleanupOpaqueArray</span></code> to indicate they are done using the
+<code class="docutils literal"><span class="pre">chpl_opaque_array</span></code> instance.</p>
+<p>It is our intention to support as many Chapel array types as we can using
+<code class="docutils literal"><span class="pre">chpl_external_array</span></code>.  Chapel arrays types that are currently supported using
+<code class="docutils literal"><span class="pre">chpl_opaque_array</span></code> may become supported by <code class="docutils literal"><span class="pre">chpl_external_array</span></code> instead
+in the future.</p>
+</div>
+<div class="section" id="fortran-arrays">
+<h3>Fortran arrays<a class="headerlink" href="#fortran-arrays" title="Permalink to this headline">¶</a></h3>
+<p>A 1-D contiguous Fortran array can be passed to an exported Chapel function
+for an argument with the type <code class="docutils literal"><span class="pre">[]</span> <span class="pre">t</span></code> where <code class="docutils literal"><span class="pre">t</span></code> is a primitive type.  The
+Chapel compiler will automatically translate such an array into a Chapel array.
+This allows it to be used in all the ways any other Chapel array can be used,
+for example in parallel loops or reductions.</p>
+</div>
+</div>
+<div class="section" id="using-your-library-in-chapel">
+<h2>Using Your Library in Chapel<a class="headerlink" href="#using-your-library-in-chapel" title="Permalink to this headline">¶</a></h2>
+<p>Chapel library files cannot be used from Chapel code.  The library files must
+include the chapel runtime and standard modules for use in a non-Chapel program
+and when the library is linked to a Chapel program this leads to multiple
+definitions of these functions.</p>
+</div>
+<div class="section" id="caveats">
+<h2>Caveats<a class="headerlink" href="#caveats" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="multiple-chapel-libraries">
+<h3>Multiple Chapel Libraries<a class="headerlink" href="#multiple-chapel-libraries" title="Permalink to this headline">¶</a></h3>
+<p>Multiple Chapel libraries cannot currently be used in the same C or Python
+program.  Each library file must include the chapel runtime and standard modules
+for its own functionality and when two or more libraries are linked to a program
+this leads to multiple definitions of these functions.</p>
+</div>
+<div class="section" id="llvm">
+<h3>LLVM<a class="headerlink" href="#llvm" title="Permalink to this headline">¶</a></h3>
+<p>LLVM support with <code class="docutils literal"><span class="pre">--library</span></code> is currently a work-in-progress.  For the 1.19
+release, it is only supported for C with a subset of the flags, and does not
+support arrays.  It also does not fully work with <code class="docutils literal"><span class="pre">--dynamic</span></code> compilation.  We
+expect to extend this support in later releases.</p>
+</div>
+<div class="section" id="exporting-symbols">
+<span id="id4"></span><h3>Exporting Symbols<a class="headerlink" href="#exporting-symbols" title="Permalink to this headline">¶</a></h3>
+<p>Only functions can be exported currently.  We hope to extend this support to
+types and global variables in the future.</p>
+<div class="section" id="default-values">
+<span id="id5"></span><h4>Argument Default Values<a class="headerlink" href="#default-values" title="Permalink to this headline">¶</a></h4>
+<p>Python interoperability currently supports default values for function
+arguments, but only when the default value is a literal (e.g. <code class="docutils literal"><span class="pre">4</span></code>,
+<code class="docutils literal"><span class="pre">&quot;blah&quot;</span></code>).  Default values that are more complicated are not currently
+supported.  We hope to extend this support in the future.</p>
+<p>C interoperability does not support default values for function arguments.  We
+do not anticipate supporting argument default values in C.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="lifetimeChecking.html" class="btn btn-neutral float-right" title="Lifetime Checking" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="initequals.html" class="btn btn-neutral" title="The &#39;init=&#39; Method" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.19.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,375 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Chapel’s Use of Allocators &mdash; Chapel Documentation 1.22</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Runtime Support for Atomics" href="atomics.html" />
+    <link rel="prev" title="Technical Notes" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.22
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.22";
+$pagename = "technotes/allocators";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Chapel’s Use of Allocators</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#calling-chapel-allocation-functions-directly">Calling Chapel Allocation Functions Directly</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#replacing-the-system-allocator">Replacing the System Allocator</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fortranInterop.html">Fortran Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initTypeAlias.html">Invoking Initializers with a Generic Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initequals.html">The ‘init=’ Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lifetimeChecking.html">Lifetime Checking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The ‘local’ keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_include.html">Including Sub-Modules from Separate Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nilChecking.html">Checking for Nil Dereferences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overloadSets.html">Checking Overload Sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="partialInstantiations.html">Partial Instantiations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+        
+      <li>Chapel’s Use of Allocators</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/technotes/allocators.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="chapel-s-use-of-allocators">
+<span id="readme-allocators"></span><h1>Chapel’s Use of Allocators<a class="headerlink" href="#chapel-s-use-of-allocators" title="Permalink to this headline">¶</a></h1>
+<p>The Chapel runtime will select an allocator according to the <code class="docutils literal notranslate"><span class="pre">CHPL_MEM</span></code>
+environment variable. See <a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv"><span class="std std-ref">Setting up Your Environment for Chapel</span></a> for details on how that
+works.  The default is usually the system allocator (ie malloc/free as
+supported by the C compiler and runtime) but some configurations use a
+different allocator in order to get all of memory allocated by Chapel on
+to a network registered heap.  Using the registered heap can improve
+communication performance, but having two allocators can create
+interoperability challenges:</p>
+<blockquote>
+<div><ul class="simple">
+<li>memory allocated by one allocator cannot be freed by another</li>
+<li>the Chapel heap might pre-allocate a significant amount of memory. In this
+situation, programs might run out of memory if there are too many
+allocations in the system heap.</li>
+<li>memory allocated by the Chapel allocator will generally have better
+performance when communication occurs</li>
+</ul>
+</div></blockquote>
+<p>This file describes two strategies for overcoming these challenges.</p>
+<p>Note that both of these strategies will only allow C code to use the allocator
+that the Chapel runtime is providing. In particular, while a Chapel program
+might be able to allocate memory on a hardware provided memory region, these
+methods will only work with system memory.</p>
+<div class="section" id="calling-chapel-allocation-functions-directly">
+<h2>Calling Chapel Allocation Functions Directly<a class="headerlink" href="#calling-chapel-allocation-functions-directly" title="Permalink to this headline">¶</a></h2>
+<p>You can call Chapel allocation functions directly from an extern block or from
+C code that is built with the proper -I paths for the Chapel runtime.</p>
+<p>The command:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nv">$CHPL_HOME</span>/util/config/compileline --includes-and-defines
+</pre></div>
+</div>
+<p>should produce the necessary <code class="docutils literal notranslate"><span class="pre">-I</span></code> and <code class="docutils literal notranslate"><span class="pre">-D</span></code> options so that you can
+compile a <code class="docutils literal notranslate"><span class="pre">.c</span></code> file to a <code class="docutils literal notranslate"><span class="pre">.o</span></code> file for linking with the Chapel
+runtime. Note that these include paths are already handled for extern
+blocks.</p>
+<p>For example, here is a Chapel program that uses the Chapel allocator from C:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+  <span class="o">#</span><span class="nx">include</span> <span class="s">&quot;chpl-mem.h&quot;</span>
+  <span class="nx">static</span> <span class="nx">int64_t</span><span class="o">*</span> <span class="nx">mymalloc</span><span class="p">(</span><span class="nx">void</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">int64_t</span> <span class="o">*</span><span class="nx">ret</span> <span class="o">=</span> <span class="p">(</span><span class="nx">int64_t</span><span class="o">*</span><span class="p">)</span> <span class="nx">chpl_malloc</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span>
+    <span class="nx">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+    <span class="k">return</span> <span class="nx">ret</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="nx">static</span> <span class="nx">void</span> <span class="nx">myfree</span><span class="p">(</span><span class="nx">int64_t</span> <span class="o">*</span><span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">chpl_free</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+
+<span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">mymalloc</span><span class="p">();</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">.</span><span class="nx">deref</span><span class="p">());</span>
+
+<span class="nx">myfree</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The Chapel runtime includes <code class="docutils literal notranslate"><span class="pre">chpl_calloc</span></code>, <code class="docutils literal notranslate"><span class="pre">chpl_malloc</span></code>,
+<code class="docutils literal notranslate"><span class="pre">chpl_memalign</span></code>, <code class="docutils literal notranslate"><span class="pre">chpl_realloc</span></code>, <code class="docutils literal notranslate"><span class="pre">chpl_free</span></code>,
+<code class="docutils literal notranslate"><span class="pre">chpl_posix_memalign</span></code>, <code class="docutils literal notranslate"><span class="pre">chpl_valloc</span></code>, and <code class="docutils literal notranslate"><span class="pre">chpl_pvalloc</span></code>.  These
+routines take in exactly the same arguments as the C library versions.</p>
+</div>
+<div class="section" id="replacing-the-system-allocator">
+<h2>Replacing the System Allocator<a class="headerlink" href="#replacing-the-system-allocator" title="Permalink to this headline">¶</a></h2>
+<p>In some cases, it may not be possible to modify C code that you would like to
+allocate. At the same time, some C libraries allow their allocation functions
+to be replaced. The manner in which the allocation functions can be replaced is
+very platform specific. Because the GNU C library is common in the environments
+that Chapel targets, we have provided a library which replaces the C library
+functions with the Chapel allocator. It works by defining malloc, free, etc
+because these are normally defined as weak symbols in the GNU C library.  This
+feature should be considered a demonstration. It is highly platform-specific
+and will not work on all platforms! For this reason, we recommend instead
+calling the Chapel versions of the allocation routines (such as chpl_malloc) if
+allocation interoperability is required.</p>
+<p>The following command will compile a Chapel program while replacing the C
+allocation functions:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>chpl myprogram.chpl -lchplmalloc
+</pre></div>
+</div>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="p">{</span>
+  <span class="o">#</span><span class="nx">include</span> <span class="o">&lt;</span><span class="nx">stdlib</span><span class="p">.</span><span class="nx">h</span><span class="o">&gt;</span>
+  <span class="nx">static</span> <span class="nx">int64_t</span><span class="o">*</span> <span class="nx">mymalloc</span><span class="p">(</span><span class="nx">void</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// If this pointer is to be freed by the Chapel free function,</span>
+    <span class="c1">// it&#39;s much better to use chpl_malloc instead!</span>
+    <span class="nx">int64_t</span> <span class="o">*</span><span class="nx">ret</span> <span class="o">=</span> <span class="p">(</span><span class="nx">int64_t</span><span class="o">*</span><span class="p">)</span> <span class="nx">malloc</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span>
+    <span class="nx">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+    <span class="k">return</span> <span class="nx">ret</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// SysBasic provides c_calloc and c_free to call the Chapel allocator</span>
+<span class="c1">// directly for C interoperability purposes</span>
+<span class="k">use</span> <span class="nx">SysBasic</span><span class="p">;</span>
+
+<span class="c1">// Allocate using the system allocator (malloc)</span>
+<span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">mymalloc</span><span class="p">();</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">x</span><span class="p">.</span><span class="nx">deref</span><span class="p">());</span>
+
+<span class="c1">// Free using the Chapel allocator - c_free calls the Chapel free function</span>
+<span class="c1">// directly. It&#39;s named c_free because it&#39;s meant to be used for C</span>
+<span class="c1">// interoperability purposes.</span>
+<span class="c1">// This will generally cause a core dump unless:</span>
+<span class="c1">//   * you have configured Chapel to use the system allocator, or</span>
+<span class="c1">//   * you link this program with -lchplmalloc</span>
+<span class="nx">c_free</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="atomics.html" class="btn btn-neutral float-right" title="Runtime Support for Atomics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral float-left" title="Technical Notes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Hewlett Packard Enterprise Development LP
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ 
+
+
+
+</body>
+</html>

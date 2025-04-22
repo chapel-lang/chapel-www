@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Using Chapel on Amazon Web Services &mdash; Chapel Documentation 1.27</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Using Chapel with InfiniBand" href="infiniband.html" />
+    <link rel="prev" title="Using Chapel on Cygwin" href="cygwin.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.27
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.27";
+$pagename = "platforms/aws";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Platform-Specific Notes</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#major-platforms">Major Platforms</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="macosx.html">Using Chapel on Mac OS X</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cray.html">Using Chapel on Cray Systems</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cygwin.html">Using Chapel on Cygwin</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Using Chapel on Amazon Web Services</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#launching-an-ec2-instance-configured-for-chapel">Launching an EC2 instance configured for Chapel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-chapel-on-an-ec2-instance">Building Chapel on an EC2 instance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-multilocale-chapel-programs">Running multilocale Chapel programs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#frequently-asked-questions">Frequently Asked Questions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#networks">Networks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#older-platforms">Older Platforms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Platform-Specific Notes</a> &raquo;</li>
+      <li>Using Chapel on Amazon Web Services</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/platforms/aws.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="using-chapel-on-amazon-web-services">
+<span id="readme-aws"></span><h1>Using Chapel on Amazon Web Services<a class="headerlink" href="#using-chapel-on-amazon-web-services" title="Permalink to this headline">¶</a></h1>
+<p>This page contains Amazon Web Services (AWS) Elastic Cloud Compute (EC2)
+virtual machine setup details specific to Chapel. For more general instance
+configuration information, refer to the AWS documentation on
+<a class="reference external" href="https://aws.amazon.com/getting-started/tutorials/launch-a-virtual-machine/">launching a linux virtual machine</a>.</p>
+<p>Before getting started, you will need an AWS account, which can be created
+here: <a class="reference external" href="https://aws.amazon.com/">https://aws.amazon.com/</a></p>
+<div class="section" id="launching-an-ec2-instance-configured-for-chapel">
+<h2>Launching an EC2 instance configured for Chapel<a class="headerlink" href="#launching-an-ec2-instance-configured-for-chapel" title="Permalink to this headline">¶</a></h2>
+<p>From the EC2 console, do the following:</p>
+<ol class="arabic simple">
+<li><p>Begin launching an instance by clicking the <strong>Launch Instance</strong> button.</p></li>
+<li><p>Choose an Amazon Machine Image (AMI) in the <strong>Choose AMI</strong> step.</p>
+<ul class="simple">
+<li><p>AMI must use a base OS that supports the <a class="reference internal" href="../usingchapel/prereqs.html#readme-prereqs"><span class="std std-ref">Chapel Prerequisites</span></a>, i.e.
+includes a unix-like environment.</p></li>
+</ul>
+</li>
+<li><p>For multilocale support, create or select a security group configured to
+permit incoming TCP/UDP traffic in the <strong>Configure Security Group</strong> step.</p></li>
+<li><p>Review and launch the instance.</p></li>
+<li><p>Create or select a private key.</p>
+<ul class="simple">
+<li><p>If creating the key, you will need to download the <code class="docutils literal notranslate"><span class="pre">.pem</span></code> identity file.
+This will be used in the next step to access the instance.</p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstances.html?icmpid=docs_ec2_console">Access the launched instance</a> via ssh using the private key chosen before.</p>
+<ul class="simple">
+<li><p>Summarizing the AWS documentation linked above, you can ssh into the
+instance using the <code class="docutils literal notranslate"><span class="pre">.pem</span></code> identity file downloaded in the previous step
+with the following command: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">-i</span> <span class="pre">/path/to/key.pem</span> <span class="pre">username&#64;hostname</span></code></p></li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section" id="building-chapel-on-an-ec2-instance">
+<h2>Building Chapel on an EC2 instance<a class="headerlink" href="#building-chapel-on-an-ec2-instance" title="Permalink to this headline">¶</a></h2>
+<p>Once connected to the instance via ssh, do the following:</p>
+<ul class="simple">
+<li><p>Install the dependencies as shown on the <a class="reference internal" href="../usingchapel/prereqs.html#readme-prereqs-installation"><span class="std std-ref">Installation</span></a> page.</p></li>
+<li><p>Download a Chapel release from the <a class="reference external" href="https://chapel-lang.org/download.html">Download</a> page.</p></li>
+<li><p>Build the Chapel release as shown on the <a class="reference internal" href="../usingchapel/building.html#readme-building"><span class="std std-ref">Building Chapel</span></a> page.</p>
+<ul>
+<li><p>Build with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> if you plan to run multilocale programs</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="running-multilocale-chapel-programs">
+<h2>Running multilocale Chapel programs<a class="headerlink" href="#running-multilocale-chapel-programs" title="Permalink to this headline">¶</a></h2>
+<p>For more in-depth information about GASNet or multilocale execution with Chapel,
+refer to the <a class="reference external" href="https://gasnet.lbl.gov/dist/udp-conduit/README">GASNet documentation</a> and <a class="reference internal" href="../usingchapel/multilocale.html#readme-multilocale"><span class="std std-ref">Multilocale Chapel Execution</span></a> page,
+respectively.</p>
+<div class="section" id="on-a-single-instance">
+<h3>On a single instance<a class="headerlink" href="#on-a-single-instance" title="Permalink to this headline">¶</a></h3>
+<p><strong>1. Compile the program</strong></p>
+<p>Compile the program with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code>.</p>
+<p><strong>2. Set up GASNet environment variables</strong></p>
+<p>Set the following GASNet environment variable:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Job spawn mechanism, where &#39;L&#39; means localhost spawn</span>
+<span class="nv">GASNET_SPAWNFN</span><span class="o">=</span><span class="s1">&#39;L&#39;</span>
+</pre></div>
+</div>
+<p><strong>3. Run the program</strong></p>
+<p>Run the program as you would any other multilocale program:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./hello -nl <span class="m">2</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="over-multiple-instances">
+<h3>Over multiple instances<a class="headerlink" href="#over-multiple-instances" title="Permalink to this headline">¶</a></h3>
+<p>To run a program across multiple EC2 instances, do the following:</p>
+<p><strong>1. Enable password-less ssh between machines</strong></p>
+<p>This can be done by using the existing identity file (the <code class="docutils literal notranslate"><span class="pre">.pem</span></code>) , or by
+using another authentication method, such as RSA ssh keys.</p>
+<p>If using the identity file, copy the identity file onto each instance
+into the same path, such as <code class="docutils literal notranslate"><span class="pre">~/.ssh/foo.pem</span></code>. By default, using this file
+requires passing the identity flag and the file path to <cite>ssh</cite>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>ssh -i ~/.ssh/foo.pem ec2-11-222-33-444.us-west-2.compute.amazonaws.com
+</pre></div>
+</div>
+<p>This can be made the default behavior by adding this rule to a new or existing
+<code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Hostname *compute.amazonaws.com
+IdentityFile ~/.ssh/foo.pem
+</pre></div>
+</div>
+<p>Copy this config file into <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code> on every EC2 instance as well.
+You should now be able to ssh freely between the EC2 instances.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The option <code class="docutils literal notranslate"><span class="pre">StrictHostKeyChecking</span> <span class="pre">no</span></code> can be appended to the new
+<code class="docutils literal notranslate"><span class="pre">.ssh/config</span></code> rule to override the trusted host prompt when first
+connecting to each machine.  This can be convenient when deploying a large
+number of instances, but is only recommended if you understand the security
+implications of the change.</p>
+</div>
+<p><strong>2. Compile and distribute the binary</strong></p>
+<p>Compile the program with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> set, and copy the compiled
+binary onto all of the EC2 instances, under the same path. For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">CHPL_COMM</span><span class="o">=</span>gasnet
+<span class="nb">cd</span> ~/chapel-projects
+chpl hello.chpl -o hello
+scp hello ec2-11-222-33-444.us-west-2.compute.amazonaws.com:chapel-projects/hello
+scp hello ec2-11-222-33-445.us-west-2.compute.amazonaws.com:chapel-projects/hello
+</pre></div>
+</div>
+<p><strong>3. Set up GASNet environment variables</strong></p>
+<p>There are several configuration options available for GASNet, which can be
+found in the <a class="reference external" href="https://gasnet.lbl.gov/dist/udp-conduit/README">GASNet documentation</a>.
+The essential configurations, with examples, are as follows:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Space-delimited list of server names</span>
+<span class="nv">GASNET_SSH_SERVERS</span><span class="o">=</span><span class="s1">&#39;ec2-11-222-33-444.us-west-2.compute.amazonaws.com ec2-11-222-33-445.us-west-2.compute.amazonaws.com&#39;</span>
+<span class="c1"># Job spawn mechanism, where &#39;S&#39; means ssh/rsh-based spawn</span>
+<span class="nv">GASNET_SPAWNFN</span><span class="o">=</span><span class="s1">&#39;S&#39;</span>
+</pre></div>
+</div>
+<p>Some other common optional configurations are:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Defaults to current working directory</span>
+<span class="nv">GASNET_REMOTE_PATH</span><span class="o">=</span><span class="s1">&#39;~/chapel-projects/&#39;</span>
+<span class="c1"># Defaults to gethostname() of the launching node</span>
+<span class="nv">CHPL_RT_MASTERIP</span><span class="o">=</span><span class="s1">&#39;ec2-11-222-33-444.us-west-2.compute.amazonaws.com&#39;</span>
+<span class="c1"># Defaults to empty, can be used instead of copying config files onto each machine</span>
+<span class="nv">SSH_OPTIONS</span><span class="o">=</span><span class="s1">&#39;-i ~/.ssh/foo.pem&#39;</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="../usingchapel/launcher.html#chpl-rt-masterip"><span class="std std-ref">CHPL_RT_MASTERIP</span></a> for details on that environment variable.</p>
+<p><strong>4. Run the program</strong></p>
+<p>Run the program as you would any other multilocale program:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./hello -nl <span class="m">2</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>GASNet is not configured to oversubscribe locales by default. That is, the
+number of locales (<code class="docutils literal notranslate"><span class="pre">-nl</span></code>) provided cannot exceed the number of servers in
+<code class="docutils literal notranslate"><span class="pre">GASNET_SSH_SERVERS</span></code>. If you wish to oversubscribe nodes, you can include
+servers in <code class="docutils literal notranslate"><span class="pre">GASNET_SSH_SERVERS</span></code> multiple times, to reach the desired number
+of locales.</p>
+</div>
+</div>
+</div>
+<div class="section" id="frequently-asked-questions">
+<h2>Frequently Asked Questions<a class="headerlink" href="#frequently-asked-questions" title="Permalink to this headline">¶</a></h2>
+<p><strong>How do I resolve the following error:</strong>
+<code class="docutils literal notranslate"><span class="pre">virtual</span> <span class="pre">memory</span> <span class="pre">exhausted:</span> <span class="pre">Cannot</span> <span class="pre">allocate</span> <span class="pre">memory</span></code></p>
+<p>This is a common error on systems with limited memory resources, such as the
+free tier of EC2 instances. If you do not wish to launch an instance with more
+memory resources, you can create a swap file or swap partition.</p>
+<p>This can be done on Linux distributions with the following steps:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Log in as root</span>
+sudo -s
+
+<span class="c1"># Create a 512MB swap file (1024 * 512MB = 524288 block size)</span>
+dd <span class="k">if</span><span class="o">=</span>/dev/zero <span class="nv">of</span><span class="o">=</span>/swapfile1 <span class="nv">bs</span><span class="o">=</span><span class="m">1024</span> <span class="nv">count</span><span class="o">=</span><span class="m">524288</span>
+
+<span class="c1"># Secure swap file</span>
+chown root:root /swapfile1
+chmod <span class="m">0600</span> /swapfile1
+
+<span class="c1"># Set up linux swap file</span>
+mkswap /swapfile1
+
+<span class="c1"># Enable swap file</span>
+swapon /swapfile1
+</pre></div>
+</div>
+<p>Then edit <code class="docutils literal notranslate"><span class="pre">/etc/fstab</span></code> to include:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>/swapfile1 none swap sw <span class="m">0</span> <span class="m">0</span>
+</pre></div>
+</div>
+<p>Enable the new swapfile without rebooting:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>swapoff -a
+swapon -a
+</pre></div>
+</div>
+<p>Confirm the swapfile is working:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>free -m
+</pre></div>
+</div>
+<p><strong>How can I run the testing suite in parallel over EC2 instances?</strong></p>
+<p>This is a planned addition to the paratest (parallel test) functionality, but
+is not yet officially supported.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cygwin.html" class="btn btn-neutral float-left" title="Using Chapel on Cygwin" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="infiniband.html" class="btn btn-neutral float-right" title="Using Chapel with InfiniBand" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

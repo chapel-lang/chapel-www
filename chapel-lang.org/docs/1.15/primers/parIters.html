@@ -1,0 +1,620 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Parallel Iterators &mdash; Chapel Documentation 1.15</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.15" href="../index.html"/>
+        <link rel="up" title="Primers" href="index.html"/>
+        <link rel="next" title="Task Parallelism" href="taskParallel.html"/>
+        <link rel="prev" title="Iterators" href="iterators.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Chapel Documentation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<?php   // Variables given by sphinx 
+   $chplTitle = "1.15";   $pagename = "./primers/parIters";   include "../versionButton.php";   ?>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Primers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#iterators">Iterators</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="iterators.html">Iterators</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="">Parallel Iterators</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#leader-follower">Leader-follower</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#semantics">Semantics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#roles">Roles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-count">Example: count</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#count-leader">count: leader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#count-follower">count: follower</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#count-standalone-parallel">count: standalone parallel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#count-usage">count: usage</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#closing-notes">Closing notes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#locality">Locality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#data-parallelism">Data Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#library-utilities">Library Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#numerical-libraries">Numerical Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tools">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-overview">Language Overview</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation 1.15</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Primers</a> &raquo;</li>
+      
+    <li>Parallel Iterators</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/primers/parIters.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="parallel-iterators">
+<span id="primers-pariters"></span><h1>Parallel Iterators<a class="headerlink" href="#parallel-iterators" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/release/1.15/test/release/examples/primers/parIters.chpl">View parIters.chpl on GitHub</a></p>
+<p>Parallel Iterators Primer</p>
+<p>This primer shows how to use parallel iterators in Chapel.
+Leader-follower iterators are used to implement zippered
+forall loops in Chapel over data structures or iterators.
+Standalone parallel iterators are used to implement non-zippered
+forall loops when they exist, falling back to leader-follower when
+standalone is not available.</p>
+<p>For a more thorough introduction to leader-follower iterators,
+refer to our PGAS 2011 paper, <a class="reference external" href="http:pgas11.rice.edu/papers/ChamberlainEtAl-Chapel-Iterators-PGAS11.pdf">User-Defined Parallel Zippered
+Iterators in Chapel</a>. We expect the parallel iterator interface
+to change and improve over time, so this should be considered a
+snapshot of their use in the current implementation.</p>
+<div class="section" id="leader-follower">
+<h2>Leader-follower<a class="headerlink" href="#leader-follower" title="Permalink to this headline">¶</a></h2>
+<p>Any zippered forall loop in Chapel will be implemented using
+leader-follower iterators.  Generally speaking, a forall loop
+of the following form:</p>
+<blockquote>
+<div><div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">,</span> <span class="nx">c</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">,</span> <span class="nx">C</span><span class="p">)</span> <span class="k">do</span>
+   <span class="c1">// ...loop body...</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>is semantically defined such that the first thing being iterated
+over -- in this case, <code class="docutils literal"><span class="pre">A</span></code> -- is designated the 'leader.'  All things
+being iterated over are 'followers' (so for this loop, <code class="docutils literal"><span class="pre">A</span></code>,
+<code class="docutils literal"><span class="pre">B</span></code>, and <code class="docutils literal"><span class="pre">C</span></code> would be).</p>
+</div>
+<div class="section" id="semantics">
+<h2>Semantics<a class="headerlink" href="#semantics" title="Permalink to this headline">¶</a></h2>
+<p>Given such a loop, the compiler will roughly translate it into
+the following loop structure:</p>
+<blockquote>
+<div><div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="nx">work</span> <span class="kd">in</span> <span class="nx">A</span><span class="p">.</span><span class="nx">lead</span><span class="p">()</span> <span class="k">do</span>   <span class="c1">// implemented by inlining the leader</span>
+  <span class="k">for</span> <span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">,</span> <span class="nx">c</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">.</span><span class="nx">follow</span><span class="p">(</span><span class="nx">work</span><span class="p">),</span> <span class="nx">B</span><span class="p">.</span><span class="nx">follow</span><span class="p">(</span><span class="nx">work</span><span class="p">),</span> <span class="nx">C</span><span class="p">.</span><span class="nx">follow</span><span class="p">(</span><span class="nx">work</span><span class="p">))</span> <span class="k">do</span>
+    <span class="c1">// ...loop body...</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>where <code class="docutils literal"><span class="pre">.lead()</span></code> and <code class="docutils literal"><span class="pre">.follow()</span></code> represent the leader-follower iterators
+using a simplified naming scheme.</p>
+<p>Note that since Chapel's implicitly parallel semantics are defined
+in terms of zippered iteration, such cases are also implemented using
+leader-follower iterators.  For example, <code class="docutils literal"><span class="pre">A</span> <span class="pre">=</span> <span class="pre">B</span> <span class="pre">+</span> <span class="pre">C;</span></code> will be converted to
+an equivalent zippered parallel loop and then to the leader-follower idiom
+shown above. <code class="docutils literal"><span class="pre">foo(A,</span> <span class="pre">B,</span> <span class="pre">C)</span></code> goes through a similar transformation, where
+<code class="docutils literal"><span class="pre">foo()</span></code> is defined to take scalar arguments and is promoted in this call.</p>
+</div>
+<div class="section" id="roles">
+<h2>Roles<a class="headerlink" href="#roles" title="Permalink to this headline">¶</a></h2>
+<p>At a high level, the role of a leader iterator is to:</p>
+<ol class="loweralpha simple">
+<li>create the parallel tasks used to implement the forall loop,</li>
+<li>associate the parallel tasks with specific locales as required/desired.</li>
+<li>assign work (e.g., iterations) to each parallel task</li>
+</ol>
+<p>The leader typically creates the parallelism using task parallel
+features like coforall loops; and it associates tasks with locales
+using locality features like on-clauses.  The leader specifies work
+for tasks by having each task it creates yield some representation
+of the work it owns.</p>
+<p>The role of the follower iterator is to take as an input argument
+a chunk of work (as yielded by a leader) and to serially iterate
+over and yield the elements/values corresponding to those
+iterations in order.</p>
+</div>
+<div class="section" id="example-count">
+<h2>Example: count<a class="headerlink" href="#example-count" title="Permalink to this headline">¶</a></h2>
+<p>For this example, we're going to create a simple iterator named
+<code class="docutils literal"><span class="pre">count</span></code> that will be able to be invoked in for or forall loops.
+<code class="docutils literal"><span class="pre">count</span></code> will be defined to take an argument <code class="docutils literal"><span class="pre">n</span></code> as input and an
+optional argument <code class="docutils literal"><span class="pre">low</span></code> (set to 1 by default), and it will yield <code class="docutils literal"><span class="pre">n</span></code>
+integers starting with <code class="docutils literal"><span class="pre">low</span></code>.</p>
+<p>We'll use the following config const <code class="docutils literal"><span class="pre">numTasks</span></code> to indicate the degree
+of parallelism to use in the leader to implement forall loops. By default
+we've set it to the tasking layer estimate of maximum parallelism on the
+current locale, but it can be overridden on the executable command-line
+using the <code class="docutils literal"><span class="pre">--numTasks=&lt;n&gt;</span></code> option.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">numTasks</span> <span class="o">=</span> <span class="nx">here</span><span class="p">.</span><span class="nx">maxTaskPar</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="nx">numTasks</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span> <span class="k">then</span>
+  <span class="nx">halt</span><span class="p">(</span><span class="s">&quot;numTasks must be a positive integer&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>If compiled with <code class="docutils literal"><span class="pre">verbose</span></code> set to <code class="docutils literal"><span class="pre">true</span></code>, the leader and follower will
+print out some messages indicating what they're doing under the
+covers.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">param</span> <span class="nx">verbose</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Declare a problem size for this test.  By default we use a small
+problem size to make the output readable.  Of course, to use the
+parallelism effectively you'd want to use a much larger problem
+size (override on the execution command-line using the
+<code class="docutils literal"><span class="pre">--probSize=&lt;n&gt;</span></code> option).</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="kd">config</span> <span class="kd">const</span> <span class="nx">probSize</span> <span class="o">=</span> <span class="mi">15</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">A</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">probSize</span><span class="p">]</span> <span class="kt">real</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>When defining a leader-follower iterator pair, our current
+implementation requires that you also define a serial iterator
+of the same name that yields the same type as the follower iterator.
+In this case, the serial iterator is simple:  We simply yield the
+integers <code class="docutils literal"><span class="pre">low..low+n-1</span></code> (computed using the count operator, <code class="docutils literal"><span class="pre">#</span></code>):</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">iter</span> <span class="nx">count</span><span class="p">(</span><span class="nx">n</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">low</span><span class="p">:</span> <span class="kt">int</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">low</span><span class="o">..#</span><span class="nx">n</span> <span class="k">do</span>
+    <span class="k">yield</span> <span class="nx">i</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here are some simple loops using this iterator to demonstrate
+it.  First we iterate over all indices in our problem size to
+initialize <code class="docutils literal"><span class="pre">A</span></code>:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">count</span><span class="p">(</span><span class="nx">probSize</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">:</span><span class="kt">real</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After serial initialization, A is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Then we override the default value of low in order to negate
+the &quot;middle&quot; elements of <code class="docutils literal"><span class="pre">A</span></code>:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">count</span><span class="p">(</span><span class="nx">n</span><span class="o">=</span><span class="nx">probSize</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="nx">low</span><span class="o">=</span><span class="nx">probSize</span><span class="o">/</span><span class="mi">4</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After negating the middle of A:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>For serial zippered iteration, nothing is required other than
+this single iterator:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span> <span class="nx">a</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">count</span><span class="p">(</span><span class="nx">probSize</span><span class="p">),</span> <span class="nx">A</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">a</span> <span class="o">=</span> <span class="nx">i</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After reassigning A using zippering:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="count-leader">
+<h2>count: leader<a class="headerlink" href="#count-leader" title="Permalink to this headline">¶</a></h2>
+<p>The leader and follower iterators are defined as overloads of the
+serial version of the iterator, distinguished by an initial
+param argument of the built-in enumerated type <code class="docutils literal"><span class="pre">iterKind</span></code>.  To
+invoke the leader iterator and differentiate it from the other
+overloads, the compiler will pass in the value <code class="docutils literal"><span class="pre">iterKind.leader</span></code> to
+this argument.  The author of the leader iterator should use a
+<code class="docutils literal"><span class="pre">where</span></code> clause to distinguish this overload from the others.  After
+this <code class="docutils literal"><span class="pre">tag</span></code> argument, the rest of the argument list should match
+that of the serial iterator exactly.  For our example, this means
+providing the same n and low arguments as before.</p>
+<p>The implementation of this leader iterator is relatively simple and
+static.  It uses a coforall loop to create a number of tasks equal
+to the number specified by our <code class="docutils literal"><span class="pre">numTasks</span></code> config const and then has
+each yield a subset of the total work to perform.</p>
+<p>We compute the work that a task should yield by calling into the
+<code class="docutils literal"><span class="pre">computeChunk()</span></code> helper function (defined at the bottom of this file)
+to compute its subrange of the range <code class="docutils literal"><span class="pre">low..#n</span></code> owned by the task,
+storing it in a variable called <code class="docutils literal"><span class="pre">myIters.</span></code></p>
+<p>To be a legal leader iterator, we could simply yield this range as
+a representation of the work we want the follower to perform.
+However, to support zippering our leader with follower iterators
+written by others, we typically take the convention of having
+iterators over 1D or dense rectangular index spaces yield tuples
+of ranges shifted to a 0-based coordinate system.  In this way, the
+leader-follower iterators have a common representation for the
+work even though each may use its own indexing system.  This
+permits, for example, arrays of the same size/shape to be zippered
+together even if they have different domains.</p>
+<p>To this end, rather than yielding subranges of <code class="docutils literal"><span class="pre">low..#n</span></code>, we'll yield
+subranges of <code class="docutils literal"><span class="pre">0..n-1</span></code> and rely on the follower to shift it back to
+the original coordinate system.  For this reason, we translate the
+range by <code class="docutils literal"><span class="pre">-low</span></code> to shift it from low-based coordinates to 0-based
+coordinates; and then we make a 1-tuple out of it.</p>
+<p>Note the debugging output inserted into this iterator.  While
+learning about leader-follower iterators, it's useful to turn
+this debugging output on by compiling with <code class="docutils literal"><span class="pre">-sverbose=true</span></code></p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">iter</span> <span class="nx">count</span><span class="p">(</span><span class="kd">param</span> <span class="nx">tag</span><span class="p">:</span> <span class="nx">iterKind</span><span class="p">,</span> <span class="nx">n</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">low</span><span class="p">:</span> <span class="kt">int</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+  <span class="k">where</span> <span class="nx">tag</span> <span class="o">==</span> <span class="nx">iterKind</span><span class="p">.</span><span class="nx">leader</span> <span class="p">{</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="nx">verbose</span><span class="p">)</span> <span class="k">then</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;In count() leader, creating &quot;</span><span class="p">,</span> <span class="nx">numTasks</span><span class="p">,</span> <span class="s">&quot; tasks&quot;</span><span class="p">);</span>
+
+  <span class="k">coforall</span> <span class="nx">tid</span> <span class="kd">in</span> <span class="mi">0</span><span class="o">..#</span><span class="nx">numTasks</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">myIters</span> <span class="o">=</span> <span class="nx">computeChunk</span><span class="p">(</span><span class="nx">low</span><span class="o">..#</span><span class="nx">n</span><span class="p">,</span> <span class="nx">tid</span><span class="p">,</span> <span class="nx">numTasks</span><span class="p">);</span>
+    <span class="kd">const</span> <span class="nx">zeroBasedIters</span> <span class="o">=</span> <span class="nx">myIters</span><span class="p">.</span><span class="nx">translate</span><span class="p">(</span><span class="o">-</span><span class="nx">low</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="nx">verbose</span><span class="p">)</span> <span class="k">then</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;task &quot;</span><span class="p">,</span> <span class="nx">tid</span><span class="p">,</span> <span class="s">&quot; owns &quot;</span><span class="p">,</span> <span class="nx">myIters</span><span class="p">,</span> <span class="s">&quot; yielded as: &quot;</span><span class="p">,</span> <span class="nx">zeroBasedIters</span><span class="p">);</span>
+
+    <span class="k">yield</span> <span class="p">(</span><span class="nx">zeroBasedIters</span><span class="p">,);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>As mentioned at the outset, this leader is fairly static and
+simple.  More generally, a leader can introduce tasks more
+dynamically, partition work between the tasks more dynamically,
+etc.  See <a class="reference internal" href="../modules/standard/DynamicIters.html#module-DynamicIters" title="DynamicIters: This module contains several iterators that can be used to drive a `forall`"><code class="xref chpl chpl-mod docutils literal"><span class="pre">DynamicIters</span></code></a> for some more interesting examples
+of leader iterators, including those that use dynamic partitioning.</p>
+</div>
+<div class="section" id="count-follower">
+<h2>count: follower<a class="headerlink" href="#count-follower" title="Permalink to this headline">¶</a></h2>
+<p>The follower is another overload of the same iterator name, this
+time taking the iterKind.follower param enumeration as its first
+argument.  The next arguments should match the leader and serial
+iterators exactly again (so, <code class="docutils literal"><span class="pre">n</span></code> and <code class="docutils literal"><span class="pre">low</span></code> for our example).  The
+final argument must be called <code class="docutils literal"><span class="pre">followThis</span></code> which represents the data
+yielded by the leader (in our case, the 1-tuple of ranges).</p>
+<p>The goal of the follower is to do the iteration specified by the
+<code class="docutils literal"><span class="pre">followThis</span></code> argument, serially yielding the elements corresponding
+to those iterations.  In our case, this involves plucking the
+range back out of the tuple of ranges, and shifting it back to
+our low-based coordinate system.  We then use a standard for loop
+to iterate over that range and yield the corresponding indices.
+Followers, as the name suggests, tend not to be very sophisticated,
+and simply do what the leader tells them to.</p>
+<p>As with the leader, this follower has been authored to support
+debugging output when compiled with <code class="docutils literal"><span class="pre">-sverbose=true</span></code>.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">iter</span> <span class="nx">count</span><span class="p">(</span><span class="kd">param</span> <span class="nx">tag</span><span class="p">:</span> <span class="nx">iterKind</span><span class="p">,</span> <span class="nx">n</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">low</span><span class="p">:</span> <span class="kt">int</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="nx">followThis</span><span class="p">)</span>
+       <span class="k">where</span> <span class="nx">tag</span> <span class="o">==</span> <span class="nx">iterKind</span><span class="p">.</span><span class="nx">follower</span> <span class="o">&amp;&amp;</span> <span class="nx">followThis</span><span class="p">.</span><span class="nx">size</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">lowBasedIters</span> <span class="o">=</span> <span class="nx">followThis</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="nx">translate</span><span class="p">(</span><span class="nx">low</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="nx">verbose</span><span class="p">)</span> <span class="k">then</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Follower received &quot;</span><span class="p">,</span> <span class="nx">followThis</span><span class="p">,</span> <span class="s">&quot; as work chunk; shifting to &quot;</span><span class="p">,</span>
+            <span class="nx">lowBasedIters</span><span class="p">);</span>
+
+  <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">lowBasedIters</span> <span class="k">do</span>
+    <span class="k">yield</span> <span class="nx">i</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="count-standalone-parallel">
+<h2>count: standalone parallel<a class="headerlink" href="#count-standalone-parallel" title="Permalink to this headline">¶</a></h2>
+<p>The standalone parallel iterator is another overload of the same name,
+taking the <code class="docutils literal"><span class="pre">iterKind.standalone</span></code> param enumeration as its first argument.
+The next arguments again match the serial iterator exactly. This iterator
+generates parallelism and yields single elements in the low-based
+coordinate system. The standalone parallel iterator is invoked in
+forall loops that are not zippered.  Because this iterator will not
+be zippered with others, it doesn't need to go to the trouble of
+zero-shifting indices and putting them into a 1-tuple.</p>
+<p>This iterator has also been authored to include debugging output when
+compiled with <code class="docutils literal"><span class="pre">-sverbose=true</span></code>.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">iter</span> <span class="nx">count</span><span class="p">(</span><span class="kd">param</span> <span class="nx">tag</span><span class="p">:</span> <span class="nx">iterKind</span><span class="p">,</span> <span class="nx">n</span><span class="p">:</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">low</span><span class="p">:</span> <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+       <span class="k">where</span> <span class="nx">tag</span> <span class="o">==</span> <span class="nx">iterKind</span><span class="p">.</span><span class="nx">standalone</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">verbose</span><span class="p">)</span> <span class="k">then</span>
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;In count() standalone, creating &quot;</span><span class="p">,</span> <span class="nx">numTasks</span><span class="p">,</span> <span class="s">&quot; tasks&quot;</span><span class="p">);</span>
+  <span class="k">coforall</span> <span class="nx">tid</span> <span class="kd">in</span> <span class="mi">0</span><span class="o">..#</span><span class="nx">numTasks</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">myIters</span> <span class="o">=</span> <span class="nx">computeChunk</span><span class="p">(</span><span class="nx">low</span><span class="o">..#</span><span class="nx">n</span><span class="p">,</span> <span class="nx">tid</span><span class="p">,</span> <span class="nx">numTasks</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">verbose</span><span class="p">)</span> <span class="k">then</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;task &quot;</span><span class="p">,</span> <span class="nx">tid</span><span class="p">,</span> <span class="s">&quot; owns &quot;</span><span class="p">,</span> <span class="nx">myIters</span><span class="p">);</span>
+    <span class="k">for</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">myIters</span> <span class="k">do</span>
+      <span class="k">yield</span> <span class="nx">i</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="count-usage">
+<h2>count: usage<a class="headerlink" href="#count-usage" title="Permalink to this headline">¶</a></h2>
+<p>Now that we've defined leader-follower and standalone iterators, we can
+execute the same loops we did before, only this time using forall loops
+to make the execution parallel.  We start with some simple invocations
+as before.  In these invocations, the <code class="docutils literal"><span class="pre">count()</span></code> standalone parallel
+iterator is used since it is the only thing being iterated over (<code class="docutils literal"><span class="pre">A</span></code> is
+being randomly accessed within the loop.)</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">count</span><span class="p">(</span><span class="nx">probSize</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">:</span><span class="kt">real</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After parallel initialization, A is:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Invoking it again with a different low value:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">count</span><span class="p">(</span><span class="nx">n</span><span class="o">=</span><span class="nx">probSize</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="nx">low</span><span class="o">=</span><span class="nx">probSize</span><span class="o">/</span><span class="mi">4</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After negating the middle of A in parallel:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Zippered iteration is now a bit more interesting.  In this
+first loop, <code class="docutils literal"><span class="pre">count()</span></code> serves as the leader and follower while
+the <code class="docutils literal"><span class="pre">A</span></code> array is a follower.  This works because <code class="docutils literal"><span class="pre">A</span></code> is a
+rectangular array whose follower iterator accepts tuples of
+0-based ranges like the ones <code class="docutils literal"><span class="pre">count()</span></code>'s leader is yielding.
+If we were to have <code class="docutils literal"><span class="pre">count()</span></code> yield something else (like a raw
+subrange of <code class="docutils literal"><span class="pre">low..#n</span></code>), then the two things could not be
+zippered correctly because they wouldn't be speaking the
+same language -- either in terms of the type of work being
+yielded (range vs. 1-tuple of range), nor the description of
+the work (low-based indices vs. 0-based indices).</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">i</span><span class="p">,</span> <span class="nx">a</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">count</span><span class="p">(</span><span class="nx">probSize</span><span class="p">),</span> <span class="nx">A</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nx">a</span> <span class="o">=</span> <span class="nx">i</span><span class="o">/</span><span class="mf">10.0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After reassigning A using parallel zippering:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>We can also zipper in the opposite order, making <code class="docutils literal"><span class="pre">A</span></code> the leader,
+in which case <code class="docutils literal"><span class="pre">count()</span></code> no longer controls the degree of parallelism
+and work assignment since it is no longer the leader.  Instead,
+<code class="docutils literal"><span class="pre">A</span></code>'s leader iterator (defined as part of its domain map) is invoked.
+For standard Chapel arrays and domain maps, these leader-follower
+iterators are controlled by the <code class="docutils literal"><span class="pre">dataPar*</span></code> configuration constants
+as described in doc/rst/executing.rst.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">forall</span> <span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span> <span class="kd">in</span> <span class="k">zip</span><span class="p">(</span><span class="nx">A</span><span class="p">,</span> <span class="nx">count</span><span class="p">(</span><span class="nx">probSize</span><span class="p">))</span> <span class="k">do</span>
+  <span class="nx">a</span> <span class="o">=</span> <span class="nx">i</span><span class="o">/</span><span class="mf">100.0</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After reassigning A using parallel zippering and A as the leader:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Finally, as mentioned at the outset, operations that are equivalent
+to zippering also use leader-follower iterators, so for example
+the following whole-array assignment will use <code class="docutils literal"><span class="pre">A</span></code>'s leader and
+<code class="docutils literal"><span class="pre">count()</span></code>'s follower:</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="nx">A</span> <span class="o">=</span> <span class="nx">count</span><span class="p">(</span><span class="nx">probSize</span><span class="p">,</span> <span class="nx">low</span><span class="o">=</span><span class="mi">100</span><span class="p">);</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;After reassigning A using whole-array assignment:&quot;</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="closing-notes">
+<h2>Closing notes<a class="headerlink" href="#closing-notes" title="Permalink to this headline">¶</a></h2>
+<p>Chapel data types like records and classes can support iteration
+by defining iterator methods (invoked by name) or <code class="docutils literal"><span class="pre">these()</span></code> iterators
+which support iterating over variables of that type directly.  Such
+iterator methods can be overloaded to support leader-follower
+versions as well to permit parallel iteration over the variable.</p>
+<p>As mentioned at the outset, our leader-follower scheme has a number
+of changes planned for it such as interface improvements and better
+error checking.  We'll update this primer as we improve these features.</p>
+<p>Definitions of functions used above:</p>
+<p>This is a poor-man's partitioning algorithm.  It gives
+<code class="docutils literal"><span class="pre">floor(numElements/NumChunks)</span></code> work items to the first <code class="docutils literal"><span class="pre">numChunks-1</span></code>
+chunks and the remainder to the last chunk.  For simplicity it only
+works for non-strided, default index type ranges.  More work would
+be required to generalize it for strided or unbounded ranges.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">computeChunk</span><span class="p">(</span><span class="nx">r</span><span class="p">:</span> <span class="kt">range</span><span class="p">,</span> <span class="nx">myChunk</span><span class="p">,</span> <span class="nx">numChunks</span><span class="p">)</span> <span class="k">where</span> <span class="nx">r</span><span class="p">.</span><span class="nx">stridable</span> <span class="o">==</span> <span class="kc">false</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">numElems</span> <span class="o">=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">elemsPerChunk</span> <span class="o">=</span> <span class="nx">numElems</span><span class="o">/</span><span class="nx">numChunks</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">mylow</span> <span class="o">=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">low</span> <span class="o">+</span> <span class="nx">elemsPerChunk</span><span class="o">*</span><span class="nx">myChunk</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">myChunk</span> <span class="o">!=</span> <span class="nx">numChunks</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">mylow</span><span class="o">..#</span><span class="nx">elemsPerChunk</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">mylow</span><span class="o">..</span><span class="nx">r</span><span class="p">.</span><span class="nx">high</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="taskParallel.html" class="btn btn-neutral float-right" title="Task Parallelism" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="iterators.html" class="btn btn-neutral" title="Iterators" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.15.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

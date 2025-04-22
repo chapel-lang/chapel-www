@@ -1,0 +1,535 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>The ‘init=’ Method &mdash; Chapel Documentation 1.21</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Exporting Chapel as a Library" href="libraries.html" />
+    <link rel="prev" title="Invoking Initializers with a Generic Instantiation" href="initTypeAlias.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.21
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.21";
+$pagename = "technotes/initequals";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel’s Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fortranInterop.html">Fortran Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initTypeAlias.html">Invoking Initializers with a Generic Instantiation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">The ‘init=’ Method</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#why-a-new-method-is-necessary">Why a New Method is Necessary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#general-rules-for-init">General Rules for ‘init=’</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-init-method-for-non-generic-types">The ‘init=’ Method for Non-Generic Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-init-method-for-generic-types">The ‘init=’ Method for Generic Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-compiler-generated-init">The compiler-generated ‘init=’</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#field-based-constraints">Field-Based Constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-this-type-inside-init">Using ‘this.type’ Inside ‘init=’</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initializing-with-a-generic-expression">Initializing with a Generic Expression</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#disabling-copyability">Disabling Copyability</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#relation-to-assignment-operator">Relation to Assignment Operator</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lifetimeChecking.html">Lifetime Checking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The ‘local’ keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_include.html">Including Sub-Modules from Separate Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nilChecking.html">Checking for Nil Dereferences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overloadSets.html">Checking Overload Sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="partialInstantiations.html">Partial Instantiations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+        
+      <li>The ‘init=’ Method</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/technotes/initequals.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="the-init-method">
+<span id="initequals"></span><h1>The ‘init=’ Method<a class="headerlink" href="#the-init-method" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Historically the Chapel language has not supported a way for users to directly
+handle initialization from an arbitrary expression. Typically the compiler
+would first default-initialize the variable, and then assign the expression
+into that variable. For example, if a user wanted to initialize their own
+list type from an array literal they would need to implement the assignment
+operator:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">IntList</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">D</span> <span class="p">:</span> <span class="k">domain</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">A</span> <span class="p">:</span> <span class="p">[</span><span class="nx">D</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">=</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">lhs</span> <span class="p">:</span> <span class="nx">IntList</span><span class="p">,</span> <span class="nx">rhs</span> <span class="p">:</span> <span class="p">[])</span> <span class="p">{</span>
+  <span class="nx">lhs</span><span class="p">.</span><span class="nx">D</span> <span class="o">=</span> <span class="nx">rhs</span><span class="p">.</span><span class="k">domain</span><span class="p">;</span>
+  <span class="nx">lhs</span><span class="p">.</span><span class="nx">A</span> <span class="o">=</span> <span class="nx">rhs</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">i</span> <span class="p">:</span> <span class="nx">IntList</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">];</span>
+<span class="c1">// becomes...</span>
+<span class="c1">//   i.init();</span>
+<span class="c1">//   i = [1, 2, 3, 4, 5];</span>
+</pre></div>
+</div>
+<p>Though this process can work in some situations, there are some downsides to
+consider:</p>
+<ul class="simple">
+<li>Error messages confusingly mention assignment instead of initialization</li>
+<li>Fields used in this process could not be ‘const’ (assignment requires mutability)</li>
+<li>This is not true initialization, and may have unnecessary overhead</li>
+</ul>
+<p>In order to rectify these issues, a new method named “init=” has been created
+to replace the “init” method for copy initialization and for initialization
+from arbitrary expressions.</p>
+</div>
+<div class="section" id="why-a-new-method-is-necessary">
+<h2>Why a New Method is Necessary<a class="headerlink" href="#why-a-new-method-is-necessary" title="Permalink to this headline">¶</a></h2>
+<p>Since their introduction, initializers have served as the only mechanism for
+initializing types. Many existing initializers have been written for use with
+new-expressions. If those initializers were invoked when initializing a
+variable from an arbitrary expression, then the resulting initialization
+patterns may be surprising and unintended. For example, consider a list with an
+initializer that accepts an integer representing the list’s length:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">IntList.init</span><span class="p">(</span><span class="nx">len</span> <span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">IntList</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// creates a new IntList of length &#39;5&#39;: x.init(5)</span>
+</pre></div>
+</div>
+<p>If this initializer were invoked for initialization from arbitrary expressions,
+then users could initialize this list from an integer. This is unlikely to be
+what the author of the type intended:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">y</span> <span class="p">:</span> <span class="nx">IntList</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span> <span class="c1">// becomes: y.init(10)</span>
+</pre></div>
+</div>
+<p>By creating a new method we can separate the two use-cases and allow for
+further control by the type’s author.</p>
+</div>
+<div class="section" id="general-rules-for-init">
+<h2>General Rules for ‘init=’<a class="headerlink" href="#general-rules-for-init" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">init=</span></code> method is in many ways similar to the <code class="docutils literal notranslate"><span class="pre">init</span></code> method, and they
+share the same semantic rules within the body of the method. For example,
+fields must be initialized in declaration order, and must be initialized unless
+they have a default value.</p>
+<p>Where <code class="docutils literal notranslate"><span class="pre">init=</span></code> differs is in its invocation. The <code class="docutils literal notranslate"><span class="pre">init=</span></code> method will only be
+invoked in two cases: copy initialization and initializing a variable from an
+expression. The <code class="docutils literal notranslate"><span class="pre">init=</span></code> method will only be invoked with a single value.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">init=</span></code> method may also invoke other initializers through
+<code class="docutils literal notranslate"><span class="pre">this.init(...)</span></code>, but currently may not invoke other <code class="docutils literal notranslate"><span class="pre">init=</span></code> methods.</p>
+<p>Classes do not support the <code class="docutils literal notranslate"><span class="pre">init=</span></code> method because classes will not be
+copy-initialized by the compiler.</p>
+</div>
+<div class="section" id="the-init-method-for-non-generic-types">
+<h2>The ‘init=’ Method for Non-Generic Types<a class="headerlink" href="#the-init-method-for-non-generic-types" title="Permalink to this headline">¶</a></h2>
+<p>The compiler-generated <code class="docutils literal notranslate"><span class="pre">init=</span></code> method for non-generic types is simple. It
+accepts one argument of the same type:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">R</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// identical to compiler-generated implementation</span>
+<span class="k">proc</span> <span class="nf">R.init</span><span class="o">=</span><span class="p">(</span><span class="nx">other</span> <span class="p">:</span> <span class="nx">R</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In order to override this compiler-generated implementation, the user must
+implement an <code class="docutils literal notranslate"><span class="pre">init=</span></code> method that can accept an argument of the same type.
+Other user-defined <code class="docutils literal notranslate"><span class="pre">init=</span></code> methods will not prevent the compiler from
+generating a default implementation for <code class="docutils literal notranslate"><span class="pre">init=</span></code>. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">R</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">R.init</span><span class="o">=</span><span class="p">(</span><span class="nx">other</span> <span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">other</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">R</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>   <span class="c1">// compiler-generated initializer</span>
+<span class="kd">var</span> <span class="nx">B</span> <span class="o">=</span> <span class="nx">A</span><span class="p">;</span>           <span class="c1">// B.init=(A) , the compiler-generated ``init=``</span>
+<span class="kd">var</span> <span class="nx">C</span> <span class="p">:</span> <span class="nx">R</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>      <span class="c1">// C.init=(10) , user-defined ``init=``</span>
+<span class="c1">// var D : R = &quot;hello&quot;; // D.init=(&quot;hello&quot;) , unresolved call!</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-init-method-for-generic-types">
+<h2>The ‘init=’ Method for Generic Types<a class="headerlink" href="#the-init-method-for-generic-types" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="the-compiler-generated-init">
+<h3>The compiler-generated ‘init=’<a class="headerlink" href="#the-compiler-generated-init" title="Permalink to this headline">¶</a></h3>
+<p>The compiler-generated <code class="docutils literal notranslate"><span class="pre">init=</span></code> method for generic types requires knowing the
+intended instantiation in order to disallow copy-initialization from different
+types. In the following example, there should be a compile-time error when
+attempting to initialize a <code class="docutils literal notranslate"><span class="pre">R(int)</span></code> from a <code class="docutils literal notranslate"><span class="pre">R(real)</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">R</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">T</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">T</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">R</span><span class="p">(</span><span class="kt">real</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">y</span> <span class="p">:</span> <span class="nx">R</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This is accomplished by allowing <code class="docutils literal notranslate"><span class="pre">init=</span></code> to query the intended instantiation
+through the expression <code class="docutils literal notranslate"><span class="pre">this.type</span></code>. The compiler-generated <code class="docutils literal notranslate"><span class="pre">init=</span></code> for
+type <code class="docutils literal notranslate"><span class="pre">R</span></code> looks like:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">R.init</span><span class="o">=</span><span class="p">(</span><span class="nx">other</span> <span class="p">:</span> <span class="nx">this</span><span class="p">.</span><span class="kd">type</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">T</span> <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">T</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The first line of this <code class="docutils literal notranslate"><span class="pre">init=</span></code> may seem unnecessary, since <code class="docutils literal notranslate"><span class="pre">this.type</span></code> must
+already be known. The line <code class="docutils literal notranslate"><span class="pre">this.T</span> <span class="pre">=</span> <span class="pre">other.T</span></code> is currently used by the
+compiler to ensure that the types match. If the user attempts to initialize
+<code class="docutils literal notranslate"><span class="pre">this.T</span></code> with a type different from <code class="docutils literal notranslate"><span class="pre">this.type.T</span></code> the compiler will issue
+an error. Future releases may allow this field initialization and type check to
+be omitted, and instead infer the type from <code class="docutils literal notranslate"><span class="pre">this.type.T</span></code>.</p>
+</div>
+<div class="section" id="field-based-constraints">
+<h3>Field-Based Constraints<a class="headerlink" href="#field-based-constraints" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">this.type</span></code> query can also be used to constrain the given value based on
+generic fields. For example, consider the following generic record that simply
+wraps any given type:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Wrapper</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">T</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">T</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A simple <code class="docutils literal notranslate"><span class="pre">init=</span></code> for this type may try to infer <code class="docutils literal notranslate"><span class="pre">T</span></code> from the given value:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Wrapper.init</span><span class="o">=</span><span class="p">(</span><span class="nx">value</span> <span class="p">:</span> <span class="p">?</span><span class="nx">T</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">T</span> <span class="o">=</span> <span class="nx">T</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">value</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This only works as long as the desired instantiation of <code class="docutils literal notranslate"><span class="pre">T</span></code> and the type of
+the value match. What if a user tried to initialize a <code class="docutils literal notranslate"><span class="pre">Wrapper(int(8))</span></code> from
+an integer literal?</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">Wrapper</span><span class="p">(</span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The type of <code class="docutils literal notranslate"><span class="pre">5</span></code> is actually <code class="docutils literal notranslate"><span class="pre">int(64)</span></code>, and the <code class="docutils literal notranslate"><span class="pre">init=</span></code> would fail at the
+line <code class="docutils literal notranslate"><span class="pre">this.T</span> <span class="pre">=</span> <span class="pre">T;</span></code>. Furthermore, because <code class="docutils literal notranslate"><span class="pre">value</span></code> is a fully-generic
+argument this <code class="docutils literal notranslate"><span class="pre">init=</span></code> would also resolve as the copy initializer, and attempt
+to initialize some sort of nested <code class="docutils literal notranslate"><span class="pre">Wrapper(Wrapper(int(8)))</span></code> type.</p>
+<p>A better approach is to constrain <code class="docutils literal notranslate"><span class="pre">value</span></code> using <code class="docutils literal notranslate"><span class="pre">this.type</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Wrapper.init</span><span class="o">=</span><span class="p">(</span><span class="nx">value</span> <span class="p">:</span> <span class="nx">this</span><span class="p">.</span><span class="kd">type</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">T</span> <span class="o">=</span> <span class="nx">value</span><span class="p">.</span><span class="kd">type</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">value</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">Wrapper</span><span class="p">(</span><span class="kt">int</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span> <span class="c1">// x.init=(5)</span>
+<span class="kd">var</span> <span class="nx">y</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span> <span class="c1">// compiler-generated init=</span>
+</pre></div>
+</div>
+<p>The literal <code class="docutils literal notranslate"><span class="pre">5</span></code> will now coerce from <code class="docutils literal notranslate"><span class="pre">int(64)</span></code> to <code class="docutils literal notranslate"><span class="pre">int(8)</span></code> following
+regular Chapel semantics, and the compiler-generated <code class="docutils literal notranslate"><span class="pre">init=</span></code> will be invoked
+when initializing variable <code class="docutils literal notranslate"><span class="pre">y</span></code>.</p>
+</div>
+<div class="section" id="using-this-type-inside-init">
+<h3>Using ‘this.type’ Inside ‘init=’<a class="headerlink" href="#using-this-type-inside-init" title="Permalink to this headline">¶</a></h3>
+<p>A type may be initialized from a value that represents only part (or none) of
+the required instantiation information. For example, consider initializing a
+distributed list type from an array:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">DistList</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">DistType</span><span class="p">;</span>
+  <span class="kd">type</span> <span class="nx">eltType</span><span class="p">;</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">DistList.init</span><span class="o">=</span><span class="p">(</span><span class="nx">arr</span> <span class="p">:</span> <span class="p">[]</span> <span class="p">?</span><span class="nx">eltType</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">DistType</span> <span class="o">=</span> <span class="nx">this</span><span class="p">.</span><span class="kd">type</span><span class="p">.</span><span class="nx">DistType</span><span class="p">;</span> <span class="c1">// from variable declaration</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">eltType</span> <span class="o">=</span> <span class="nx">eltType</span><span class="p">;</span> <span class="c1">// from &#39;arr&#39;</span>
+  <span class="c1">// ... initialize data, etc. ...</span>
+<span class="p">}</span>
+
+<span class="c1">// Initializing a Block-distributed list from an array literal</span>
+<span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">DistList</span><span class="p">(</span><span class="nx">Block</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="kt">int</span><span class="p">)</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>In this example snippet, <code class="docutils literal notranslate"><span class="pre">this.type</span></code> is used within the <code class="docutils literal notranslate"><span class="pre">init=</span></code> body in
+order to achieve the desired instantiation. Part of what was needed was
+available from the given value (i.e. the element type), but the rest was
+taken from <code class="docutils literal notranslate"><span class="pre">this.type</span></code>.</p>
+<p>Note that only fully instantiated types can be initialized in this manner.
+Future releases may add support for fully or partially generic <code class="docutils literal notranslate"><span class="pre">this.type</span></code>
+expressions.</p>
+</div>
+<div class="section" id="initializing-with-a-generic-expression">
+<h3>Initializing with a Generic Expression<a class="headerlink" href="#initializing-with-a-generic-expression" title="Permalink to this headline">¶</a></h3>
+<p>If the variable declaration’s type expression is fully generic, then the value
+expression must be a subtype of of that generic type expression. In such cases
+the compiler infers the type of the variable to be the same as the value’s
+type:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">R</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">T</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">T</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">R</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">B</span> <span class="p">:</span> <span class="nx">R</span> <span class="o">=</span> <span class="nx">A</span><span class="p">;</span> <span class="c1">// &#39;B&#39; inferred to be of type &#39;R(int)&#39;</span>
+</pre></div>
+</div>
+<p>If the value is not a subtype of the generic expression, then there will be a
+compile-time error. This may change in future releases.</p>
+</div>
+</div>
+<div class="section" id="disabling-copyability">
+<h2>Disabling Copyability<a class="headerlink" href="#disabling-copyability" title="Permalink to this headline">¶</a></h2>
+<p>If a user wishes to indicate that their record cannot be copied, they can do
+so by implementing an <code class="docutils literal notranslate"><span class="pre">init=</span></code> method with a <code class="docutils literal notranslate"><span class="pre">false</span></code> where-clause:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">R.init</span><span class="o">=</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span> <span class="nx">R</span><span class="p">)</span> <span class="k">where</span> <span class="kc">false</span> <span class="p">{</span>
+ <span class="c1">// method body may be empty in this case</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A call to the <code class="docutils literal notranslate"><span class="pre">compilerError</span></code> utility function can be used for the same
+purpose:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">R.init</span><span class="o">=</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span> <span class="nx">R</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">compilerError</span><span class="p">(</span><span class="s">&quot;Cannot copy R&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="relation-to-assignment-operator">
+<h2>Relation to Assignment Operator<a class="headerlink" href="#relation-to-assignment-operator" title="Permalink to this headline">¶</a></h2>
+<p>In the 1.20 release users could choose to implement either the <code class="docutils literal notranslate"><span class="pre">init=</span></code> method
+or <code class="docutils literal notranslate"><span class="pre">=</span></code> operator for a given type, or implement both, or rely entirely on the
+compiler-generated implementation. This could lead to hard-to-debug problems
+when both functions appeared to be user-defined, but a user mistake in the
+function signature caused it to be ignored and the compiler-generated version
+to be used instead.</p>
+<p>In the 1.21 release users are now required to implement both the <code class="docutils literal notranslate"><span class="pre">init=</span></code>
+method and <code class="docutils literal notranslate"><span class="pre">=</span></code> operator for a given type, or rely entirely on the
+compiler-generated implementations. If only one implementation is found, the
+compiler will issue an error and any potentially-incorrect function signatures
+will hopefully be exposed.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="libraries.html" class="btn btn-neutral float-right" title="Exporting Chapel as a Library" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="initTypeAlias.html" class="btn btn-neutral float-left" title="Invoking Initializers with a Generic Instantiation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Hewlett Packard Enterprise Development LP
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ 
+
+
+
+</body>
+</html>

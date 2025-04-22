@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tips On Debugging The Compiler &mdash; Chapel Documentation 1.30</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Examining/Debugging Compiler IR" href="CompilerIRTricks.html" />
+    <link rel="prev" title="Getting started with Chapel and the Developer Certificate of Origin (DCO)" href="DCO.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.30
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.30";
+$pagename = "developer/bestPractices/CompilerDebugging";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Best Practices for Contributors</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ContributorInfo.html">Contributor Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="DCO.html">Getting started with Chapel and the Developer Certificate of Origin (DCO)</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Tips On Debugging The Compiler</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#starting-gdb-and-setup">Starting GDB and setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#other-useful-shortcuts-setup">Other useful shortcuts/setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tui-mode">TUI mode</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ast-viewing-and-other-compiler-helper-functions">AST viewing and other compiler helper functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#other-tips">Other tips</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examining-the-source-code">Examining the source code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubles-exiting">Troubles exiting</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerIRTricks.html">Examining/Debugging Compiler IR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ErrorWarningMessaging.html">How To Generate Warnings And Error Messages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="RuntimeLibrary.html">The Chapel Runtime Library</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GeneratedCode.html">All About Compiler-Generated Code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GASNetOnDesktops.html">Running Chapel Programs with GASNet on your Desktop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="git.html">Git tips for Chapel developers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CHPL_DEVELOPER.html">The CHPL_DEVELOPER environment variable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestSystem.html">Chapel Testing System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="SpellChecking.html">chplspell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Valgrind.html">Valgrind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Sanitizers.html">Sanitizers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Deprecation.html">Chapel’s Deprecation Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Unstable.html">Unstable Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="NightlyTesting.html">Nightly Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="StandardModuleStyle.html">Standard Module Style</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestAnnotationsLocally.html">How to test ANNOTATIONS.yaml changes locally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildingdocs.html">Building Chapel Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Potpourri.html">Miscellaneous Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../compiler-internals/index.html">Compiler Library API Docs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Docs for Contributors</a> &raquo;</li>
+          <li><a href="index.html">Best Practices for Contributors</a> &raquo;</li>
+      <li>Tips On Debugging The Compiler</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/bestPractices/CompilerDebugging.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="tips-on-debugging-the-compiler">
+<span id="best-practices-compiler-debugging"></span><h1>Tips On Debugging The Compiler<a class="headerlink" href="#tips-on-debugging-the-compiler" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">~/.gdbinit</span></code>: <code class="docutils literal notranslate"><span class="pre">CompilerIRTricks.rst</span></code>, <code class="docutils literal notranslate"><span class="pre">GeneratedCode.rst</span></code>.
+<code class="docutils literal notranslate"><span class="pre">~/.gdbinit</span></code>: compiler overview in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/doc/rst/developer/implementation/compilerOverview</span></code>.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">--print-passes</span></code>, the compiler prints individual passes as they progress.</p>
+<p>We typically debug the compiler with <code class="docutils literal notranslate"><span class="pre">gdb</span></code>.</p>
+<div class="section" id="starting-gdb-and-setup">
+<h2>Starting GDB and setup<a class="headerlink" href="#starting-gdb-and-setup" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>the easiest:  <code class="docutils literal notranslate"><span class="pre">chpl</span> <span class="pre">--gdb</span> <span class="pre">&lt;other</span> <span class="pre">compiler</span> <span class="pre">argument</span> <span class="pre">as</span> <span class="pre">usual&gt;</span></code></p>
+<p>This fires up <code class="docutils literal notranslate"><span class="pre">gdb</span></code> and sets it up with useful shortcuts
+(by reading in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/compiler/etc/gdb.commands</span></code>).</p>
+<p>Typing <code class="docutils literal notranslate"><span class="pre">C-x</span> <span class="pre">2</span></code> within gdb should split the window, showing the source code.</p>
+</li>
+<li><p>traditional:  <code class="docutils literal notranslate"><span class="pre">gdb</span> <span class="pre">$CHPL_HOME/bin/$CHPL_HOST_PLATFORM/chpl</span></code></p></li>
+<li><p>from within emacs:  <code class="docutils literal notranslate"><span class="pre">M-x</span> <span class="pre">gdb</span> <span class="pre">&lt;enter&gt;</span></code>
+then provide the path to <code class="docutils literal notranslate"><span class="pre">chpl</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">/users/vass/chapel/bin/linux64/chpl</span></code></p>
+<p>This engages emacs’s <code class="docutils literal notranslate"><span class="pre">gud</span></code> mode, providing e.g. convenient access
+to compiler source code at <code class="docutils literal notranslate"><span class="pre">breakpoints/stepping/stack</span></code> unwinding
+and <code class="docutils literal notranslate"><span class="pre">browsing/searching</span></code> convenience of an emacs buffer.</p>
+</li>
+</ul>
+<p>Unless you start with <code class="docutils literal notranslate"><span class="pre">chpl</span> <span class="pre">--gdb</span></code>, you need to set up gdb by hand.
+Place the following in your <code class="docutils literal notranslate"><span class="pre">~/.gdbinit</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span> <span class="c1">###########</span>
+ <span class="c1"># short for &quot;set up for chapel&quot;</span>
+ define schp
+ <span class="nb">echo</span> setting <span class="k">for</span> Chapel <span class="k">in</span> <span class="nv">$arg0</span> <span class="se">\n</span>
+ <span class="nb">set</span> environment CHPL_HOME <span class="nv">$arg0</span>         <span class="c1"># needed if not already in environment</span>
+ <span class="nb">set</span> environment CHPL_DEVELOPER <span class="m">1</span>        <span class="c1"># ditto</span>
+ <span class="nb">source</span> <span class="nv">$arg0</span>/compiler/etc/gdb.commands  <span class="c1"># done automatically by &#39;chpl --gdb&#39;</span>
+ sdirs <span class="nv">$arg0</span>
+ end
+
+<span class="c1"># needed (I think) only for debugging the generated code</span>
+define sdirs
+ directory <span class="nv">$arg0</span>/modules/internal
+ directory <span class="nv">$arg0</span>/modules/standard
+ directory <span class="nv">$arg0</span>/modules/dists
+ directory <span class="nv">$arg0</span>/modules/layouts
+ end
+<span class="c1">###########</span>
+</pre></div>
+</div>
+<p>then call <code class="docutils literal notranslate"><span class="pre">schp</span></code> from the gdb prompt (do not use <code class="docutils literal notranslate"><span class="pre">~</span></code> or <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME</span></code>), e.g.:</p>
+<p>(gdb) <code class="docutils literal notranslate"><span class="pre">schp</span> <span class="pre">/users/vass/chapel</span></code>
+setting for Chapel in /users/vass/chapel
+(gdb)</p>
+<p>(Advanced: create a shortcut for this command, for faster typing.)</p>
+</div>
+<div class="section" id="other-useful-shortcuts-setup">
+<h2>Other useful shortcuts/setup<a class="headerlink" href="#other-useful-shortcuts-setup" title="Permalink to this headline">¶</a></h2>
+<p>Here are some other useful additions to your <code class="docutils literal notranslate"><span class="pre">~/.gdbinit</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1">###########</span>
+<span class="nb">set</span> print pretty
+<span class="nb">set</span> print object on
+<span class="nb">set</span> unwindonsignal on
+<span class="c1">###########</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">print</span> <span class="pre">object</span> <span class="pre">on</span></code> makes <code class="docutils literal notranslate"><span class="pre">gdb</span></code> print a C++ object based on its
+dynamic, rather than static, type. E.g. if the variable <code class="docutils literal notranslate"><span class="pre">p</span></code> has the
+(static) type <code class="docutils literal notranslate"><span class="pre">Expr*</span></code>, then <code class="docutils literal notranslate"><span class="pre">print</span> <span class="pre">*p</span></code> in gdb will include the fields
+corresponding to whatever subclass of Expr ‘p’ is pointing to at the
+moment (e.g. DefExpr, SymExpr, etc.).</p>
+</div>
+<div class="section" id="tui-mode">
+<h2>TUI mode<a class="headerlink" href="#tui-mode" title="Permalink to this headline">¶</a></h2>
+<p>GDB has the <code class="docutils literal notranslate"><span class="pre">TUI</span></code> mode that provides for convenient viewing of the
+source code during debugging, among other things, when running GDB in
+a terminal. It is somewhat similar to Emacs's <code class="docutils literal notranslate"><span class="pre">gud</span></code> mode.</p>
+<p>Turn the TUI mode on/off using one of: <code class="docutils literal notranslate"><span class="pre">C-x</span> <span class="pre">C-a</span></code>, <code class="docutils literal notranslate"><span class="pre">C-x</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">C-x</span> <span class="pre">A</span></code>.
+Some additional information is, for example, here:</p>
+<blockquote>
+<div><p><a class="reference external" href="http://davis.lbl.gov/Manuals/GDB/gdb_21.html">http://davis.lbl.gov/Manuals/GDB/gdb_21.html</a></p>
+</div></blockquote>
+</div>
+<div class="section" id="ast-viewing-and-other-compiler-helper-functions">
+<h2>AST viewing and other compiler helper functions<a class="headerlink" href="#ast-viewing-and-other-compiler-helper-functions" title="Permalink to this headline">¶</a></h2>
+<p>They are defined mostly in <code class="docutils literal notranslate"><span class="pre">compiler/AST/view.cpp</span></code>
+with corresponding shortcuts in <code class="docutils literal notranslate"><span class="pre">compiler/etc/gdb.commands</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>legend: C <span class="k">function</span> <span class="c1"># gdb shortcut</span>
+
+print_view<span class="o">(</span>BaseAST*<span class="o">)</span>  <span class="c1"># view, vi    # not showing ID</span>
+nprint_view<span class="o">(</span>BaseAST*<span class="o">)</span> <span class="c1"># nview, nv</span>
+iprint_view<span class="o">(</span>int id<span class="o">)</span>   <span class="c1"># iview, iv   # for the given ID</span>
+list_view<span class="o">(</span>BaseAST*<span class="o">)</span>   <span class="c1"># lview, lv   # looks somewhat like Chapel code</span>
+
+
+
+<span class="c1">#various ways to print out the AST subtree at the given node#</span>
+
+viewFlags<span class="o">(</span>Symbol*<span class="o">)</span>    <span class="c1"># flags</span>
+  <span class="c1">#prints the flags set on this Symbol</span>
+
+BaseAST::stringLoc<span class="o">()</span>  <span class="c1"># loc</span>
+  <span class="c1">#prints the ast\&#39;s location in the source code</span>
+
+printCallStack<span class="o">()</span>
+  <span class="c1">#prints the source code call stack leading to the part of the program where</span>
+  <span class="c1">#the compiler is currently working, esp. during name/function resolution (?)</span>
+
+aid<span class="o">(</span>int id<span class="o">)</span>
+  <span class="c1">#give the pointer to the AST node with the given ID</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="other-tips">
+<h2>Other tips<a class="headerlink" href="#other-tips" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>gdb<span class="o">)</span> lv userModules.v<span class="o">[</span><span class="m">0</span><span class="o">]</span>
+  prints the entire user module
+  can search the output <span class="k">for</span> a symbol name or ast ID
+  <span class="k">if</span> multiple user modules, <span class="k">do</span> .v<span class="o">[</span><span class="m">1</span><span class="o">]</span> etc. <span class="o">(</span>right?<span class="o">)</span>
+
+<span class="o">(</span>gdb<span class="o">)</span> <span class="nb">break</span> normalize
+  stop right before the normalization pass
+
+<span class="o">(</span>gdb<span class="o">)</span> <span class="nb">break</span> checkNormalized
+  stop right after the normalization pass
+
+gdbShouldBreakHere<span class="o">()</span>
+  compiler/etc/gdb.commands sets a breakpoint on this <span class="k">function</span>
+</pre></div>
+</div>
+<p>E.g. it is invoked when a compiler emits an error (or is about to die
+for another reason) and for <code class="docutils literal notranslate"><span class="pre">--break-on-id</span></code>.
+You can call it in your debugging instrumentation as well.</p>
+</div>
+<div class="section" id="examining-the-source-code">
+<h2>Examining the source code<a class="headerlink" href="#examining-the-source-code" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt>TAGS</dt><dd><p>Is created when you build the compiler, in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/compiler/TAGS</span></code>
+- for use with emacs's find-tag et al.
+TAGS are also created elsewhere when building the runtime library
+and compiling a Chapel program.</p>
+</dd>
+<dt>BROWSE</dt><dd><p>Created like TAGS above. Reflects the class hierarchy within the compiler,
+ebrowse's <code class="docutils literal notranslate"><span class="pre">ebrowse-tree</span></code>.
+Presently there is little more than the <code class="docutils literal notranslate"><span class="pre">BaseAST</span></code> and <code class="docutils literal notranslate"><span class="pre">Vec&lt;&gt;</span></code> hierarchies.</p>
+</dd>
+</dl>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">grepcomp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">greprt</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">grepmod</span></code></p></li>
+</ul>
+<dl class="simple">
+<dt>…</dt><dd><p>Shortcuts in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/util/devel</span></code> to grep the compiler, runtime, and
+Chapel module sources, resp.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="troubles-exiting">
+<h2>Troubles exiting<a class="headerlink" href="#troubles-exiting" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes when debugging using the <code class="docutils literal notranslate"><span class="pre">--gdb</span> <span class="pre">flag</span></code>, you will not be able to
+execute the <code class="docutils literal notranslate"><span class="pre">run</span></code> or <code class="docutils literal notranslate"><span class="pre">quit</span></code> commands, typically due to insufficient
+stack space.  The cause of the problem is that we alias these commands
+to make a function call to clean up our <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> directory space before
+re-running or exiting, so if that stack space is not available, things
+get stuck…  In such cases, you can use the <code class="docutils literal notranslate"><span class="pre">rerun</span></code> or <code class="docutils literal notranslate"><span class="pre">halt</span></code> aliases
+that we set up to bypass the attempt to clean up <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> and simply do
+the run or quit alone (which requires no stack space).</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="DCO.html" class="btn btn-neutral float-left" title="Getting started with Chapel and the Developer Certificate of Origin (DCO)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="CompilerIRTricks.html" class="btn btn-neutral float-right" title="Examining/Debugging Compiler IR" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,273 @@
+.. default-domain:: chpl
+
+.. module:: Errors
+   :synopsis: Support for error conditions and error-handling.
+
+Errors
+======
+.. note::
+
+   All Chapel programs automatically ``use`` this module by default.
+   An explicit ``use`` statement is not necessary.
+
+Support for error conditions and error-handling.
+
+This module contains several features related to error conditions and error
+handling:
+
+  * :class:`Error` - the parent type for errors in Chapel that can be
+    thrown and caught - as well as a few subclasses
+  * runtime functions :proc:`halt`, :proc:`warning`, :proc:`assert`, and
+    :proc:`exit`
+  * compilation diagnostic functions :proc:`compilerError`,
+    :proc:`compilerWarning`, and :proc:`compilerAssert`
+
+
+.. class:: Error
+
+   :class:`Error` is the base class for errors 
+
+   .. method:: proc init()
+
+      Construct an Error 
+
+   .. method:: proc init(msg: string)
+
+      Construct an :class:`Error` with a message. 
+
+   .. method:: proc message(): string
+
+      Override this method to provide an error message
+      of type string in case the error is printed out or never caught.
+      
+      :rtype: string
+      
+
+.. class:: NilThrownError : Error
+
+   
+   If a `nil` :class:`Error` is thrown, :class:`NilThrownError`
+   will be thrown instead.
+   
+
+.. class:: NilClassError : Error
+
+   
+   A `NilClassError` is thrown if a cast from a `nil` class is made.
+   
+
+.. class:: ClassCastError : Error
+
+   
+   A `ClassCastError` is thrown if a cast between class types fails and the
+   destination is not nilable.
+   
+
+.. class:: DecodeError : Error
+
+   
+   A `DecodeError` is thrown if an attempt to create a string with non-UTF8 byte
+   sequences is made at runtime. This includes calling the
+   `bytes.decode(decodePolicy.strict)` method on a ``bytes`` with non-UTF8 byte
+   sequences.
+   
+
+.. class:: IllegalArgumentError : Error
+
+   
+   An `IllegalArgumentError` is thrown if bad arguments are passed as arguments
+   to procedures.
+   
+
+.. class:: CodepointSplitError : Error
+
+   
+   A ``CodepointSplitError`` is thrown when slicing a string with
+   byteIndex-based ranges where the range boundaries do not align
+   with codepoint boundaries.
+   
+
+.. class:: ArrayOomError : Error
+
+   .. warning::
+
+      `ArrayOomError` is unstable; expect this error to change in the future.
+
+.. class:: TaskErrors : Error
+
+   
+   :class:`TaskErrors` stores multiple errors when they can come up.
+   For example, a ``coforall`` loop might throw errors from multiple
+   tasks at the same time. These errors will be reported to the parent
+   task at the end of the ``coforall`` in the form of
+   :class:`TaskErrors`.
+   
+   Note that errors thrown within a ``coforall``, ``cobegin``, or
+   ``forall`` are represented as elements of ``TaskErrors``. In the
+   case of nesting, all errors will be stored in a single ``TaskErrors``.
+   
+   Errors thrown in ``begin`` tasks will be reported within a ``TaskErrors``
+   to the task that uses ``sync`` to wait for those ``begin`` tasks.
+   
+   
+
+   .. method:: proc init(err: unmanaged Error)
+
+      Create a :class:`TaskErrors` containing only the passed error 
+
+   .. method:: proc init()
+
+      Create a :class:`TaskErrors` not containing any errors 
+
+   .. itermethod:: iter these() ref: owned Error?
+
+      Iterate over the errors contained in this :class:`TaskErrors`.
+      For example
+      
+        .. code-block:: chapel
+      
+          var taskErrors:TaskErrors = ...;
+          for containedError in taskErrors {
+            // Do something with the contained error
+          }
+      
+      Yields references to ``owned Error?`` so that one of the
+      yielded errors might be re-thrown. Only yields values
+      that are not storing ``nil`` at the time of the call.
+      
+
+   .. method:: proc first() ref: owned Error?
+
+      .. warning::
+
+         `TaskErrors.first` is unstable; expect this method to change in the future.
+
+      Returns the first non-nil error contained in this TaskErrors group 
+
+   .. method:: override proc message(): string
+
+      
+      
+      Returns a string summarizing the errors contained in this
+      :class:`TaskErrors`. The summary is intended to be concise: it will not
+      grow arbitrarily long if the :class:`TaskErrors` contains many errors.
+      
+      
+
+   .. itermethod:: iter filter(type t) ref: owned Error? where isSubtype(t: borrowed class, borrowed Error)
+
+      
+      Iterate over those errors contained that are the passed type
+      or a subclass of that type.
+      
+      Note that this iterator yields values of type ``owned Error?``
+      but only those that are non-nil and have dynamic type ``t``.
+      
+
+   .. method:: proc contains(type t)
+
+      Returns `true` if this :class:`TaskErrors` contains an error
+      of the given type or a subclass of that type. 
+
+.. function:: proc assert(test: bool)
+
+   
+   Assert that a boolean condition is true.  If it is false, prints
+   'assert failed' and halts the program.
+   
+   .. note :: In the current implementation, this assert never becomes a no-op.
+              That is, using it will always incur execution-time checks.
+   
+   :arg test: the boolean condition
+   :type test: `bool`
+   
+
+.. function:: proc assert(test: bool, args ...)
+
+   
+   Assert that a boolean condition is true.  If it is false, prints
+   'assert failed - ' followed by all subsequent arguments, as though
+   printed using :proc:`~IO.write()`.
+   
+   .. note :: In the current implementation, this assert never becomes a no-op.
+              That is, using it will always incur execution-time checks.
+   
+   :arg test: the boolean condition
+   :type test: `bool`
+   
+   :arg args: other arguments to print
+   
+
+.. function:: proc compilerError(param msg: string ...)
+
+   
+   Generate a compile-time error.
+   The error text is a concatenation of the arguments.
+   
+
+.. function:: proc compilerWarning(param msg: string ...)
+
+   
+   Generate a compile-time warning.
+   The warning text is a concatenation of the arguments.
+   
+
+.. function:: proc compilerAssert(param test: bool)
+
+   
+   Generate a compile-time error if the `test` argument is false.
+   
+
+.. function:: proc compilerAssert(param test: bool, param msg: string ...)
+
+   
+   Generate a compile-time error if the `test` argument is false.
+   The warning text is a concatenation of the string arguments.
+   
+
+.. function:: proc exit(status: int = 0)
+
+   
+   Exit the program.
+   
+   The compiler ignores the code following a call to `exit`
+   until the end of the block where this call is made.
+   
+   :arg status: The exit code for the program
+   
+
+.. function:: proc halt()
+
+   
+   Prints an error message to stderr giving the location of the call to
+   ``halt`` in the Chapel source, then exits the program.
+   
+   The compiler ignores the code following a call to `halt`
+   until the end of the block where this call is made.
+   
+
+.. function:: proc halt(args ...)
+
+   
+   Prints an error message to stderr giving the location of the call to
+   ``halt`` in the Chapel source, followed by the arguments to the call,
+   then exits the program.
+   
+   The compiler ignores the code following a call to `halt`
+   until the end of the block where this call is made.
+   
+
+.. function:: proc warning(msg: string)
+
+   
+   Prints a warning to stderr giving the location of the call to ``warning``
+   in the Chapel source, followed by the argument(s) to the call.
+   
+
+.. function:: proc warning(args ...)
+
+   
+   Prints a warning to stderr giving the location of the call to ``warning``
+   in the Chapel source, followed by the argument(s) to the call.
+   
+

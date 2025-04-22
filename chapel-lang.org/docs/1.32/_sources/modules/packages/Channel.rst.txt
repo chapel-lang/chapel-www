@@ -1,0 +1,103 @@
+.. default-domain:: chpl
+
+.. module:: Channel
+   :synopsis: Support for channels that can transfer typed data between tasks.
+
+Channel
+=======
+**Usage**
+
+.. code-block:: chapel
+
+   use Channel;
+
+
+or
+
+.. code-block:: chapel
+
+   import Channel;
+
+Support for channels that can transfer typed data between tasks.
+
+This module contains the implementation of channels which can be used to move
+typed data between Chapel tasks.
+
+A channel is a parallel-safe data structure that provides a mechanism for
+concurrently executing functions to communicate by sending and receiving values
+of a specified element type. A channel can be buffered or unbuffered. A
+buffered channel has a maximum capacity specified by ``bufferSize``. There are
+mainly three operations that can be performed on a channel.
+
+ * :proc:`channel.send` : Send a value to the channel.
+ * :proc:`channel.recv` : Receive a value from the channel.
+ * :proc:`channel.close` : Close a channel such that no other values/data can be sent to it.
+
+The channel operations are blocking, i.e., the calling task will be suspended
+if an operation cannot be completed. The channel follows First-In-First-Out
+mechanism, i.e., the first value sent to the channel will be received first.
+
+.. record:: channel
+
+   .. attribute:: type eltType
+
+   .. attribute:: var channelObj: shared chan(eltType)
+
+   .. method:: proc init(type eltType, size = 0)
+
+      
+      Initialize a channel
+      
+      :arg elt: The element type used for sending and receiving
+      :type elt: `type`
+      
+      :arg size: Specify the maximum capacity for the channel ``bufferSize``.
+      :type size: `int`
+      
+
+   .. method:: proc lock()
+
+   .. method:: proc unlock()
+
+   .. method:: proc recv(out val: eltType): bool
+
+      
+      Receive the first value in the channel buffer. It will suspend the
+      calling task, until data is sent to the channel. If the channel is
+      closed and the buffer is empty, it will return `false` indicating that
+      the receive operation was not successful.
+      
+      :arg val: Storage for the received value.
+      :type val: `eltType`
+      
+      :return: `true` if the receive was successful, else `false`.
+      :rtype: `bool`
+      
+
+   .. method:: proc send(in val: eltType) throws
+
+      
+      Send a value to the channel buffer. If the buffer is at maximum
+      capacity it will suspend the waiting task, until there is space in the
+      buffer or a receiving task awakes it. If a channel is closed no more
+      data can be sent to it.
+      
+      :arg val: Data to be sent to the channel
+      :type val: `eltType`
+      
+      :throws ChannelError: If ``send`` is called on a closed channel.
+      
+
+   .. method:: proc close() throws
+
+      
+      This function is used to close a channel indicating that no more data
+      can be sent to it.
+      
+      :throws ChannelError: If called on a closed channel.
+      
+
+   .. itermethod:: iter these()
+
+      Iterator to receive data from the channel until it is closed. 
+

@@ -1,0 +1,3678 @@
+.. default-domain:: chpl
+
+.. module:: IO
+   :synopsis: Support for a variety of kinds of input and output.
+
+IO
+==
+**Usage**
+
+.. code-block:: chapel
+
+   use IO;
+
+
+or
+
+.. code-block:: chapel
+
+   import IO;
+
+**Submodules**
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   IO/*
+
+
+
+
+Support for a variety of kinds of input and output.
+
+.. note:: All Chapel programs automatically include :proc:`~ChapelIO.write`,
+          :proc:`~ChapelIO.writeln` and :proc:`~ChapelIO.writef`.
+
+Input/output (I/O) facilities in Chapel include the types :record:`file`,
+:record:`fileReader` and :record:`fileWriter`; the constants :record:`stdin`,
+:record:`stdout` and :record:`stderr`; the functions :proc:`open`,
+:proc:`file.close`, :proc:`file.reader`, :proc:`file.writer`,
+:proc:`fileReader.read`, :proc:`fileWriter.write`, and many others.
+
+.. warning::
+  Please be aware, the IO Module documentation is under development and
+  currently contains some minor inconsistencies.
+
+.. _about-io-overview:
+
+I/O Overview
+------------
+
+A :record:`file` in Chapel identifies a file in the underlying operating system.
+Reads to a file are done via one or more fileReaders associated with the file
+and writes to a file are done via one or more fileWriters.  Each
+:record:`fileReader` or :record:`fileWriter` uses a buffer to provide sequential
+read or write access to its file, optionally starting at an offset.
+
+For example, the following program opens a file and writes an integer to it:
+
+.. code-block:: chapel
+
+  try {
+    // open the file "test-file.txt" for writing, creating it if
+    // it does not exist yet.
+    var myFile = open("test-file.txt", ioMode.cw);
+
+    // create a fileWriter starting at file offset 0
+    // (start and end offsets can be specified when creating the
+    // fileWriter)
+    var myFileWriter = myFile.writer();
+
+    var x: int = 17;
+
+    // This function will write the human-readable text version of x;
+    // binary I/O is also possible.
+    myFileWriter.write(x);
+
+    // Now test-file.txt contains:
+    // 17
+
+  } catch e: Error {
+    // Generally speaking, the I/O functions throw errors.  Handling these
+    // errors is application-dependent and is left out of this example for
+    // brevity.  Please see the documentation for individual functions for more
+    // details about errors that they can throw.
+  }
+
+Then, the following program can be used to read the integer:
+
+.. code-block:: chapel
+
+  try {
+    // open the file "test-file.txt" for reading only
+    var myFile = open("test-file.txt", ioMode.r);
+
+    // create a fileReader starting at file offset 0
+    // (start and end offsets can be specified when creating the
+    // fileReader)
+    var myFileReader = myFile.reader();
+
+    var x: int;
+
+    // Now read a textual integer. Note that the
+    // fileReader.read function returns a bool to indicate
+    // if it read something or if the end of the file
+    // was reached before something could be read.
+    var readSomething = myFileReader.read(x);
+
+    writeln("Read integer ", x);
+    // prints out:
+    // Read integer 17
+
+  } catch e: Error {
+    // Generally speaking, the I/O functions throw errors.  Handling these
+    // errors is application-dependent and is left out of this example for
+    // brevity.  Please see the documentation for individual functions for more
+    // details about errors that they can throw.
+  }
+
+The :proc:`~IO.read` functions allow one to read values into variables as
+the following example demonstrates. It shows three ways to read values into
+a pair of variables ``x`` and ``y``.
+
+.. code-block:: chapel
+
+  var x: int;
+  var y: real;
+  /* reading into variable expressions, returning
+     true if the values were read, false on EOF */
+  var ok:bool = read(x, y);
+
+  /* reading via a single type argument */
+  x = read(int);
+  y = read(real);
+
+  /* reading via multiple type arguments */
+  (x, y) = read(int, real);
+
+Design Rationale
+----------------
+
+Since fileReaders and fileWriters operate independently, concurrent I/O to the
+same open file is possible without contending for locks.  Furthermore, since the
+fileReader or fileWriter (and not the file) stores the current file offset, it
+is straightforward to create programs that access the same open file in
+parallel. Note that such parallel access is not possible in C when multiple
+threads are using the same ``FILE*`` to write to different regions of a file
+because of the race condition between ``fseek`` and ``fwrite``. Because of these
+issues, Chapel programmers wishing to perform I/O will need to know how to open
+files as well as create fileReaders and fileWriters.
+
+
+.. _about-io-styles:
+
+I/O Styles
+----------
+
+.. warning::
+
+   :record:`iostyle` is now unstable.
+   We are working on creating a full-featured replacement for it
+   but in the meantime the :ref:`about-io-formatted-io` facilities are still
+   available to control formatting.
+
+Reading and writing of Chapel's basic types is regulated by an applicable
+:record:`iostyle`.  In particular, the I/O style controls whether binary or text
+I/O should be performed. For binary I/O it specifies, for example, byte order
+and string encoding. For text I/O it specifies string representation; the base,
+field width and precision for numeric types; and so on.  Each fileReader or
+fileWriter has an associated I/O style.  It applies to all read/write operations
+on that fileReader or fileWriter, except when the program specifies explicitly
+an I/O style for a particular read or write.
+
+See the definition for the :record:`iostyle` type. This type represents I/O
+styles and provides details on formatting and other representation choices.
+
+The default value of the :record:`iostyle` type is undefined.  However, the
+compiler-generated constructor is available.  It can be used to generate the
+default I/O style, with or without modifications. In addition, the function
+:proc:`defaultIOStyle` will return the default I/O style just as ``new
+iostyle()`` will.
+
+The I/O style for an I/O operation can be provided through an optional
+``style=`` argument in a variety of places:
+
+ * when performing the I/O, e.g. in calls to :proc:`fileWriter.write` or
+   :proc:`fileReader.read`
+ * when creating the fileReader with :proc:`file.reader`
+ * when creating the fileWriter :proc:`file.writer`
+ * or when creating the file with e.g. :proc:`open`
+
+Note that :proc:`file.reader`, or :proc:`file.writer` will copy the file's I/O
+style if a ``style=`` argument is not provided. Also note that I/O functions on
+fileReaders and fileWriters will by default use the I/O style stored with that
+fileReader or fileWriter.
+
+A fileReader's I/O style may be retrieved using :proc:`fileReader._style` and
+set using :proc:`fileReader._set_style`. A fileWriter's I/O style may be
+retrieved using :proc:`fileWriter._style` and set using
+:proc:`fileWriter._set_style`. These functions should only be called while the
+fileReader's or fileWriter's lock is held, however. See
+:ref:`about-io-filereader-filewriter-synchronization` for more information on
+fileReader and fileWriter locks.
+
+As an example for specifying an I/O style, the code below specifies the minimum
+width for writing numbers so array elements are aligned in the output:
+
+.. code-block:: chapel
+
+  stdout.writeln(MyArray, new iostyle(min_width=10));
+
+
+I/O facilities in Chapel also include several other ways to control I/O
+formatting. There is support for :ref:`formatted I/O <about-io-formatted-io>`
+with :proc:`FormattedIO.fileReader.readf` and
+:proc:`FormattedIO.fileWriter.writef`.  Also note that record or class
+implementations can provide custom functions implementing read or write
+operations for that type (see :ref:`readThis-writeThis`).
+
+.. _about-io-files:
+
+Files
+-----
+
+There are several functions that open a file and return a :record:`file`
+including :proc:`open`, :proc:`openTempFile`, :proc:`openMemFile`, the
+:record:`file` initializer that takes an ``int`` argument, and the
+:record:`file` initializer that takes a :type:`~CTypes.c_FILE` argument.
+
+Once a file is open, it is necessary to create associated fileReader(s) and/or
+fileWriter(s) - see :proc:`file.reader` and :proc:`file.writer` - to read from
+and/or write to the file.
+
+Use the :proc:`file.fsync` function to explicitly synchronize the file to
+ensure that file data is committed to the file's underlying device for
+persistence.
+
+Files, fileReaders, and fileWriters will be kept alive while there are variables
+referring to them and closed when all variables referring to them have gone out
+of scope.  However, each can be closed explicitly with ``close`` methods.  Note
+that :proc:`file.close` will not work if the file has open fileReaders and/or
+fileWriters.
+
+ .. note::
+
+    :ref:`Escaped strings <string.nonunicode>` can be used for paths on systems
+    where UTF-8 file names are not enforced.
+
+
+.. _about-io-filereader-filewriter-creation:
+
+Functions for fileReader and fileWriter Creation
+------------------------------------------------
+
+:proc:`file.writer` creates a :record:`fileWriter` for writing to a file, and
+:proc:`file.reader` creates a :record:`fileReader` for reading from a file.
+
+The helper functions :proc:`openReader` and :proc:`openWriter` can also be used
+to open a file and create a ``fileReader`` or ``fileWriter`` to it in a
+single step.
+
+.. _about-io-filereader-filewriter-synchronization:
+
+Synchronization of fileReader and fileWriter Data and Avoiding Data Races
+-------------------------------------------------------------------------
+
+FileReaders and fileWriters (and files) contain locks in order to keep their
+operation safe for multiple tasks. When creating a fileReader or fileWriter, it
+is possible to disable the lock (for performance reasons) by passing
+``locking=false`` to e.g.  file.writer().  Some ``fileReader`` and ``fileWriter``
+methods - in particular those beginning with the underscore - should only be
+called on locked fileReaders or fileWriters.  With these methods, it is possible
+to get or set the fileReader or fileWriter style, or perform I/O "transactions"
+(see :proc:`fileWriter.mark` and :proc:`fileWriter._mark`, e.g.). To use these
+methods, e.g., first lock the fileWriter with :proc:`fileWriter.lock`, call the
+methods you need, then unlock the fileWriter with :proc:`fileWriter.unlock`.
+Note that in the future, we may move to alternative ways of calling these
+functions that guarantee that they are not called on a fileReader or fileWriter
+without the appropriate locking.
+
+Besides data races that can occur if locking is not used in fileWriters when it
+should be, it is also possible for there to be data races on file data that is
+buffered simultaneously in multiple fileReader/fileWriter combinations.  The
+main way to avoid such data races is the :proc:`fileWriter.flush`
+synchronization operation.  :proc:`fileWriter.flush` will make all writes to the
+fileWriter, if any, available to concurrent viewers of its associated file, such
+as other fileWriters, fileReaders or other applications accessing this file
+concurrently. See the note below for more details on the situation in which this
+kind of data race can occur.
+
+.. note::
+
+  Since fileWriters can buffer data until :proc:`fileWriter.flush` is called, it
+  is possible to write programs that have undefined behaviour because of race
+  conditions on fileWriter buffers. In particular, the problem comes up for
+  programs that make:
+
+   * concurrent operations on multiple fileWriters and/or fileReaders that
+     operate on overlapping regions of a file
+   * where at least one fileWriter is used along with other fileWriters or
+     fileReaders
+   * and where data could be stored in more than one of the overlapping
+     fileWriter's buffers at the same time (i.e., write and read ordering are
+     not enforced through :proc:`fileWriter.flush` and other means such as
+     sync variables).
+
+  Note that it is possible in some cases to create a :record:`file` that does
+  not allow multiple fileWriters and/or fileReaders at different
+  offsets. FileWriters created on such files will not change the file's offset
+  based on a ``start=`` offset arguments. Instead, each read or write operation
+  will use the file descriptor's current offset. Therefore, only one
+  fileWriter or fileReader should be created for files created in the following
+  situations:
+
+    * with the file initializer that takes a :type:`~CTypes.c_FILE` argument
+    * with the file initializer that takes an ``int`` argument, where the
+      ``int`` represents a non-seekable system file descriptor
+
+
+Performing I/O with FileReaders and FileWriters
+-----------------------------------------------
+
+FileReaders have a variety of read methods and fileWriters have a variety of
+write methods. The most common variety of these are generic methods that can
+read or write values of any type. For non-primitive types, the relevant
+``readThis`` or ``writeThis`` method is used to control the I/O formatting; see
+:ref:`readThis-writeThis`. These functions generally take any number of
+arguments and `throw` if there was an error:
+
+ * :proc:`fileWriter.write`
+ * :proc:`fileWriter.writeln`
+ * :proc:`FormattedIO.fileWriter.writef` (see also :ref:`about-io-formatted-io`)
+ * :proc:`fileReader.read`
+ * :proc:`fileReader.readln`
+ * :proc:`FormattedIO.fileReader.readf` (see also :ref:`about-io-formatted-io`)
+
+The ``fileWriter`` type also has the following methods for executing write
+operations with more specific types. These methods can provide finer control
+over the ``fileWriter``'s behavior as well as some performance advantages over
+the generic `write` methods:
+
+ * :proc:`fileWriter.writeBits`
+ * :proc:`fileWriter.writeCodepoint`
+ * :proc:`fileWriter.writeByte`
+ * :proc:`fileWriter.writeString`
+ * :proc:`fileWriter.writeBytes`
+ * :proc:`fileWriter.writeBinary`
+
+The ``fileReader`` type has similar methods for executing read operations with
+more specific types, where the goal of these methods is also to provide finer
+control over the ``fileReader``'s behavior and the potential for performance
+advantages:
+
+ * :proc:`fileReader.readBits`
+ * :proc:`fileReader.readCodepoint`
+ * :proc:`fileReader.readByte`
+ * :proc:`fileReader.readString`
+ * :proc:`fileReader.readBytes`
+ * :proc:`fileReader.readBinary`
+
+Additionally, the ``fileReader`` has the following methods which read arbitrary
+amounts of data from the file until some stop condition is met. These methods
+generally have multiple overloads for reading into values of different types:
+
+ * :proc:`fileReader.readLine`
+ * :proc:`fileReader.lines`
+ * :proc:`fileReader.readThrough`
+ * :proc:`fileReader.readTo`
+ * :proc:`fileReader.readAll`
+
+Sometimes it's important to flush the buffer in a fileWriter - to do that, use
+the :proc:`fileWriter.flush()` method. Flushing the buffer will make all writes
+available to other applications or other views of the file (e.g., it will call
+the OS call ``pwrite()``).  It is also possible to close a fileWriter, which
+will implicitly flush it and release any buffer memory used by the fileWriter.
+Note that if you need to ensure that data from a fileWriter is on disk, you'll
+have to call :proc:`fileWriter.flush` or :proc:`fileWriter.close` and then
+:proc:`file.fsync` on the related file.
+
+.. _about-io-closing-filereader-filewriter:
+
+Functions for Closing FileReaders and FileWriters
+-------------------------------------------------
+
+A fileReader or fileWriter must be closed in order to free the resources
+allocated for it, to ensure that data written to it is visible to other
+fileReaders, or to allow the associated file to be closed.
+
+See :proc:`fileReader.close` and :proc:`fileWriter.close`.
+
+It is an error to perform any I/O operations on a fileReader or fileWriter
+that has been closed.
+It is an error to close a file when it has fileReaders and/or fileWriters that
+have not been closed.
+
+Files, fileReaders and fileWriters are reference counted. Each file, fileReader
+and fileWriter is closed automatically when no references to it remain. For
+example, if a local variable is the only reference to a fileReader, the
+fileReader will be closed when that variable goes out of scope.  Programs may
+also close a file, fileReader or fileWriter explicitly.
+
+.. _stdin-stdout-stderr:
+
+The ``stdin`` fileReader, and ``stdout`` and ``stderr`` fileWriters
+-------------------------------------------------------------------
+
+Chapel provides the predefined fileReader :var:`stdin`, and the predefined
+fileWriters :var:`stdout`, and :var:`stderr` to access the corresponding
+operating system streams standard input, standard output, and standard error.
+
+:var:`stdin` supports reading;
+:var:`stdout` and :var:`stderr` support writing.
+
+All three are safe to use concurrently.
+Their types' ``kind`` argument is ``dynamic``.
+
+.. _about-io-error-handling:
+
+Error Handling
+--------------
+
+Most I/O routines throw an :class:`OS.SystemError`, which can be handled
+appropriately with ``try`` and ``catch`` (see the
+:ref:`documentation<Complete_handling>` for more detail).
+
+Additionally, some subclasses of :class:`Errors.Error` are commonly used within
+the I/O implementation. These are:
+
+ * :class:`OS.EofError` - the end of file was reached
+ * :class:`OS.UnexpectedEofError` - a read or write only returned part of the requested data
+ * :class:`OS.BadFormatError` - data read did not adhere to the requested format
+
+An error code can be converted to a string using the function
+:proc:`OS.errorToString()`.
+
+.. _about-io-ensuring-successful-io:
+
+Ensuring Successful I/O
+-----------------------
+
+It is possible - in some situations - for I/O to fail without returning an
+error. In cases where a programmer wants to be sure that there was no error
+writing the data to disk, it is important to call :proc:`file.fsync` to make
+sure that data has arrived on disk without an error. Many errors can be
+reported with a typical operation, but some errors can only be reported by the
+system during :proc:`file.close` or even :proc:`file.fsync`.
+
+When a file (or fileWriter) is closed, data written to that file will be written
+to disk eventually by the operating system. If an application needs to be sure
+that the data is immediately written to persistent storage, it should use
+:proc:`file.fsync` prior to closing the file.
+
+Correspondence with C I/O
+-------------------------
+
+It is not possible to seek, read, or write to a file directly; fileReaders
+and/or fileWriters must be created and used.
+
+:proc:`fileWriter.flush` in Chapel has the same conceptual meaning as
+``fflush()`` in C.  However, ``fflush()`` is not necessarily called in
+:proc:`fileWriter.flush()`, unlike ``fsync()``, which is actually called by
+:proc:`file.fsync()` in Chapel.
+
+IO Functions and Types
+----------------------
+
+ 
+
+.. enum:: enum ioMode { r = 1, cw = 2, rw = 3, cwr = 4 }
+
+   
+   
+   The :type:`ioMode` type is an enum. When used as arguments when opening files, its
+   constants have the same meaning as the following strings passed to ``fopen()`` in C:
+   
+   .. list-table::
+      :widths: 8 8 64
+      :header-rows: 1
+   
+      * - :type:`ioMode`
+        - ``fopen()`` argument
+        - Description
+      * - ``ioMode.r``
+        - ``"r"``
+        - open an existing file for reading.
+      * - ``ioMode.rw``
+        - ``"r+"``
+        - open an existing file for reading and writing.
+      * - ``ioMode.cw``
+        - ``"w"``
+        - create a new file for writing. If the file already exists, its contents are truncated.
+      * - ``ioMode.cwr``
+        - ``"w+"``
+        - same as ``ioMode.cw``, but reading from the file is also allowed.
+   
+   .. TODO: Support append / create-exclusive modes:
+      * - ``ioMode.a``
+        - ``"a"``
+        - open a file for appending, creating it if it does not exist.
+      * - ``ioMode.ar``
+        - ``"a+"``
+        - same as ``ioMode.a``, but reading from the file is also allowed.
+      * - ``ioMode.cwx``
+        - ``"wx"``
+        - open a file for writing, throwing an error if it already exists. (The test for file's existence and the file's creation are atomic on POSIX.)
+      * - ``ioMode.cwrx``
+        - ``"w+x"``
+        - same as ``ioMode.cwx``, but reading from the file is also allowed.
+   
+   However, :proc:`open()` in Chapel does not necessarily invoke ``fopen()`` in C.
+
+
+.. enum:: enum iomode { r = 1, cw = 2, rw = 3, cwr = 4 }
+
+   .. warning::
+
+      enum iomode is deprecated - please use :enum:`ioMode` instead
+
+.. enum:: enum iokind { dynamic = 0, native = 1, big = 2, little = 3 }
+
+   
+   
+   The :type:`iokind` type is an enum. When used as arguments to the
+   :record:`fileReader` or :record:`fileWriter` type, its constants have the
+   following meaning:
+   
+   * ``iokind.dynamic`` means that the applicable I/O style has full effect
+     and as a result the kind varies at runtime.
+   
+   * ``iokind.native`` means binary I/O in native byte order
+     (similar to ``iokind.big`` but with the byte order that is native
+     to the target platform).
+   
+   * ``iokind.big`` means binary I/O with big-endian byte order is performed
+     when writing basic types to the fileWriter or reading basic types from the
+     fileReader.
+   
+   * ``iokind.little`` means binary I/O with little-endian byte order
+     (similar to ``iokind.big`` but with little-endian byte order).
+   
+   In the case of ``iokind.big``, ``iokind.little``, and
+   ``iokind.native`` the applicable :record:`iostyle` is consulted when
+   writing/reading strings, but not for other basic types.
+   
+   There are synonyms available for these values:
+   
+   * :proc:`iodynamic` = ``iokind.dynamic``
+   * :proc:`ionative` = ``iokind.native``
+   * :proc:`iobig` = ``iokind.big``
+   * :proc:`iolittle` = ``iokind.little``
+   
+
+
+.. data:: param iodynamic = iokind.dynamic
+
+   A synonym for ``iokind.dynamic``; see :type:`iokind` 
+
+.. data:: param ionative = iokind.native
+
+   A synonym for ``iokind.native``; see :type:`iokind` 
+
+.. data:: param iobig = iokind.big
+
+   A synonym for ``iokind.big``; see :type:`iokind` 
+
+.. data:: param iolittle = iokind.little
+
+   A synonym for ``iokind.little``; see :type:`iokind` 
+
+.. enum:: enum ioendian { native = 0, big = 1, little = 2 }
+
+   
+   
+   The :type:`ioendian` type is an enum. When used as an argument to the
+   :record:`fileReader` or :record:`fileWriter` methods, its constants have the
+   following meanings:
+   
+   * ``ioendian.big`` means binary I/O is performed in big-endian byte order.
+   
+   * ``ioendian.little`` means binary I/O is performed in little-endian byte order.
+   
+   * ``ioendian.native`` means binary I/O is performed in the byte order that is native
+     to the target platform.
+   
+
+
+.. enum:: enum iostringstyle { len1b_data = -1, len2b_data = -2, len4b_data = -4, len8b_data = -8, lenVb_data = -10, data_toeof = -0xff00, data_null = -0x0100 }
+
+   
+   
+   This enum contains values used to control binary I/O with strings
+   via the ``str_style`` field in :record:`iostyle`.
+   
+   * ``iostringstyle.len1b_data`` indicates a string format of 1 byte of
+     length followed by length bytes of string data.
+   * ``iostringstyle.len2b_data`` indicates a string format of 2 bytes of
+     length followed by length bytes of string data.
+   * ``iostringstyle.len4b_data`` indicates a string format of 4 bytes of
+     length followed by length bytes of string data.
+   * ``iostringstyle.len8b_data`` indicates a string format of 8 bytes of
+     length followed by length bytes of string data.
+   * ``iostringstyle.lenVb_data`` indicates a string format of a variable
+     number of bytes of length, encoded with high-bit meaning more bytes
+     of length follow, and where the 7-bits of length from each byte store
+     the 7-bit portions of the length in order from least-significant to
+     most-significant. This way of encoding a variable-byte length  matches
+     `Google Protocol Buffers <https://github.com/protocolbuffers/protobuf>`_.
+   * ``iostringstyle.data_toeof`` indicates a string format that contains
+     only the string data without any length or terminator. When reading,
+     this format will read a string until the end of the file is reached.
+   * ``iostringstyle.data_null`` indicates a string that is terminated
+     by a zero byte. It can be combined with other numeric
+     values to indicate a string terminated by a particular byte. For example,
+     to indicate a string terminated by ``$`` (which in ASCII has byte value 0x24),
+     one would use the value ``iostringstyle.data_null|0x24``.
+   * A positive and nonzero value indicates that a string of exactly that many
+     bytes should be read or written.
+   
+
+
+   .. warning::
+
+      iostringstyle is unstable and will eventually be replaced
+
+.. enum:: enum iostringformat { word = 0, basic = 1, chpl = 2, json = 3, toend = 4, toeof = 5 }
+
+   
+   
+   This enum contains values used to control text I/O with strings
+   via the ``string_format`` field in :record:`iostyle`.
+   
+     * ``iostringformat.word`` means string is as-is;
+       reading reads until whitespace. This is the default.
+     * ``iostringformat.basic`` means only escape *string_end* and ``\``
+       with ``\``
+     * ``iostringformat.chpl`` means  escape *string_end*
+       ``\`` ``'`` ``"`` ``\n`` with ``\`` and
+       nonprinting characters ``c = 0xXY`` with ``\xXY``
+     * ``iostringformat.json`` means  escape *string_end* ``"`` and ``\``
+       with ``\``, and nonprinting characters ``c = \uABCD``
+     * ``iostringformat.toend`` means string is as-is; reading reads until
+       *string_end*
+     * ``iostringformat.toeof`` means string is as-is; reading reads until
+       end of file
+
+
+   .. warning::
+
+      iostringformat is unstable and will eventually be replaced
+
+.. function:: proc stringStyleTerminated(terminator: uint(8))
+
+   
+   
+   This method returns the appropriate :record:`iostyle` ``str_style`` value
+   to indicate a string format where strings are terminated by a
+   particular byte.
+   
+   :arg terminator: a byte value that the strings will be terminated by
+   :returns: a value that indicates a string format where strings
+             are terminated by the terminator byte. This value is appropriate
+             to store in iostyle.str_style.
+   
+
+   .. warning::
+
+      stringStyleTerminated is unstable because it supports the unstable type 'iostyle'
+
+.. function:: proc stringStyleNullTerminated()
+
+   
+   This method returns the appropriate :record:`iostyle` ``str_style`` value
+   to indicate a string format where strings are terminated by a
+   zero byte.
+   
+
+   .. warning::
+
+      stringStyleNullTerminated is unstable because it supports the unstable type 'iostyle'
+
+.. function:: proc stringStyleWithLength(lengthBytes: int) throws
+
+   
+   Return the appropriate :record:`iostyle` ``str_style`` value
+   to indicate a string format where string data is preceded by a
+   `lengthBytes` of length. Only lengths of 1, 2, 4, or 8 are supported.
+   When `lengthBytes` is 0, the returned value indicates variable-byte length.
+   
+   :throws SystemError: Thrown for an unsupported value of `lengthBytes`.
+   
+
+   .. warning::
+
+      stringStyleWithLength is unstable because it supports the unstable type 'iostyle'
+
+.. type:: type iostyle = iostyleInternal
+
+   .. warning::
+
+      iostyle is unstable, a new way of controlling fileReader and fileWriter output is planned
+
+.. function:: proc defaultIOStyle(): iostyle
+
+   
+   :returns: the default I/O style. See :record:`iostyle`
+             and :ref:`about-io-styles`
+   
+   
+
+   .. warning::
+
+      defaultIOStyle is unstable due to returning an unstable type
+
+.. record:: ioHintSet
+
+   A value of the :record:`ioHintSet` type defines a set of hints to provide
+   information about the operations that a :record:`file`, :record:`fileReader`
+   or :record:`fileWriter` will perform. These hints may be used by the
+   implementation to select optimized versions of the I/O operations.
+   
+   Most hints have POSIX equivalents associated with posix_fadvise() and
+   posix_madvise().
+   
+   This example depicts how an ``ioHintSet`` might be used.
+   
+   .. code-block:: chapel
+   
+     use IO;
+   
+     // define a set of hints using a union operation
+     var hints = ioHintSet.sequential | ioHintSet.prefetch;
+   
+     // open a file using the hints
+     var f: file;
+     try! {
+       f = open("path/to/my/file.txt", ioMode.r, hints=hints);
+     }
+
+
+   .. method:: proc type empty
+
+      Defines an empty set, which provides no hints.
+      Corresponds to 'POSIX_*_NORMAL'.
+      
+
+   .. method:: proc type sequential
+
+      Suggests that the file will be accessed sequentially.
+      Corresponds to 'POSIX_*_SEQUENTIAL'
+      
+
+   .. method:: proc type random
+
+      Suggests that the file will be accessed randomly.
+      Corresponds to 'POSIX_*_RANDOM'.
+      
+
+   .. method:: proc type prefetch
+
+      Suggests that the runtime/OS should immediately begin prefetching the file contents.
+      Corresponds to 'POSIX_*_WILLNEED'.
+      
+
+   .. method:: proc type mmap(useMmap = true)
+
+      
+      Suggests whether or not 'mmap' should be used to access the file contents.
+      
+       * when ``useMmap`` is ``true``, suggests that 'mmap' should be used
+       * when ``useMmap`` is ``false``, suggests that 'mmap' should not be used and 'pread'/'pwrite' should be used instead
+      
+      
+
+   .. method:: proc type noMmap
+
+      Suggests that 'mmap' should not be used to access the file contents.
+      Instead, pread/pwrite are used.
+      
+
+      .. warning::
+
+         `ioHintSet.noMmap` is deprecated; please use `ioHintset.mmap(false)` instead
+
+.. method:: operator ioHintSet.|(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compute the union of two hint sets
+
+.. method:: operator ioHintSet.&(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compute the intersection of two hint sets
+
+.. method:: operator ioHintSet.==(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compare two hint sets for equality
+
+.. method:: operator ioHintSet.!=(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compare two hint sets for inequality
+
+.. record:: file
+
+   
+   The :record:`file` type is implementation-defined.  A value of the
+   :record:`file` type refers to the state that is used by the implementation to
+   identify and interact with the OS file.
+   
+   When a :record:`file` formal argument has default intent, the actual is passed
+   by ``const ref`` to the formal upon a function call, and the formal
+   cannot be assigned within the function.
+   
+   The default value of the :record:`file` type does not represent any OS file.
+   It is illegal to perform any I/O operations on the default value.
+   
+
+
+.. method:: proc file.init(fp: c_FILE, hints = ioHintSet.empty, style: iostyle, own = false) throws
+
+   .. warning::
+
+      initializing a file with a style argument is unstable
+
+.. method:: proc file.init(fp: c_FILE, hints = ioHintSet.empty, own = false) throws
+
+   
+   Create a Chapel :record:`file` that wraps around an open C file. A pointer to
+   a C ``FILE`` object can be obtained via Chapel's
+   :ref:`C Interoperability <primers-C-interop-using-C>` functionality.
+   
+   .. note::
+   
+     This is an alternative way to create a :record:`file`.  The main way to do so
+     is via the :proc:`open` function.
+   
+   Once the Chapel file is created, you will need to use a :proc:`file.reader` to
+   create a fileReader or :proc:`file.writer` to create a fileWriter to perform I/O
+   operations on the C file.
+   
+   .. note::
+   
+     The resulting file value should only be used with one :record:`fileReader` or
+     :record:`fileWriter` at a time. The I/O system will ignore the offsets when
+     reading or writing to a file opened using this initializer.
+   
+   
+   :arg fp: a pointer to a C ``FILE``. See :type:`~CTypes.c_FILE`.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :arg own: set to indicate if the :type:`~CTypes.c_FILE` provided should be
+             cleaned up when the ``file`` is closed.  Defaults to ``false``
+   
+   :throws SystemError: Thrown if the C file could not be retrieved.
+
+.. method:: proc file.init(fileDescriptor: int, hints = ioHintSet.empty, style: iostyle, own = false) throws
+
+   .. warning::
+
+      initializing a file with a style argument is unstable
+
+.. method:: proc file.init(fileDescriptor: int, hints = ioHintSet.empty, own = false) throws
+
+   
+   
+   Create a Chapel file that works with a system file descriptor.  Note that once
+   the file is open, you will need to use a :proc:`file.reader` to create a
+   fileReader or :proc:`file.writer` to create a fileWriter to actually perform I/O
+   operations
+   
+   .. note::
+   
+     This is an alternative way to create a :record:`file`.  The main way to do so
+     is via the :proc:`open` function.
+   
+   The system file descriptor will be closed when the Chapel file is closed.
+   
+   .. note::
+   
+     This function can be used to create Chapel files that refer to system file
+     descriptors that do not support the ``seek`` functionality. For example, file
+     descriptors that represent pipes or open socket connections have this
+     property. In that case, the resulting file value should only be used with one
+     :record:`fileReader` or :record:`fileWriter` at a time.  The I/O system will
+     ignore the fileReader offsets when reading (or the fileWriter offsets when
+     writing) to files backed by non-seekable file descriptors.
+   
+   
+   :arg fileDescriptor: a system file descriptor.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :arg own: set to indicate if the `fileDescriptor` provided should be cleaned up
+             when the ``file`` is closed.  Defaults to ``false``
+   
+   :throws SystemError: Thrown if the file descriptor could not be retrieved.
+
+.. method:: proc file.check() throws
+
+   Throw an error if `this` is not a valid representation of an OS file.
+   
+   :throws SystemError: Indicates that `this` does not represent an OS file.
+
+   .. warning::
+
+      'file.check()' is deprecated, please use :proc:`file.isOpen` instead
+
+.. method:: proc file.isOpen(): bool
+
+   Indicates if the file is currently open.  Will return ``false`` for both
+   closed and invalid files
+
+.. method:: proc file.close() throws
+
+   Close a file.
+   
+   In order to free the resources allocated for a file, it
+   must be closed using this method.
+   
+   Closing a file does not guarantee immediate persistence of the performed
+   updates, if any. In cases where immediate persistence is important,
+   :proc:`file.fsync` should be used for that purpose prior to closing the file.
+   In particular, even though closing the file might complete without errors,
+   the data written might not persist in the event of a severe error like
+   running out of storage space or power loss. See also
+   :ref:`about-io-ensuring-successful-io`.
+   
+   Files are automatically closed when the file variable goes out of scope and
+   all fileReaders and fileWriters using that file are closed. Programs may also
+   explicitly close a file using this method.
+   
+   It is an error to perform any I/O operations on a file that has been closed.
+   It is an error to close a file when it has fileReaders and/or fileWriters
+   that have not been closed.
+   
+   :throws SystemError: Thrown if the file could not be closed.
+   
+
+.. method:: proc file.fsync() throws
+
+   
+   
+   Sync a file to disk.
+   
+   Commits file data to the device associated with this file.
+   Data written to the file by a fileWriter will only be guaranteed
+   committed if the fileWriter has been closed or flushed.
+   
+   This function will typically call the ``fsync`` system call.
+   
+   :throws SystemError: Thrown if the file could not be synced.
+    
+
+.. data:: config param filePathAbsolute = false
+
+   
+   A compile-time parameter to control the behavior of :proc:`file.path`
+   
+   When 'false', the deprecated behavior is used (i.e., return the shortest of
+   the relative path and the absolute path)
+   
+   When 'true', the new behavior is used (i.e., always return the absolute path)
+
+.. method:: proc file.path: string throws
+
+   .. warning::
+
+      The variant of `file.path` that can return a relative path is deprecated; please compile with `-sfilePathAbsolute=true` to use the strictly absolute variant
+
+.. method:: proc file.path: string throws
+
+   
+   
+   Get the absolute path to an open file.
+   
+   Note that not all files have a path (e.g. files opened with :proc:`openMemFile`),
+   and that this function may not work on all operating systems.
+   
+   The function :proc:`Path.realPath` is an alternative way
+   to get the path to a file.
+   
+   :returns: the absolute path to the file
+   :rtype: ``string``
+   
+   :throws SystemError: Thrown if the path could not be retrieved.
+    
+
+.. method:: proc file.size: int throws
+
+   
+   
+   Get the current size of an open file. Note that the size can always
+   change if other fileWriters, tasks or programs are writing to the file.
+   
+   :returns: the current file size
+   
+   :throws SystemError: Thrown if the size could not be retrieved.
+
+.. function:: proc open(path: string, mode: iomode, hints = ioHintSet.empty, style: iostyle): file throws
+
+   .. warning::
+
+      open with an iomode argument is deprecated - please use :enum:`ioMode`
+
+.. function:: proc open(path: string, mode: ioMode, hints = ioHintSet.empty, style: iostyle): file throws
+
+   .. warning::
+
+      open with a style argument is unstable
+
+.. function:: proc open(path: string, mode: ioMode, hints = ioHintSet.empty): file throws
+
+   
+   
+   Open a file on a filesystem. Note that once the file is open, you will need to
+   use a :proc:`file.reader` to create a fileReader or :proc:`file.writer` to
+   create a fileWriter to actually perform I/O operations
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg mode: specify whether to open the file for reading or writing and
+                whether or not to create the file if it doesn't exist.
+                See :type:`ioMode`.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open file to the requested resource.
+   
+   :throws FileNotFoundError: Thrown if part of the provided path did not exist
+   :throws PermissionError: Thrown if part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: Thrown if part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: Thrown if the file could not be opened.
+
+.. function:: proc open(path: string, mode: iomode, hints = ioHintSet.empty): file throws
+
+   .. warning::
+
+      open with an iomode argument is deprecated - please use :enum:`ioMode`
+
+.. function:: proc openfd(fd: c_int, hints = ioHintSet.empty, style: iostyle): file throws
+
+   .. warning::
+
+      openfd is deprecated, please use the file initializer with a 'c_int' argument instead
+
+.. function:: proc openfd(fd: c_int, hints = ioHintSet.empty): file throws
+
+   
+   
+   Create a Chapel file that works with a system file descriptor.  Note that once
+   the file is open, you will need to use a :proc:`file.reader` to create a
+   fileReader or :proc:`file.writer` to create a fileWriter to actually perform I/O
+   operations
+   
+   The system file descriptor will be closed when the Chapel file is closed.
+   
+   .. note::
+   
+     This function can be used to create Chapel files that refer to system file
+     descriptors that do not support the ``seek`` functionality. For example, file
+     descriptors that represent pipes or open socket connections have this
+     property. In that case, the resulting file value should only be used with one
+     :record:`fileReader` or :record:`fileWriter` at a time.  The I/O system will
+     ignore the fileReader or fileWriter offsets when reading or writing to files
+     backed by non-seekable file descriptors.
+   
+   
+   :arg fd: a system file descriptor.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open :record:`file` using the specified file descriptor.
+   
+   :throws SystemError: Thrown if the file descriptor could not be retrieved.
+
+   .. warning::
+
+      openfd is deprecated, please use the file initializer with a 'c_int' argument instead
+
+.. function:: proc openfp(fp: c_FILE, hints = ioHintSet.empty, style: iostyle): file throws
+
+   .. warning::
+
+      openfp is deprecated, please use the file initializer with a 'c_FILE' argument instead
+
+.. function:: proc openfp(fp: c_FILE, hints = ioHintSet.empty): file throws
+
+   
+   
+   Create a Chapel :record:`file` that wraps around an open C file. A pointer to
+   a C ``FILE`` object can be obtained via Chapel's
+   :ref:`C Interoperability <primers-C-interop-using-C>` functionality.
+   
+   Once the Chapel file is created, you will need to use a :proc:`file.reader` to
+   create a fileReader or :proc:`file.writer` to create a fileWriter to perform I/O
+   operations on the C file.
+   
+   .. note::
+   
+     The resulting file value should only be used with one :record:`fileReader` or
+     :record:`fileWriter` at a time. The I/O system will ignore the fileReader or
+     fileWriter offsets when reading or writing to a file opened with
+     :proc:`openfp`.
+   
+   
+   :arg fp: a pointer to a C ``FILE``. See :type:`~CTypes.c_FILE`.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open :record:`file` corresponding to the C file.
+   
+   :throws SystemError: Thrown if the C file could not be retrieved.
+    
+
+   .. warning::
+
+      openfp is deprecated, please use the file initializer with a 'c_FILE' argument instead
+
+.. function:: proc openfp(fp: _file, hints = ioHintSet.empty): file throws
+
+   .. warning::
+
+      '_file' is deprecated; use the file initializer that takes a 'c_FILE' instead
+
+.. function:: proc openTempFile(hints = ioHintSet.empty, style: iostyle): file throws
+
+   .. warning::
+
+      openTempFile with a style argument is unstable
+
+.. function:: proc opentmp(hints = ioHintSet.empty, style: iostyle): file throws
+
+   .. warning::
+
+      opentmp is deprecated, please use :proc:`openTempFile` instead
+
+.. function:: proc openTempFile(hints = ioHintSet.empty): file throws
+
+   
+   
+   Open a temporary file. Note that once the file is open, you will need to use a
+   :proc:`file.reader` to create a fileReader or :proc:`file.writer` to create a
+   fileWriter to actually perform I/O operations.
+   
+   The temporary file will be created in an OS-dependent temporary directory,
+   for example "/tmp" is the typical location. The temporary file will be
+   deleted upon closing.
+   
+   Temporary files are opened with :type:`ioMode` ``ioMode.cwr``; that is, a new
+   file is created that supports both writing and reading.  When possible, it may
+   be opened using OS support for temporary files in order to make sure that a new
+   file is created only for use by the current application.
+   
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open temporary file.
+   
+   :throws SystemError: Thrown if the temporary file could not be opened.
+
+.. function:: proc opentmp(hints = ioHintSet.empty): file throws
+
+   .. warning::
+
+      opentmp is deprecated, please use :proc:`openTempFile` instead
+
+.. function:: proc openmem(style: iostyle): file throws
+
+   .. warning::
+
+      openmem is deprecated - please use :proc:`openMemFile` instead
+
+.. function:: proc openmem(): file throws
+
+   .. warning::
+
+      openmem is deprecated - please use :proc:`openMemFile` instead
+
+.. function:: proc openMemFile(style: iostyle): file throws
+
+   .. warning::
+
+      openMemFile with a style argument is unstable
+
+.. function:: proc openMemFile(): file throws
+
+   
+   
+   Open a file that is backed by a buffer in memory that will not persist when the
+   file is closed.  Note that once the file is open, you will need to use a
+   :proc:`file.reader` to create a fileReader or :proc:`file.writer` to create a
+   fileWriter to actually perform I/O operations.
+   
+   The resulting file supports both reading and writing.
+   
+   :returns: an open memory file.
+   
+   :throws SystemError: Thrown if the memory buffered file could not be opened.
+
+.. record:: fileReader
+
+   
+   
+   A ``fileReader`` supports sequential reading from an underlying :record:`file`
+   object. It can buffer data. Read operations on it might return old data.
+   
+   The :record:`fileReader` type is implementation-defined.
+   A value of the :record:`fileReader` type refers to the state that is used
+   to implement the reading operations.
+   
+   When a :record:`fileReader` formal argument has default intent, the actual is
+   passed by ``const ref`` to the formal upon a function call, and the formal
+   cannot be assigned within the function.
+   
+   The default value of the :record:`fileReader` type is not associated
+   with any file, and so cannot be used to perform I/O.
+   
+   The :record:`fileReader` type is generic.
+
+
+   .. attribute:: param kind: iokind
+
+      
+      kind is an enum :type:`iokind` that allows narrowing
+      this fileReader's I/O style for more efficient binary I/O.
+      
+
+   .. attribute:: param locking: bool
+
+      
+      locking is a boolean indicating whether it is safe to use this
+      fileReader concurrently (when `true`).
+      
+
+.. method:: proc fileReader.writing param: bool
+
+   Returns a bool indicating whether the fileReader is used for writing.  It is
+   always ``false`` 
+
+.. record:: fileWriter
+
+   
+   
+   A ``fileWriter`` supports sequential writing to an underlying :record:`file`
+   object. A ``fileWriter`` can buffer data. Write operations might not have an
+   immediate effect. Use :proc:`fileWriter.flush` to control this buffering.
+   
+   The :record:`fileWriter` type is implementation-defined.
+   A value of the :record:`fileWriter` type refers to the state that is used
+   to implement the writing operations.
+   
+   When a :record:`fileWriter` formal argument has default intent, the actual is
+   passed by ``const ref`` to the formal upon a function call, and the formal
+   cannot be assigned within the function.
+   
+   The default value of the :record:`fileWriter` type is not associated with any
+   file, and so cannot be used to perform I/O.
+   
+   The :record:`fileWriter` type is generic.
+
+
+   .. attribute:: param kind: iokind
+
+      
+      kind is an enum :type:`iokind` that allows narrowing
+      this fileWriter's I/O style for more efficient binary I/O.
+      
+
+   .. attribute:: param locking: bool
+
+      
+      locking is a boolean indicating whether it is safe to use this
+      fileWriter concurrently (when `true`).
+      
+
+.. method:: proc fileWriter.writing param: bool
+
+   Returns a bool indicating whether the fileWriter is used for writing.  It is
+   always ``true`` 
+
+.. type:: type ioChar = _internalIoChar
+
+   
+   
+   Represents a Unicode codepoint. I/O routines (such as :proc:`fileReader.read`
+   and :proc:`fileWriter.write`) can use arguments of this type in order to read or
+   write a single Unicode codepoint.
+   
+    
+
+   .. warning::
+
+      ioChar type is deprecated - please use :proc:`fileReader.readCodepoint` and :proc:`fileWriter.writeCodepoint` instead
+
+.. record:: ioNewline
+
+   
+   
+   Represents a newline character or character sequence (ie ``\n``). I/O routines
+   (such as :proc:`fileReader.read` and :proc:`fileWriter.write`) can use arguments
+   of this type in order to read or write a newline. This is different from ``\n``
+   because an ioNewline always produces an actual newline, but in some cases
+   writing ``\n`` will produce an escaped string (such as ``"\n"``).
+   
+   When reading an ioNewline, read routines will skip any character sequence
+   (including, e.g., letters and numbers) to get to the newline character unless
+   ``skipWhitespaceOnly`` is set to true.
+   
+    
+
+
+   .. attribute:: var skipWhitespaceOnly: bool = false
+
+      
+      Normally, we will skip anything at all to get to a ``\n``,
+      but if skipWhitespaceOnly is set, it will be an error
+      if we run into non-space characters other than ``\n``.
+      
+
+.. record:: ioLiteral
+
+   
+   
+   Used to represent a constant string we want to read or write.
+   
+   When writing, the ``ioLiteral`` is output without any quoting or escaping.
+   
+   When reading, the ``ioLiteral`` must be matched exactly - or else the read call
+   will return an error for incorrectly formatted input
+   
+
+
+   .. attribute:: var val: string
+
+      The value of the literal 
+
+   .. attribute:: var ignoreWhiteSpace: bool = true
+
+      Should read operations using this literal ignore and consume
+      whitespace before the literal?
+      
+
+   .. method:: proc writeThis(f) throws
+
+.. type:: type ioBits = _internalIoBits
+
+   .. warning::
+
+      ioBits type is deprecated - please use :proc:`fileReader.readBits` and :proc:`fileWriter.writeBits` instead
+
+.. method:: proc fileReader.lock() throws
+
+   
+   Acquire a fileReader's lock.
+   
+   :throws SystemError: Thrown if the lock could not be acquired.
+   
+
+.. method:: proc fileWriter.lock() throws
+
+   
+   Acquire a fileWriter's lock.
+   
+   :throws SystemError: Thrown if the lock could not be acquired.
+   
+
+.. method:: proc fileReader.unlock()
+
+   
+   Release a fileReader's lock.
+   
+
+.. method:: proc fileWriter.unlock()
+
+   
+   Release a fileWriter's lock.
+   
+
+.. method:: proc fileReader.offset(): int(64)
+
+   
+   Return the current offset of a fileReader.
+   
+   .. warning::
+   
+      If the fileReader can be used by multiple tasks, take care
+      when doing operations that rely on the fileReader's current offset.
+      To prevent race conditions, first lock the fileReader with
+      :proc:`fileReader.lock`, do the operations with :proc:`fileReader._offset`
+      instead, then unlock it with :proc:`fileReader.unlock`.
+   
+   :returns: the current offset of the fileReader
+   
+
+.. method:: proc fileWriter.offset(): int(64)
+
+   
+   Return the current offset of a fileWriter.
+   
+   .. warning::
+   
+      If the fileWriter can be used by multiple tasks, take care
+      when doing operations that rely on the fileWriter's current offset.
+      To prevent race conditions, first lock the fileWriter with
+      :proc:`fileWriter.lock`, do the operations with :proc:`fileWriter._offset`
+      instead, then unlock it with :proc:`fileWriter.unlock`.
+   
+   :returns: the current offset of the fileWriter
+   
+
+.. method:: proc fileReader.advance(amount: int(64)) throws
+
+   
+   Move a fileReader offset forward.
+   
+   This function will consume the next ``amount`` bytes. If EOF is reached, the
+   fileReader offset may be left at the EOF.
+   
+   :throws EofError: If EOF is reached before the requested number of bytes can
+                     be consumed.
+   :throws SystemError: For other failures, for which fileReader offset is not
+                        moved.
+   
+
+.. method:: proc fileWriter.advance(amount: int(64)) throws
+
+   
+   Move a fileWriter offset forward.
+   
+   This function will write ``amount`` zeros - or some other data if it is
+   stored in the fileWriter's buffer, for example with :proc:`fileWriter._mark`
+   and :proc:`fileWriter._revert`.
+   
+   :throws EofError: If EOF is reached before the offset can be advanced by the
+                      requested number of bytes.
+   :throws SystemError: For other failures, for which fileWriter offset is not
+                        moved.
+   
+
+.. method:: proc fileReader.advancePastByte(byte: uint(8)) throws
+
+   
+   Reads until ``byte`` is found and then leaves the ``fileReader`` offset
+   just after it.
+   
+   :throws UnexpectedEofError: Throws if the requested `byte` could not be
+                               found. The ``fileReader`` offset is left at EOF.
+   :throws SystemError: Thrown if data could not be read from the ``file``.
+   
+
+   .. warning::
+
+      `advancePastByte` is deprecated; please use `advanceThrough` instead
+
+.. method:: proc fileReader.advanceThrough(separator: ?t) throws
+
+   
+   Read until a separator is found, leaving the ``fileReader`` offset just
+   after it.
+   
+   If the separator cannot be found, the ``fileReader`` offset is left at EOF
+   and an ``UnexpectedEofError`` is thrown.
+   
+   .. note::
+   
+    If a single-byte ``string`` or ``bytes`` is passed to the ``separator``
+    argument, a faster implementation is used.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string`
+    or :type:`~Bytes.bytes`.
+   
+   :throws EofError: Thrown if the ``fileReader`` offset was already at EOF.
+   :throws UnexpectedEofError: Thrown if the requested ``separator`` could not
+                               be found.
+   :throws SystemError: Thrown if data could not be read from the ``file``.
+
+.. method:: proc fileReader.advanceTo(separator: ?t) throws
+
+   
+   Read until a separator is found, leaving the ``fileReader`` offset just before it.
+   
+   If the separator cannot be found, the ``fileReader`` offset is left at EOF and an
+   ``UnexpectedEofError`` is thrown.
+   
+   .. note::
+   
+      If a single-byte ``string`` or ``bytes`` is passed to the ``separator`` argument,
+      a faster implementation is used.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string` or
+    :type:`~Bytes.bytes`.
+   
+   :throws EofError: Thrown if the ``fileReader`` offset is already at EOF.
+   :throws UnexpectedEofError: Thrown if the requested ``separator`` could not be found.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.mark() throws
+
+   
+    *Mark* a fileReader - that is, save the current offset of the fileReader
+    on its *mark stack*. This function can only be called on a fileReader
+    with ``locking==false``.
+   
+    The *mark stack* stores several fileReader offsets. For any fileReader offset
+    that is between the minimum and maximum value in the *mark stack*, I/O
+    operations on the fileReader will keep that region of the file buffered in
+    memory so that those operations can be undone. As a result, it is possible to
+    perform *I/O transactions* on a fileReader. The basic steps for an *I/O
+    transaction* are:
+   
+     * *mark* the current offset with :proc:`fileReader.mark`
+     * do something speculative (e.g. try to read 200 bytes of anything followed
+       by a 'B')
+     * if the speculative operation was successful, commit the changes by
+       calling :proc:`fileReader.commit`
+     * if the speculative operation was not successful, go back to the *mark* by
+       calling :proc:`fileReader.revert`. Subsequent I/O operations will work
+       as though nothing happened.
+   
+   .. note::
+   
+     Note that it is possible to request an entire file be buffered in memory
+     using this feature, for example by *marking* at offset=0 and then
+     advancing to the end of the file. It is important to be aware of these
+     memory space requirements.
+   
+   :returns: The offset that was marked
+   :throws: SystemError: if marking the fileReader failed
+   
+
+.. method:: proc fileWriter.mark() throws
+
+   
+    *Mark* a fileWriter - that is, save the current offset of the fileWriter
+    on its *mark stack*. This function can only be called on a fileWriter
+    with ``locking==false``.
+   
+    The *mark stack* stores several fileWriter offsets. For any fileWriter offset
+    that is between the minimum and maximum value in the *mark stack*, I/O
+    operations on the fileWriter will keep that region of the file buffered in
+    memory so that those operations can be undone. As a result, it is possible to
+    perform *I/O transactions* on a fileWriter. The basic steps for an *I/O
+    transaction* are:
+   
+     * *mark* the current offset with :proc:`fileWriter.mark`
+     * do something speculative (e.g. try to write 200 bytes of anything followed
+       by a 'B')
+     * if the speculative operation was successful, commit the changes by
+       calling :proc:`fileWriter.commit`
+     * if the speculative operation was not successful, go back to the *mark* by
+       calling :proc:`fileWriter.revert`. Subsequent I/O operations will work
+       as though nothing happened.
+   
+   .. note::
+   
+     Note that it is possible to request an entire file be buffered in memory
+     using this feature, for example by *marking* at offset=0 and then
+     advancing to the end of the file. It is important to be aware of these
+     memory space requirements.
+   
+   :returns: The offset that was marked
+   :throws: SystemError: if marking the fileWriter failed
+   
+
+.. method:: proc fileReader.revert()
+
+   
+   Abort an *I/O transaction*. See :proc:`fileReader.mark`. This function
+   will pop the last element from the *mark stack* and then leave the
+   previous fileReader offset unchanged.  This function can only be
+   called on a fileReader with ``locking==false``.
+
+.. method:: proc fileWriter.revert()
+
+   
+   Abort an *I/O transaction*. See :proc:`fileWriter.mark`. This function
+   will pop the last element from the *mark stack* and then leave the
+   previous fileWriter offset unchanged.  This function can only be
+   called on a fileWriter with ``locking==false``.
+
+.. method:: proc fileReader.commit()
+
+   
+   Commit an *I/O transaction*. See :proc:`fileReader.mark`.  This
+   function will pop the last element from the *mark stack* and then
+   set the fileReader offset to the popped offset.  This function can
+   only be called on a fileReader with ``locking==false``.
+   
+
+.. method:: proc fileWriter.commit()
+
+   
+   Commit an *I/O transaction*. See :proc:`fileWriter.mark`.  This
+   function will pop the last element from the *mark stack* and then
+   set the fileWriter offset to the popped offset.  This function can
+   only be called on a fileWriter with ``locking==false``.
+   
+
+.. data:: config param useNewSeekRegionBounds = false
+
+   Used to control the behavior of the region argument for
+   :proc:`fileReader.seek` or :proc:`fileWriter.seek`.  When set to ``true``,
+   the region argument will fully specify the bounds of the seek.  When set to
+   ``false``, the region argument will exclude the high bound.  Defaults to
+   ``false``, the original behavior.  
+
+.. method:: proc fileReader.seek(region: range(?)) throws
+
+   
+   Reset a fileReader to point to a new part of a file.
+   This function allows one to jump to a different part of a
+   file without creating a new fileReader. It can only be called
+   on a fileReader with ``locking==false``.
+   
+   The region specified must have a lower bound, but does not need to have
+   a high bound for correctness.  Specifying the high bound might be
+   an important performance optimization since the fileReader will not
+   try to read data outside of the region.
+   
+   This function will, in most cases, discard the fileReader's buffer.
+   
+   :arg region: the new region, measured in bytes and counting from 0
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws SystemError: if seeking failed. Possible reasons include
+                         that the file is not seekable, or that the
+                         fileReader is marked.
+   :throws IllegalArgumentError: if region argument did not have a lower bound
+   
+
+.. method:: proc fileWriter.seek(region: range(?)) throws
+
+   
+   Reset a fileWriter to point to a new part of a file.
+   This function allows one to jump to a different part of a
+   file without creating a new fileWriter. It can only be called
+   on a fileWriter with ``locking==false``.
+   
+   The region specified must have a lower bound, but does not need to have
+   a high bound for correctness.  Specifying the high bound might be
+   an important performance optimization since the fileWriter will not
+   try to read data outside of the region.
+   
+   This function will, in most cases, discard the fileWriter's buffer.
+   The data will be saved to the file before discarding.
+   
+   :arg region: the new region, measured in bytes and counting from 0
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws SystemError: if seeking failed. Possible reasons include
+                         that the file is not seekable, or that the
+                         fileWriter is marked.
+   :throws IllegalArgumentError: if region argument did not have a lower bound
+   
+
+.. method:: proc fileReader.seek(region: range(?)) throws
+
+   .. warning::
+
+      Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewSeekRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.
+
+.. method:: proc fileWriter.seek(region: range(?)) throws
+
+   .. warning::
+
+      Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewSeekRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.
+
+.. method:: proc fileReader._offset(): int(64)
+
+   
+   For a ``fileReader`` locked with :proc:`fileReader.lock`, return the offset
+   of that fileReader.
+   
+
+.. method:: proc fileWriter._offset(): int(64)
+
+   
+   For a fileWriter locked with :proc:`fileWriter.lock`, return the offset
+   of that fileWriter.
+   
+
+.. method:: proc fileReader._mark() throws
+
+   
+    This routine is identical to :proc:`fileReader.mark` except that it
+    can be called on fileReaders with ``locking==true`` and should be
+    called only once the fileReader has been locked with
+    :proc:`fileReader.lock`.  The fileReader should not be unlocked with
+    :proc:`fileReader.unlock` until after the mark has been committed with
+    :proc:`fileReader._commit` or reverted with :proc:`fileReader._revert`.
+   
+    See :proc:`fileReader.mark` for details other than the locking
+    discipline.
+   
+   :returns: The offset that was marked
+   :throws: SystemError: if marking the fileReader failed
+   
+
+.. method:: proc fileWriter._mark() throws
+
+   
+    This routine is identical to :proc:`fileWriter.mark` except that it
+    can be called on fileWriters with ``locking==true`` and should be
+    called only once the fileWriter has been locked with
+    :proc:`fileWriter.lock`.  The fileWriter should not be unlocked with
+    :proc:`fileWriter.unlock` until after the mark has been committed with
+    :proc:`fileWriter._commit` or reverted with :proc:`fileWriter._revert`.
+   
+    See :proc:`fileWriter.mark` for details other than the locking
+    discipline.
+   
+   :returns: The offset that was marked
+   :throws: SystemError: if marking the fileWriter failed
+   
+
+.. method:: proc fileReader._revert()
+
+   
+   Abort an *I/O transaction*. See :proc:`fileReader._mark`.  This
+   function will pop the last element from the *mark stack* and then
+   leave the previous fileReader offset unchanged.  This function should
+   only be called on a fileReader that has already been locked and
+   marked.
+
+.. method:: proc fileWriter._revert()
+
+   
+   Abort an *I/O transaction*. See :proc:`fileWriter._mark`.  This
+   function will pop the last element from the *mark stack* and then
+   leave the previous fileWriter offset unchanged.  This function should
+   only be called on a fileWriter that has already been locked and
+   marked.
+
+.. method:: proc fileReader._commit()
+
+   
+   Commit an *I/O transaction*. See :proc:`fileReader._mark`.  This
+   function will pop the last element from the *mark stack* and then
+   set the fileReader offset to the popped offset.  This function should
+   only be called on a fileReader that has already been locked and
+   marked.
+
+.. method:: proc fileWriter._commit()
+
+   
+   Commit an *I/O transaction*. See :proc:`fileWriter._mark`.  This
+   function will pop the last element from the *mark stack* and then
+   set the fileWriter offset to the popped offset.  This function should
+   only be called on a fileWriter that has already been locked and
+   marked.
+
+.. method:: proc fileReader._style(): iostyle
+
+   
+   
+   Return the current style used by a fileReader. This function should only be
+   called on a locked fileReader.
+   
+   
+
+   .. warning::
+
+      fileReader._style is unstable because it returns a type that is unstable
+
+.. method:: proc fileWriter._style(): iostyle
+
+   
+   
+   Return the current style used by a fileWriter. This function should only be
+   called on a locked fileWriter.
+   
+   
+
+   .. warning::
+
+      fileWriter._style is unstable because it returns a type that is unstable
+
+.. method:: proc fileReader._set_style(style: iostyle)
+
+   
+   
+   Set the style associated with a fileReader. This function should only
+   be called on a locked fileReader.
+   
+   
+
+   .. warning::
+
+      fileReader._set_style is unstable because its purpose involves an unstable type
+
+.. method:: proc fileWriter._set_style(style: iostyle)
+
+   
+   
+   Set the style associated with a fileWriter. This function should only
+   be called on a locked fileWriter.
+   
+   
+
+   .. warning::
+
+      fileWriter._set_style is unstable because its purpose involves an unstable type
+
+.. method:: proc fileReader.readWriteThisFromLocale()
+
+   
+   
+   Return the locale on which an ongoing I/O was started with a fileReader.
+   This method will return ``nilLocale`` unless it is called on a fileReader
+   that is the formal argument to a `readThis` method.
+   
+   
+
+.. method:: proc fileWriter.readWriteThisFromLocale()
+
+   
+   
+   Return the locale on which an ongoing I/O was started with a fileWriter.
+   This method will return ``nilLocale`` unless it is called on a fileWriter
+   that is the formal argument to a `writeThis` method.
+   
+   
+
+.. function:: proc openreader(path: string, param kind = iokind.dynamic, param locking = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, style: iostyle): fileReader(kind, locking) throws
+
+   .. warning::
+
+      openreader is deprecated - please use :proc:`openReader` instead
+
+.. function:: proc openReader(path: string, param kind = iokind.dynamic, param locking = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, style: iostyle): fileReader(kind, locking) throws
+
+   .. warning::
+
+      openReader with a style argument is unstable
+
+.. data:: config param useNewOpenReaderRegionBounds = false
+
+   Used to control the behavior of the region argument for :proc:`openReader`.
+   When set to ``true``, the region argument will fully specify the bounds of
+   the :type:`fileReader`.  When set to ``false``, the region argument will
+   exclude the high bound.  Defaults to ``false``, the original behavior.
+   
+
+.. function:: proc openreader(path: string, param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileReader(kind, locking) throws
+
+   
+   
+   Open a file at a particular path and return a :record:`fileReader` for it.
+   This function is equivalent to calling :proc:`open` and then
+   :proc:`file.reader` on the resulting file.
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg kind: :type:`iokind` compile-time argument to determine the
+               corresponding parameter of the :record:`fileReader` type. Defaults
+               to ``iokind.dynamic``, meaning that the associated
+               :record:`iostyle` controls the formatting choices.
+   :arg locking: compile-time argument to determine whether or not the
+                 fileReader should use locking; sets the
+                 corresponding parameter of the :record:`fileReader` type.
+                 Defaults to true, but when safe, setting it to false
+                 can improve performance.
+   :arg region: zero-based byte offset indicating where in the file the
+               fileReader should start and stop reading. Defaults to
+               ``0..``, meaning from the start of the file to no specified end
+               point.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open fileReader to the requested resource.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws FileNotFoundError: Thrown if part of the provided path did not exist
+   :throws PermissionError: Thrown if part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: Thrown if part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: Thrown if a fileReader could not be returned.
+   :throws IllegalArgumentError: Thrown if trying to read explicitly prior to byte
+                                 0.
+    
+
+   .. warning::
+
+      openreader is deprecated - please use :proc:`openReader` instead
+
+.. function:: proc openReader(path: string, param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileReader(kind, locking) throws
+
+   
+   
+   Open a file at a particular path and return a :record:`fileReader` for it.
+   This function is equivalent to calling :proc:`open` and then
+   :proc:`file.reader` on the resulting file.
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg kind: :type:`iokind` compile-time argument to determine the
+               corresponding parameter of the :record:`fileReader` type. Defaults
+               to ``iokind.dynamic``, meaning that the associated
+               :record:`iostyle` controls the formatting choices.
+   :arg locking: compile-time argument to determine whether or not the
+                 fileReader should use locking; sets the
+                 corresponding parameter of the :record:`fileReader` type.
+                 Defaults to true, but when safe, setting it to false
+                 can improve performance.
+   :arg region: zero-based byte offset indicating where in the file the
+               fileReader should start and stop reading. Defaults to
+               ``0..``, meaning from the start of the file to no specified end
+               point.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open fileReader to the requested resource.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws FileNotFoundError: Thrown if part of the provided path did not exist
+   :throws PermissionError: Thrown if part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: Thrown if part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: Thrown if a fileReader could not be returned.
+   :throws IllegalArgumentError: Thrown if trying to read explicitly prior to byte
+                                 0.
+    
+
+.. function:: proc openreader(path: string, param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileReader(kind, locking) throws
+
+   .. warning::
+
+      openreader is deprecated - please use :proc:`openReader` instead
+
+.. function:: proc openReader(path: string, param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileReader(kind, locking) throws
+
+   .. warning::
+
+      Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewOpenReaderRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.
+
+.. function:: proc openwriter(path: string, param kind = iokind.dynamic, param locking = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, style: iostyle): fileWriter(kind, locking) throws
+
+   .. warning::
+
+      openwriter is deprecated - please use :proc:`openWriter` instead
+
+.. function:: proc openWriter(path: string, param kind = iokind.dynamic, param locking = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, style: iostyle): fileWriter(kind, locking) throws
+
+   .. warning::
+
+      openWriter with a style argument is unstable
+
+.. function:: proc openwriter(path: string, param kind = iokind.dynamic, param locking = true, hints = ioHintSet.empty): fileWriter(kind, locking) throws
+
+   
+   
+   Open a file at a particular path and return a :record:`fileWriter` for it.
+   This function is equivalent to calling :proc:`open` with ``ioMode.cwr`` and then
+   :proc:`file.writer` on the resulting file.
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg kind: :type:`iokind` compile-time argument to determine the
+              corresponding parameter of the :record:`fileWriter` type. Defaults
+              to ``iokind.dynamic``, meaning that the associated
+              :record:`iostyle` controls the formatting choices.
+   :arg locking: compile-time argument to determine whether or not the
+                 fileWriter should use locking; sets the
+                 corresponding parameter of the :record:`fileWriter` type.
+                 Defaults to true, but when safe, setting it to false
+                 can improve performance.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open fileWriter to the requested resource.
+   
+   :throws FileNotFoundError: Thrown if part of the provided path did not exist
+   :throws PermissionError: Thrown if part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: Thrown if part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: Thrown if a fileWriter could not be returned.
+   :throws IllegalArgumentError: Thrown if trying to write explicitly prior to byte
+                                 0.
+
+   .. warning::
+
+      openwriter is deprecated - please use :proc:`openWriter` instead
+
+.. function:: proc openWriter(path: string, param kind = iokind.dynamic, param locking = true, hints = ioHintSet.empty): fileWriter(kind, locking) throws
+
+   
+   
+   Open a file at a particular path and return a :record:`fileWriter` for it.
+   This function is equivalent to calling :proc:`open` with ``ioMode.cwr`` and then
+   :proc:`file.writer` on the resulting file.
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg kind: :type:`iokind` compile-time argument to determine the
+              corresponding parameter of the :record:`fileWriter` type. Defaults
+              to ``iokind.dynamic``, meaning that the associated
+              :record:`iostyle` controls the formatting choices.
+   :arg locking: compile-time argument to determine whether or not the
+                 fileWriter should use locking; sets the
+                 corresponding parameter of the :record:`fileWriter` type.
+                 Defaults to true, but when safe, setting it to false
+                 can improve performance.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open fileWriter to the requested resource.
+   
+   :throws FileNotFoundError: Thrown if part of the provided path did not exist
+   :throws PermissionError: Thrown if part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: Thrown if part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: Thrown if a fileWriter could not be returned.
+   :throws IllegalArgumentError: Thrown if trying to write explicitly prior to byte
+                                 0.
+
+.. method:: proc file.reader(param kind = iokind.dynamic, param locking = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, style: iostyle): fileReader(kind, locking) throws
+
+   .. warning::
+
+      reader with a style argument is unstable
+
+.. data:: config param useNewFileReaderRegionBounds = false
+
+   Used to control the behavior of the region argument for :proc:`file.reader`.
+   When set to ``true``, the region argument will fully specify the bounds of
+   the :type:`fileReader`.  When set to ``false``, the region argument will
+   exclude the high bound.  Defaults to ``false``, the original behavior.
+   
+
+.. method:: proc file.reader(param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileReader(kind, locking) throws
+
+   
+   Create a :record:`fileReader` that supports reading from a file. See
+   :ref:`about-io-overview`.
+   
+   The ``region=`` argument defines the portion of the file that the fileReader
+   will read from.  This is a byte offset; the beginning of the file is at the
+   offset 0.  The default for this argument enables the fileReader to access the
+   entire file.
+   
+   A fileReader will never read beyond its maximum end offset. In addition,
+   reading from a fileReader beyond the end of the underlying file will not
+   extend that file.  Reading beyond the end of the file or beyond the end
+   offset of the fileReader will produce the error ``OS.EofError`` (or just
+   return `false` in many cases such as :proc:`fileReader.read`) to indicate
+   that the end was reached.
+   
+   :arg kind: :type:`iokind` compile-time argument to determine the
+              corresponding parameter of the :record:`fileReader` type. Defaults
+              to ``iokind.dynamic``, meaning that the associated
+              :record:`iostyle` controls the formatting choices.
+   :arg locking: compile-time argument to determine whether or not the
+                 fileReader should use locking; sets the
+                 corresponding parameter of the :record:`fileReader` type.
+                 Defaults to true, but when safe, setting it to false
+                 can improve performance.
+   :arg region: zero-based byte offset indicating where in the file the
+               fileReader should start and stop reading. Defaults to
+               ``0..`` - meaning from the start of the file to no end point.
+   :arg hints: provide hints about the I/O that this fileReader will perform.
+               See :record:`ioHintSet`. The default value of `ioHintSet.empty`
+               will cause the fileReader to use the hints provided when the
+               file was opened.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws SystemError: Thrown if a fileReader could not be returned.
+   :throws IllegalArgumentError: Thrown if trying to read explicitly prior to
+                                 byte 0.
+   
+
+.. method:: proc file.reader(param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileReader(kind, locking) throws
+
+   .. warning::
+
+      Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewFileReaderRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.
+
+.. method:: proc file.lines(param locking: bool = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, in local_style: iostyle) throws
+
+   .. warning::
+
+      lines with a local_style argument is unstable
+
+.. data:: config param useNewLinesRegionBounds = false
+
+   Used to control the behavior of the region argument for :proc:`file.lines`.
+   When set to ``true``, the region argument will fully specify the bounds that
+   this function would cover.  When set to ``false``, the region argument will
+   exclude the high bound.  Defaults to ``false``, the original behavior.
+   
+
+.. method:: proc file.lines(param locking: bool = true, region: range(?) = 0.., hints = ioHintSet.empty) throws
+
+   Iterate over all of the lines in a file.
+   
+   :returns: an object which yields strings read from the file
+   
+   :throws SystemError: Thrown if an object could not be returned.
+   
+
+   .. warning::
+
+      `file.lines` is deprecated; please use `file.reader().lines` instead
+
+.. method:: proc file.lines(param locking: bool = true, region: range(?) = 0.., hints = ioHintSet.empty) throws
+
+   .. warning::
+
+      Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewLinesRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.
+
+.. method:: proc file.writer(param kind = iokind.dynamic, param locking = true, start: int(64) = 0, end: int(64) = max(int(64)), hints = ioHintSet.empty, style: iostyle): fileWriter(kind, locking) throws
+
+   .. warning::
+
+      writer with a style argument is unstable
+
+.. data:: config param useNewFileWriterRegionBounds = false
+
+   Used to control the behavior of the region argument for :proc:`file.writer`.
+   When set to ``true``, the region argument will fully specify the bounds of
+   the :record:`fileWriter`.  When set to ``false``, the region argument will
+   exclude the high bound.  Defaults to ``false``, the original behavior.
+   
+   
+
+.. method:: proc file.writer(param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileWriter(kind, locking) throws
+
+   
+   Create a :record:`fileWriter` that supports writing to a file. See
+   :ref:`about-io-overview`.
+   
+   The ``region=`` argument defines the portion of the file that the fileWriter
+   will write to.  This is a byte offset; the beginning of the file is at the
+   offset 0.  The default for this argument enables the fileWriter to access the
+   entire file.
+   
+   When a fileWriter writes to a file, it will replace file data that was
+   previously stored at the relevant offset. If the offset is beyond the
+   end of the file, the file will be extended.
+   
+   A fileWriter will never write beyond its maximum end offset.  It will
+   extend the file only as necessary to store data written to the fileWriter. In
+   other words, specifying the high bound of the region argument here does not
+   impact the file size directly; it impacts only the section of the file that
+   this fileWriter can write to. After all fileWriters to a file are closed,
+   that file will have a size equal to the last offset written to by any
+   fileWriter.
+   
+   :arg kind: :type:`iokind` compile-time argument to determine the
+              corresponding parameter of the :record:`fileWriter` type. Defaults
+              to ``iokind.dynamic``, meaning that the associated
+              :record:`iostyle` controls the formatting choices.
+   :arg locking: compile-time argument to determine whether or not the
+                 fileWriter should use locking; sets the
+                 corresponding parameter of the :record:`fileWriter` type.
+                 Defaults to true, but when safe, setting it to false
+                 can improve performance.
+   :arg region: zero-based byte offset indicating where in the file the
+               fileWriter should start and stop writing. Defaults to
+               ``0..`` - meaning from the start of the file to no specified end
+               point.
+   :arg hints: provide hints about the I/O that this fileWriter will perform.
+               See :record:`ioHintSet`. The default value of `ioHintSet.empty`
+               will cause the fileWriter to use the hints provided when the
+               file was opened.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws SystemError: Thrown if a fileWriter could not be returned.
+   :throws IllegalArgumentError: Thrown if trying to write explicitly prior to
+                                 byte 0.
+   
+
+.. method:: proc file.writer(param kind = iokind.dynamic, param locking = true, region: range(?) = 0.., hints = ioHintSet.empty): fileWriter(kind, locking) throws
+
+   .. warning::
+
+      Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewFileWriterRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.
+
+.. method:: proc fileReader.readWriteLiteral(lit: string, ignoreWhiteSpace = true) throws
+
+   Explicit call for reading or writing a literal as an
+   alternative to using :type:`IO.ioLiteral`.
+
+.. method:: proc fileWriter.readWriteLiteral(lit: string, ignoreWhiteSpace = true) throws
+
+   Explicit call for reading or writing a literal as an
+   alternative to using :type:`IO.ioLiteral`.
+
+.. method:: proc fileReader.readLiteral(literal: string, ignoreWhitespace = true): void throws
+
+   
+   Advances the offset of a ``fileReader`` within the file by reading the exact
+   text of the given string ``literal`` from the fileReader.
+   
+   If the string is not matched exactly, then the fileReader's offset is
+   unchanged. In such cases a :class:`OS.BadFormatError` will be thrown, unless
+   the end of the fileReader is encountered in which case an :class:`OS.EofError`
+   will be thrown. By default this method will ignore leading whitespace when
+   attempting to read a literal.
+   
+   :arg literal: the string to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :throws BadFormatError: Thrown if literal could not be matched.
+   :throws EofError: Thrown if end of fileReader is encountered.
+   
+
+   .. warning::
+
+      fileReader.readLiteral is unstable and subject to change.
+
+.. method:: proc fileReader.readLiteral(literal: bytes, ignoreWhitespace = true): void throws
+
+   
+   Advances the offset of a fileReader by reading the exact bytes of the given
+   ``literal`` from the ``fileReader``.
+   
+   If the bytes are not matched exactly, then the fileReader's offset is
+   unchanged. In such cases a :class:`OS.BadFormatError` will be thrown, unless
+   the end of the ``fileReader`` is encountered in which case an
+   :class:`OS.EofError` will be thrown. By default this method will ignore
+   leading whitespace when attempting to read a literal.
+   
+   :arg literal: the bytes to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :throws BadFormatError: Thrown if literal could not be matched.
+   :throws EofError: Thrown if end of the ``fileReader`` is encountered.
+   
+
+   .. warning::
+
+      fileReader.readLiteral is unstable and subject to change.
+
+.. method:: proc fileReader.readNewline(): void throws
+
+   
+   Advances the offset of the fileReader by reading a newline.
+   
+   If a newline is not matched exactly, then the fileReader's offset is
+   unchanged. In such cases a :class:`OS.BadFormatError` will be thrown, unless
+   the end of the ``fileReader`` is encountered in which case an
+   :class:`OS.EofError` will be thrown. By default this method will ignore
+   leading whitespace when attempting to read a newline.
+   
+   :throws BadFormatError: Thrown if a newline could not be matched.
+   :throws EofError: Thrown if end of the ``fileReader`` is encountered.
+
+   .. warning::
+
+      fileReader.readNewline is unstable and subject to change.
+
+.. method:: proc fileReader.matchLiteral(literal: string, ignoreWhitespace = true): bool throws
+
+   
+   Advances the offset of a fileReader by reading the exact text of the given
+   string ``literal`` from the fileReader.
+   
+   If the string is not matched exactly, then the fileReader's offset is
+   unchanged and this method will return ``false``. In other words, this
+   fileReader will return ``false`` in the cases where
+   :proc:`fileReader.readLiteral` would throw a :class:`OS.BadFormatError` or an
+   :class:`OS.EofError`.
+   
+   By default this method will ignore leading whitespace when attempting to
+   read a literal.
+   
+   :arg literal: the string to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :returns: ``true`` if the read succeeded, and ``false`` on end of file or if
+             the literal could not be matched.
+
+   .. warning::
+
+      fileReader.matchLiteral is unstable and subject to change.
+
+.. method:: proc fileReader.matchLiteral(literal: bytes, ignoreWhitespace = true): bool throws
+
+   
+   Advances the offset of a ``fileReader`` by reading the exact bytes of the
+   given ``literal`` from the ``fileReader``.
+   
+   If the bytes are not matched exactly, then the fileReader's offset is
+   unchanged and this method will return ``false``. In other words, this
+   fileReader will return ``false`` in the cases where
+   :proc:`fileReader.readLiteral` would throw a :class:`OS.BadFormatError` or an
+   :class:`OS.EofError`.
+   
+   By default this method will ignore leading whitespace when attempting to
+   read a literal.
+   
+   :arg literal: the bytes to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :returns: ``true`` if the read succeeded, and ``false`` on end of file or if
+             the literal could not be matched.
+
+   .. warning::
+
+      fileReader.matchLiteral is unstable and subject to change.
+
+.. method:: proc fileReader.matchNewline(): bool throws
+
+   
+   Advances the offset of the ``fileReader`` by reading a newline.
+   
+   If a newline is not matched exactly, then the fileReader's offset is
+   unchanged and this method will return ``false``. In other words, this
+   fileReader will return ``false`` in the cases where
+   :proc:`fileReader.readNewline` would throw a :class:`OS.BadFormatError` or an
+   :class:`OS.EofError`.
+   
+   By default this method will ignore leading whitespace when attempting to
+   read a newline.
+   
+   :returns: ``true`` if the read succeeded, and ``false`` on end of file or if
+             the newline could not be matched.
+
+   .. warning::
+
+      fileReader.matchNewline is unstable and subject to change.
+
+.. method:: proc fileWriter.writeLiteral(literal: string): void throws
+
+   
+   Writes a string to the ``fileWriter``, ignoring any formatting configured for
+   this ``fileWriter``.
+
+   .. warning::
+
+      fileWriter.writeLiteral is unstable and subject to change.
+
+.. method:: proc fileWriter.writeLiteral(literal: bytes): void throws
+
+   
+   Writes bytes to the ``fileWriter``, ignoring any formatting configured for this
+   ``fileWriter``.
+
+   .. warning::
+
+      fileWriter.writeLiteral is unstable and subject to change.
+
+.. method:: proc fileWriter.writeNewline(): void throws
+
+   
+   Writes a newline to the ``fileWriter``, ignoring any formatting configured for
+   this ``fileWriter``.
+
+   .. warning::
+
+      fileWriter.writeNewline is unstable and subject to change.
+
+.. method:: proc fileReader.readWriteNewline() throws
+
+   Explicit call for reading or writing a newline as an
+   alternative to using :type:`IO.ioNewline`.
+
+.. method:: proc fileWriter.readWriteNewline() throws
+
+   Explicit call for reading or writing a newline as an
+   alternative to using :type:`IO.ioNewline`.
+
+.. method:: proc fileReader.binary(): bool
+
+   Returns `true` if this fileReader is configured for binary I/O.
+    
+
+.. method:: proc fileWriter.binary(): bool
+
+   Returns `true` if this fileWriter is configured for binary I/O.
+    
+
+.. method:: proc fileWriter.writeBytes(x, len: c_ssize_t) throws
+
+   
+   Write a sequence of bytes.
+   
+   :throws UnexpectedEofError: Thrown if EOF encountered before all bytes could be written.
+   :throws SystemError: Thrown if the byte sequence could not be written for another reason.
+
+   .. warning::
+
+      'writeBytes' with a generic pointer argument is deprecated; please use the variant that takes a 'bytes' object
+
+.. itermethod:: iter fileReader.lines()
+
+   
+   Iterate over all of the lines ending in ``\n`` in a fileReader - the
+   fileReader lock will be held while iterating over the lines.
+   
+   Only serial iteration is supported.
+   
+   .. warning::
+   
+     This iterator executes on the current locale. This may impact multilocale
+     performance if the current locale is not the same locale on which the
+     fileReader was created.
+   
+   :yields: lines ending in ``\n`` in fileReader
+   
+
+.. function:: proc stringify(const args ...?k): string
+
+   
+   Creates a string representing the result of writing the arguments.
+   
+   Writes each argument, possibly using a `writeThis` method,
+   to a string and returns the result.
+   
+
+.. method:: proc fileReader.read(ref args ...?k): bool throws
+
+   
+   
+   Read values from a fileReader. The input will be consumed atomically - the
+   fileReader lock will be held while reading all of the passed values.
+   
+   :arg args: a list of arguments to read. Basic types are handled
+              internally, but for other types this function will call
+              value.readThis() with a ``Reader`` argument as described
+              in :ref:`readThis-writeThis`.
+   :returns: `true` if the read succeeded, and `false` on end of file.
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while reading.
+   :throws SystemError: Thrown if the fileReader could not be read.
+   
+
+.. method:: proc fileReader.read(ref args ...?k, style: iostyle): bool throws
+
+   .. warning::
+
+      read with a style argument is unstable
+
+.. method:: proc fileReader.readline(arg: [] uint(8), out numRead: int, start = arg.domain.lowBound, amount = arg.domain.highBound - start + 1): bool throws
+
+   
+   Read a line into a Chapel array of bytes. Reads until a ``\n`` is reached.
+   The ``\n`` is returned in the array.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   Throws a SystemError if a line could not be read from the fileReader.
+   
+   :arg arg: A 1D DefaultRectangular array which must have at least 1 element.
+   :arg numRead: The number of bytes read.
+   :arg start: Index to begin reading into.
+   :arg amount: The maximum amount of bytes to read.
+   :returns: true if the bytes were read without error.
+
+   .. warning::
+
+      fileReader.readline is deprecated. Use :proc:`fileReader.readLine` instead
+
+.. method:: proc fileReader.readLine(ref a: [] ?t, maxSize = a.size, stripNewline = false): int throws
+
+   
+   Read a line into a Chapel array of bytes. Reads until a ``\n`` is reached.
+   This function always does a binary read (i.e. it is not aware of UTF-8 etc)
+   and is similar in some ways to `readLine(bytes)` but works with an array
+   directly.  However, it does not resize the array but rather stores up to first
+   'size' bytes in to it. The exact number of bytes in the array set will depend
+   on the line length (and on stripNewline since the newline will be counted if
+   it is stored in the array).
+   
+   :arg a: A 1D DefaultRectangular non-strided array storing int(8) or uint(8)
+           which must have at least 1 element.
+   :arg maxSize: The maximum number of bytes to store into the ``a`` array.
+                 Defaults to the size of the array.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: Returns `0` if EOF is reached and no data is read. Otherwise,
+             returns the number of array elements that were set by this call.
+   
+   :throws BadFormatError: Thrown if the line is longer than `maxSize`. It leaves
+                           the fileReader offset at the beginning of the
+                           offending line.
+   :throws SystemError: Thrown if data could not be read from the fileReader for
+                        another reason.
+   
+
+.. method:: proc fileReader.readline(ref arg: ?t): bool throws
+
+   
+   Read a line into a Chapel string or bytes. Reads until a ``\n`` is reached.
+   The ``\n`` is included in the resulting value.
+   
+   :arg arg: a string or bytes to receive the line
+   :returns: `true` if a line was read without error, `false` upon EOF
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while reading.
+   :throws SystemError: Thrown if data could not be read from the fileReader.
+
+   .. warning::
+
+      fileReader.readline is deprecated. Use :proc:`fileReader.readLine` instead
+
+.. method:: proc fileReader.readLine(ref s: string, maxSize = -1, stripNewline = false): bool throws
+
+   
+   Read a line into a ``string``. Reads until a ``\n`` is reached.
+   
+   :arg s: the :type:`~String.string` to read into. Contents are overwritten.
+   :arg maxSize: The maximum number of codepoints to store into ``s``. The
+                 default of -1 means to read an unlimited number of codepoints.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: ``true`` if a line was read without error, ``false`` upon EOF
+   
+   :throws BadFormatError: Thrown if the line is longer than `maxSize`. It leaves
+                           the fileReader offset at the beginning of the
+                           offending line.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readLine(ref b: bytes, maxSize = -1, stripNewline = false): bool throws
+
+   
+   Read a line into a ``bytes``. Reads until a ``\n`` is reached.
+   
+   :arg b: the :type:`~Bytes.bytes` to receive the line. Contents are overwritten.
+   :arg maxSize: The maximum number of bytes to store into ``b``. The default of
+                 -1 means to read an unlimited number of bytes.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: ``true`` if a line was read without error, ``false`` upon EOF
+   
+   :throws BadFormatError: Thrown if the line is longer than `maxSize`. It leaves
+                           the fileReader offset at the beginning of the
+                           offending line.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readLine(type t = string, maxSize = -1, stripNewline = false): t throws
+
+   
+   Read a line. Reads until a ``\n`` is reached.
+   
+   :arg t: the type of data to read, which must be :type:`~String.string` or
+           :type:`~Bytes.bytes`. Defaults to ``string`` if not specified.
+   :arg maxSize: The maximum number of codepoints to read. The default of -1
+                 means to read an unlimited number of codepoints.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: A ``string`` or ``bytes`` with the contents of the ``fileReader``
+     up to (and possibly including) the newline.
+   
+   :throws EofError: Thrown if nothing could be read because the ``fileReader``
+                     was already at EOF.
+   :throws BadFormatError: Thrown if the line is longer than `maxSize`. It leaves
+                           the fileReader offset at the beginning of the
+                           offending line.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readThrough(separator: ?t, maxSize = -1, stripSeparator = false): t throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   ``fileReader`` through that point.
+   
+   If the separator is found, the ``fileReader`` offset is left immediately
+   after it. If the separator could not be found in the next ``maxSize`` bytes,
+   a ``BadFormatError`` is thrown and the ``fileReader``'s offset is not
+   changed. Otherwise, if EOF is reached before finding the separator, the
+   remainder of the ``fileReader``'s contents are returned and the offset is
+   left at EOF.
+   
+   To match with multiple separators, or a more complex separator, use the
+   overload of :proc:`~Regex.fileReader.readThrough` that accepts a
+   :type:`~Regex.regex` separator.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string`
+     or :type:`~Bytes.bytes`.
+   :arg maxSize: The maximum number of bytes to read. For the default value of
+     ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned
+     ``string`` or ``bytes``. If ``true``, the returned value will not include
+     the separator.
+   :returns: A ``string`` or ``bytes`` with the contents of the ``fileReader``
+     up to (and possibly including) the separator.
+   
+   :throws EofError: Thrown if nothing could be read because the ``fileReader``
+     was already at EOF.
+   :throws BadFormatError: Thrown if the separator was not found in the next
+     `maxSize` bytes. The fileReader offset is not moved.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readThrough(separator: string, ref s: string, maxSize = -1, stripSeparator = false): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   ``fileReader`` through that point.
+   
+   See the above :proc:`overload <fileReader.readThrough>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg s: The :type:`~String.string` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value
+     of ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned ``string``.
+     If ``true``, the separator will not be included in ``s``.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: Thrown if the separator was not found in the next
+     `maxSize` bytes. The fileReader offset is not moved.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readThrough(separator: bytes, ref b: bytes, maxSize = -1, stripSeparator = false): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   ``fileReader`` through that point.
+   
+   See the above :proc:`overload <fileReader.readThrough>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg s: The :type:`~Bytes.bytes` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of codepoints to read. For the default value
+     of ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned ``bytes``.
+     If ``true``, the separator will not be included in ``b``.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: Thrown if the separator was not found in the next
+     `maxSize` bytes. The fileReader offset is not moved.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readTo(separator: ?t, maxSize = -1): t throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   ``fileReader`` up to that point.
+   
+   If the separator is found, the ``fileReader`` offset is left immediately
+   before it. If the separator could not be found in the next ``maxSize`` bytes,
+   a ``BadFormatError`` is thrown and the ``fileReader``'s offset is not
+   changed. Otherwise, if EOF is reached before finding the separator, the
+   remainder of the ``fileReader``'s contents are returned and the offset is
+   left at EOF.
+   
+   To match with multiple separators, or a more complex separator, use the
+   overload of :proc:`~Regex.fileReader.readTo` that accepts a
+   :type:`~Regex.regex` separator.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string`
+     or :type:`~Bytes.bytes`.
+   :arg maxSize: The maximum number of bytes to read. For the default
+     value of ``-1``, this method can read until EOF.
+   :returns: A ``string`` or ``bytes`` with the contents of the ``fileReader``
+     up to the ``separator``.
+   
+   :throws EofError: Thrown if nothing could be read because the ``fileReader``
+     was already at EOF.
+   :throws BadFormatError: Thrown if the separator was not found in the next
+     `maxSize` bytes. The ``fileReader`` offset is not moved.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readTo(separator: string, ref s: string, maxSize = -1): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   ``fileReader`` up to that point.
+   
+   See the above :proc:`overload <fileReader.readTo>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg s: The :type:`~String.string` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value
+     of ``-1``, this method will read until EOF.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: Thrown if the separator was not found in the next
+     `maxSize` bytes. The ``fileReader`` offset is not moved.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readTo(separator: bytes, ref b: bytes, maxSize = -1): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   ``fileReader`` up to that point.
+   
+   See the above :proc:`overload <fileReader.readTo>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg b: The :type:`~Bytes.bytes` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value
+     of ``-1``, this method will read until EOF.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+     ``fileReader`` was already at EOF).
+   
+   :throws BadFormatError: Thrown if the separator was not found in the next
+     `maxSize` bytes. The ``fileReader`` offset is not moved.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readAll(type t = bytes): t throws
+
+   
+   Read the remaining contents of the fileReader into an instance of the
+   specified type
+   
+   :arg t: the type to read into; must be :type:`~String.string` or
+           :type:`~Bytes.bytes`. Defaults to ``bytes`` if not specified.
+   :returns: the contents of the ``fileReader`` as a ``t``
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if data could not be read from the ``fileReader``
+                        for another reason.
+
+.. method:: proc fileReader.readAll(ref s: string): int throws
+
+   
+   Read the remaining contents of the ``fileReader`` into a ``string``.
+   
+   Note that any existing contents of the ``string`` are overwritten.
+   
+   :arg s: the :type:`~String.string` to read into
+   :returns: the number of codepoints that were stored in ``s``
+   :rtype: int
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if data could not be read from the fileReader for
+                        another reason.
+
+.. method:: proc fileReader.readAll(ref b: bytes): int throws
+
+   
+   Read the remaining contents of the ``fileReader`` into a ``bytes``.
+   
+   Note that any existing contents of the ``bytes`` are overwritten.
+   
+   :arg b: the :type:`~Bytes.bytes` to read into
+   :returns: the number of bytes that were stored in ``b``
+   :rtype: int
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if data could not be read from the fileReader for
+                        another reason.
+
+.. method:: proc fileReader.readAll(ref a: [?d] ?t): int throws
+
+   
+   Read the remaining contents of the ``fileReader`` into an array of bytes.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   Additionally, If the remaining contents of the fileReader exceed the size of
+   ``a``, the first ``a.size`` bytes will be read into ``a``, and then an
+   ``InsufficientCapacityError`` will be thrown.
+   
+   :arg a: the array of bytes to read into
+   :returns: the number of bytes that were stored in ``a``
+   :rtype: int
+   
+   :throws InsufficientCapacityError: Thrown if the fileReader's contents do not
+                                      fit into ``a``.
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if data could not be read from the fileReader for
+                        another reason.
+
+.. method:: proc fileReader.readstring(ref str_out: string, len: int(64) = -1): bool throws
+
+   read a given number of bytes from a fileReader
+   
+   :arg str_out: The string to be read into
+   :arg len: Read up to len bytes from the fileReader, up until EOF
+             (or some kind of I/O error). If the default value of -1
+             is provided, read until EOF starting from the fileReader's
+             current offset.
+   :returns: `true` if we read something, `false` upon EOF
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if the bytes could not be read from the
+                        fileReader.
+   
+
+   .. warning::
+
+      'readstring' is deprecated; please use 'readString' instead
+
+.. method:: proc fileReader.readString(maxSize: int): string throws
+
+   
+   Read a given number of codepoints from a ``fileReader``, returning a new
+   :type:`~String.string`.
+   
+   The ``string``'s length may be less than ``maxSize`` if EOF is reached while
+   reading. If nothing is read, the empty string (``""``) will be returned.
+   
+   :arg maxSize: the maximum number of codepoints to read from the ``fileReader``
+   :returns: a new ``string`` containing up to the next ``maxSize`` codepoints
+               from the ``fileReader``
+   
+   :throws SystemError: Thrown if a ``string`` could not be read from the ``fileReader``.
+
+.. method:: proc fileReader.readString(ref s: string, maxSize: int): bool throws
+
+   
+   Read a given number of codepoints from a ``fileReader`` into a
+   :type:`~String.string`.
+   
+   The updated ``string``'s length may be less than ``maxSize`` if EOF is
+   reached while reading. If nothing is read, it will be set to the empty
+   string (``""``).
+   
+   :arg s: the ``string`` to read into — contents will be overwritten
+   :arg maxSize: the maximum number of codepoints to read from the ``fileReader``
+   :returns: ``false`` if nothing could be read, or ``true`` if something was read.
+   
+   :throws SystemError: Thrown if a ``string`` could not be read from the
+                        ``fileReader``.
+
+.. method:: proc fileReader.readbytes(ref bytes_out: bytes, len: int(64) = -1): bool throws
+
+   read a given number of bytes from a fileReader
+   
+    :arg bytes_out: The bytes to be read into
+    :arg len: Read up to len bytes from the fileReader, up until EOF
+              (or some kind of I/O error). If the default value of -1
+              is provided, read until EOF starting from the fileReader's
+              current offset.
+    :returns: `true` if we read something, `false` upon EOF
+   
+   :throws SystemError: Thrown if data could not be read from the fileReader.
+   
+
+   .. warning::
+
+      'readbytes' is deprecated; please use 'readBytes' instead
+
+.. method:: proc fileReader.readBytes(maxSize: int): bytes throws
+
+   
+   Read a given number of bytes from a ``fileReader``, returning a new
+   :type:`~Bytes.bytes`.
+   
+   The ``bytes``'s length may be less than ``maxSize`` if EOF is reached while
+   reading. If nothing is read, the empty bytes (``b""``) will be returned.
+   
+   :arg maxSize: the maximum number of bytes to read from the ``fileReader``
+   :returns: a new ``bytes`` containing up to the next ``maxSize`` bytes
+               from the ``fileReader``
+   
+   :throws SystemError: Thrown if a ``bytes`` could not be read from the
+                        ``fileReader`` for another reason.
+
+.. method:: proc fileReader.readBytes(ref b: bytes, maxSize: int): bool throws
+
+   
+   Read a given number of bytes from a ``fileReader`` into a
+   :type:`~Bytes.bytes`.
+   
+   The updated ``bytes``'s length may be less than ``maxSize`` if EOF is
+   reached while reading. If nothing is read, it will be set to the empty
+   bytes (``b""``).
+   
+   :arg b: the ``bytes`` to read into — contents will be overwritten
+   :arg maxSize: the maximum number of bytes to read from the ``fileReader``
+   :returns: ``false`` if nothing could be read, or ``true`` if something was
+               read.
+   
+   :throws SystemError: Thrown if a ``bytes`` could not be read from the
+                        ``fileReader`` for another reason.
+
+.. method:: proc fileReader.readbits(ref v: integral, nbits: integral): bool throws
+
+   .. warning::
+
+      fileReader.readbits is deprecated - please use :proc:`fileReader.readBits` instead
+
+.. method:: proc fileReader.readBits(ref x: integral, numBits: int): bool throws
+
+   
+   Read bits with binary I/O
+   
+   :arg x: where to store the read bits. This value will have its *numBits*
+           least-significant bits set.
+   :arg numBits: how many bits to read
+   :returns: `true` if the bits were read without error, `false` upon EOF
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while reading.
+   :throws SystemError: Thrown if the bits could not be read from the
+                        ``fileReader``.
+   
+
+.. method:: proc fileReader.readBits(type resultType, numBits: int): resultType throws
+
+   
+   Read bits with binary I/O
+   
+   :arg resultType: type of the value returned
+   :arg numBits: how many bits to read
+   :returns: bits read. This value will have its *numBits* least-significant
+             bits set
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if the bits could not be read from the
+                        ``fileReader``.
+
+.. method:: proc fileWriter.writebits(v: integral, nbits: integral) throws
+
+   .. warning::
+
+      fileWriter.writebits is deprecated - please use :proc:`fileWriter.writeBits` instead
+
+.. method:: proc fileWriter.writeBits(x: integral, numBits: int): void throws
+
+   
+   Write bits with binary I/O
+   
+   :arg x: a value containing *numBits* bits to write the least-significant bits
+   :arg numBits: how many bits to write
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws IllegalArgumentError: Thrown if writing more bits than fit into `x`.
+   :throws SystemError: Thrown if the bits could not be written to the
+                        ``fileWriter``.
+
+.. method:: proc fileWriter.writeCodepoint(codepoint: int) throws
+
+   
+   Writes a single Unicode codepoint to a ``fileWriter``
+   
+   :arg codepoint: Unicode codepoint to write
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the codepoint could not be written to the
+                        ``fileWriter``.
+
+.. method:: proc fileReader.readCodepoint(): int throws
+
+   
+   Reads a single Unicode codepoint from a ``fileReader``
+   
+   :returns: Unicode codepoint read
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if the codepoint could not be read from the
+                        ``fileReader``.
+
+.. method:: proc fileReader.readCodepoint(ref codepoint: int): bool throws
+
+   
+   Reads a single Unicode codepoint from a ``fileReader``
+   
+   :arg c: where to store the read codepoint
+   :returns: `true` if the codepoint was read without error, `false` upon EOF
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if the codepoint could not be read from the
+                        ``fileReader``.
+
+.. method:: proc fileWriter.writeByte(byte: uint(8)) throws
+
+   
+   Writes a single byte to a ``fileWriter``
+   
+   :arg byte: the byte to write
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the byte could not be written to the
+                        ``fileWriter``.
+
+.. method:: proc fileReader.readByte(): uint(8) throws
+
+   
+   Reads a single byte from a ``fileReader``
+   
+   :returns: the byte read
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if the byte could not be read from the
+                        ``fileReader``.
+
+.. method:: proc fileReader.readByte(ref byte: uint(8)): bool throws
+
+   
+   Reads a single byte from a ``fileReader``
+   
+   :arg byte: where to store the read byte
+   :returns: `true` if the byte was read without error, `false` upon EOF
+   
+   :throws UnexpectedEofError: Thrown if unexpected EOF encountered while
+                               reading.
+   :throws SystemError: Thrown if the byte could not be read from the
+                        ``fileReader``.
+
+.. method:: proc fileWriter.writeString(s: string, size = s.size) throws
+
+   
+   Write ``size`` codepoints from a :type:`~String.string` to a ``fileWriter``
+   
+   :arg s: the ``string`` to write
+   :arg size: the number of codepoints to write from the ``string``
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the string could not be written to the
+                        ``fileWriter``.
+   :throws IllegalArgumentError: Thrown if ``size`` is larger than ``s.size``
+
+.. method:: proc fileWriter.writeBytes(b: bytes, size = b.size) throws
+
+   
+   Write ``size`` bytes from a :type:`~Bytes.bytes` to a ``fileWriter``
+   
+   :arg b: the ``bytes`` to write
+   :arg size: the number of bytes to write from the ``bytes``
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the bytes could not be written to the
+                        ``fileWriter``.
+   :throws IllegalArgumentError: Thrown if ``size`` is larger than ``b.size``
+
+.. method:: proc fileWriter.writeBinary(ptr: c_ptr(?t), numBytes: int) throws
+
+   
+   Write ``numBytes`` of data from a :class:`~CTypes.c_ptr` to a ``fileWriter``
+   
+   Note that native endianness is always used.
+   
+   If ``numBytes`` is not evenly divisible by the size of ``t``, the remaining
+   bytes will be ignored. For example, if the ``c_ptr``'s internal type is 4
+   bytes in length, and ``numBytes=17``, only 16 bytes will be written.
+   
+   .. warning::
+      This method provides no protection against attempting to access invalid
+      memory
+   
+   :arg ptr: a :class:`~CTypes.c_ptr` to some valid memory
+   :arg numBytes: the number of bytes to write
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: Thrown if an error occurred while writing to the
+                        ``fileWriter``.
+
+.. method:: proc fileWriter.writeBinary(ptr: c_void_ptr, numBytes: int) throws
+
+   
+   Write ``numBytes`` of data from a :type:`~CTypes.c_void_ptr` to a ``fileWriter``
+   
+   The data are written to the file one byte at a time.
+   
+   .. warning::
+      This method provides no protection against attempting to access invalid
+      memory
+   
+   :arg ptr: a typeless :type:`~CTypes.c_void_ptr` to some valid memory
+   :arg numBytes: the number of bytes to write
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: Thrown if an error occurred while writing to the
+                        ``fileWriter``.
+
+.. method:: proc fileWriter.writeBinary(arg: numeric, param endian: ioendian = ioendian.native) throws
+
+   
+   Write a binary number to the ``fileWriter``
+   
+   :arg arg: number to be written
+   :arg endian: :type:`ioendian` compile-time argument that specifies the byte
+                order in which to write the number. Defaults to
+                ``ioendian.native``.
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the number could not be written to the
+                        ``fileWriter``.
+   
+
+.. method:: proc fileWriter.writeBinary(arg: numeric, endian: ioendian) throws
+
+   
+   Write a binary number to the ``fileWriter``
+   
+   :arg arg: number to be written
+   :arg endian: :type:`ioendian` specifies the byte order in which
+              to write the number.
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the number could not be written to the
+                        ``fileWriter``.
+
+.. method:: proc fileWriter.writeBinary(s: string, size: int = s.size) throws
+
+   
+   Write a :type:`~String.string` to a ``fileWriter`` in binary format
+   
+   :arg s: the ``string`` to write
+   :arg size: the number of codepoints to write from the ``string``
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the string could not be written to the
+                        ``fileWriter``.
+   :throws IllegalArgumentError: Thrown if ``size`` is larger than ``s.size``.
+
+.. method:: proc fileWriter.writeBinary(b: bytes, size: int = b.size) throws
+
+   
+   Write a :type:`~Bytes.bytes` to a ``fileWriter`` in binary format
+   
+   :arg b: the ``bytes`` to write
+   :arg size: the number of bytes to write from the ``bytes``
+   
+   :throws UnexpectedEofError: Thrown if the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: Thrown if the bytes could not be written to the
+                        ``fileWriter``.
+   :throws IllegalArgumentError: Thrown if ``size`` is larger than ``b.size``.
+
+.. method:: proc fileWriter.writeBinary(const ref data: [?d] ?t, param endian: ioendian = ioendian.native) throws
+
+   
+   Write an array of binary numbers to a ``fileWriter``
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   :arg data: an array of numbers to write to the fileWriter
+   :arg endian: :type:`ioendian` compile-time argument that specifies the byte
+                order in which to read the numbers. Defaults to
+                ``ioendian.native``.
+   
+   :throws SystemError: Thrown if the values could not be written to the
+                        ``fileWriter``.
+   :throws UnexpectedEofError: Thrown if EOF is reached before all the values
+                               could be written.
+
+.. method:: proc fileWriter.writeBinary(const ref data: [?d] ?t, endian: ioendian) throws
+
+   
+   Write an array of binary numbers to a ``fileWriter``
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   :arg data: an array of numbers to write to the fileWriter
+   :arg endian: :type:`ioendian` specifies the byte order in which
+              to write the number.
+   
+   :throws SystemError: Thrown if the values could not be written to the
+                        ``fileWriter``.
+   :throws UnexpectedEofError: Thrown if EOF is reached before all the values
+                               could be written.
+
+.. method:: proc fileReader.readBinary(ref arg: numeric, param endian: ioendian = ioendian.native): bool throws
+
+   
+   Read a binary number from the ``fileReader``
+   
+   :arg arg: number to be read
+   :arg endian: :type:`ioendian` compile-time argument that specifies the byte
+                order in which to read the number. Defaults to
+                ``ioendian.native``.
+   :returns: `true` if the number was read, `false` otherwise
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if an error occurred reading the number for
+                        another reason.
+   
+
+.. method:: proc fileReader.readBinary(ref arg: numeric, endian: ioendian): bool throws
+
+   
+   Read a binary number from the ``fileReader``
+   
+   :arg arg: number to be read
+   :arg endian: :type:`ioendian` specifies the byte order in which
+                to read the number.
+   :returns: `true` if the number was read, `false` otherwise
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if an error occurred reading the number for
+                        another reason.
+   
+
+.. method:: proc fileReader.readBinary(ref s: string, maxSize: int): bool throws
+
+   
+   Read a specified number of codepoints into a :type:`~String.string`
+   
+   The string ``s`` may be smaller than ``maxSize`` if EOF is reached before
+   reading the specified number of codepoints. Additionally, if nothing
+   is read from the fileReader, ``s`` will be set to ``""`` (the empty string)
+   and the method will return ``false``.
+   
+   .. note::
+   
+      This method always uses UTF-8 encoding regardless of the fileReader's
+      configuration
+   
+   :arg s: the string to read into — this value is overwritten
+   :arg maxSize: the number of codepoints to read from the ``fileReader``
+   :returns: `false` if EOF is reached before reading anything, `true` otherwise
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if an error occurred while reading from the
+                        ``fileReader``.
+
+.. method:: proc fileReader.readBinary(ref b: bytes, maxSize: int): bool throws
+
+   
+   Read a specified number of bytes into a :type:`~Bytes.bytes`
+   
+   The bytes ``b`` may be smaller than ``maxSize`` if EOF is reached before
+   reading the specified number of bytes. Additionally, if nothing is read
+   from the fileReader, ``b`` will be set to ``b""`` (the empty bytes) and
+   the method will return ``false``.
+   
+   :arg b: the bytes to read into — this value is overwritten
+   :arg maxSize: the number of bytes to read from the ``fileReader``
+   :returns: `false` if EOF is reached before reading anything, `true` otherwise
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if an error occurred while reading from the
+                        ``fileReader``.
+
+.. data:: config param ReadBinaryArrayReturnInt = false
+
+   
+   Controls the return type of the ``readBinary`` overloads that take an
+   array argument. Those are:
+   
+   ``fileReader.readBinary(ref data: [], param endian = ioendian.native)``
+   ``fileReader.readBinary(ref data: [], endian: ioendian)``
+   
+   * when ``false``: the deprecated methods are called. These return a ``bool``
+     indicating whether any values were read. These variants will also throw
+     if EOF is reached before filling the array.
+   * when ``true``: the new methods are called. These return an ``int`` with the
+     number of values that were read.
+   
+   This ``param`` can be set to true by compiling your program with
+   ``-sReadBinaryArrayReturnInt=true``
+
+.. method:: proc fileReader.readBinary(ref data: [?d] ?t, param endian = ioendian.native): bool throws
+
+   
+   Read an array of binary numbers from a fileReader
+   
+   Binary values of the type ``data.eltType`` are consumed from the fileReader
+   until ``data`` is full or EOF is reached. An :class:`~OS.UnexpectedEofError`
+   is thrown if EOF is reached before the array is filled.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   :arg data: an array to read into – existing values are overwritten.
+   :arg endian: :type:`ioendian` compile-time argument that specifies the byte
+                order in which to read the numbers. Defaults to
+                ``ioendian.native``.
+   :returns: `false` if EOF is encountered before reading anything,
+              `true` otherwise
+   
+   :throws SystemError: Thrown if an error occurred while reading from the
+                        ``fileReader``.
+   :throws UnexpectedEofError: Thrown if EOF is encountered before ``data.size``
+                               values are read.
+
+   .. warning::
+
+      The variant of `readBinary(data: [])` that returns a `bool` is deprecated; please recompile with `-sReadBinaryArrayReturnInt=true` to use the new variant
+
+.. method:: proc fileReader.readBinary(ref data: [?d] ?t, param endian = ioendian.native): int throws
+
+   
+   Read an array of binary numbers from a ``fileReader``
+   
+   Binary values of the type ``data.eltType`` are consumed from the fileReader
+   until ``data`` is full or EOF is reached.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   :arg data: an array to read into – existing values are overwritten.
+   :arg endian: :type:`ioendian` compile-time argument that specifies the byte
+                order in which to read the numbers in. Defaults to
+                ``ioendian.native``.
+   :returns: the number of values that were read into the array. This can be
+              less than ``data.size`` if EOF was reached, or an error occurred,
+              before filling the array.
+   
+   :throws SystemError: Thrown if an error occurred while reading from the
+                       ``fileReader``.
+
+.. method:: proc fileReader.readBinary(ref data: [?d] ?t, endian: ioendian): bool throws
+
+   
+   Read an array of binary numbers from a ``fileReader``
+   
+   Binary values of the type ``data.eltType`` are consumed from the fileReader
+   until ``data`` is full or EOF is reached. An :class:`~OS.UnexpectedEofError`
+   is thrown if EOF is reached before the array is filled.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   :arg data: an array to read into – existing values are overwritten.
+   :arg endian: :type:`ioendian` specifies the byte order in which
+              to read the number.
+   :returns: `false` if EOF is encountered before reading anything,
+              `true` otherwise
+   
+   :throws SystemError: Thrown if an error occurred while reading the from
+                        ``fileReader``.
+   :throws UnexpectedEofError: Thrown if EOF is encountered before
+                               ``data.size`` values are read.
+
+   .. warning::
+
+      The variant of `readBinary(data: [])` that returns a `bool` is deprecated; please recompile with `-sReadBinaryArrayReturnInt=true` to use the new variant
+
+.. method:: proc fileReader.readBinary(ref data: [?d] ?t, endian: ioendian): int throws
+
+   
+   Read an array of binary numbers from a ``fileReader``
+   
+   Binary values of the type ``data.eltType`` are consumed from the fileReader
+   until ``data`` is full or EOF is reached.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   :arg data: an array to read into – existing values are overwritten.
+   :arg endian: :type:`ioendian` specifies the byte order in which
+              to read the number.
+   :returns: the number of values that were read into the array. This can be
+              less than ``data.size`` if EOF was reached, or an error occurred,
+              before filling the array.
+   
+   :throws SystemError: Thrown if an error occurred while reading the from
+                        ``fileReader``.
+
+.. method:: proc fileReader.readBinary(ptr: c_ptr(?t), maxBytes: int): int throws
+
+   
+   Read up to ``maxBytes`` bytes from a ``fileReader`` into a
+   :class:`~CTypes.c_ptr`
+   
+   Note that native endianness is always used.
+   
+   If ``maxBytes`` is not evenly divisible by the size of ``t``, then the
+   remaining bytes are ignored.
+   
+   :arg ptr: a :class:`~CTypes.c_ptr` to some memory — existing values will be
+              overwritten
+   :arg maxBytes: the maximum number of bytes to read from the ``fileReader``
+   :returns: the number of bytes that were read. this can be less than
+              ``maxBytes`` if EOF was reached before reading the specified
+              number of bytes, or if ``maxBytes`` is not evenly divisible by
+              the size of ``t``
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if an error occurred while reading from the
+                        ``fileReader``.
+
+.. method:: proc fileReader.readBinary(ptr: c_void_ptr, maxBytes: int): int throws
+
+   
+   Read up to ``maxBytes`` bytes from a ``fileReader`` into a
+   :type:`~CTypes.c_void_ptr`
+   
+   Note that data are read from the file one byte at a time.
+   
+   :arg ptr: a typeless :type:`~CTypes.c_void_ptr` to some memory — existing
+             values will be overwritten
+   :arg maxBytes: the maximum number of bytes to read from the ``fileReader``
+   :returns: the number of bytes that were read. this can be less than
+            ``maxBytes`` if EOF was reached before reading the specified number
+            of bytes
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if an error occurred while reading from the
+                        ``fileReader``
+
+.. method:: proc fileReader.readln(ref args ...?k): bool throws
+
+   
+   
+   Read values from a ``fileReader`` and then consume any bytes until
+   newline is reached. The input will be consumed atomically - the
+   fileReader lock will be held while reading all of the passed values.
+   
+   :arg args: a list of arguments to read. This routine can be called
+              with zero or more such arguments. Basic types are handled
+              internally, but for other types this function will call
+              value.readThis() with a ``Reader`` argument as described
+              in :ref:`readThis-writeThis`.
+   :returns: `true` if the read succeeded, and `false` upon end of file.
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if a line could not be read from the
+                        ``fileReader``.
+   
+
+.. method:: proc fileReader.readln(ref args ...?k, style: iostyle): bool throws
+
+   .. warning::
+
+      readln with a style argument is unstable
+
+.. method:: proc fileReader.read(type t) throws
+
+   
+   Read a value of passed type.
+   
+   For example, the following line of code reads a value of type `int`
+   from :var:`stdin` and uses it to initialize a variable ``x``:
+   
+   .. code-block:: chapel
+   
+     var x = stdin.read(int)
+   
+   :arg t: the type to read
+   :returns: the value read
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if the type could not be read from the
+                        ``fileReader.``
+   
+
+.. method:: proc fileReader.readln(type t) throws
+
+   
+   Read a value of passed type followed by a newline.
+   
+   :arg t: the type to read
+   :returns: the value read
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if the type could not be read from the
+                        ``fileReader``.
+   
+
+.. method:: proc fileReader.readln(type t ...?numTypes) throws
+
+   
+   Read values of passed types followed by a newline
+   and return a tuple containing the read values.
+   
+   :arg t: more than one type to read
+   :returns: a tuple of the read values
+   
+   :throws UnexpectedEofError: Thrown if EOF was encountered before data could
+                               be read.
+   :throws SystemError: Thrown if the types could not be read from the
+                        ``fileReader``.
+   
+
+.. method:: proc fileReader.read(type t ...?numTypes) throws
+
+   
+   Read values of passed types and return a tuple containing the read values.
+   
+   :arg t: more than one type to read
+   :returns: a tuple of the read values
+   
+   :throws SystemError: Thrown if the types could not be read from the
+                        ``fileReader``.
+   :throws UnexpectedEofError: Thrown if EOF was encountered while more data was
+                               expected.
+   
+
+.. method:: proc fileWriter.write(const args ...?k) throws
+
+   
+   Write values to a ``fileWriter``. The output will be produced atomically -
+   the ``fileWriter`` lock will be held while writing all of the passed
+   values.
+   
+   :arg args: a list of arguments to write. Basic types are handled
+              internally, but for other types this function will call
+              value.writeThis() with the ``fileWriter`` as an argument.
+   
+   :throws SystemError: Thrown if the values could not be written to the
+                        ``fileWriter``.
+   :throws EofError: Thrown if EOF is reached before all the arguments could be
+                     written.
+   
+
+.. method:: proc fileWriter.write(const args ...?k, style: iostyle) throws
+
+   .. warning::
+
+      write with a style argument is unstable
+
+.. method:: proc fileWriter.writeln(const args ...?k) throws
+
+   
+   
+   Write values to a ``fileWriter`` followed by a newline.  The output will be
+   produced atomically - the ``fileWriter`` lock will be held while writing all of
+   the passed values.
+   
+   :arg args: a variable number of arguments to write. This method can be
+              called with zero or more arguments. Basic types are handled
+              internally, but for other types this function will call
+              value.writeThis() with the fileWriter as an argument.
+   
+   :throws SystemError: Thrown if the values could not be written to the
+                        ``fileWriter``.
+   :throws UnexpectedEofError: Thrown if EOF is reached before all the arguments
+                               could be written.
+   
+
+.. method:: proc fileWriter.writeln(const args ...?k, style: iostyle) throws
+
+   .. warning::
+
+      writeln with a style argument is unstable
+
+.. method:: proc fileReader.flush() throws
+
+   .. warning::
+
+      fileReader.flush is deprecated; it has no replacement because 'flush' has no effect on 'fileReader'
+
+.. method:: proc fileWriter.flush() throws
+
+   
+   
+   Makes all writes to the ``fileWriter``, if any, available to concurrent
+   viewers of its associated file, such as other fileWriters/fileReader or other
+   applications accessing this file concurrently.
+   
+   Unlike :proc:`file.fsync`, this does not commit the written data
+   to the file's device.
+   
+   :throws SystemError: Thrown if the flush fails.
+
+.. method:: proc fileReader.assertEOF(errStr: string = "- Not at EOF")
+
+   Assert that a ``fileReader`` has reached end-of-file and that there was no
+   error doing the read.
+   
+
+.. method:: proc fileReader.close() throws
+
+   
+   Close a ``fileReader``
+   
+   :throws SystemError: Thrown if the ``fileReader`` is not successfully closed.
+
+.. method:: proc fileWriter.close() throws
+
+   
+   Close a ``fileWriter``. Implicitly performs the :proc:`fileWriter.flush`
+   operation (see :ref:`about-io-filereader-filewriter-synchronization`).
+   
+   :throws SystemError: Thrown if the ``fileWriter`` is not successfully closed.
+
+.. method:: proc fileReader.isClosed(): bool
+
+   
+   Return ``true`` if a fileReader is currently closed.
+   
+
+.. method:: proc fileWriter.isClosed(): bool
+
+   
+   Return ``true`` if a fileWriter is currently closed.
+   
+
+.. data:: const stdin: fileReader(iokind.dynamic, true)
+
+   standard input, otherwise known as file descriptor 0 
+
+.. data:: const stdout: fileWriter(iokind.dynamic, true)
+
+   standard output, otherwise known as file descriptor 1 
+
+.. data:: const stderr: fileWriter(iokind.dynamic, true)
+
+   standard error, otherwise known as file descriptor 2 
+
+.. function:: proc read(ref args ...?n): bool throws
+
+   Equivalent to ``stdin.read``. See :proc:`fileReader.read` 
+
+.. function:: proc read(type t ...?numTypes) throws
+
+   Equivalent to ``stdin.read``. See :proc:`fileReader.read` for types 
+
+.. function:: proc readLine(ref a: [] ?t, maxSize = a.size, stripNewline = false): int throws
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readline(arg: [] uint(8), out numRead: int, start = arg.domain.lowBound, amount = arg.domain.highBound - start + 1): bool throws
+
+   Equivalent to ``stdin.readline``.  See :proc:`fileReader.readline` 
+
+   .. warning::
+
+      readline is deprecated. Use :proc:`readLine` instead
+
+.. function:: proc readline(ref arg: ?t): bool throws
+
+   Equivalent to ``stdin.readline``.  See :proc:`fileReader.readline` 
+
+   .. warning::
+
+      readline is deprecated. Use :proc:`readLine` instead
+
+.. function:: proc readLine(ref s: string, maxSize = -1, stripNewline = false): bool throws
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readLine(ref b: bytes, maxSize = -1, stripNewline = false): bool throws
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readLine(type t = string, maxSize = -1, stripNewline = false): t throws
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readln(ref args ...?n): bool throws
+
+   Equivalent to ``stdin.readln``. See :proc:`fileReader.readln` 
+
+.. function:: proc readln(type t ...?numTypes) throws
+
+   Equivalent to ``stdin.readln``. See :proc:`fileReader.readln` for types 
+
+.. function:: proc unicodeSupported(): bool
+
+   
+   :returns: `true` if this version of the Chapel runtime supports UTF-8 output.
+   
+
+   .. warning::
+
+      unicodeSupported is deprecated due to always returning true
+
+.. method:: proc file.localesForRegion(start: int(64), end: int(64))
+
+   
+   Returns the 'best' locale to run something working with the region
+   of the file in start..end-1.
+   
+   This *must* return the same result when called from different locales.
+   Returns a domain of locales that are "best" for the given region. If no
+   locales are "best" we return a domain containing all locales.
+   
+   :arg start: the file offset (starting from 0) where the region begins
+   :arg end: the file offset just after the region
+   :returns: a set of locales that are best for working with this region
+   :rtype: domain(locale)
+   
+
+   .. warning::
+
+      file.localesForRegion is deprecated
+

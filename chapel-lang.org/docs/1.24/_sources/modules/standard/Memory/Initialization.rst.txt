@@ -1,0 +1,174 @@
+.. default-domain:: chpl
+
+.. module:: Initialization
+   :synopsis: The :mod:`Initialization` module provides functions which enable users to
+
+Initialization
+==============
+**Usage**
+
+.. code-block:: chapel
+
+   use Memory.Initialization;
+
+
+or
+
+.. code-block:: chapel
+
+   import Memory.Initialization;
+
+
+The :mod:`Initialization` module provides functions which enable users to
+move-initialize and deinitialize values.
+
+The functionality provided by this module can be used to implement
+collections in a manner similar to those implemented by the Chapel standard
+modules (such as :mod:`List` or :mod:`Map`).
+
+.. note::
+
+  Throughout documentation, the term `variable` also includes non-const
+  formals, array elements, record or class fields, and tuple components.
+
+
+
+.. function:: proc needsDeinit(type t) param
+
+   
+   Check to see if a given type needs to be deinitialized.
+   
+   :arg t: A type to check for deinitialization
+   :type t: `type`
+   
+   :return: ``true`` if ``t`` needs to be deinitialized 
+   :rtype: param bool
+   
+
+.. function:: proc explicitDeinit(ref arg: ?t)
+
+   
+   Explicitly deinitialize a variable. The variable referred to by ``arg``
+   should be considered uninitialized after a call to this function.
+   
+   .. warning::
+   
+     At present the compiler does not account for deinitialization performed
+     upon a call to :proc:`explicitDeinit()`. It should only be called
+     when deinitialization would not occur otherwise.
+   
+   :arg: A variable to deinitialize
+   
+
+.. function:: proc moveInitialize(ref lhs: ?t, in rhs: t)
+
+   
+   Move-initialize ``lhs`` with the value in ``rhs``. The contents of ``lhs``
+   are not deinitialized before the move, and ``rhs`` is not deinitialized
+   after the move.
+   
+   .. warning::
+   
+     If ``lhs`` references an already initialized variable, it will be
+     overwritten by the contents of ``rhs`` without being deinitialized
+     first. Call :proc:`explicitDeinit()` to deinitialize ``lhs`` if
+     necessary.
+   
+   :arg lhs: A variable to move-initialize
+   
+   :arg rhs: A value to move-initialize from
+   
+
+.. function:: proc moveToValue(const ref arg: ?t)
+
+   
+   Move the contents of the variable or constant referred to by ``arg`` into
+   a new value.
+   
+   .. warning::
+   
+     The variable or constant referred to by ``arg`` should be considered
+     uninitialized after a call to this function.
+   
+   :arg arg: A variable or constant to move
+   
+   :return: The contents of ``arg`` moved into a new value
+   
+
+.. function:: proc moveSwap(ref lhs: ?t, ref rhs: t)
+
+   
+   Swap the contents of the variables referred to by ``lhs`` and ``rhs``.
+   This function does not call the ``<=>`` operator. Unlike the ``<=>``
+   operator, :proc:`moveSwap()` does not perform assignment or
+   initialization.
+   
+   :arg lhs: A variable to swap
+   
+   :arg rhs: A variable to swap
+   
+
+.. function:: proc moveInitializeArrayElements(ref a: [?d], dstStartIndex: a.idxType, srcStartIndex: a.idxType, numElements: int)
+
+   
+   Move-initialize a group of array elements from a group of elements in the
+   same array. This function is equivalent to a sequence of individual calls
+   to :proc:`moveInitialize()`.
+   
+   .. warning::
+   
+     This function will halt if the value of ``numElements`` is negative,
+     or if any of the elements in ``dstStartIndex..#numElements`` or
+     ``srcStartIndex..#numElements`` are out of bounds.
+   
+     This function will halt if the ranges ``dstStartIndex..#numElements``
+     and ``srcStartIndex..#numElements`` intersect.
+   
+     No checks will occur when the `--fast` or `--no-checks` flags are used.
+   
+   :arg a: The array with source and destination elements
+   
+   :arg dstStartIndex: Destination index of elements to move-initialize
+   :type dstStartIndex: `a.idxType`
+   
+   :arg srcStartIndex: Source index of elements to move-initialize from
+   :type srcStartIndex: `a.idxType`
+   
+   :arg numElements: The number of elements to move-initialize
+   :type numElements: int
+   
+
+.. function:: proc moveInitializeArrayElements(ref dstA: [] ?t, dstStartIndex: dstA.idxType, srcA: [] t, srcStartIndex: srcA.idxType, numElements: int)
+
+   
+   Move-initialize a group of array elements from a group of elements in
+   another array. This function is equivalent to a sequence of individual
+   calls to :proc:`moveInitialize()`.
+   
+   .. warning::
+   
+     This function will halt if the value of ``numElements`` is negative,
+     or if any of the elements in ``dstStartIndex..#numElements`` or
+     ``srcStartIndex..#numElements`` are out of bounds.
+   
+     This function will halt if ``dstA`` and ``srcA`` are the same array
+     and the ranges ``dstStartIndex..#numElements`` and
+     ``srcStartIndex..#numElements`` intersect.
+   
+     No checks will occur when the `--fast` or `--no-checks` flags are used.
+   
+   :arg dstA: The array with destination elements
+   
+   :arg dstStartIndex: Destination index of elements to move-initialize
+   :type dstStartIndex: `dstA.idxType`
+   
+   :arg srcA: The array with source elements 
+   :type srcA: An array with the same element type as `dstA.eltType`
+   
+   :arg srcStartIndex: Source index of elements to move-initialize from
+   :type srcStartIndex: `srcA.idxType`
+   
+   :arg numElements: The number of elements to move-initialize
+   :type numElements: int
+   
+

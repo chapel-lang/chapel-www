@@ -1,0 +1,681 @@
+.. default-domain:: chpl
+
+.. module:: CTypes
+   :synopsis: Defines C types and related routines to support interoperability.
+
+CTypes
+======
+**Usage**
+
+.. code-block:: chapel
+
+   use CTypes;
+
+
+or
+
+.. code-block:: chapel
+
+   import CTypes;
+
+
+
+Defines C types and related routines to support interoperability.
+
+This module provides access to common C types for the purpose of
+calling between Chapel and C, declaring variables using C's types,
+etc.  It also contains routines in support of working with C types.
+
+See :ref:`readme-extern`, and :ref:`Chapter-Interoperability` for
+additional information about interoperating between Chapel and C (or
+other languages).
+
+.. include:: ChapelSysCTypes.rst
+
+
+.. type:: type c_float = real(32)
+
+   The Chapel type corresponding to the C 'float' type 
+
+.. type:: type c_double = real(64)
+
+   The Chapel type corresponding to the C 'double' type 
+
+.. data:: config param cFileTypeHasPointer = true
+
+   Controls whether :type:`c_FILE` represents a ``FILE*`` or a ``FILE``.
+   
+   - If true, ``c_FILE`` represents a ``FILE*``. This behavior is deprecated
+     and will be removed in an upcoming release.
+   - If false, ``c_FILE`` represents a ``FILE``. A ``FILE*`` can still be
+     represented with ``c_ptr(c_FILE)``.
+   
+   The deprecated behavior is on by default. To opt-in to the new behavior,
+   recompile your program with ``-scFileTypeHasPointer=false``.
+   
+   
+
+.. function:: proc c_FILE type
+
+   Chapel type alias for a C ``FILE`` 
+
+.. type:: type c_void_ptr = chpl__c_void_ptr
+
+   
+   
+   A Chapel type alias for ``void*`` in C. Casts from integral types to
+   ``c_void_ptr`` as well as casts from ``c_void_ptr`` to integral types are
+   supported and behave similarly to those operations in C.
+   
+   
+
+.. function:: proc c_nil
+
+   A Chapel version of a C NULL pointer. 
+
+   .. warning::
+
+      c_nil is deprecated, use just 'nil' instead.
+
+.. function:: proc is_c_nil(x): bool
+
+   
+   :returns: true if the passed value is a NULL pointer (ie 0).
+   
+
+   .. warning::
+
+      is_c_nil is deprecated without replacement, as 'c_nil' is deprecated in favor of 'nil'; compare argument to 'nil' directly with ==, casting to c_void_ptr first if needed.
+
+.. type:: c_ptr
+
+   
+   
+   Represents a local C pointer for the purpose of C integration. This type
+   represents the equivalent to a C language pointer ``eltType*``. Instances of
+   this type support assignment to other instances or ``nil``, ``==`` or ``!=``
+   comparison with a ``c_void_ptr`` or with ``nil``, and casting to another
+   ``c_ptr`` type or to the ``c_void_ptr`` type.
+   
+   Casting directly to a ``c_ptr`` of another pointee type is supported, but
+   will emit a safety warning for casts that can lead to violation of C's
+   strict aliasing rule. Casting to a char pointee type or across signedness,
+   or through an intermediate cast to ``c_void_ptr``, will not generate a
+   warning.
+   
+   As with a Chapel class, a ``c_ptr`` can be tested non-nil simply
+   by including it in an if statement conditional, like so:
+   
+   .. code-block:: chapel
+   
+     var x: c_ptr = c_ptrTo(...);
+     if x then do writeln("x is not nil");
+     if !x then do writeln("x is nil");
+   
+   Additionally, a ``c_ptr`` can be output like so:
+   
+   .. code-block:: chapel
+   
+     var x: c_ptr = c_ptrTo(...);
+     writeln(x); // outputs nil or e.g. 0xabc123000000
+   
+   
+
+
+   .. attribute:: type eltType
+
+      
+      The type that this pointer points to, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_ptr = c_ptrTo(...);
+        if x.eltType == c_int then do writeln("x is an int pointer");
+      
+
+   .. method:: proc this(i: integral) ref
+
+      Retrieve the i'th element (zero based) from a pointer to an array.
+      Does the equivalent of ptr[i] in C.
+      
+
+   .. method:: proc deref() ref
+
+      Get element pointed to directly by this pointer. If the pointer
+      refers to an array, this will return ptr[0].
+      
+
+   .. method:: proc writeThis(ch) throws
+
+      Print this pointer 
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+.. type:: c_ptrConst
+
+   
+   Like :type:`c_ptr`, but for a pointer to const data. In C, this is
+   equivalent to the type `const eltType*`.
+   
+
+
+   .. attribute:: type eltType
+
+      
+      The type that this pointer points to, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_ptrConst = c_ptrToConst(...);
+        if x.eltType == c_int then do writeln("x is a const int pointer");
+      
+
+   .. method:: proc this(i: integral) const ref
+
+      Retrieve the i'th element (zero based) from a pointer to an array.
+      Does the equivalent of ptr[i] in C.
+      Provides a ``const ref`` which cannot be used to modify the element.
+      
+
+   .. method:: proc deref() const ref
+
+      Get element pointed to directly by this pointer. If the pointer
+      refers to an array, this will return ptr[0].
+      Provides a ``const ref`` which cannot be used to modify the element.
+      
+
+   .. method:: proc writeThis(ch) throws
+
+      Print this pointer 
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+.. type:: c_array
+
+   
+   This type represents a C array with fixed size.  A variable of type
+   ``c_array`` can coerce to a ``c_ptr`` with the same element type.  In that
+   event, the pointer will be equivalent to ``c_ptrTo(array[0])``.  A ``c_array``
+   behaves similarly to a homogeneous tuple except that its indices start at 0
+   and it is guaranteed to be stored in contiguous memory.  A ``c_array``
+   variable has value semantics. Declaring one as a function-local variable will
+   create the array elements in the function's stack. Assigning or copy
+   initializing will result in copying the elements (vs resulting in two pointers
+   that refer to the same elements).  A ``nil`` ``c_array`` is not representable
+   in Chapel.
+   
+
+
+   .. attribute:: type eltType
+
+      
+      The array element type, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_array = c_ptrToConst(...);
+        if x.eltType == c_int then do writeln("x is an array of ints");
+      
+
+   .. attribute:: param size
+
+      
+      The fixed number of elements, which can be queried like so:
+      
+      .. code-block:: chapel
+      
+        var x: c_array = c_ptrToConst(...);
+        writeln("x has ", x.size, " elements.");
+      
+
+   .. method:: proc init(type eltType, param size)
+
+   .. method:: proc deinit()
+
+   .. method:: proc ref this(i: integral) ref: eltType
+
+      Retrieve the i'th element (zero based) from the array.
+      Does the equivalent of arr[i] in C.
+      Includes bounds checking when such checks are enabled.
+      
+
+   .. method:: proc ref this(param i: integral) ref: eltType
+
+      As with the previous function, returns the i'th element (zero based)
+      from the array. This one emits a compilation error if i is out of bounds.
+      
+
+   .. method:: proc writeThis(ch) throws
+
+      Print the elements 
+
+   .. method:: proc serialize(writer, ref serializer) throws
+
+   .. method:: proc init=(other: c_array)
+
+.. method:: operator c_array. = (ref lhs: c_array, rhs: c_array)
+
+   Copy the elements from one :type:`c_array` to another.
+   Raises an error at compile time if the array sizes or
+   element types do not match. 
+
+.. function:: operator  = (ref lhs: c_ptr, ref rhs: c_array)
+
+.. function:: proc c_ptrTo(arr: []): c_ptr(arr.eltType)
+
+   
+   Returns a :type:`c_ptr` to the elements of a non-distributed
+   Chapel rectangular array.  Note that the existence of this
+   :type:`c_ptr` has no impact on the lifetime of the array.  The
+   returned pointer will be invalid if the original array is freed or
+   even reallocated. Domain assignment could make this :type:`c_ptr`
+   invalid.
+   
+   :arg arr: the array for which a pointer should be returned
+   :returns: a pointer to the array's elements
+   
+
+.. function:: proc c_ptrToConst(const arr: []): c_ptrConst(arr.eltType)
+
+   
+   Like :proc:`c_ptrTo` for arrays, but returns a :type:`c_ptrConst` which
+   disallows direct modification of the pointee.
+   
+
+.. data:: config param cPtrToLogicalValue = false
+
+   
+   Toggles whether the new or deprecated behavior of :proc:`c_ptrTo` and
+   :proc:`c_ptrToConst` is used for :type:`~String.string`,
+   :type:`~Bytes.bytes`, and class type arguments.
+   
+   The new behavior is to return a :type:`c_ptr`/:type:`c_ptrConst` to the
+   underlying buffer of the ``string`` or ``bytes``, or to the heap instance of
+   a class type. The deprecated behavior is to return a
+   :type:`c_ptr`/:type:`c_ptrConst` to the ``string`` or ``bytes`` itself, or
+   the stack representation of the class — this matches the behavior of
+   :proc:`c_addrOf`/:proc:`c_addrOfConst`.
+   
+   The deprecated behavior is on by default. To opt in to the new behavior,
+   compile your program with the following argument:
+   ``-s cPtrToLogicalValue=true``.
+   
+
+.. function:: proc c_ptrTo(ref s: string): c_ptr(c_uchar)
+
+   
+   Returns a :type:`c_ptr` to the underlying buffer of a :type:`~String.string`
+   
+   Note that the existence of this ``c_ptr`` has no impact on the lifetime of
+   the ``string``.  The returned pointer will be invalid if the ``string`` is
+   freed or even reallocated.
+   
+   Halts if the ``string`` is empty and bounds checking is enabled.
+   
+
+.. function:: proc c_ptrTo(ref s: string): c_ptr(string)
+
+   .. warning::
+
+      The c_ptrTo(string) overload that returns a c_ptr(string) is deprecated. Please use 'c_addrOf' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrToConst(const ref s: string): c_ptrConst(c_uchar)
+
+   
+   Like :proc:`c_ptrTo` for :type:`~String.string`, but returns a
+   :type:`c_ptrConst` which disallows direct modification of the pointee.
+   
+
+.. function:: proc c_ptrToConst(const ref s: string): c_ptrConst(string)
+
+   .. warning::
+
+      The c_ptrToConst(string) overload that returns a c_ptrConst(string) is deprecated. Please use 'c_addrOfConst' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrTo(ref b: bytes): c_ptr(c_uchar)
+
+   
+   Returns a :type:`c_ptr` to the underlying buffer of a :type:`~Bytes.bytes`
+   
+   Note that the existence of this ``c_ptr`` has no impact on the lifetime of
+   the ``bytes``.  The returned pointer will be invalid if the ``bytes`` is
+   freed or even reallocated.
+   
+   Halts if the ``bytes`` is empty and bounds checking is enabled.
+   
+
+.. function:: proc c_ptrTo(ref b: bytes): c_ptr(bytes)
+
+   .. warning::
+
+      The c_ptrTo(bytes) overload that returns a c_ptr(bytes) is deprecated. Please use 'c_addrOf' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrToConst(const ref b: bytes): c_ptrConst(c_uchar)
+
+   
+   Like :proc:`c_ptrTo` for :type:`~Bytes.bytes`, but returns a
+   :type:`c_ptrConst` which disallows direct modification of the pointee.
+   
+
+.. function:: proc c_ptrToConst(const ref b: bytes): c_ptrConst(bytes)
+
+   .. warning::
+
+      The c_ptrToConst(bytes) overload that returns a c_ptrConst(bytes) is deprecated. Please use 'c_addrOfConst' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrTo(ref c: class): c_void_ptr
+
+   
+   Returns a :type:`c_void_ptr` to the heap instance of a class type.
+   
+   Note that the existence of this ``c_void_ptr`` has no impact on the lifetime
+   of the instance.  The returned pointer will be invalid if the instance is
+   freed or even reallocated.
+   
+
+.. function:: proc c_ptrTo(ref c: class?): c_void_ptr
+
+.. function:: proc c_ptrTo(ref c: class): c_ptr(c.type)
+
+   .. warning::
+
+      The c_ptrTo(class) overload that returns a pointer to the class representation on the stack is deprecated. Default behavior will soon change to return a pointer to the heap instance. Please use 'c_addrOf' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrTo(ref c: class?): c_ptr(c.type)
+
+   .. warning::
+
+      The c_ptrTo(class) overload that returns a pointer to the class representation on the stack is deprecated. Default behavior will soon change to return a pointer to the heap instance. Please use 'c_addrOf' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrToConst(const ref c: class): c_void_ptr
+
+   
+   Like :proc:`c_ptrTo` for class types, but also accepts ``const`` data.
+   
+
+.. function:: proc c_ptrToConst(const ref c: class?): c_void_ptr
+
+.. function:: proc c_ptrToConst(const ref c: class): c_ptrConst(c.type)
+
+   .. warning::
+
+      The c_ptrToConst(class) overload that returns a pointer to the class representation on the stack is deprecated. Default behavior will soon change to return a pointer to the heap instance. Please use 'c_addrOfConst' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrToConst(const ref c: class?): c_ptrConst(c.type)
+
+   .. warning::
+
+      The c_ptrToConst(class) overload that returns a pointer to the class representation on the stack is deprecated. Default behavior will soon change to return a pointer to the heap instance. Please use 'c_addrOfConst' instead, or recompile with '-s cPtrToLogicalValue=true' to opt-in to the new behavior.
+
+.. function:: proc c_ptrTo(ref x: ?t): c_ptr(t)
+
+   
+   Returns a :type:`c_ptr` to any Chapel object.
+   Note that the existence of the :type:`c_ptr` has no impact of the lifetime
+   of the object. In many cases the object will be stack allocated and
+   could go out of scope even if this :type:`c_ptr` remains.
+   
+   :arg x: the by-reference argument to get a pointer to. Domains are not
+           supported, and will cause a compiler error. Records, class
+           instances, integral, real, imag, and complex types are supported.
+           For arrays, strings, or bytes, separate overloads should be used.
+   :returns: a pointer to the argument passed by reference
+   
+   
+
+.. function:: proc c_ptrToConst(const ref x: ?t): c_ptrConst(t)
+
+   
+   Like :proc:`c_ptrTo`, but returns a :type:`c_ptrConst` which disallows direct
+   modification of the pointee.
+   
+
+.. function:: proc c_addrOf(arr: [])
+
+   
+   Returns a :type:`c_ptr` to the address of an array.
+   
+   This is distinct from :func:`c_ptrTo` in that it returns a pointer to
+   the array object itself, rather than to the first element of the array's
+   buffer.
+   
+   Note that the existence of this :type:`c_ptr` has no impact on the lifetime
+   of the array. The returned pointer will be invalid if the array is freed.
+   
+
+.. function:: proc c_addrOfConst(arr: [])
+
+   
+   Like :proc:`c_addrOf` for arrays, but returns a :type:`c_ptrConst` which
+   disallows direct modification of the pointee.
+   
+
+.. function:: proc c_addrOf(ref x: ?t): c_ptr(t)
+
+   
+   Returns a :type:`c_ptr` to the address of any chapel object.
+   
+   Note that the behavior of this procedure is identical to :func:`c_ptrTo`
+   for scalar types. It only differs for arrays, strings, and bytes.
+   
+
+.. function:: proc c_addrOfConst(const ref x: ?t): c_ptrConst(t)
+
+   
+   Like :proc:`c_addrOf`, but returns a :type:`c_ptrConst` which disallows
+   direct modification of the pointee.
+   
+
+.. function:: proc c_sizeof(type x): c_size_t
+
+   .. warning::
+
+      c_sizeof with argument name 'x' is deprecated; please use c_sizeof(type t) instead
+
+.. function:: proc c_sizeof(type t): c_size_t
+
+   
+   Return the size in bytes of a type, as with the C ``sizeof`` built-in.
+   
+   .. warning::
+   
+     This method is intended for C interoperability. To enhance
+     flexibility, it is possible to request the sizes of Chapel types.
+     However, be aware:
+   
+        * Chapel types are not necessarily stored in contiguous memory
+        * Behavior of ``c_sizeof`` with Chapel types may change
+        * Behavior given a Chapel class type is not well-defined
+   
+
+.. function:: proc c_offsetof(type t, param fieldname: string): c_size_t
+
+   
+   Return the offset of a field in a record.
+   
+   .. warning::
+   
+     This method is intended for C interoperability.  To enhance flexibility,
+     it is possible to request the offset of elements within a Chapel record.
+     However, be aware:
+   
+     * Chapel types are not necessary stored in contiguous memory
+     * Behavior of ``c_offsetof`` may change
+     * Behavior given a Chapel class type field is not well-defined
+   
+
+.. function:: proc allocate(type eltType, size: c_size_t, clear: bool = false, alignment: c_size_t = 0): c_ptr(eltType)
+
+   Allocate memory.
+   
+    This uses the Chapel allocator. Memory allocated with this function should
+    eventually be freed with :proc:`deallocate`.
+   
+   :arg eltType: the type of the elements to allocate
+   :arg size: the number of elements to allocate space for
+   :arg clear: whether to initialize all bits of allocated memory to 0
+   :arg alignment: Memory alignment of the allocation, which must be a power of
+                   two and a multiple of `c_sizeof(c_void_ptr)`. Alignment of 0
+                   is invalid and taken to mean default alignment.
+   :returns: a c_ptr(eltType) to allocated memory
+   
+
+   .. warning::
+
+      'allocate' is unstable, and may be renamed or moved
+
+.. function:: proc deallocate(data: c_void_ptr)
+
+   Free memory that was allocated with :proc:`allocate`.
+   
+   :arg data: the c_ptr to memory that was allocated. Note that both
+              `c_ptr(t)` and `c_void_ptr` can be passed to this argument.
+   
+
+   .. warning::
+
+      'deallocate' is unstable, and may be renamed or moved
+
+.. function:: proc c_calloc(type eltType, size: integral): c_ptr(eltType)
+
+   
+   Allocate memory and initialize all bits to 0. Note that this simply zeros
+   memory, it does not call Chapel initializers (it is meant for primitive
+   types and C interoperability only.) This memory should eventually be freed
+   with :proc:`c_free`.
+   
+   :arg eltType: the type of the elements to allocate
+   :arg size: the number of elements to allocate space for
+   :returns: a c_ptr(eltType) to allocated memory
+   
+
+   .. warning::
+
+      'c_calloc' is deprecated; use ':proc:`allocate`' with 'clear' argument
+
+.. function:: proc c_malloc(type eltType, size: integral): c_ptr(eltType)
+
+   
+   Allocate memory that is not initialized. This memory should eventually be
+   freed with :proc:`c_free`.
+   
+   :arg eltType: the type of the elements to allocate
+   :arg size: the number of elements to allocate space for
+   :returns: a c_ptr(eltType) to allocated memory
+   
+
+   .. warning::
+
+      'c_malloc' is deprecated; use ':proc:`allocate`'
+
+.. function:: proc c_aligned_alloc(type eltType, alignment: integral, size: integral): c_ptr(eltType)
+
+   
+   Allocate aligned memory that is not initialized. This memory
+   should be eventually freed with :proc:`c_free`.
+   
+   This function is intended to behave similarly to the C17
+   function aligned_alloc.
+   
+   :arg eltType: the type of the elements to allocate
+   :arg alignment: the memory alignment of the allocation
+                   which must be a power of two and a multiple
+                   of ``c_sizeof(c_void_ptr)``.
+   :arg size: the number of elements to allocate space for
+   :returns: a ``c_ptr(eltType)`` to allocated memory
+   
+
+   .. warning::
+
+      'c_aligned_alloc' is deprecated; use ':proc:`allocate`' with 'alignment' argument
+
+.. function:: proc c_free(data: c_void_ptr)
+
+   Free memory that was allocated with :proc:`c_calloc` or :proc:`c_malloc`.
+   
+   :arg data: the c_ptr to memory that was allocated. Note that both
+              `c_ptr(t)` and `c_void_ptr` can be passed to this argument.
+   
+
+   .. warning::
+
+      'c_free' is deprecated; use ':proc:`deallocate`'
+
+.. function:: proc isAnyCPtr(type t) param
+
+   
+   Returns true if t is a c_ptr, c_ptrConst, or c_void_ptr type.
+   
+
+   .. warning::
+
+      isAnyCPtr is deprecated
+
+.. function:: proc c_memmove(dest: c_void_ptr, const src: c_void_ptr, n: integral)
+
+   
+   Copies n potentially overlapping bytes from memory area src to memory
+   area dest.
+   
+   This is a simple wrapper over the C ``memmove()`` function.
+   
+   :arg dest: the destination memory area to copy to
+   :arg src: the source memory area to copy from
+   :arg n: the number of bytes from src to copy to dest
+   
+
+   .. warning::
+
+      :proc:`c_memmove` is deprecated; please use :proc:`POSIX.memmove` instead
+
+.. function:: proc c_memcpy(dest: c_void_ptr, const src: c_void_ptr, n: integral)
+
+   
+   Copies n non-overlapping bytes from memory area src to memory
+   area dest. Use :proc:`c_memmove` if memory areas do overlap.
+   
+   This is a simple wrapper over the C memcpy() function.
+   
+   :arg dest: the destination memory area to copy to
+   :arg src: the source memory area to copy from
+   :arg n: the number of bytes from src to copy to dest
+   
+
+   .. warning::
+
+      :proc:`c_memcpy` is deprecated; please use :proc:`POSIX.memcpy` instead
+
+.. function:: proc c_memcmp(const s1: c_void_ptr, const s2: c_void_ptr, n: integral)
+
+   
+   Compares the first n bytes of memory areas s1 and s2
+   
+   This is a simple wrapper over the C ``memcmp()`` function.
+   
+   :returns: returns an integer less than, equal to, or greater than zero if
+             the first n bytes of s1 are found, respectively, to be less than,
+             to match, or be greater than the first n bytes of s2.
+   
+
+   .. warning::
+
+      :proc:`c_memcmp` is deprecated; please use :proc:`POSIX.memcmp` instead
+
+.. function:: proc c_memset(s: c_void_ptr, c: integral, n: integral)
+
+   
+   Fill bytes of memory with a particular byte value.
+   
+   This is a simple wrapper over the C ``memset()`` function.
+   
+   :arg s: the destination memory area to fill
+   :arg c: the byte value to use
+   :arg n: the number of bytes of s to fill
+   
+   :returns: s
+   
+
+   .. warning::
+
+      :proc:`c_memset` is deprecated; please use :proc:`POSIX.memset` instead
+

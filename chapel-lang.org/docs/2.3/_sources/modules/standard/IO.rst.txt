@@ -1,0 +1,4721 @@
+.. default-domain:: chpl
+
+.. module:: IO
+   :synopsis: Support for a variety of kinds of input and output.
+
+IO
+==
+**Usage**
+
+.. code-block:: chapel
+
+   use IO;
+
+
+or
+
+.. code-block:: chapel
+
+   import IO;
+
+**Submodules**
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   IO/*
+
+
+
+
+Support for a variety of kinds of input and output.
+
+Input/output (I/O) facilities in Chapel include the types :record:`file`,
+:record:`fileReader` and :record:`fileWriter`; the constants :record:`stdin`,
+:record:`stdout` and :record:`stderr`; the functions :proc:`open`,
+:proc:`file.close`, :proc:`file.reader`, :proc:`file.writer`,
+:proc:`fileReader.read`, :proc:`fileWriter.write`, and many others.
+
+
+Automatically Available Symbols
+-------------------------------
+
+.. note::
+
+   These symbols can also be accessed using ``IO.`` as their qualified access
+   prefix.
+
+.. include:: ChapelIO.rst
+  :start-line: 7
+  :start-after: Automatically included IO symbols
+  :end-before: .. function::
+
+.. _about-io-overview:
+
+I/O Overview
+------------
+
+A :record:`file` in Chapel identifies a file in the underlying operating system.
+Reads to a file are done via one or more fileReaders associated with the file
+and writes to a file are done via one or more fileWriters.  Each
+:record:`fileReader` or :record:`fileWriter` uses a buffer to provide sequential
+read or write access to its file.
+
+For example, the following program opens a file and writes an integer to it:
+
+.. code-block:: chapel
+
+  use IO;
+
+  try {
+    // open the file "test-file.txt" for writing, creating it if
+    // it does not exist yet.
+    var myFile = open("test-file.txt", ioMode.cw);
+
+    // create a fileWriter starting at the beginning of the file
+    // (this fileWriter will not be used in parallel, so does not need to use
+    // locking)
+    var myFileWriter = myFile.writer(locking=false);
+
+    var x: int = 17;
+
+    // This function will write the human-readable text version of x;
+    // binary I/O is also possible.
+    myFileWriter.write(x);
+
+    // Now test-file.txt contains:
+    // 17
+
+  } catch e: Error {
+    // Generally speaking, the I/O functions throw errors.  Handling these
+    // errors is application-dependent and is left out of this example for
+    // brevity.  Please see the documentation for individual functions for more
+    // details about errors that they can throw.
+  }
+
+Then, the following program can be used to read the integer:
+
+.. code-block:: chapel
+
+  use IO;
+
+  try {
+    // open the file "test-file.txt" for reading only
+    var myFile = open("test-file.txt", ioMode.r);
+
+    // create a fileReader starting at the beginning of the file
+    // (this fileReader will not be used in parallel, so does not need to use
+    // locking)
+    var myFileReader = myFile.reader(locking=false);
+
+    var x: int;
+
+    // Now read a textual integer. Note that the
+    // fileReader.read function returns a bool to indicate
+    // if it read something or if the end of the file
+    // was reached before something could be read.
+    var readSomething = myFileReader.read(x);
+
+    writeln("Read integer ", x);
+    // prints out:
+    // Read integer 17
+
+  } catch e: Error {
+    // Generally speaking, the I/O functions throw errors.  Handling these
+    // errors is application-dependent and is left out of this example for
+    // brevity.  Please see the documentation for individual functions for more
+    // details about errors that they can throw.
+  }
+
+The :proc:`~IO.read` functions allow one to read values into variables as
+the following example demonstrates. It shows three ways to read values into
+a pair of variables ``x`` and ``y``.
+
+.. code-block:: chapel
+
+  use IO;
+
+  var x: int;
+  var y: real;
+  /* reading into variable expressions, returning
+     true if the values were read, false on EOF */
+  var ok:bool = read(x, y);
+
+  /* reading via a single type argument */
+  x = read(int);
+  y = read(real);
+
+  /* reading via multiple type arguments */
+  (x, y) = read(int, real);
+
+Design Rationale
+----------------
+
+Since fileReaders and fileWriters operate independently, concurrent I/O to the
+same open file is possible without contending for locks.  Furthermore, since the
+fileReader or fileWriter (and not the file) stores the current file offset, it
+is straightforward to create programs that access the same open file in
+parallel. Note that such parallel access is not possible in C when multiple
+threads are using the same ``FILE*`` to write to different regions of a file
+because of the race condition between ``fseek`` and ``fwrite``. Because of these
+issues, Chapel programmers wishing to perform I/O will need to know how to open
+files as well as create fileReaders and fileWriters.
+
+.. _serialize-deserialize:
+
+The 'serialize' and 'deserialize' Methods
+-----------------------------------------
+
+A Chapel program can implement ``serialize`` and ``deserialize`` methods
+on a user-defined data type to define how that type is deserialized from a
+``fileReader`` or serialized to a ``fileWriter``. The method signatures for
+non-class types are:
+
+.. code-block:: chapel
+
+   proc T.serialize(writer: fileWriter(locking=false, ?),
+                    ref serializer: ?st) throws
+
+   proc ref T.deserialize(reader: fileReader(locking=false, ?),
+                          ref deserializer: ?dt) throws
+
+The signatures for classes are slightly different:
+
+.. code-block:: chapel
+
+   override proc T.serialize(writer: fileWriter(locking=false, ?),
+                             ref serializer: ?st) throws
+
+   override proc T.deserialize(reader: fileReader(locking=false, ?),
+                               ref deserializer: ?dt) throws
+
+The ``serializer`` and ``deserializer`` arguments must satisfy the
+:ref:`Serializer API<io-serializer-API>` and the
+:ref:`Deserializer API<io-deserializer-API>`, respectively.
+
+Basic Usage
+~~~~~~~~~~~
+
+Implementations of ``serialize`` and ``deserialize`` methods are not
+necessarily required to utilize their ``serializer`` and ``deserializer``
+arguments, and can instead trivially read and write from their ``fileReader``
+and ``fileWriter`` arguments. For example:
+
+.. code-block:: chapel
+
+  // A record 'R' that serializes as an integer
+  record R : writeSerializable {
+    var x : int;
+
+    proc serialize(writer: fileWriter(locking=false, ?),
+                   ref serializer: ?st) {
+      writer.write(x);
+    }
+  }
+
+  var val = new R(5);
+  writeln(val); // prints '5'
+
+Using Serializers and Deserializers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:ref:`Serializers<io-serializer-user-API>` and
+:ref:`Deserializers<io-deserializer-user-API>` support a variety of methods
+to support serializing various kinds of types. These methods can be used
+to serialize or deserialize a type in a format-agnostic way. For example,
+consider a simple 'point' type:
+
+.. code-block:: chapel
+
+  record point : writeSerializable {
+    var x : int;
+    var y : int;
+  }
+
+The default implementation of ``point``'s ``serialize`` method will naturally
+serialize ``point`` as a record. In the default serialization format, this
+would look something like ``(x = 2, y = 4)``. In the JSON serialization format,
+the output would instead be ``{"x":4, "y":2}``. While this may be perfectly
+acceptable, what if the author of ``point`` wished to always serialize a
+``point`` as a tuple?
+
+Serializers and Deserializers have "start" methods that begin serialization
+or deserialization of a type, and then return a helper object that implements
+methods to continue the process. To begin serializing ``point`` as a tuple,
+a user may invoke the ``startTuple`` method on the ``serializer``, passing in
+the ``fileWriter`` to use when writing serialized output and the number of
+elements in the tuple. The returned value from ``startTuple`` is a helper
+object that implements ``writeElement`` and ``endTuple`` methods:
+
+.. code-block:: chapel
+
+    proc point.serialize(writer: fileWriter(locking=false, ?),
+                         ref serializer: ?st) {
+      // Start serializing and get the helper object
+      // '2' represents the number of tuple elements to be serialized
+      var ser = serializer.startTuple(writer, 2);
+
+      ser.writeElement(x); // serialize 'x' as a tuple element
+      ser.writeElement(y); // serialize 'y' as a tuple element
+
+      // End serialization of the tuple
+      ser.endTuple();
+    }
+
+Now, when using different Serializers like the :type:`~IO.defaultSerializer` or
+the :type:`~JSON.jsonSerializer`, the ``point`` type can be serialized without
+introducing special cases for each format:
+
+.. code-block:: chapel
+
+  use IO, JSON;
+
+  var p = new point(4, 2);
+
+  // Prints '(4, 2)' in the default serialization format
+  stdout.writeln(p);
+
+  // Prints '[4, 2]' in the JSON serialization format
+  var jsonWriter = stdout.withSerializer(jsonSerializer);
+  jsonWriter.writeln(p);
+
+A similar API exists for deserialization that would allow for deserializing a
+``point`` as a tuple. Please refer to the
+:ref:`IO Serializers technote<ioSerializers>` for more detail on the various
+kinds of types that can be serialized and deserialized. As of Chapel 1.32 the
+supported type-kinds are Classes, Records, Tuples, Arrays, Lists, and Maps.
+
+.. _about-io-generated-default-methods:
+
+Compiler-Generated Default Methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Default ``serialize`` methods are created for all types for which a
+user-defined ``serialize`` method is not provided.
+
+Classes will be serialized as a 'Class' type-kind using the Serializer API,
+and will invoke their parent ``serialize`` method before serializing their
+own fields.
+
+Records will be serialized as a 'Record' type-kind using the Serializer API,
+and will serialize each field in the record.
+
+Default ``deserialize`` methods are created for all types for which a
+user-defined ``deserialize`` method is not provided.  The default
+``deserialize`` methods will mirror the relevant API calls in the default
+``serialize`` methods.
+
+For more information on the default serialization format, please refer to the
+:type:`~IO.defaultSerializer` and :type:`~IO.defaultDeserializer` types.
+
+If the compiler sees a user-defined implementation of the ``serialize`` method,
+the ``deserialize`` method, or the deserializing initializer, then the compiler
+may choose to not automatically generate any of the other unimplemented
+methods. This is out of concern that the user has intentionally deviated from
+the default implementation of serialization and deserialization.
+
+Types with compiler-generated versions of these methods do not need to
+explicitly indicate that they satisfy any of the relevant serialization
+interfaces (such as ``writeSerializable``).
+
+.. note::
+
+  Note that it is not currently possible to read and write circular
+  data structures with these mechanisms.
+
+.. _about-io-files:
+
+Files
+-----
+
+There are several functions that open a file and return a :record:`file`
+including :proc:`open`, :proc:`openTempFile`, :proc:`openMemFile`, the
+:record:`file` initializer that takes an ``int`` argument, and the
+:record:`file` initializer that takes a :type:`~CTypes.c_FILE` argument.
+
+Once a file is open, it is necessary to create associated fileReader(s) and/or
+fileWriter(s) - see :proc:`file.reader` and :proc:`file.writer` - to read from
+and/or write to the file.
+
+Use the :proc:`file.fsync` function to explicitly synchronize the file to
+ensure that file data is committed to the file's underlying device for
+persistence.
+
+Files, fileReaders, and fileWriters will be kept alive while there are variables
+referring to them and closed when all variables referring to them have gone out
+of scope.  However, each can be closed explicitly with ``close`` methods.  Note
+that :proc:`file.close` will not work if the file has open fileReaders and/or
+fileWriters.
+
+ .. note::
+
+    :ref:`Escaped strings <string.nonunicode>` can be used for paths on systems
+    where UTF-8 file names are not enforced.
+
+
+.. _about-io-filereader-filewriter-creation:
+
+Functions for fileReader and fileWriter Creation
+------------------------------------------------
+
+:proc:`file.writer` creates a :record:`fileWriter` for writing to a file, and
+:proc:`file.reader` creates a :record:`fileReader` for reading from a file.
+
+The helper functions :proc:`openReader` and :proc:`openWriter` can also be used
+to open a file and create a ``fileReader``/``fileWriter`` to it in a
+single step.
+
+.. _about-io-filereader-filewriter-synchronization:
+
+Synchronization of fileReader and fileWriter Data and Avoiding Data Races
+-------------------------------------------------------------------------
+
+FileReaders and fileWriters (and files) contain locks in order to keep their
+operation safe for multiple tasks. When creating a fileReader or fileWriter, it
+is possible to disable the lock (for performance reasons) by passing
+``locking=false`` to e.g.  file.writer(), or by using
+:proc:`openReader`/:proc:`openWriter`.  Some ``fileReader`` and ``fileWriter``
+methods should only be called on locked fileReaders or fileWriters.  With these
+methods, it is possible to perform I/O "transactions" (see
+:proc:`fileWriter.mark`, e.g.). To use these methods, e.g., first lock the
+fileWriter with :proc:`fileWriter.lock`, call the methods you need, then unlock
+the fileWriter with :proc:`fileWriter.unlock`. Note that in the future, we may
+move to alternative ways of calling these functions that guarantee that they are
+not called on a fileReader or fileWriter without the appropriate locking.
+
+Besides data races that can occur if locking is not used in fileWriters when it
+should be, it is also possible for there to be data races on file data that is
+buffered simultaneously in multiple fileReader/fileWriter combinations.  The
+main way to avoid such data races is the :proc:`fileWriter.flush`
+synchronization operation.  :proc:`fileWriter.flush` will make all writes to the
+fileWriter, if any, available to concurrent viewers of its associated file, such
+as other fileWriters, fileReaders or other applications accessing this file
+concurrently. See the note below for more details on the situation in which this
+kind of data race can occur.
+
+.. note::
+
+  Since fileWriters can buffer data until :proc:`fileWriter.flush` is called, it
+  is possible to write programs that have undefined behavior because of race
+  conditions on fileWriter buffers. In particular, the problem comes up for
+  programs that make:
+
+   * concurrent operations on multiple fileWriters and/or fileReaders that
+     operate on overlapping regions of a file
+   * where at least one fileWriter is used along with other fileWriters or
+     fileReaders
+   * and where data could be stored in more than one of the overlapping
+     fileWriter's buffers at the same time (i.e., write and read ordering are
+     not enforced through :proc:`fileWriter.flush` and other means such as
+     sync variables).
+
+  Note that it is possible in some cases to create a :record:`file` that does
+  not allow multiple fileWriters and/or fileReaders at different
+  offsets. FileWriters created on such files will not change the file's offset
+  based on a ``region=`` offset argument. Instead, each read or write operation
+  will use the file descriptor's current offset. Therefore, only one
+  fileWriter or fileReader should be created for files created in the following
+  situations:
+
+    * with the file initializer that takes a :type:`~CTypes.c_FILE` argument
+    * with the file initializer that takes an ``int`` argument, where the
+      ``int`` represents a non-seekable system file descriptor
+
+
+Performing I/O with FileReaders and FileWriters
+-----------------------------------------------
+
+FileReaders have a variety of read methods and fileWriters have a variety of
+write methods. The most common variety of these are generic methods that can
+read or write values of any type. For non-primitive types, the relevant
+``deserialize`` or ``serialize`` method is used to control the I/O formatting;
+see :ref:`serialize-deserialize`. These functions generally take any number of
+arguments and `throw` if there was an error:
+
+ * :proc:`fileWriter.write`
+ * :proc:`fileWriter.writeln`
+ * :proc:`FormattedIO.fileWriter.writef` (see also :ref:`about-io-formatted-io`)
+ * :proc:`fileReader.read`
+ * :proc:`fileReader.readln`
+ * :proc:`FormattedIO.fileReader.readf` (see also :ref:`about-io-formatted-io`)
+
+The ``fileWriter`` type also has the following methods for executing write
+operations with more specific types. These methods can provide finer control
+over the ``fileWriter``'s behavior as well as some performance advantages over
+the generic `write` methods:
+
+ * :proc:`fileWriter.writeBits`
+ * :proc:`fileWriter.writeCodepoint`
+ * :proc:`fileWriter.writeByte`
+ * :proc:`fileWriter.writeString`
+ * :proc:`fileWriter.writeBytes`
+ * :proc:`fileWriter.writeBinary`
+
+The ``fileReader`` type has similar methods for executing read operations with
+more specific types, where the goal of these methods is also to provide finer
+control over the ``fileReader``'s behavior and the potential for performance
+advantages:
+
+ * :proc:`fileReader.readBits`
+ * :proc:`fileReader.readCodepoint`
+ * :proc:`fileReader.readByte`
+ * :proc:`fileReader.readString`
+ * :proc:`fileReader.readBytes`
+ * :proc:`fileReader.readBinary`
+
+Additionally, the ``fileReader`` has the following methods which read arbitrary
+amounts of data from the file until some stop condition is met. These methods
+generally have multiple overloads for reading into values of different types:
+
+ * :proc:`fileReader.readLine`
+ * :proc:`fileReader.lines`
+ * :proc:`fileReader.readThrough`
+ * :proc:`fileReader.readTo`
+ * :proc:`fileReader.readAll`
+
+Sometimes it's important to flush the buffer in a fileWriter - to do that, use
+the :proc:`fileWriter.flush()` method. Flushing the buffer will make all writes
+available to other applications or other views of the file (e.g., it will call
+the OS call ``pwrite()``).  It is also possible to close a fileWriter, which
+will implicitly flush it and release any buffer memory used by the fileWriter.
+Note that if you need to ensure that data from a fileWriter is on disk, you'll
+have to call :proc:`fileWriter.flush` or :proc:`fileWriter.close` and then
+:proc:`file.fsync` on the related file.
+
+.. _about-io-closing-filereader-filewriter:
+
+Functions for Closing FileReaders and FileWriters
+-------------------------------------------------
+
+A fileReader or fileWriter must be closed in order to free the resources
+allocated for it, to ensure that data written to it is visible to other
+fileReaders, or to allow the associated file to be closed.
+
+See :proc:`fileReader.close` and :proc:`fileWriter.close`.
+
+It is an error to perform any I/O operations on a fileReader or fileWriter
+that has been closed.
+It is an error to close a file when it has fileReaders and/or fileWriters that
+have not been closed.
+
+Files, fileReaders and fileWriters are reference counted. Each file, fileReader
+and fileWriter is closed automatically when no references to it remain. For
+example, if a local variable is the only reference to a fileReader, the
+fileReader will be closed when that variable goes out of scope.  Programs may
+also close a file, fileReader or fileWriter explicitly.
+
+.. _stdin-stdout-stderr:
+
+The ``stdin`` fileReader, and ``stdout`` and ``stderr`` fileWriters
+-------------------------------------------------------------------
+
+Chapel provides the predefined fileReader :var:`stdin`, and the predefined
+fileWriters :var:`stdout`, and :var:`stderr` to access the corresponding
+operating system streams standard input, standard output, and standard error.
+
+:var:`stdin` supports reading;
+:var:`stdout` and :var:`stderr` support writing.
+
+All three are safe to use concurrently.
+
+Unicode Support
+---------------
+
+Most I/O operations default to working with textual data in the UTF-8 encoding.
+This choice of UTF-8 matches the encoding used by the ``string`` type (see
+:ref:`Chapter-Strings`).
+
+To work with non-UTF-8 data, it's necessary to use binary I/O routines (e.g.
+:proc:`fileReader.readByte`, :proc:`fileReader.readBytes`,
+:proc:`fileReader.readBinary` :proc:`fileReader.readBits`) or do I/O with a
+serializer or deserializer that uses a binary format, such as
+:record:`~IO.binaryDeserializer`.
+
+Generally speaking, if invalid UTF-8 is encountered when reading textual data, a
+``SystemError`` will be throw with ``EILSEQ`` and the channel position will be
+left just after the first byte of UTF-8 that was determined to be invalid. Some
+routines have other error handling behavior as described in their documentation
+(for example, see :proc:`fileReader.readThrough`).
+
+.. _about-io-error-handling:
+
+Error Handling
+--------------
+
+Most I/O routines throw an :class:`~Errors.Error`, which can be handled
+appropriately with ``try`` and ``catch`` (see the
+:ref:`documentation<Handling_Errors>` for more detail).
+
+Additionally, some subclasses of :class:`~Errors.Error` are commonly used within
+the I/O implementation. These are:
+
+ * :class:`OS.EofError` - the end of file was reached
+ * :class:`OS.UnexpectedEofError` - a read or write only returned part of the requested data
+ * :class:`OS.BadFormatError` - data read did not adhere to the requested format
+
+.. _io-general-sys-error:
+
+**System Errors:**
+
+For other error cases, a general :class:`~OS.SystemError` is typically thrown.
+These errors are often produced by less predictable circumstances that are
+more challenging to recover from. For example, a :record:`fileReader` could run
+out of memory when attempting to allocate more buffer space.
+
+As such, it is typically recommended that more specific errors are caught and
+recovered from separately from a ``SystemError``. See the following example:
+
+.. code-block:: chapel
+
+  use IO;
+
+  const r = openReader("test.txt");
+
+  try {
+    var i = r.read(int);
+    // ...
+  } catch e: EofError {
+    writeln("r is at EOF");
+    // we're done reading
+
+  } catch e: UnexpectedEofError {
+    writeln("unable to read an 'int'");
+    // try to read something else? ...
+
+  } catch e: SystemError {
+    writeln("system error in IO implementation: ", e);
+    // try to recover from the error? ...
+
+  } catch e: Error {
+    writeln("something else went wrong...");
+  }
+
+
+.. _io-transactions:
+
+I/O Transactions
+----------------
+
+An *I/O transaction* is a common pattern afforded by the IO interface that
+provides the ability to temporarily hold a particular region of a file in a
+:record:`fileReader` or :record:`fileWriter`'s buffer. This allows I/O
+operations within that region of the file to easily be undone in the event
+of some unexpected data or other errors.
+
+To support *I/O transactions*, each ``fileReader`` and ``fileWriter`` is fitted
+with a *mark stack* which contains a series of file offsets. The region of the
+file between the minimum and maximum offset on the *mark stack* will always be
+retained in the buffer.
+
+The steps of a typical *I/O transaction* are as follows:
+
+* ``mark`` the current file offset with :proc:`fileReader.mark` or
+  :proc:`fileWriter.mark`. This pushes the current offset onto the *mark stack*
+
+* do a speculative I/O operation:
+
+    * reading example: read 200 bytes followed by a `b`.
+    * writing example: write 200 bytes without exceeding the ``fileWriter``'s
+      region.
+
+* if the operation fails, ``revert`` the operation by calling :proc:`fileReader.revert`
+  or :proc:`fileWriter.revert`. Subsequent operations will continue from the
+  originally marked offset as if nothing happened.
+
+* if the operation is successful, call :proc:`fileReader.commit` or
+  :proc:`fileWriter.commit` to pop the value from the *mark stack* and continue
+  performing I/O operations from the current offset.
+
+Note that when the mark stack is emptied, a ``fileWriter`` is allowed to flush
+any portion of its buffer to its file and a ``fileReader`` is allowed to discard
+any portion of its buffer.
+
+See the following example of a simple I/O transaction:
+
+.. code-block:: chapel
+
+  use IO;
+
+  var fr = openReader("file.txt");
+
+  // mark the current channel position
+  fr.mark();
+
+  // read an array of bytes
+  var a: [0..<200] uint(8);
+  fr.read(a);
+
+  // try to match a pattern
+  if fr.matchLiteral("b") {
+    fr.commit(); // "b" was found, continue reading from the current offset
+  } else {
+    fr.revert(); // "b" was't found, revert back to the marked position
+
+    // try to read something else from the file, throw an error, etc.
+  }
+
+.. _filereader-filewriter-regions:
+
+Specifying the region of a fileReader or fileWriter
+---------------------------------------------------
+
+The :record:`fileReader` and :record:`fileWriter` types can be configured to
+own a specific *region* of their associated file.
+
+When a ``fileReader`` or ``fileWriter`` is initialized using one of the
+following routines, the optional ``region`` argument can be set to designate
+some region of the file (a zero-based :ref:`range<Chapter-Ranges>` of integers
+in bytes) that can be read from or written to:
+
+* :proc:`file.reader`
+* :proc:`file.writer`
+* :proc:`openReader`
+
+I/O operations that fall outside of the *region* are illegal. The ``region``
+argument defaults to ``0..``, meaning that the owned region starts at the 0th
+byte, and extends indefinitely.
+
+Note that :proc:`fileReader.seek` and :proc:`fileWriter.seek` can be used to
+adjust a ``fileReader`` or ``fileWriter``'s region after initialization.
+
+Creating a ``fileReader`` or ``fileWriter`` that points to a sub-region of
+a file can be useful for concurrently reading from or writing to multiple
+portions of a file from separate tasks. See the following example, which
+uses multiple tasks to concurrently read bytes from a binary file into an
+array of bytes:
+
+.. code-block:: chapel
+
+  use IO;
+
+  // the number of tasks to use
+  config const nWorkers = 8;
+
+  // open a (large) binary file
+  var f = open("file.dat", ioMode.r);
+
+  // compute how many bytes each worker will read
+  const nBytes = f.size,
+        nPerLoc = nBytes/ nWorkers;
+
+  // create an array to hold the file contents
+  var a: [0..<nBytes] uint(8);
+
+  // concurrently read each worker's region into 'a'
+  coforall w in 0..<nWorkers {
+    const myRegion = (w*nPerLoc)..<((w+1) * nPerLoc),
+          fr = f.reader(region=myRegion, locking=false);
+
+    fr.readBinary(a[myRegion]);
+  }
+
+
+.. _locking-filereaders-and-filewriters:
+
+Locking Behavior of FileReaders and FileWriters
+-----------------------------------------------
+
+The :record:`fileReader` and :record:`fileWriter` types can be configured to
+lock access to their file when executing I/O operations to avoid race conditions
+with other ``fileReader`` or ``fileWriter`` instances that may be accessing the
+same file.
+
+The ``locking`` field is a ``param`` and is thus part of the ``fileReader``
+and ``fileWriter`` type. As such, it is possible to use type constraints to
+designate whether a reader or writer is locking. For example this could be
+useful in a procedure that relies on a ``reader`` argument being locking:
+
+.. code-block:: chapel
+
+  use IO;
+
+  proc readSomething(reader: fileReader(locking=true, ?)) {
+    // use 'reader' concurrently with another fileReader/fileWriter   ...
+  }
+
+The ``locking`` field can be set by passing the desired value to one of the
+following routines that create a :record:`fileReader` or :record:`fileWriter`:
+
+* :proc:`file.reader`
+* :proc:`file.writer`
+* :proc:`openReader`
+* :proc:`openWriter`
+
+With a locking ``fileReader`` or ``fileWriter``, one can obtain a lock manually
+by calling :proc:`fileReader.lock` or :proc:`fileWriter.lock`, and then release
+a lock by calling :proc:`fileReader.unlock` or :proc:`fileWriter.unlock`.
+
+.. note::
+  The following methods will not automatically acquire/release a lock for
+  ``locking=true``:
+
+  * :proc:`fileReader.mark`
+  * :proc:`fileWriter.mark`
+  * :proc:`fileReader.commit`
+  * :proc:`fileWriter.commit`
+  * :proc:`fileReader.revert`
+  * :proc:`fileWriter.revert`
+  * :proc:`fileReader.offset`
+  * :proc:`fileWriter.offset`
+
+
+.. _about-io-ensuring-successful-io:
+
+Ensuring Successful I/O
+-----------------------
+
+It is possible - in some situations - for I/O to fail without returning an
+error. In cases where a programmer wants to be sure that there was no error
+writing the data to disk, it is important to call :proc:`file.fsync` to make
+sure that data has arrived on disk without an error. Many errors can be
+reported with a typical operation, but some errors can only be reported by the
+system during :proc:`file.close` or even :proc:`file.fsync`.
+
+When a file (or fileWriter) is closed, data written to that file will be written
+to disk eventually by the operating system. If an application needs to be sure
+that the data is immediately written to persistent storage, it should use
+:proc:`file.fsync` prior to closing the file.
+
+Correspondence with C I/O
+-------------------------
+
+It is not possible to seek, read, or write to a file directly; fileReaders
+and/or fileWriters must be created and used.
+
+:proc:`fileWriter.flush` in Chapel has the same conceptual meaning as
+``fflush()`` in C.  However, ``fflush()`` is not necessarily called in
+:proc:`fileWriter.flush()`, unlike ``fsync()``, which is actually called by
+:proc:`file.fsync()` in Chapel.
+
+Automatically Included IO Functions
+-----------------------------------
+
+.. include:: ChapelIO.rst
+  :start-after:  // Hello, World!
+
+IO Functions and Types
+----------------------
+
+ 
+
+.. enum:: enum ioMode { r = 1, cw = 2, rw = 3, cwr = 4, a = 5 }
+
+   
+   The :type:`ioMode` type is an enum. When used as arguments when opening files, its
+   constants have the same meaning as the listed strings passed to ``fopen()`` in C.
+   However, :proc:`open()` in Chapel does not necessarily invoke ``fopen()`` in C.
+
+   .. enumconstant:: enum constant r = 1
+
+      
+      Open an existing file for reading.
+      (``fopen()`` string is "r")
+      
+
+   .. enumconstant:: enum constant cw = 2
+
+      
+      Create a new file for writing.
+      If the file already exists, its contents are truncated.
+      (``fopen()`` string is "w")
+      
+
+   .. enumconstant:: enum constant rw = 3
+
+      
+      Open an existing file for reading and writing.
+      (``fopen()`` string is "r+")
+      
+
+   .. enumconstant:: enum constant cwr = 4
+
+      
+      Same as :enumconstant:`ioMode.cw`, but reading from the file is also allowed.
+      (``fopen()`` string is "w+")
+      
+
+   .. enumconstant:: enum constant a = 5
+
+      .. warning::
+
+         :enumconstant:`ioMode.a` is unstable and subject to change. It currently only supports one :record:`fileWriter` at a time.
+
+      
+      Open a file for appending, creating it if it does not exist.
+      (``fopen()`` string is "a")
+      
+
+.. enum:: enum endianness { native = 0, big = 1, little = 2 }
+
+   
+   The :type:`endianness` type is an enum. When used as an argument to the
+   :record:`fileReader` or :record:`fileWriter` methods, its constants have the
+   following meanings:
+
+   .. enumconstant:: enum constant native = 0
+
+      ``native`` means binary I/O is performed in the byte order that is native
+      to the target platform. 
+
+   .. enumconstant:: enum constant big = 1
+
+      ``big`` means binary I/O is performed in big-endian byte order.
+
+   .. enumconstant:: enum constant little = 2
+
+      ``little`` means binary I/O is performed in little-endian byte order. 
+
+.. type:: type ioendian = endianness
+
+   .. warning::
+
+      :enum:`ioendian` is deprecated; please use :enum:`endianness` instead
+
+.. record:: ioHintSet
+
+   A value of the :record:`ioHintSet` type defines a set of hints to provide
+   information about the operations that a :record:`file`, :record:`fileReader`
+   or :record:`fileWriter` will perform. These hints may be used by the
+   implementation to select optimized versions of the I/O operations.
+   
+   Most hints have POSIX equivalents associated with posix_fadvise() and
+   posix_madvise().
+   
+   This example depicts how an ``ioHintSet`` might be used.
+   
+   .. code-block:: chapel
+   
+     use IO;
+   
+     // define a set of hints using a union operation
+     var hints = ioHintSet.sequential | ioHintSet.prefetch;
+   
+     // open a file using the hints
+     var f: file;
+     try! {
+       f = open("path/to/my/file.txt", ioMode.r, hints=hints);
+     }
+
+   .. method:: proc type empty
+
+      Defines an empty set, which provides no hints.
+      Corresponds to 'POSIX_*_NORMAL'.
+      
+
+   .. method:: proc type sequential
+
+      Suggests that the file will be accessed sequentially.
+      Corresponds to 'POSIX_*_SEQUENTIAL'
+      
+
+   .. method:: proc type random
+
+      Suggests that the file will be accessed randomly.
+      Corresponds to 'POSIX_*_RANDOM'.
+      
+
+   .. method:: proc type prefetch
+
+      Suggests that the runtime/OS should immediately begin prefetching the file contents.
+      Corresponds to 'POSIX_*_WILLNEED'.
+      
+
+   .. method:: proc type mmap(useMmap = true)
+
+      
+      Suggests whether or not 'mmap' should be used to access the file contents.
+      
+       * when ``useMmap`` is ``true``, suggests that 'mmap' should be used
+       * when ``useMmap`` is ``false``, suggests that 'mmap' should not be used and 'pread'/'pwrite' should be used instead
+      
+      
+
+.. method:: operator ioHintSet.|(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compute the union of two hint sets
+
+.. method:: operator ioHintSet.&(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compute the intersection of two hint sets
+
+.. method:: operator ioHintSet.==(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compare two hint sets for equality
+
+.. method:: operator ioHintSet.!=(lhs: ioHintSet, rhs: ioHintSet)
+
+   Compare two hint sets for inequality
+
+.. record:: file
+
+   
+   The :record:`file` type is implementation-defined.  A value of the
+   :record:`file` type refers to the state that is used by the implementation to
+   identify and interact with the OS file.
+   
+   When a :record:`file` formal argument has default intent, the actual is passed
+   by ``const ref`` to the formal upon a function call, and the formal
+   cannot be assigned within the function.
+   
+   The default value of the :record:`file` type does not represent any OS file.
+   It is illegal to perform any I/O operations on the default value.
+   
+
+.. method:: proc file.init(fp: c_ptr(c_FILE), hints = ioHintSet.empty, own = false) throws
+
+   
+   Create a Chapel :record:`file` that wraps around an open C file. A pointer to
+   a C ``FILE`` object can be obtained via Chapel's
+   :ref:`C Interoperability <primers-C-interop-using-C>` functionality.
+   
+   .. note::
+   
+     This is an alternative way to create a :record:`file`.  The main way to do so
+     is via the :proc:`open` function.
+   
+   Once the Chapel file is created, you will need to use :proc:`file.reader` to
+   create a fileReader or :proc:`file.writer` to create a fileWriter to perform I/O
+   operations on the C file.
+   
+   .. note::
+   
+     The resulting file value should only be used with one :record:`fileReader` or
+     :record:`fileWriter` at a time. The I/O system will ignore the offsets when
+     reading or writing to a file opened using this initializer.
+   
+   
+   :arg fp: a pointer to a C ``FILE``. See :type:`~CTypes.c_FILE`.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :arg own: set to indicate if the :type:`~CTypes.c_FILE` provided should be
+             cleaned up when the ``file`` is closed.  Defaults to ``false``
+   
+   :throws SystemError: If the C file could not be retrieved.
+
+.. method:: proc file.init(fileDescriptor: int, hints = ioHintSet.empty, own = false) throws
+
+   
+   
+   Create a Chapel file that works with a system file descriptor.  Note that once
+   the file is open, you will need to use a :proc:`file.reader` to create a
+   fileReader or :proc:`file.writer` to create a fileWriter to actually perform I/O
+   operations
+   
+   .. note::
+   
+     This is an alternative way to create a :record:`file`.  The main way to do so
+     is via the :proc:`open` function.
+   
+   The system file descriptor will be closed when the Chapel file is closed.
+   
+   .. note::
+   
+     This function can be used to create Chapel files that refer to system file
+     descriptors that do not support the ``seek`` functionality. For example, file
+     descriptors that represent pipes or open socket connections have this
+     property. In that case, the resulting file value should only be used with one
+     :record:`fileReader` or :record:`fileWriter` at a time.  The I/O system will
+     ignore the fileReader offsets when reading (or the fileWriter offsets when
+     writing) to files backed by non-seekable file descriptors.
+   
+   
+   :arg fileDescriptor: a system file descriptor.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :arg own: set to indicate if the `fileDescriptor` provided should be cleaned up
+             when the ``file`` is closed.  Defaults to ``false``
+   
+   :throws SystemError: If the file descriptor could not be retrieved.
+
+.. method:: proc file.isOpen(): bool
+
+   Indicates if the file is currently open.  Will return ``false`` for both
+   closed and invalid files
+
+.. method:: proc file.close() throws
+
+   Close a file.
+   
+   In order to free the resources allocated for a file, it
+   must be closed using this method.
+   
+   Closing a file does not guarantee immediate persistence of the performed
+   updates, if any. In cases where immediate persistence is important,
+   :proc:`file.fsync` should be used for that purpose prior to closing the file.
+   In particular, even though closing the file might complete without errors,
+   the data written might not persist in the event of a severe error like
+   running out of storage space or power loss. See also
+   :ref:`about-io-ensuring-successful-io`.
+   
+   Files are automatically closed when the file variable goes out of scope and
+   all fileReaders and fileWriters using that file are closed. Programs may also
+   explicitly close a file using this method.
+   
+   It is an error to perform any I/O operations on a file that has been closed.
+   It is an error to close a file when it has fileReaders and/or fileWriters
+   that have not been closed.
+   
+   :throws SystemError: If the file could not be closed.
+   
+
+.. method:: proc file.fsync() throws
+
+   
+   
+   Sync a file to disk.
+   
+   Commits file data to the device associated with this file.
+   Data written to the file by a fileWriter will only be guaranteed
+   committed if the fileWriter has been closed or flushed.
+   
+   This function will typically call the ``fsync`` system call.
+   
+   :throws SystemError: If the file could not be synced.
+    
+
+.. method:: proc file.path: string throws
+
+   
+   
+   Get the absolute path to an open file.
+   
+   Note that not all files have a path (e.g. files opened with :proc:`openMemFile`),
+   and that this procedure may not work on all operating systems.
+   
+   The function :proc:`Path.realPath` is an alternative way
+   to get the path to a file.
+   
+   :returns: the absolute path to the file
+   :rtype: ``string``
+   
+   :throws SystemError: If the path could not be retrieved.
+    
+
+.. method:: proc file.size: int throws
+
+   
+   
+   Get the current size of an open file. Note that the size can always
+   change if other fileWriters, tasks or programs are writing to the file.
+   
+   :returns: the current file size
+   
+   :throws SystemError: If the size could not be retrieved.
+
+.. function:: proc open(path: string, mode: ioMode, hints = ioHintSet.empty): file throws
+
+   
+   
+   Open a file on a filesystem. Note that once the file is open, you will need to
+   use a :proc:`file.reader` to create a fileReader or :proc:`file.writer` to
+   create a fileWriter to actually perform I/O operations
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg mode: specify whether to open the file for reading or writing and
+                whether or not to create the file if it doesn't exist.
+                See :type:`ioMode`.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open file to the requested resource.
+   
+   :throws FileNotFoundError: If part of the provided path did not exist
+   :throws PermissionError: If part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: If part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: If the file could not be opened.
+
+.. function:: proc openTempFile(hints = ioHintSet.empty): file throws
+
+   
+   
+   Open a temporary file. Note that once the file is open, you will need to use a
+   :proc:`file.reader` to create a fileReader or :proc:`file.writer` to create a
+   fileWriter to actually perform I/O operations.
+   
+   The temporary file will be created in an OS-dependent temporary directory,
+   for example "/tmp" is the typical location. The temporary file will be
+   deleted upon closing.
+   
+   Temporary files are opened with :type:`ioMode` ``ioMode.cwr``; that is, a new
+   file is created that supports both writing and reading.  When possible, it may
+   be opened using OS support for temporary files in order to make sure that a new
+   file is created only for use by the current application.
+   
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :returns: an open temporary file.
+   
+   :throws SystemError: If the temporary file could not be opened.
+
+.. function:: proc openMemFile(): file throws
+
+   
+   
+   Open a file that is backed by a buffer in memory that will not persist when the
+   file is closed.  Note that once the file is open, you will need to use a
+   :proc:`file.reader` to create a fileReader or :proc:`file.writer` to create a
+   fileWriter to actually perform I/O operations.
+   
+   The resulting file supports both reading and writing.
+   
+   :returns: an open memory file.
+   
+   :throws SystemError: If the memory buffered file could not be opened.
+
+.. record:: fileReader
+
+   
+   
+   A ``fileReader`` supports sequential reading from an underlying :record:`file`
+   object. It can buffer data. Read operations on it might return old data.
+   
+   The :record:`fileReader` type is implementation-defined.
+   A value of the :record:`fileReader` type refers to the state that is used
+   to implement the reading operations.
+   
+   When a :record:`fileReader` formal argument has default intent, the actual is
+   passed by ``const ref`` to the formal upon a function call, and the formal
+   cannot be assigned within the function.
+   
+   The default value of the :record:`fileReader` type is not associated
+   with any file, and so cannot be used to perform I/O.
+   
+   The :record:`fileReader` type is generic.
+
+   .. attribute:: param locking: bool
+
+      
+      locking is a boolean indicating whether it is safe to use this
+      fileReader concurrently (when `true`).
+      
+
+   .. attribute:: type deserializerType = defaultSerializeType(false)
+
+      
+      deserializerType indicates the type of the deserializer that this
+      fileReader will use to deserialize data.
+      
+
+.. method:: proc fileReader.getFile()
+
+   .. warning::
+
+      The 'fileReader.getFile()' method may change based on feedback
+
+   
+   Get the :record:`file` type underlying a :record:`fileReader`.
+
+.. method:: proc fileReader.deserializer ref: deserializerType
+
+   
+   Return a mutable reference to this fileReader's deserializer.
+
+.. record:: fileWriter
+
+   
+   
+   A ``fileWriter`` supports sequential writing to an underlying :record:`file`
+   object. A ``fileWriter`` can buffer data. Write operations might not have an
+   immediate effect. Use :proc:`fileWriter.flush` to control this buffering.
+   
+   The :record:`fileWriter` type is implementation-defined.
+   A value of the :record:`fileWriter` type refers to the state that is used
+   to implement the writing operations.
+   
+   When a :record:`fileWriter` formal argument has default intent, the actual is
+   passed by ``const ref`` to the formal upon a function call, and the formal
+   cannot be assigned within the function.
+   
+   The default value of the :record:`fileWriter` type is not associated with any
+   file, and so cannot be used to perform I/O.
+   
+   The :record:`fileWriter` type is generic.
+
+   .. attribute:: param locking: bool
+
+      
+      locking is a boolean indicating whether it is safe to use this
+      fileWriter concurrently (when `true`).
+      
+
+   .. attribute:: type serializerType = defaultSerializeType(true)
+
+      
+      serializerType indicates the type of the serializer that this fileWriter
+      will use to serialize data.
+      
+
+.. method:: proc fileWriter.getFile()
+
+   .. warning::
+
+      The 'fileWriter.getFile()' method may change based on feedback
+
+   
+   Get the :record:`file` type underlying a :record:`fileWriter`.
+
+.. method:: proc fileWriter.serializer ref: serializerType
+
+   
+   Return a mutable reference to this fileWriter's serializer.
+
+.. record:: defaultSerializer
+
+   
+   The default Serializer used by ``fileWriter``.
+   
+   See :ref:`the serializers technote<ioSerializers>` for a general overview
+   of Serializers and their usage.
+   
+   Otherwise, please refer to the individual methods in this type for a
+   description of the default IO format.
+
+   .. method:: proc ref serializeValue(writer: fileWriter, const val: ?t): void throws
+
+      
+      Serialize ``val`` with ``writer``.
+      
+      Numeric values are serialized as though they were written with the format
+      as ``%i`` for integers and ``%r`` for ``real`` numbers. Complex numbers are
+      serialized as ``%z``. Please refer to :ref:`the section on Formatted
+      IO<about-io-formatted-io>` for more information.
+      
+      Booleans are serialized as the literal strings ``true`` or ``false``.
+      
+      ``string`` values are serialized using the same format as ``%s`` — that is,
+      literally and without quotes. ``bytes`` values are also serialized
+      literally without extra formatting.
+      
+      Enums are serialized using the name of the corresponding value. For example
+      with an enum like ``enum colors {red, green blue}``, the value ``red``
+      would simply be serialized as ``red``.
+      
+      The ``nil`` value and nilable class variables storing ``nil`` will be
+      serialized as the text ``nil``.
+      
+      Classes and records will have their ``serialize`` method invoked, passing
+      in ``writer`` and this Serializer as arguments. Please see the
+      :ref:`serializers technote<ioSerializers>` for more information.
+      
+      Classes and records are expected to implement the ``writeSerializable``
+      or ``serializable`` interface.
+      
+      :arg writer: The ``fileWriter`` used to write serialized output.
+      :arg val: The value to be serialized.
+      
+
+   .. method:: proc startClass(writer: fileWriter, name: string, size: int) throws
+
+      
+      Start serializing a class by writing the character ``{``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg name: The name of the class type.
+      :arg size: The number of fields in the class.
+      
+      :returns: A new :record:`~IO.defaultSerializer.AggregateSerializer`
+      
+
+   .. method:: proc startRecord(writer: fileWriter, name: string, size: int) throws
+
+      
+      Start serializing a record by writing the character ``(``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg name: The name of the record type.
+      :arg size: The number of fields in the record.
+      
+      :returns: A new :type:`AggregateSerializer`
+      
+
+   .. record:: AggregateSerializer
+
+      
+      Returned by ``startClass`` or ``startRecord`` to provide the API for
+      serializing classes or records.
+      
+      A ``class`` with integer fields 'x' and 'y' with values '0' and '5' would
+      be serialized as:
+      
+      .. code-block:: text
+      
+        {x = 0, y = 5}
+      
+      A ``record`` with matching fields would be serialized in the same way, but
+      would use ``(`` and ``)`` instead of ``{`` and ``}``.
+      
+
+      .. method:: proc ref writeField(name: string, const field: ?) throws
+
+      
+      Serialize ``field`` named ``name``.
+      
+      Serializes fields in the form '<name> = <field>'. Adds a comma before the
+      name if this is not the first field.
+      
+
+      .. method:: proc ref startClass(writer: fileWriter, name: string, size: int) throws
+
+      
+      Start serializing a nested class inside the current class. In this format
+      inheritance is not represented and parent fields are printed before child
+      fields. For example, the following classes with values
+      ``x=5`` and ``y=2.0``:
+      
+      .. code-block:: chapel
+      
+        class Parent {
+          var x : int;
+        }
+      
+        class Child: Parent {
+          var y : real;
+        }
+      
+      would be serialized as:
+      
+      .. code-block:: text
+      
+        {x = 5, y = 2.0}
+      
+      :arg writer: The ``fileWriter`` to be used when serializing. Must match
+                   the writer used to create current AggregateSerializer.
+      :arg name: The name of the class type.
+      :arg size: The number of fields in the class.
+      
+      :returns: A new :record:`~IO.defaultSerializer.AggregateSerializer`
+      
+
+      .. method:: proc endClass() throws
+
+      
+      Ends serialization of the current class by writing the character ``}``
+      
+      .. note:: It is an error to call methods on an AggregateSerializer after
+                invoking 'endClass'.
+      
+
+      .. method:: proc endRecord() throws
+
+      
+      Ends serialization of the current record by writing the character ``)``
+      
+      .. note:: It is an error to call methods on an AggregateSerializer after
+                invoking 'endRecord'.
+      
+
+   .. method:: proc startTuple(writer: fileWriter, size: int) throws
+
+      
+      Start serializing a tuple by writing the character ``(``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg size: The number of elements in the tuple.
+      
+      :returns: A new :record:`TupleSerializer`
+      
+
+   .. record:: TupleSerializer
+
+      
+      Returned by ``startTuple`` to provide the API for serializing tuples.
+      
+      A tuple will be serialized as a comma-separated list between two
+      parentheses. For example, the tuple literal ``(1, 2, 3)`` would be
+      serialized as:
+      
+      .. code-block::
+      
+        (1, 2, 3)
+      
+      A 1-tuple will be serialized with a trailing comma. For example, the literal
+      ``(4,)`` would be serialized as ``(4,)``.
+      
+      
+
+      .. method:: proc ref writeElement(const element: ?) throws
+
+      
+      Serialize ``element``.
+      
+      Writes a leading comma before serializing the element if this is not the
+      first element in the tuple.
+      
+
+      .. method:: proc endTuple() throws
+
+      
+      Ends serialization of the current tuple by writing the character ``)``.
+      
+      Adds a comma between the last value and ``)`` if there was only one
+      element.
+      
+
+   .. method:: proc startList(writer: fileWriter, size: int) throws
+
+      
+      Start serializing a list by writing the character ``[``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg size: The number of elements in the list.
+      
+      :returns: A new :record:`ListSerializer`
+      
+
+   .. record:: ListSerializer
+
+      
+      Returned by ``startList`` to provide the API for serializing lists.
+      
+      A list will be serialized as a comma-separated series of serialized
+      elements between two square brackets. For example, serializing a list
+      with elements ``1``, ``2``, and ``3`` will produce the text:
+      
+      .. code-block:: text
+      
+        [1, 2, 3]
+      
+      Empty lists will be serialized as ``[]``.
+      
+
+      .. method:: proc ref writeElement(const element: ?) throws
+
+      
+      Serialize ``element``.
+      
+      Writes a leading comma before serializing the element if this is not the
+      first element in the list.
+      
+
+      .. method:: proc endList() throws
+
+      
+      Ends serialization of the current list by writing the character ``]``.
+      
+
+   .. method:: proc startArray(writer: fileWriter, size: int) throws
+
+      
+      Start serializing an array.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg size: The number of elements in the array.
+      
+      :returns: A new :record:`ArraySerializer`
+      
+
+   .. record:: ArraySerializer
+
+      
+      Returned by :proc:`~IO.defaultSerializer.startArray` to provide the API for
+      serializing arrays.
+      
+      In the default format, an array will be serialized as a
+      whitespace-separated series of serialized elements.
+      
+      A 1D array is serialized simply using spaces:
+      
+      ::
+      
+        1 2 3 4
+      
+      A 2D array is serialized using spaces between elements in a row, and
+      prints newlines for new rows:
+      
+      ::
+      
+        1 2 3
+        4 5 6
+        7 8 9
+      
+      Arrays with three or more dimensions will be serialized as a series of
+      2D "panes", with multiple newlines separating new dimensions:
+      
+      ::
+      
+        1 2 3
+        4 5 6
+        7 8 9
+      
+        10 11 12
+        13 14 15
+        16 17 18
+      
+        19 20 21
+        22 23 24
+        25 26 27
+      
+      Empty arrays result in no output to the :record:`fileWriter`.
+      
+
+      .. method:: proc ref startDim(size: int) throws
+
+      
+      Inform the :record:`~IO.defaultSerializer.ArraySerializer` to start
+      serializing a new dimension of size ``size``.
+      
+
+      .. method:: proc ref endDim() throws
+
+      
+      End the current dimension.
+      
+
+      .. method:: proc ref writeElement(const element: ?) throws
+
+      
+      Serialize ``element``.
+      
+      Adds a space if this is not the first element in the row.
+      
+
+      .. method:: proc endArray() throws
+
+      
+      Ends serialization of the current array.
+      
+
+   .. method:: proc startMap(writer: fileWriter, size: int) throws
+
+      
+      Start serializing a map by writing the character ``{``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg size: The number of entries in the map.
+      
+      :returns: A new :record:`MapSerializer`
+      
+
+   .. record:: MapSerializer
+
+      
+      Returned by :proc:`~IO.defaultSerializer.startMap` to provide the API for
+      serializing maps.
+      
+      Maps are serialized as a comma-separated series of pairs between curly
+      braces. Pairs are serialized with a ``:`` separating the key and value. For
+      example, the keys ``1``, ``2``, and ``3`` with values corresponding to
+      their squares would be serialized as:
+      
+      ::
+      
+        {1: 1, 2: 4, 3: 9}
+      
+      Empty maps will be serialized as ``{}``.
+      
+
+      .. method:: proc ref writeKey(const key: ?) throws
+
+      
+      Serialize ``key``.
+      
+      Adds a leading comma if this is not the first pair in the map.
+      
+
+      .. method:: proc writeValue(const val: ?) throws
+
+      
+      Serialize ``val``, preceded by the character ``:``.
+      
+
+      .. method:: proc endMap() throws
+
+      
+      Ends serialization of the current map by writing the character ``}``
+      
+
+.. record:: defaultDeserializer
+
+   
+   The default Deserializer used by :record:`fileReader`.
+   
+   See :ref:`the serializers technote<ioSerializers>` for a general overview
+   of Deserializers and their usage.
+   
+   Otherwise, please refer to :type:`defaultSerializer` for a description
+   of the default IO format. Individual methods on this type may clarify
+   behavior specific to deserialization.
+   
+   .. note::
+   
+     Prior to the 1.32 release and the advent of the 'serializers' feature, the
+     default implementation for reading classes and records permitted reading
+     fields out of order. This functionality is not supported by the
+     ``defaultDeserializer``.
+   
+     For an unspecified amount of time this module will retain the ability to
+     disable automatic use of the ``defaultDeserializer`` by recompiling
+     programs with the config-param ``useIOSerializers`` set to ``false``.
+   
+     Eventually, however, users must update their programs to account for
+     reading fields out of order.
+
+   .. method:: proc ref deserializeType(reader: fileReader, type readType): readType throws
+
+      
+      Deserialize type ``readType`` with ``reader``.
+      
+      Classes and records will be deserialized using an appropriate initializer,
+      passing in ``reader`` and this Deserializer as arguments. If an
+      initializer is unavailable, this method may invoke the class or record's
+      ``deserialize`` method. Please see the
+      :ref:`serializers technote<ioSerializers>` for more information.
+      
+      Classes and records are expected to implement either the
+      ``initDeserializable`` or ``readDeserializable`` interfaces (or both).
+      Alternatively, types implementing the entire ``serializable`` interface
+      are also accepted.
+      
+      :arg reader: The :record:`fileReader` from which types are deserialized.
+      :arg readType: The type to be deserialized.
+      
+      :returns: A value of type ``readType``.
+      
+
+   .. method:: proc ref deserializeValue(reader: fileReader, ref val: ?readType): void throws
+
+      
+      Deserialize from ``reader`` directly into ``val``.
+      
+      Like :proc:`deserializeType`, but reads into an initialized value rather
+      than creating a new value. For classes and records, this method will first
+      attempt to invoke a ``deserialize`` method. If the ``deserialize`` method
+      is unavailable, this method may fall back on invoking a suitable
+      initializer and assigning the resulting value into ``val``. Please see the
+      :ref:`serializers technote<ioSerializers>` for more.
+      
+      Classes and records are expected to implement either the
+      ``initDeserializable`` or ``readDeserializable`` interfaces (or both).
+      Alternatively, types implementing the entire ``serializable`` interface
+      are also accepted.
+      
+      :arg reader: The :record:`fileReader` from which values are deserialized.
+      :arg val: The value into which this Deserializer will deserialize.
+      
+
+   .. method:: proc startClass(reader: fileReader, name: string) throws
+
+      
+      Start deserializing a class by reading the character ``{``.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      :arg name: The name of the class type
+      
+      :returns: A new :type:`AggregateDeserializer`
+      
+
+   .. method:: proc startRecord(reader: fileReader, name: string) throws
+
+      
+      Start deserializing a record by reading the character ``(``.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      :arg name: The name of the record type
+      
+      :returns: A new :type:`AggregateDeserializer`
+      
+
+   .. record:: AggregateDeserializer
+
+      
+      Returned by :proc:`~IO.defaultDeserializer.startClass` or
+      :proc:`~IO.defaultDeserializer.startRecord` to provide the API for
+      deserializing classes or records.
+      
+      See :type:`~IO.defaultSerializer.AggregateSerializer` for details of the
+      default format for classes and records.
+      
+
+      .. method:: proc readField(name: string, type fieldType): fieldType throws
+
+      
+      Deserialize a field named ``name`` of type ``fieldType``.
+      
+      :returns: A deserialized value of type ``fieldType``.
+      
+
+      .. method:: proc readField(name: string, ref field) throws
+
+      
+      Deserialize a field named ``name`` in-place.
+      
+
+      .. method:: proc startClass(reader: fileReader, name: string) throws
+
+      
+      Start deserializing a nested class inside the current class.
+      
+      See :proc:`defaultSerializer.AggregateSerializer.startClass` for details
+      on inheritance on the default format.
+      
+      :returns: A new AggregateDeserializer
+      
+
+      .. method:: proc endClass() throws
+
+      
+      End deserialization of the current class by reading the character ``}``.
+      
+
+      .. method:: proc endRecord() throws
+
+      
+      End deserialization of the current record by reading the character ``)``.
+      
+
+   .. method:: proc startTuple(reader: fileReader) throws
+
+      
+      Start deserializing a tuple by reading the character ``(``.
+      
+      :arg reader: The ``fileReader`` to use when deserializing.
+      
+      :returns: A new :type:`TupleDeserializer`
+      
+
+   .. record:: TupleDeserializer
+
+      
+      Returned by ``startTuple`` to provide the API for deserializing tuples.
+      
+      See :record:`~IO.defaultSerializer.TupleSerializer` for details of the
+      default format for tuples.
+      
+
+      .. method:: proc readElement(type eltType): eltType throws
+
+      
+      Deserialize an element of the tuple.
+      
+      :returns: A deserialized value of type ``eltType``.
+      
+
+      .. method:: proc readElement(ref element) throws
+
+      
+      Deserialize ``element`` in-place as an element of the tuple.
+      
+
+      .. method:: proc endTuple() throws
+
+      
+      End deserialization of the current tuple by reading the character ``)``.
+      
+
+   .. method:: proc ref startList(reader: fileReader) throws
+
+      
+      Start deserializing a list by reading the character ``[``.
+      
+      :arg reader: The ``fileReader`` to use when deserializing.
+      
+      :returns: A new :type:`ListDeserializer`
+      
+
+   .. record:: ListDeserializer
+
+      
+      Returned by ``startList`` to provide the API for deserializing lists.
+      
+      See :record:`~IO.defaultSerializer.ListSerializer` for details of the
+      default format for lists.
+      
+
+      .. method:: proc ref readElement(type eltType): eltType throws
+
+      
+      Deserialize an element of the list.
+      
+      :returns: A deserialized value of type ``eltType``.
+      
+
+      .. method:: proc ref readElement(ref element) throws
+
+      
+      Deserialize ``element`` in-place as an element of the list.
+      
+
+      .. method:: proc endList() throws
+
+      
+      End deserialization of the current list by reading the character ``]``.
+      
+
+      .. method:: proc hasMore(): bool throws
+
+      
+      :returns: Returns ``true`` if there are more elements to read.
+      
+
+   .. method:: proc startArray(reader: fileReader) throws
+
+      
+      Start deserializing an array.
+      
+      :arg reader: The ``fileReader`` to use when deserializing.
+      
+      :returns: A new :type:`ArrayDeserializer`
+      
+
+   .. record:: ArrayDeserializer
+
+      
+      Returned by ``startArray`` to provide the API for deserializing arrays.
+      
+      See :record:`~IO.defaultSerializer.ArraySerializer` for details of the
+      default format for arrays.
+      
+
+      .. method:: proc ref startDim() throws
+
+      
+      Inform the :record:`~IO.defaultDeserializer.ArrayDeserializer` to start
+      deserializing a new dimension.
+      
+
+      .. method:: proc ref endDim() throws
+
+      
+      End deserialization of the current dimension.
+      
+
+      .. method:: proc ref readElement(type eltType): eltType throws
+
+      
+      Deserialize an element of the array.
+      
+      :returns: A deserialized value of type ``eltType``.
+      
+
+      .. method:: proc ref readElement(ref element) throws
+
+      
+      Deserialize ``element`` in-place as an element of the array.
+      
+
+      .. method:: proc endArray() throws
+
+      
+      End deserialization of the current array.
+      
+
+   .. method:: proc startMap(reader: fileReader) throws
+
+      
+      Start deserializing a map by reading the character ``{``.
+      
+      :arg reader: The ``fileReader`` to use when deserializing.
+      
+      :returns: A new :type:`MapDeserializer`
+      
+
+   .. record:: MapDeserializer
+
+      
+      Returned by ``startMap`` to provide the API for deserializing maps.
+      
+      See :record:`~IO.defaultSerializer.MapSerializer` for details of the default
+      format for map.
+      
+
+      .. method:: proc ref readKey(type keyType): keyType throws
+
+      
+      Deserialize and return a key of type ``keyType``.
+      
+
+      .. method:: proc ref readKey(ref key) throws
+
+      
+      Deserialize ``key`` in-place as a key of the map.
+      
+
+      .. method:: proc readValue(type valType): valType throws
+
+      
+      Deserialize and return a value of type ``valType``.
+      
+
+      .. method:: proc readValue(ref value) throws
+
+      
+      Deserialize ``value`` in-place as a value of the map.
+      
+
+      .. method:: proc endMap() throws
+
+      
+      End deserialization of the current map by reading the character ``}``.
+      
+
+      .. method:: proc hasMore(): bool throws
+
+      
+      :returns: Returns ``true`` if there are more elements to read.
+      
+      .. warning::
+      
+        Behavior of 'hasMore' is undefined when called between ``readKey`` and
+        ``readValue``.
+      
+
+.. data:: config param warnBinaryStructured: bool = true
+
+   .. warning::
+
+      This config param is unstable and may be removed without advance notice
+
+   
+   This config param allows users to disable a warning for reading and writing
+   classes and strings with :record:`~IO.binarySerializer` and
+   :record:`binaryDeserializer` following a format change in the 1.33 release.
+
+.. record:: binarySerializer
+
+   
+   A binary Serializer that implements a simple binary format.
+   
+   This Serializer supports an ``endian`` field which may be configured at
+   execution time.
+   
+   See :ref:`the serializers technote<ioSerializers>` for a general overview
+   of Serializers and their usage.
+   
+   .. warning::
+   
+     In the 1.32 release this format included bytes representing the length of
+     a string. Also, classes were serialized beginning with a single byte to
+     indicate whether the class value was ``nil``. This behavior was changed
+     in the subsequent release to provide users with a more flexible
+     serializer that did not insert bytes that the user did not request. A
+     compile-time warning will be issued to indicate that this behavior has
+     changed. Users can recompile with ``-swarnBinaryStructured=false`` to
+     silence the warning.
+   
+     To mimic the old behavior, please use the unstable
+     :mod:`ObjectSerialization` module.
+
+   .. attribute:: const endian: endianness = endianness.native
+
+      
+      'endian' represents the endianness of the binary output produced by this
+      Serializer.
+      
+
+   .. method:: proc ref serializeValue(writer: fileWriter(serializerType = binarySerializer, locking = false, ?), const val: ?t) throws
+
+      
+      Serialize ``val`` with ``writer``.
+      
+      Numeric values like integers, real numbers, and complex numbers are
+      serialized directly to the associated :record:`fileWriter` as binary data in
+      the specified endianness.
+      
+      Booleans are serialized as single byte unsigned values of either ``0`` or
+      ``1``.
+      
+      ``string`` values are serialized as a raw sequence of bytes that does not
+      include a null terminator, nor any bytes representing length. This means
+      that ``string`` values cannot be deserialized without manual intervention
+      by users to decide how their strings should be stored such that they can
+      be deserialized.
+      
+      The ``nil`` value is serialized as a single unsigned byte of value ``0``.
+      
+      Classes and records will have their ``serialize`` method invoked, passing
+      in ``writer`` and this Serializer as arguments. Please see the
+      :ref:`serializers technote<ioSerializers>` for more on the ``serialize``
+      method.
+      
+      Classes and records are expected to implement the ``writeSerializable``
+      interface. The ``serializable`` interface is also acceptable.
+      
+      .. note::
+      
+        Serializing and deserializing enums is not stable in this format.
+      
+      :arg writer: The ``fileWriter`` used to write serialized output.
+      :arg val: The value to be serialized.
+      
+
+   .. method:: proc startClass(writer: fileWriter(?), name: string, size: int) throws
+
+      
+      Start serializing a class and return a new ``AggregateSerializer``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg name: The name of the class type.
+      :arg size: The number of fields in the class.
+      
+      :returns: A new :type:`AggregateSerializer`
+      
+
+   .. method:: proc startRecord(writer: fileWriter(?), name: string, size: int) throws
+
+      
+      Start serializing a record and return a new ``AggregateSerializer``.
+      
+      :arg writer: The ``fileWriter`` to be used when serializing.
+      :arg name: The name of the record type.
+      :arg size: The number of fields in the class.
+      
+      :returns: A new :type:`AggregateSerializer`
+      
+
+   .. record:: AggregateSerializer
+
+      
+      Returned by :proc:`~IO.binarySerializer.startClass` or
+      :proc:`~IO.binarySerializer.startRecord` to provide the API for serializing
+      classes or records.
+      
+      In this simple binary format, classes and records do not begin or end with
+      any bytes indicating size, and instead serialize their field values in
+      ``binarySerializer``'s format.
+      
+      For example, a record with two ``uint(8)`` fields with values ``1`` and
+      ``2`` would be serialized as ``0x01`` followed by ``0x02`` (in raw binary).
+      
+
+      .. method:: proc writeField(name: string, const field: ?T) throws
+
+      
+      Serialize ``field`` in :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc startClass(writer, name: string, size: int) throws
+
+      
+      Start serializing a nested class inside the current class. In this
+      binary format, this has no impact on the serialized output.
+      
+
+      .. method:: proc endClass() throws
+
+      
+      End deserialization of this class.
+      
+
+      .. method:: proc endRecord() throws
+
+      
+      End deserialization of this record.
+      
+
+   .. method:: proc startTuple(writer: fileWriter(?), size: int) throws
+
+      
+      Start serializing a tuple and return a new :record:`TupleSerializer`.
+      
+      :arg writer: The :record:`fileWriter` to be used when serializing.
+      :arg size: The number of elements in the tuple.
+      
+      :returns: A new TupleSerializer
+      
+
+   .. record:: TupleSerializer
+
+      
+      Returned by :proc:`~IO.binarySerializer.startTuple` to provide the API for
+      serializing tuples.
+      
+      In this simple binary format, tuples do not begin or end with any bytes
+      indicating size, and instead serialize their elements sequentially in
+      :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc writeElement(const element: ?T) throws
+
+      
+      Serialize ``element`` in :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc endTuple() throws
+
+      
+      Ends serialization of the current tuple.
+      
+
+   .. method:: proc startList(writer: fileWriter(?), size: int) throws
+
+      
+      Start serializing a list by serializing ``size``.
+      
+      :arg writer: The :record:`fileWriter` to be used when serializing.
+      :arg size: The number of elements in the list.
+      
+      :returns: A new :record:`ListSerializer`
+      
+
+   .. record:: ListSerializer
+
+      
+      Returned by :proc:`~IO.binarySerializer.startList` to provide the API for
+      serializing lists.
+      
+      In this simple binary format, lists begin with the serialization of an
+      ``int`` representing the size of the list. This data is then followed by
+      the binary serialization of the specified number of elements.
+      
+
+      .. method:: proc writeElement(const element: ?) throws
+
+      
+      Serialize ``element`` in :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc endList() throws
+
+      
+      Ends serialization of  the current list.
+      
+
+   .. method:: proc startArray(writer: fileWriter(?), size: int) throws
+
+      
+      Start serializing an array and return a new :record:`ArraySerializer`.
+      
+      :arg writer: The :record:`fileWriter` to be used when serializing.
+      :arg size: The number of elements in the array.
+      
+      :returns: A new ArraySerializer
+      
+
+   .. record:: ArraySerializer
+
+      
+      Returned by :proc:`~IO.binarySerializer.startArray` to provide the API for
+      serializing arrays.
+      
+      In this simple binary format, arrays are serialized element by element
+      in the order indicated by the caller of :proc:`writeElement`. Dimensions and
+      the start or end of the array are not represented.
+      
+
+      .. method:: proc startDim(size: int) throws
+
+      
+      Start serializing a new dimension of the array.
+      
+
+      .. method:: proc endDim() throws
+
+      
+      Ends serialization of this dimension.
+      
+
+      .. method:: proc writeElement(const element: ?) throws
+
+      
+      Serialize ``element`` in :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc writeBulkElements(data: c_ptr(?eltType), numElements: int) throws where isNumericType(eltType)
+
+      
+      Serialize ``numElements`` number of elements in ``data``, provided that
+      the element type of ``data`` is a numeric type.
+      
+      This performance-motivated implementation of the optional
+      ``writeBulkElements`` will write the elements of ``data`` in the order
+      in which they are represented in memory.
+      
+      .. note::
+      
+        This method is only optimized for the case where the
+        :record:`binarySerializer` has been configured for ``native``
+        endianness.
+      
+      .. warning::
+      
+        This method should only be called when the ``data`` argument is located
+        on the same locale as the underlying ``file`` of this serializer.
+        Otherwise the ``c_ptr`` will be invalid.
+      
+
+      .. method:: proc endArray() throws
+
+      
+      Ends serialization of the current array.
+      
+
+   .. method:: proc startMap(writer: fileWriter(?), size: int) throws
+
+      
+      Start serializing a map by serializing ``size``.
+      
+      :arg writer: The :record:`fileWriter` to be used when serializing.
+      :arg size: The number of entries in the map.
+      
+      :returns: A new :record:`MapSerializer`
+      
+
+   .. record:: MapSerializer
+
+      
+      Returned by :proc:`~IO.binarySerializer.startMap` to provide the API for
+      serializing maps.
+      
+      In this simple binary format, maps begin with the serialization of an
+      ``int`` representing the size of the map. This data is then followed by the
+      binary serialization of the specified number of key-value pairs. The binary
+      serialization of a key-value pair has no structure, and simply consists of
+      the serialization of the key followed by the serialization of the value.
+      
+
+      .. method:: proc writeKey(const key: ?) throws
+
+      
+      Serialize ``key`` in :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc writeValue(const val: ?) throws
+
+      
+      Serialize ``val`` in :record:`binarySerializer`'s format.
+      
+
+      .. method:: proc endMap() throws
+
+      
+      Ends serialization of the current map.
+      
+
+.. record:: binaryDeserializer
+
+   
+   A binary Deserializer that implements a simple binary format.
+   
+   This Deserializer supports an ``endian`` field which may be configured at
+   execution time.
+   
+   See :ref:`the serializers technote<ioSerializers>` for a general overview
+   of Deserializers and their usage.
+   
+   Otherwise, please refer to :type:`binarySerializer` for a description of the
+   binary format. Individual methods on this type may clarify relevant behavior
+   specific to deserialization
+   
+   .. note::
+   
+     Deserializing :type:`~String.string` or :type:`~Bytes.bytes` types will
+     result in an :type:`~Errors.IllegalArgumentError` because these types cannot
+     currently be deserialized with the raw nature of the format.
+   
+   .. warning::
+   
+     In the 1.32 release this format included bytes representing the length of
+     a string. Also, classes were serialized beginning with a single byte to
+     indicate whether the class value was ``nil``. This behavior was changed
+     in the subsequent release to provide users with a more flexible
+     deserializer that did not read bytes that the user did not request. A
+     compile-time warning will be issued to indicate that this behavior has
+     changed. Users can recompile with ``-swarnBinaryStructured=false`` to
+     silence the warning.
+   
+     To mimic the old behavior, please use the unstable
+     :mod:`ObjectSerialization` module.
+   
+
+   .. attribute:: const endian: IO.endianness = IO.endianness.native
+
+      
+      'endian' represents the endianness that this Deserializer should use when
+      deserializing input.
+      
+
+   .. method:: proc ref deserializeType(reader: fileReader(?), type readType): readType throws
+
+      
+      Deserialize type ``readType`` with ``reader``.
+      
+      Classes and records will be deserialized using an appropriate initializer,
+      passing in ``reader`` and this Deserializer as arguments. If an
+      initializer is unavailable, this method may invoke the class or record's
+      ``deserialize`` method. Please see the :ref:`serializers technote<ioSerializers>` for more.
+      
+      Classes and records are expected to implement either the
+      ``initDeserializable`` or ``readDeserializable`` interfaces (or both). The
+      ``serializable`` interface is also acceptable.
+      
+      :arg reader: The :record:`fileReader` from which types are deserialized.
+      :arg readType: The type to be deserialized.
+      
+      :returns: A value of type ``readType``.
+      
+
+   .. method:: proc ref deserializeValue(reader: fileReader(?), ref val: ?readType): void throws
+
+      
+      Deserialize from ``reader`` directly into ``val``.
+      
+      Like :proc:`deserializeType`, but reads into an initialized value rather
+      than creating a new value. For classes and records, this method will first
+      attempt to invoke a ``deserialize`` method. If the ``deserialize`` method
+      is unavailable, this method may fall back on invoking a suitable
+      initializer and assigning the resulting value into ``val``. Please see the
+      :ref:`serializers technote<ioSerializers>` for more.
+      
+      Classes and records are expected to implement either the
+      ``readDeserializable`` or ``initDeserializable`` interfaces (or both). The
+      ``serializable`` interface is also acceptable.
+      
+      :arg reader: The :record:`fileReader` from which values are deserialized.
+      :arg val: The value into which this Deserializer will deserialize.
+      
+
+   .. method:: proc startClass(reader: fileReader(?), name: string) throws
+
+      
+      Start deserializing a class by returning an :record:`AggregateDeserializer`.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      :arg name: The name of the class type.
+      
+      :returns: A new :type:`AggregateDeserializer`
+      
+
+   .. method:: proc startRecord(reader: fileReader(?), name: string) throws
+
+      
+      Start deserializing a record by returning an
+      :record:`AggregateDeserializer`.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      :arg name: The name of the record type.
+      
+      :returns: A new :type:`AggregateDeserializer`
+      
+
+   .. record:: AggregateDeserializer
+
+      
+      Returned by :proc:`~IO.binaryDeserializer.startClass` or
+      :proc:`~IO.binaryDeserializer.startRecord` to provide the API for
+      deserializing classes or records.
+      
+      See :record:`binarySerializer.AggregateSerializer` for details of the
+      binary format for classes and records.
+      
+
+      .. method:: proc readField(name: string, type fieldType): fieldType throws
+
+      
+      Deserialize and return a value of type ``fieldType``.
+      
+
+      .. method:: proc readField(name: string, ref field) throws
+
+      
+      Deserialize ``field`` in-place.
+      
+
+      .. method:: proc startClass(reader, name: string) throws
+
+      
+      Start deserializing a nested class inside the current class.
+      
+      See :proc:`binarySerializer.AggregateSerializer.startClass` for details
+      on inheritance on the binary format.
+      
+      :returns: A new :record:`~IO.binaryDeserializer.AggregateDeserializer`
+      
+
+      .. method:: proc endClass() throws
+
+      
+      End deserialization of the current class.
+      
+
+      .. method:: proc endRecord() throws
+
+      
+      End deserialization of the current record.
+      
+
+   .. method:: proc startTuple(reader: fileReader(?)) throws
+
+      
+      Start deserializing a tuple by returning a :record:`TupleDeserializer`.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      
+      :returns: A new :type:`TupleDeserializer`
+      
+
+   .. record:: TupleDeserializer
+
+      
+      Returned by :proc:`~IO.binaryDeserializer.startTuple` to provide the API for
+      deserializing tuples.
+      
+      See :record:`binarySerializer.TupleSerializer` for details of the binary
+      format for tuples.
+      
+
+      .. method:: proc readElement(type eltType): eltType throws
+
+      
+      Deserialize an element of the tuple.
+      
+      :returns: A deserialized value of type ``eltType``.
+      
+
+      .. method:: proc readElement(ref element) throws
+
+      
+      Deserialize ``element`` in-place as an element of the tuple.
+      
+
+      .. method:: proc endTuple() throws
+
+      
+      End deserialization of the current tuple.
+      
+
+   .. method:: proc startList(reader: fileReader(?)) throws
+
+      
+      Start deserializing a list by returning a :record:`ListDeserializer`.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      
+      :returns: A new :record:`ListDeserializer`
+      
+
+   .. record:: ListDeserializer
+
+      
+      Returned by :proc:`~IO.binaryDeserializer.startList` to provide the API for
+      deserializing lists.
+      
+      See :record:`binarySerializer.ListSerializer` for details of the binary
+      format for lists.
+      
+
+      .. method:: proc ref readElement(type eltType): eltType throws
+
+      
+      Deserialize an element of the list.
+      
+      :returns: A deserialized value of type ``eltType``.
+      
+
+      .. method:: proc ref readElement(ref element) throws
+
+      
+      Deserialize ``element`` in-place as an element of the list.
+      
+
+      .. method:: proc endList() throws
+
+      
+      End deserialization of the current list.
+      
+      :throws: A :type:`~OS.BadFormatError` if there are remaining elements.
+      
+
+      .. method:: proc hasMore(): bool throws
+
+      
+      :returns: Returns ``true`` if there are more elements to read.
+      
+
+   .. method:: proc startArray(reader: fileReader(?)) throws
+
+      
+      Start deserializing an array by returning an :record:`ArrayDeserializer`.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      
+      :returns: A new :record:`ArrayDeserializer`
+      
+
+   .. record:: ArrayDeserializer
+
+      
+      Returned by :proc:`~IO.binaryDeserializer.startArray` to provide the API for
+      deserializing arrays.
+      
+      See :record:`binarySerializer.ArraySerializer` for details of the binary
+      format for arrays.
+      
+
+      .. method:: proc startDim() throws
+
+      
+      Inform the :record:`~IO.binaryDeserializer.ArrayDeserializer` to start
+      deserializing a new dimension.
+      
+
+      .. method:: proc endDim() throws
+
+      
+      End deserialization of the current dimension.
+      
+
+      .. method:: proc readElement(type eltType): eltType throws
+
+      
+      Deserialize an element of the list.
+      
+      :returns: A deserialized value of type ``eltType``.
+      
+
+      .. method:: proc readElement(ref element) throws
+
+      
+      Deserialize ``element`` in-place as an element of the array.
+      
+
+      .. method:: proc readBulkElements(data: c_ptr(?eltType), numElements: int) throws where isNumericType(eltType)
+
+      
+      Deserialize ``numElements`` number of elements into ``data``, provided
+      that the element type of ``data`` is a numeric type.
+      
+      This performance-motivated implementation of the optional
+      ``readBulkElements`` will read the elements of ``data`` in the order in
+      which they are represented in memory.
+      
+      .. note::
+      
+        This method is only optimized for the case where the
+        :record:`binaryDeserializer` has been configured for ``native``
+        endianness.
+      
+      .. warning::
+      
+        This method should only be called when the ``data`` argument is located
+        on the same locale as the underlying ``file`` of this deserializer.
+        Otherwise the ``c_ptr`` will be invalid.
+      
+
+      .. method:: proc endArray() throws
+
+      
+      End deserialization of the current array.
+      
+
+   .. method:: proc startMap(reader: fileReader(?)) throws
+
+      
+      Start deserializing a map by returning a ``MapDeserializer``.
+      
+      :arg reader: The :record:`fileReader` to use when deserializing.
+      
+      :returns: A new :type:`MapDeserializer`
+      
+
+   .. record:: MapDeserializer
+
+      
+      Returned by :proc:`~IO.binaryDeserializer.startMap` to provide the API for
+      deserializing maps.
+      
+      See :record:`binarySerializer.MapSerializer` for details of the binary
+      format for map.
+      
+
+      .. method:: proc ref readKey(type keyType): keyType throws
+
+      
+      Deserialize and return a key of type ``keyType``.
+      
+
+      .. method:: proc ref readKey(ref key) throws
+
+      
+      Deserialize ``key`` in-place as a key of the map.
+      
+
+      .. method:: proc readValue(type valType): valType throws
+
+      
+      Deserialize and return a value of type ``valType``.
+      
+
+      .. method:: proc readValue(ref value) throws
+
+      
+      Deserialize ``value`` in-place as a value of the map.
+      
+
+      .. method:: proc endMap() throws
+
+      
+      End deserialization of the current map.
+      
+      :throws: A :type:`~OS.BadFormatError` if there are entries remaining.
+      
+
+      .. method:: proc hasMore(): bool throws
+
+      
+      :returns: Returns ``true`` if there are more elements to read.
+      
+      .. warning::
+      
+        Behavior of 'hasMore' is undefined when called between :proc:`readKey`
+        and :proc:`readValue`.
+      
+
+.. method:: proc fileReader.withDeserializer(type deserializerType): fileReader(this.locking, deserializerType)
+
+   
+   Create and return an alias of this :record:`fileReader` configured to use
+   ``deserializerType`` for deserialization. The provided ``deserializerType``
+   must be able to be default-initialized.
+   
+   .. warning::
+   
+     It is an error for the returned alias to outlive the original
+     :record:`fileReader`.
+
+.. method:: proc fileReader.withDeserializer(in deserializer: ?dt): fileReader(this.locking, dt)
+
+   
+   Create and return an alias of this :record:`fileReader` configured to use
+   ``deserializer`` for deserialization.
+   
+   .. warning::
+   
+     It is an error for the returned alias to outlive the original
+     :record:`fileReader`.
+
+.. method:: proc fileWriter.withSerializer(type serializerType): fileWriter(this.locking, serializerType)
+
+   
+   Create and return an alias of this :record:`fileWriter` configured to use
+   ``serializerType`` for serialization. The provided ``serializerType`` must be
+   able to be default-initialized.
+   
+   .. warning::
+   
+     It is an error for the returned alias to outlive the original
+     :record:`fileWriter`.
+
+.. method:: proc fileWriter.withSerializer(in serializer: ?st): fileWriter(this.locking, st)
+
+   
+   Create and return an alias of this :record:`fileWriter` configured to use
+   ``serializer`` for serialization.
+   
+   .. warning::
+   
+     It is an error for the returned alias to outlive the original
+     :record:`fileWriter`.
+
+.. method:: proc fileReader.lock() throws
+
+   
+   Acquire a fileReader's lock. See :ref:`locking-filereaders-and-filewriters`
+   for more details.
+   
+   :throws SystemError: If the lock could not be acquired.
+   
+
+.. method:: proc fileWriter.lock() throws
+
+   
+   Acquire a fileWriter's lock. See :ref:`locking-filereaders-and-filewriters`
+   for more details.
+   
+   :throws SystemError: If the lock could not be acquired.
+   
+
+.. method:: proc fileReader.unlock()
+
+   
+   Release a fileReader's lock. See :ref:`locking-filereaders-and-filewriters`
+   for more details.
+   
+
+.. method:: proc fileWriter.unlock()
+
+   
+   Release a fileWriter's lock. See :ref:`locking-filereaders-and-filewriters`
+   for more details.
+   
+
+.. method:: proc fileReader.offset(): int(64)
+
+   
+   Return the current offset of a :record:`fileReader`.
+   
+   If the fileReader can be used by multiple tasks, take care when doing
+   operations that rely on the fileReader's current offset. To prevent race
+   conditions, lock the fileReader with :proc:`fileReader.lock` before calling
+   :proc:`fileReader.offset`, then unlock it afterwards with
+   :proc:`fileReader.unlock`.
+   
+   :returns: the current offset of the fileReader
+   
+
+.. method:: proc fileWriter.offset(): int(64)
+
+   
+   Return the current offset of a :record:`fileWriter`.
+   
+   If the fileWriter can be used by multiple tasks, take care when doing
+   operations that rely on the fileWriter's current offset. To prevent race
+   conditions, lock the fileWriter with :proc:`fileWriter.lock` before calling
+   :proc:`fileWriter.offset`, then unlock it afterwards with
+   :proc:`fileWriter.unlock`.
+   
+   :returns: the current offset of the fileWriter
+   
+
+.. method:: proc fileReader.advance(amount: int(64)) throws
+
+   
+   Move a :record:`fileReader` offset forward.
+   
+   This routine will consume the next ``amount`` bytes from the file, storing
+   them in the ``fileReader``'s buffer. This can be useful for advancing to some
+   known offset in the file before reading.
+   
+   Note that calling :proc:`fileReader.mark` before advancing will cause at
+   least ``amount`` bytes to be retained in memory until
+   :proc:`~fileReader.commit` or :proc:`~fileReader.revert` are called. As such,
+   it is typical to advance by a small number of bytes during an I/O transaction.
+   
+   To make large adjustments to the offset, consider creating a new
+   ``fileReader`` or using :proc:`~fileReader.seek` instead.
+   
+   :throws EofError: If EOF is reached before the requested number of bytes can
+                     be consumed. The offset will be left at EOF.
+   :throws SystemError: For other failures, for which fileReader offset is not
+                        moved.
+   
+
+.. method:: proc fileWriter.advance(amount: int(64)) throws
+
+   
+   Move a :record:`fileWriter` offset forward.
+   
+   This routine will populate the ``fileWriter``'s buffer as the offset is moved
+   forward by ``amount`` bytes. The buffer can be populated with any of the
+   following data depending on the ``fileWriter``'s configuration and whether
+   it was marked before advancing:
+   
+   * zeros
+   * bytes directly from the file
+   * bytes from a previously buffered portion of the file
+   
+   The contents of the buffer will subsequently be written to the file by the
+   buffering mechanism.
+   
+   Note that calling :proc:`fileWriter.mark` before advancing will cause at
+   least ``amount`` bytes to be retained in memory until
+   :proc:`~fileWriter.commit` or :proc:`~fileWriter.revert` are called. As such,
+   it is typical to advance by a small number of bytes during an I/O transaction.
+   
+   To make large adjustments to the offset, consider creating a new
+   ``fileWriter`` or using :proc:`~fileWriter.seek` instead.
+   
+   :throws EofError: If EOF is reached before the offset can be advanced by the
+                     requested number of bytes. The offset will be left at EOF.
+   :throws SystemError: For other failures, for which fileWriter offset is not
+                        moved.
+   
+
+.. method:: proc fileReader.advanceThrough(separator: ?t) throws where t == string || t == bytes
+
+   
+   Read until a separator is found, leaving the :record:`fileReader` offset just
+   after it.
+   
+   If the separator cannot be found, the ``fileReader`` offset is left at EOF
+   and an ``UnexpectedEofError`` is thrown.
+   
+   .. note::
+   
+    The implementation is faster for single-byte ``string`` or ``bytes``
+    separators.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string`
+    or :type:`~Bytes.bytes`.
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws EofError: If the ``fileReader`` offset was already at EOF.
+   :throws UnexpectedEofError: If the requested ``separator`` could not
+                               be found.
+   :throws SystemError: If data could not be read from the ``file``.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.advanceThroughNewline() throws
+
+   
+   Read until a newline is found, leaving the :record:`fileReader` offset just
+   after it.
+   
+   If a newline cannot be found, the ``fileReader`` offset is left at EOF and
+   an ``UnexpectedEofError`` is thrown.
+   
+   :throws EofError: If the ``fileReader`` offset was already at EOF.
+   :throws UnexpectedEofError: A newline couldn't be found before the end of the
+                               file.
+   :throws SystemError: If data could not be read from the ``file``.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.advanceTo(separator: ?t) throws where t == string || t == bytes
+
+   
+   Read until a separator is found, leaving the :record:`fileReader` offset just
+   before it.
+   
+   If the separator cannot be found, the ``fileReader`` offset is left at EOF
+   and an ``UnexpectedEofError`` is thrown.
+   
+   .. note::
+   
+    The implementation is faster for single-byte ``string`` or ``bytes``
+    separators.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string` or
+    :type:`~Bytes.bytes`.
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws EofError: If the ``fileReader`` offset is already at EOF.
+   :throws UnexpectedEofError: If the requested ``separator`` could not be found.
+   :throws SystemError: If data could not be read from the ``fileReader``.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.mark() throws
+
+   
+    *Mark* a :record:`fileReader` - that is, save the current offset of the
+    ``fileReader`` on its *mark stack*.
+   
+    The *mark stack* stores several file offsets. The ``fileReader`` will keep
+    the region of the file between its minimum and maximum *mark stack* values
+    buffered in memory so that IO operations can be undone. As a result, it is
+    possible to perform *I/O transactions* on a ``fileReader``. The basic steps
+    for an *I/O transaction* are:
+   
+     * *mark* the current offset with :proc:`fileReader.mark`
+     * do something speculative (e.g. try to read 200 bytes of anything followed
+       by a 'B')
+     * if the speculative operation was successful, commit the changes by
+       calling :proc:`fileReader.commit`
+     * if the speculative operation was not successful, go back to the *mark* by
+       calling :proc:`fileReader.revert`. Subsequent I/O operations will work
+       as though nothing happened.
+   
+    If a fileReader has ``locking==true``, :proc:`~fileReader.mark` should only
+    be called once it has been locked with :proc:`fileReader.lock`. The
+    fileReader should not be unlocked with :proc:`fileReader.unlock` until
+    after the mark has been committed with :proc:`~fileReader.commit` or reverted
+    with :proc:`~fileReader.revert`.
+   
+    See :ref:`io-transactions` for more.
+   
+   .. note::
+   
+     Note that it is possible to request an entire file be buffered in memory
+     using this feature, for example by *marking* at offset=0 and then
+     advancing to the end of the file. It is important to be aware of these
+     memory space requirements.
+   
+   :returns: The offset that was marked
+   :throws SystemError: if marking the ``fileReader`` failed
+   
+
+.. method:: proc fileWriter.mark() throws
+
+   
+    *Mark* a :record:`fileWriter` - that is, save the current offset of the
+    ``fileWriter`` on its *mark stack*.
+   
+    The *mark stack* stores several file offsets. The ``fileWriter`` will keep
+    the region of the file between its minimum and maximum *mark stack* values
+    buffered in memory so that IO operations can be undone. As a result, it
+    is possible to perform *I/O transactions* on a ``fileWriter``. The basic
+    steps for an *I/O transaction* are:
+   
+     * *mark* the current offset with :proc:`fileWriter.mark`
+     * do something speculative (e.g. try to write 200 bytes)
+     * if the speculative operation was successful, commit the changes by
+       calling :proc:`fileWriter.commit`
+     * if the speculative operation was not successful, go back to the *mark* by
+       calling :proc:`fileWriter.revert`. Subsequent I/O operations will work
+       as though nothing happened.
+   
+    If a fileWriter has ``locking==true``, :proc:`~fileWriter.mark` should only
+    be called once it has been locked with :proc:`fileWriter.lock`. The
+    fileWriter should not be unlocked with :proc:`fileWriter.unlock` until
+    after the mark has been committed with :proc:`~fileWriter.commit` or reverted
+    with :proc:`~fileWriter.revert`.
+   
+    See :ref:`io-transactions` for more.
+   
+   .. note::
+   
+     Note that it is possible to request an entire file be buffered in memory
+     using this feature, for example by *marking* at offset=0 and then
+     advancing to the end of the file. It is important to be aware of these
+     memory space requirements.
+   
+   :returns: The offset that was marked
+   :throws SystemError: if marking the ``fileWriter`` failed
+   
+
+.. method:: proc fileReader.revert()
+
+   
+   Abort an *I/O transaction* by popping from the ``fileReader``'s *mark stack*
+   and adjusting its position to that offset. See :ref:`io-transactions` for
+   more.
+   
+   This routine should only be called on a fileReader that has already
+   been marked. If called on a fileReader with ``locking=true``, the fileReader
+   should have already been locked manually with :proc:`~fileReader.lock` before
+   :proc:`~fileReader.mark` was called.
+
+.. method:: proc fileWriter.revert()
+
+   
+   Abort an *I/O transaction* by popping from the ``fileWriter``'s *mark stack*
+   and adjusting its position to that offset. See :ref:`io-transactions` for
+   more.
+   
+   This routine should only be called on a fileWriter that has already
+   been marked. If called on a fileWriter with ``locking=true``, the fileWriter
+   should have already been locked manually with :proc:`~fileWriter.lock` before
+   :proc:`~fileWriter.mark` was called.
+
+.. method:: proc fileReader.commit()
+
+   
+   Commit an *I/O transaction* by popping from the ``fileReader``'s *mark stack*
+   and leaving its position in the file unchanged. See :ref:`io-transactions` for
+   more.
+   
+   This routine should only be called on a fileReader that has already
+   been marked. If called on a fileReader with ``locking=true``, the fileReader
+   should have already been locked manually with :proc:`~fileReader.lock` before
+   :proc:`~fileReader.mark` was called.
+
+.. method:: proc fileWriter.commit()
+
+   
+   Commit an *I/O transaction* by popping from the ``fileWriter``'s *mark stack*
+   and leaving its position in the file unchanged. See :ref:`io-transactions` for
+   more.
+   
+   This routine should only be called on a fileWriter that has already
+   been marked. If called on a fileWriter with ``locking=true``, the fileWriter
+   should have already been locked manually with :proc:`~fileWriter.lock` before
+   :proc:`~fileWriter.mark` was called.
+
+.. method:: proc fileReader.seek(region: range(?)) throws
+
+   
+   Adjust a :record:`fileReader`'s region. The ``fileReader``'s buffer will be
+   discarded.
+   
+   This routine has the following constraints:
+   
+    * the underlying file must be seekable (sockets and pipes are not seekable)
+    * the ``fileReader`` must be non-locking (to avoid race conditions if two
+      tasks seek and read simultaneously)
+    * the ``fileReader`` must not be marked (see: :proc:`fileReader.mark`)
+   
+   If the ``fileReader`` offset needs to be updated during an I/O transaction
+   or if discarding the buffer will incur a performance penalty, consider using
+   :proc:`fileReader.advance` instead.
+   
+   :arg region: the new region, measured in bytes and counting from 0. An upper
+                bound can be omitted (e.g., ``r.seek(range=42..)``). See
+                :ref:`region <filereader-filewriter-regions>` for more.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws SystemError: if seeking failed. Possible reasons include
+                         that the file is not seekable, or that the
+                         fileReader is marked.
+   :throws IllegalArgumentError: if region argument did not have a lower bound
+   
+
+.. method:: proc fileWriter.seek(region: range(?)) throws
+
+   
+   Adjust a :record:`fileWriter`'s region. The ``fileWriter``'s buffer will be
+   discarded.
+   
+   This routine has the following constraints:
+   
+    * the underlying file must be seekable (sockets and pipes are not seekable)
+    * the ``fileWriter`` must be non-locking (to avoid race conditions if two
+      tasks seek and read simultaneously)
+    * the ``fileWriter`` must not be marked (see: :proc:`fileWriter.mark`)
+   
+   If the ``fileWriter`` offset needs to be updated during an I/O transaction
+   or if discarding the buffer will incur a performance penalty, consider using
+   :proc:`fileWriter.advance` instead.
+   
+   :arg region: the new region, measured in bytes and counting from 0. An upper
+                bound can be omitted (e.g., ``w.seek(range=42..)``). See
+                :ref:`region <filereader-filewriter-regions>` for more.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws SystemError: if seeking failed. Possible reasons include
+                         that the file is not seekable, or that the
+                         fileReader is marked.
+   :throws IllegalArgumentError: if region argument did not have a lower bound
+   
+
+.. method:: proc fileReader.readWriteThisFromLocale()
+
+   .. warning::
+
+      'readWriteThisFromLocale' is unstable and may be removed or modified in a future release
+
+   
+   
+   Return the locale on which an ongoing I/O was started with a fileReader.
+   This method will return ``nilLocale`` unless it is called on a fileReader
+   that is the formal argument to a `readThis` method.
+   
+   
+
+.. method:: proc fileWriter.readWriteThisFromLocale()
+
+   .. warning::
+
+      'readWriteThisFromLocale' is unstable and may be removed or modified in a future release
+
+   
+   
+   Return the locale on which an ongoing I/O was started with a fileWriter.
+   This method will return ``nilLocale`` unless it is called on a fileWriter
+   that is the formal argument to a `writeThis` method.
+   
+   
+
+.. data:: config param OpenReaderLockingDefault = true
+
+   .. warning::
+
+      OpenReaderLockingDefault is deprecated and no longer controls openReader's behavior
+
+.. function:: proc openReader(path: string, param locking = false, region: range(?) = 0.., hints = ioHintSet.empty, in deserializer: ?dt = defaultSerializeVal(false)): fileReader(locking, dt) throws
+
+   
+   
+   Open a file at a particular path and return a :record:`fileReader` for it.
+   This function is equivalent to calling :proc:`open` and then
+   :proc:`file.reader` on the resulting file.
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg locking: compile-time argument to determine whether or not the
+                 fileReader should use locking; sets the
+                 corresponding parameter of the :record:`fileReader` type.
+                 Defaults to ``false``
+   :arg region: zero-based byte offset indicating where in the file the
+               fileReader should start and stop reading. Defaults to
+               ``0..``, meaning from the start of the file to no specified end
+               point.
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :arg deserializer: deserializer to use when reading.
+   :returns: an open fileReader to the requested resource.
+   
+   .. Note::
+   
+     ``locking=true`` should only be used when a fileReader will be used by
+     multiple tasks concurrently.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   :throws FileNotFoundError: If part of the provided path did not exist
+   :throws PermissionError: If part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: If part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: If a fileReader could not be returned.
+   :throws IllegalArgumentError: If trying to read explicitly prior to byte
+                                 0.
+    
+
+.. function:: proc openStringReader(const s: string, in deserializer: ?dt = defaultSerializeVal(false)): fileReader(false, dt) throws
+
+   .. warning::
+
+      'openStringReader' is an experimental feature; its name and behavior are subject to change
+
+   
+   Create a :record:`fileReader` around a :type:`~String.string`
+   
+   Note that the string is copied into a local memory file, so it can be modified
+   after the ``fileReader`` is created without affecting the contents of the
+   ``fileReader``.
+   
+   :arg s: the ``string`` to read from
+   :arg deserializer: deserializer to use when reading.
+   
+   :returns: a ``fileReader`` reading from the string
+   
+
+.. function:: proc openBytesReader(const b: bytes, in deserializer: ?dt = defaultSerializeVal(false)): fileReader(false, dt) throws
+
+   .. warning::
+
+      'openBytesReader' is an experimental feature; its name and behavior are subject to change
+
+   
+   Create a :record:`fileReader` around a :type:`~Bytes.bytes`
+   
+   Note that the bytes is copied into a local memory file, so it can be modified
+   after the ``fileReader`` is created without affecting the contents of the
+   ``fileReader``.
+   
+   :arg b: the ``bytes`` to read from
+   :arg deserializer: deserializer to use when reading.
+   
+   :returns: a ``fileReader`` reading from the string
+   
+
+.. data:: config param OpenWriterLockingDefault = true
+
+   .. warning::
+
+      OpenWriterLockingDefault is deprecated and no longer controls openWriter's behavior
+
+.. function:: proc openWriter(path: string, param locking = false, hints = ioHintSet.empty, in serializer: ?st = defaultSerializeVal(true)): fileWriter(locking, st) throws
+
+   
+   
+   Open a file at a particular path and return a :record:`fileWriter` for it.
+   This function is equivalent to calling :proc:`open` with ``ioMode.cwr`` and then
+   :proc:`file.writer` on the resulting file.
+   
+   :arg path: which file to open (for example, "some/file.txt").
+   :arg locking: compile-time argument to determine whether or not the
+                 fileWriter should use locking; sets the
+                 corresponding parameter of the :record:`fileWriter` type.
+                 Defaults to ``false``
+   :arg hints: optional argument to specify any hints to the I/O system about
+               this file. See :record:`ioHintSet`.
+   :arg serializer: serializer to use when writing.
+   :returns: an open fileWriter to the requested resource.
+   
+   .. Note::
+   
+     ``locking=true`` should only be used when a fileWriter will be used by
+     multiple tasks concurrently.
+   
+   :throws FileNotFoundError: If part of the provided path did not exist
+   :throws PermissionError: If part of the provided path had inappropriate
+                            permissions
+   :throws NotADirectoryError: If part of the provided path was expected to
+                               be a directory but was not
+   :throws SystemError: If a fileWriter could not be returned.
+   :throws IllegalArgumentError: If trying to write explicitly prior to byte
+                                 0.
+
+.. method:: proc file.reader(param locking = false, region: range(?) = 0.., hints = ioHintSet.empty, in deserializer: ?dt = defaultSerializeVal(false)): fileReader(locking, dt) throws
+
+   
+   Create a :record:`fileReader` that supports reading from a file. See
+   :ref:`about-io-overview`.
+   
+   The ``region=`` argument defines the portion of the file that the fileReader
+   will read from.  This is a byte offset; the beginning of the file is at the
+   offset 0.  The default for this argument enables the fileReader to access the
+   entire file.
+   
+   A fileReader will never read beyond its maximum end offset. In addition,
+   reading from a fileReader beyond the end of the underlying file will not
+   extend that file.  Reading beyond the end of the file or beyond the end
+   offset of the fileReader will produce the error ``OS.EofError`` (or just
+   return `false` in many cases such as :proc:`fileReader.read`) to indicate
+   that the end was reached.
+   
+   :arg locking: compile-time argument to determine whether or not the
+                 fileReader should use locking; sets the
+                 corresponding parameter of the :record:`fileReader` type.
+                 Defaults to ``true`` (*default deprecated, see warning below*).
+   :arg region: zero-based byte offset indicating where in the file the
+               fileReader should start and stop reading. Defaults to
+               ``0..`` - meaning from the start of the file to no end point.
+   :arg hints: provide hints about the I/O that this fileReader will perform.
+               See :record:`ioHintSet`. The default value of `ioHintSet.empty`
+               will cause the fileReader to use the hints provided when the
+               file was opened.
+   :arg deserializer: deserializer to use when reading.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   .. warning::
+   
+      The default value for ``locking`` will be removed in an upcoming release.
+      To avoid the warning, specify the value of ``locking`` explicitly.
+   
+      Note that ``locking=true`` should only be used when a fileReader will be
+      used by multiple tasks concurrently.
+   
+   
+   :throws SystemError: If a fileReader could not be returned.
+   :throws IllegalArgumentError: If trying to read explicitly prior to
+                                 byte 0.
+   
+
+.. method:: proc file.writer(param locking = false, region: range(?) = 0.., hints = ioHintSet.empty, in serializer: ?st = defaultSerializeVal(true)): fileWriter(locking, st) throws
+
+   
+   Create a :record:`fileWriter` that supports writing to a file. See
+   :ref:`about-io-overview`.
+   
+   The ``region=`` argument defines the portion of the file that the fileWriter
+   will write to.  This is a byte offset; the beginning of the file is at the
+   offset 0.  The default for this argument enables the fileWriter to access the
+   entire file.
+   
+   When a fileWriter writes to a file, it will replace file data that was
+   previously stored at the relevant offset. If the offset is beyond the
+   end of the file, the file will be extended.
+   
+   A fileWriter will never write beyond its maximum end offset.  It will
+   extend the file only as necessary to store data written to the fileWriter. In
+   other words, specifying the high bound of the region argument here does not
+   impact the file size directly; it impacts only the section of the file that
+   this fileWriter can write to. After all fileWriters to a file are closed,
+   that file will have a size equal to the last offset written to by any
+   fileWriter.
+   
+   :arg locking: compile-time argument to determine whether or not the
+                 fileWriter should use locking; sets the
+                 corresponding parameter of the :record:`fileWriter` type.
+                 Defaults to ``true`` (*default deprecated, see warning below*).
+   :arg region: zero-based byte offset indicating where in the file the
+               fileWriter should start and stop writing. Defaults to
+               ``0..`` - meaning from the start of the file to no specified end
+               point.
+   :arg hints: provide hints about the I/O that this fileWriter will perform.
+               See :record:`ioHintSet`. The default value of `ioHintSet.empty`
+               will cause the fileWriter to use the hints provided when the
+               file was opened.
+   :arg serializer: serializer to use when writing.
+   
+   .. warning::
+   
+      The region argument will ignore any specified stride other than 1.
+   
+   .. warning::
+   
+      The default value for ``locking`` will be removed in an upcoming release.
+      To avoid the warning, specify the value of ``locking`` explicitly.
+   
+      Note that ``locking=true`` should only be used when a fileWriter will be
+      used by multiple tasks concurrently.
+   
+   
+   :throws SystemError: If a fileWriter could not be returned.
+   :throws IllegalArgumentError: If trying to write explicitly prior to
+                                 byte 0.
+   
+
+.. method:: proc fileReader.readLiteral(literal: string, ignoreWhitespace = true): void throws
+
+   
+   Advances the offset of a :record:`fileReader` within the file by reading the
+   exact text of the given string ``literal`` from the fileReader.
+   
+   If the string is not matched exactly, then the fileReader's offset is
+   unchanged. In such cases a :class:`OS.BadFormatError` will be thrown, unless
+   the end of the fileReader is encountered in which case an :class:`OS.EofError`
+   will be thrown.
+   
+   By default this method will ignore leading whitespace in the file when
+   attempting to read a literal (leading whitespace in the ``literal`` itself
+   is still matched against whitespace in the file).
+   
+   :arg literal: the string to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :throws BadFormatError: If literal could not be matched.
+   :throws EofError: If end of fileReader is encountered.
+   
+
+.. method:: proc fileReader.readLiteral(literal: bytes, ignoreWhitespace = true): void throws
+
+   
+   Advances the offset of a fileReader by reading the exact bytes of the given
+   ``literal`` from the :record:`fileReader`.
+   
+   If the bytes are not matched exactly, then the fileReader's offset is
+   unchanged. In such cases a :class:`OS.BadFormatError` will be thrown, unless
+   the end of the ``fileReader`` is encountered in which case an
+   :class:`OS.EofError` will be thrown.
+   
+   By default this method will ignore leading whitespace in the file when
+   attempting to read a literal (leading whitespace in the ``literal`` itself
+   is still matched against whitespace in the file).
+   
+   :arg literal: the bytes to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :throws BadFormatError: If literal could not be matched.
+   :throws EofError: If end of the ``fileReader`` is encountered.
+   
+
+.. method:: proc fileReader.readNewline(): void throws
+
+   
+   Advances the offset of the :record:`fileReader` by reading a newline.
+   
+   If a newline is not matched exactly, then the fileReader's offset is
+   unchanged. In such cases a :class:`OS.BadFormatError` will be thrown, unless
+   the end of the ``fileReader`` is encountered in which case an
+   :class:`OS.EofError` will be thrown. By default this method will ignore
+   leading whitespace when attempting to read a newline.
+   
+   :throws BadFormatError: If a newline could not be matched.
+   :throws EofError: If end of the ``fileReader`` is encountered.
+
+.. method:: proc fileReader.matchLiteral(literal: string, ignoreWhitespace = true): bool throws
+
+   
+   Advances the offset of a :record:`fileReader` by reading the exact text of the
+   given string ``literal`` from the fileReader.
+   
+   If the string is not matched exactly, then the fileReader's offset is
+   unchanged and this method will return ``false``. In other words, this
+   fileReader will return ``false`` in the cases where
+   :proc:`fileReader.readLiteral` would throw a :class:`OS.BadFormatError` or an
+   :class:`OS.EofError`.
+   
+   By default this method will ignore leading whitespace in the file when
+   attempting to read a literal (leading whitespace in the ``literal`` itself
+   is still matched against whitespace in the file).
+   
+   :arg literal: the string to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :returns: ``true`` if the read succeeded, and ``false`` on end of file or if
+             the literal could not be matched.
+
+.. method:: proc fileReader.matchLiteral(literal: bytes, ignoreWhitespace = true): bool throws
+
+   
+   Advances the offset of a :record:`fileReader` by reading the exact bytes of
+   the given ``literal`` from the ``fileReader``.
+   
+   If the bytes are not matched exactly, then the fileReader's offset is
+   unchanged and this method will return ``false``. In other words, this
+   fileReader will return ``false`` in the cases where
+   :proc:`fileReader.readLiteral` would throw a :class:`OS.BadFormatError` or an
+   :class:`OS.EofError`.
+   
+   By default this method will ignore leading whitespace in the file when
+   attempting to read a literal (leading whitespace in the ``literal`` itself
+   is still matched against whitespace in the file).
+   
+   :arg literal: the bytes to be matched.
+   :arg ignoreWhitespace: determines whether leading whitespace is ignored.
+   
+   :returns: ``true`` if the read succeeded, and ``false`` on end of file or if
+             the literal could not be matched.
+
+.. method:: proc fileReader.matchNewline(): bool throws
+
+   
+   Advances the offset of the :record:`fileReader` by reading a newline.
+   
+   If a newline is not matched exactly, then the fileReader's offset is
+   unchanged and this method will return ``false``. In other words, this
+   fileReader will return ``false`` in the cases where
+   :proc:`fileReader.readNewline` would throw a :class:`OS.BadFormatError` or an
+   :class:`OS.EofError`.
+   
+   By default this method will ignore leading whitespace when attempting to
+   read a newline.
+   
+   :returns: ``true`` if the read succeeded, and ``false`` on end of file or if
+             the newline could not be matched.
+
+.. method:: proc fileWriter.writeLiteral(literal: string): void throws
+
+   
+   Writes a string to the :record:`fileWriter`, ignoring any formatting
+   configured for this ``fileWriter``.
+
+.. method:: proc fileWriter.writeLiteral(literal: bytes): void throws
+
+   
+   Writes bytes to the :record:`fileWriter`, ignoring any formatting configured
+   for this ``fileWriter``.
+
+.. method:: proc fileWriter.writeNewline(): void throws
+
+   
+   Writes a newline to the :record:`fileWriter`, ignoring any formatting
+   configured for this ``fileWriter``.
+
+.. itermethod:: iter fileReader.lines(stripNewline = false, type t = string): t where t == string || t == bytes
+
+   
+   Iterate over all of the lines ending in ``\n`` in a :record:`fileReader` - the
+   fileReader lock will be held while iterating over the lines.
+   
+   This iterator will halt on internal :ref:`system errors<io-general-sys-error>`.
+   In the future, iterators are intended to be able to throw in such cases.
+   
+   **Example:**
+   
+   .. code-block:: chapel
+   
+     var r = openReader("ints.txt"),
+         sum = 0;
+   
+     forall line in r.lines() with (+ reduce sum) {
+       sum += line:int
+     }
+   
+   .. warning::
+   
+     This iterator executes on the current locale. This may impact performance if
+     the current locale is not the same locale on which the fileReader was created.
+   
+   .. warning::
+   
+     Parallel iteration is not supported for sockets, pipes, or other
+     non-file-based sources
+   
+   .. warning::
+   
+     Zippered parallel iteration is not yet supported for this iterator.
+   
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line —
+                      defaults to false
+   :arg t: The type of the lines to read (either :type:`~String.string` or
+           :type:`~Bytes.bytes`) — defaults to ``string``
+   :yields: lines from the fileReader, by default with a trailing ``\n``
+   
+
+.. itermethod:: iter fileReader.lines(stripNewline = false, type t = string, targetLocales: [] locale): t where t == string || t == bytes
+
+   
+   Iterate over all of the lines ending in ``\n`` in a :record:`fileReader` using
+   multiple locales - the fileReader lock will be held while iterating over the lines.
+   
+   This iterator will halt on internal :ref:`system errors<io-general-sys-error>`.
+   In the future, iterators are intended to be able to throw in such cases.
+   
+   **Example:**
+   
+   .. code-block:: chapel
+   
+     var r = openReader("ints.txt"),
+         sum = 0;
+   
+     forall line in r.lines(targetLocales=Locales) with (+ reduce sum) {
+       sum += line:int
+     }
+   
+   .. warning::
+   
+     Parallel iteration is not supported for sockets, pipes, or other
+     non-file-based sources
+   
+   .. warning::
+   
+     This procedure does not support reading from a memory-file (e.g.,
+     files opened with :proc:`openMemFile`)
+   
+   .. warning::
+   
+     Zippered parallel iteration is not yet supported for this iterator.
+   
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line —
+                      defaults to false
+   :arg targetLocales: The locales on which to read the lines (parallel
+                       iteration only)
+   :arg t: The type of the lines to read (either :type:`~String.string` or
+           :type:`~Bytes.bytes`) — defaults to ``string``
+   :yields: lines from the fileReader, by default with a trailing ``\n``
+   
+
+.. method:: proc fileReader.read(ref args ...?k): bool throws
+
+   
+   Read one or more values from a :record:`fileReader`. The ``fileReader``'s
+   lock will be held while reading the values — this protects against
+   interleaved reads.
+   
+   :arg args: a series of variables to read into. Basic types are handled
+              internally, but for other types this function will call
+              value.deserialize() with a `fileReader` argument as described
+              in :ref:`serialize-deserialize`.
+   :returns: `true` if the read succeeded, and `false` on end of file.
+   
+   :throws UnexpectedEofError: If an EOF occurred while reading an item.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        for :ref:`another reason<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.readLine(ref a: [] ?t, maxSize = a.size, stripNewline = false): int throws where a.rank == 1 && a.isRectangular() && a.strides == strideKind.one && (t == uint(8) || t == int(8))
+
+   
+   Read a line into an array of bytes.
+   
+   Reads bytes from the :record:`fileReader` until a ``\n`` is reached. Values
+   are read in binary format (i.e., this method is not aware of UTF-8 encoding).
+   
+   The array's size is not changed to accommodate bytes. If a newline is not
+   found before the array is filled, or ``maxSize`` bytes are read, a
+   :class:`~OS.BadFormatError` is thrown and the ``fileReader`` offset is
+   returned to the position it had when this routine was called.
+   
+   :arg a: A 1D DefaultRectangular non-strided array storing ``int(8)`` or
+           ``uint(8)``. Values are overwritten.
+   :arg maxSize: The maximum number of bytes to store into the ``a`` array.
+                 Defaults to the size of the array.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line. If
+                      ``true``, the newline isn't counted in the number of
+                      bytes read.
+   :returns: The number of array elements set by this call, or ``0`` otherwise
+             (i.e., the ``fileReader`` was already at EOF).
+   
+   :throws IllegalArgumentError: If ``maxSize > a.size``
+   :throws BadFormatError: If the line is longer than ``maxSize``. The
+                           fileReader's offset is not moved in that case.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+   
+
+.. method:: proc fileReader.readLine(ref s: string, maxSize = -1, stripNewline = false): bool throws
+
+   
+   Read a line into a :type:`~String.string`. Reads until a ``\n`` is reached.
+   
+   :arg s: the :type:`~String.string` to read into. Contents are overwritten.
+   :arg maxSize: The maximum number of codepoints to store into ``s``. The
+                 default of -1 means to read an unlimited number of codepoints.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: ``true`` if a line was read without error, ``false`` upon EOF
+   
+   :throws BadFormatError: If the line is longer than `maxSize`. The
+                           :record:`fileReader` offset is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readLine(ref b: bytes, maxSize = -1, stripNewline = false): bool throws
+
+   
+   Read a line into a :type:`~Bytes.bytes`. Reads until a ``\n`` is reached.
+   
+   :arg b: the :type:`~Bytes.bytes` to receive the line. Contents are overwritten.
+   :arg maxSize: The maximum number of bytes to store into ``b``. The default of
+                 -1 means to read an unlimited number of bytes.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: ``true`` if a line was read without error, ``false`` upon EOF
+   
+   :throws BadFormatError: If the line is longer than `maxSize`. The file
+                           offset is not moved.
+   :throws SystemError: If data could not be read from the :record:`fileReader`
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readLine(type t = string, maxSize = -1, stripNewline = false): t throws where t == string || t == bytes
+
+   
+   Read a line. Reads until a ``\n`` is reached.
+   
+   :arg t: the type of data to read, which must be :type:`~String.string` or
+           :type:`~Bytes.bytes`. Defaults to ``string`` if not specified.
+   :arg maxSize: The maximum number of codepoints to read. The default of -1
+                 means to read an unlimited number of codepoints.
+   :arg stripNewline: Whether to strip the trailing ``\n`` from the line.
+   :returns: A ``string`` or ``bytes`` with the contents of the
+             :record:`fileReader` up to (and possibly including) the newline.
+   
+   :throws EofError: If nothing could be read because the ``fileReader``
+                     was already at EOF.
+   :throws BadFormatError: If the line is longer than `maxSize`. The file
+                           offset is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readThrough(separator: ?t, maxSize = -1, stripSeparator = false): t throws where t == string || t == bytes
+
+   
+   Read until the given separator is found, returning the contents of the
+   :record:`fileReader` through that point.
+   
+   If the separator is found, the ``fileReader`` offset is left immediately
+   after it. If the separator could not be found in the next ``maxSize`` bytes,
+   a :type:`~OS.BadFormatError` is thrown and the ``fileReader``'s offset is not
+   changed. Otherwise, if EOF is reached before finding the separator, the
+   remainder of the ``fileReader``'s contents are returned and the offset is
+   left at EOF.
+   
+   To match with multiple separators, or a more complex separator, use the
+   overload of :proc:`~Regex.fileReader.readThrough` that accepts a
+   :type:`~Regex.regex` separator.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string`
+                   or :type:`~Bytes.bytes`.
+   :arg maxSize: The maximum number of bytes (for t==bytes) or codepoints (for
+                 t==string) to read. For the default value of
+                 ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned
+                         ``string`` or ``bytes``. If ``true``, the returned
+                         value will not include the separator.
+   :returns: A ``string`` or ``bytes`` with the contents of the ``fileReader``
+             up to (and possibly including) the separator.
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws EofError: If nothing could be read because the ``fileReader``
+                     was already at EOF.
+   :throws BadFormatError: If the separator was not found in the next
+                           `maxSize` bytes. The fileReader offset is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readThrough(separator: string, ref s: string, maxSize = -1, stripSeparator = false): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   :record:`fileReader` through that point.
+   
+   See the above :proc:`overload <fileReader.readThrough>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg s: The :type:`~String.string` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of codepoints to read. For the default value
+                 of ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned ``string``.
+                        If ``true``, the separator will not be included in ``s``.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+             ``fileReader`` was already at EOF).
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws BadFormatError: If the separator was not found in the next
+                           `maxSize` bytes. The fileReader offset is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readThrough(separator: bytes, ref b: bytes, maxSize = -1, stripSeparator = false): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   :record:`fileReader` through that point.
+   
+   See the above :proc:`overload <fileReader.readThrough>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg b: The :type:`~Bytes.bytes` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value
+                 of ``-1``, this method can read until EOF.
+   :arg stripSeparator: Whether to strip the separator from the returned ``bytes``.
+                        If ``true``, the separator will not be included in ``b``.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+             ``fileReader`` was already at EOF).
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws BadFormatError: If the separator was not found in the next
+                           ``maxSize`` bytes. The fileReader offset is not moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readTo(separator: ?t, maxSize = -1): t throws where t == string || t == bytes
+
+   
+   Read until the given separator is found, returning the contents of the
+   :record:`fileReader` up to that point.
+   
+   If the separator is found, the ``fileReader`` offset is left immediately
+   before it. If the separator could not be found in the next ``maxSize`` bytes,
+   a :type:`~OS.BadFormatError` is thrown and the ``fileReader``'s offset is not
+   changed. Otherwise, if EOF is reached before finding the separator, the
+   remainder of the ``fileReader``'s contents are returned and the offset is
+   left at EOF.
+   
+   To match with multiple separators, or a more complex separator, use the
+   overload of :proc:`~Regex.fileReader.readTo` that accepts a
+   :type:`~Regex.regex` separator.
+   
+   :arg separator: The separator to match with. Must be a :type:`~String.string`
+                   or :type:`~Bytes.bytes`.
+   :arg maxSize: The maximum number of bytes (for t==bytes) or codepoints (for
+                 t==string) to read. For the default
+                 value of ``-1``, this method can read until EOF.
+   :returns: A ``string`` or ``bytes`` with the contents of the ``fileReader``
+             up to the ``separator``.
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws EofError: If nothing could be read because the ``fileReader``
+                     was already at EOF.
+   :throws BadFormatError: If the separator was not found in the next
+                           ``maxSize`` bytes. The ``fileReader`` offset is not
+                           moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readTo(separator: string, ref s: string, maxSize = -1): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   :record:`fileReader` up to that point.
+   
+   See the above :proc:`overload <fileReader.readTo>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg s: The :type:`~String.string` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of codepoints to read. For the default value
+                 of ``-1``, this method will read until EOF.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+             ``fileReader`` was already at EOF).
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws BadFormatError: If the separator was not found in the next
+                           `maxSize` bytes. The ``fileReader`` offset is not
+                           moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readTo(separator: bytes, ref b: bytes, maxSize = -1): bool throws
+
+   
+   Read until the given separator is found, returning the contents of the
+   :record:`fileReader` up to that point.
+   
+   See the above :proc:`overload <fileReader.readTo>` of this method for
+   more details.
+   
+   :arg separator: The separator to match with.
+   :arg b: The :type:`~Bytes.bytes` to read into. Contents will be overwritten.
+   :arg maxSize: The maximum number of bytes to read. For the default value
+                 of ``-1``, this method will read until EOF.
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+             ``fileReader`` was already at EOF).
+   
+   :throws IllegalArgumentError: If the separator is empty
+   :throws BadFormatError: If the separator was not found in the next
+                           ``maxSize`` bytes. The ``fileReader`` offset is not
+                           moved.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset is not moved
+                        by this routine.
+
+.. method:: proc fileReader.readAll(type t = bytes): t throws where t == string || t == bytes
+
+   
+   Read the remaining contents of the :record:`fileReader` into an instance of
+   the specified type
+   
+   :arg t: the type to read into; must be :type:`~String.string` or
+           :type:`~Bytes.bytes`. Defaults to ``bytes`` if not specified.
+   :returns: the contents of the ``fileReader`` as a ``t``
+   
+   :throws EofError: If nothing could be read because the ``fileReader``
+                     was already at EOF.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readAll(ref s: string): int throws
+
+   
+   Read the remaining contents of the :record:`fileReader` into a ``string``.
+   
+   Note that any existing contents of the ``string`` are overwritten.
+   
+   :arg s: the :type:`~String.string` to read into
+   :returns: the number of codepoints that were stored in ``s``, or 0 if
+             the ``fileReader`` is at EOF.
+   :rtype: int
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readAll(ref b: bytes): int throws
+
+   
+   Read the remaining contents of the :record:`fileReader` into a ``bytes``.
+   
+   Note that any existing contents of the ``bytes`` are overwritten.
+   
+   :arg b: the :type:`~Bytes.bytes` to read into
+   :returns: the number of bytes that were stored in ``b``, or 0 if
+             the ``fileReader`` is at EOF.
+   :rtype: int
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readAll(ref a: [?d] ?t): int throws where a.rank == 1 && a.isRectangular() && a.strides == strideKind.one && (t == uint(8) || t == int(8))
+
+   
+   Read the remaining contents of the :record:`fileReader` into an array of
+   bytes.
+   
+   Note that this routine currently requires a 1D rectangular non-strided array.
+   
+   If the remaining contents of the fileReader exceed the size of ``a``, the
+   first ``a.size`` bytes will be read into ``a``, and then an
+   :class:`~OS.InsufficientCapacityError` will be thrown. In such a case, the
+   ``fileReader`` offset is advanced ``a.size`` bytes from its original
+   position.
+   
+   :arg a: the array of bytes to read into
+   :returns: the number of bytes that were stored in ``a``
+   :rtype: int
+   
+   :throws InsufficientCapacityError: If the fileReader's contents do not
+                                      fit into ``a``.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readString(maxSize: int): string throws
+
+   
+   Read a given number of codepoints from a :record:`fileReader`, returning a new
+   :type:`~String.string`.
+   
+   The ``string``'s length may be less than ``maxSize`` if EOF is reached while
+   reading. If nothing is read, the empty string (``""``) will be returned.
+   
+   :arg maxSize: the maximum number of codepoints to read from the ``fileReader``
+   :returns: a new ``string`` containing up to the next ``maxSize`` codepoints
+               from the ``fileReader``
+   
+   :throws EofError: If the ``fileReader`` offset was already at EOF.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readString(ref s: string, maxSize: int): bool throws
+
+   
+   Read a given number of codepoints from a :record:`fileReader` into a
+   :type:`~String.string`.
+   
+   The updated ``string``'s length may be less than ``maxSize`` if EOF is
+   reached while reading. If nothing is read, it will be set to the empty
+   string (``""``).
+   
+   :arg s: the ``string`` to read into — contents will be overwritten
+   :arg maxSize: the maximum number of codepoints to read from the ``fileReader``
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+             ``fileReader`` was already at EOF).
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBytes(maxSize: int): bytes throws
+
+   
+   Read a given number of bytes from a :record:`fileReader`, returning a new
+   :type:`~Bytes.bytes`.
+   
+   The ``bytes``'s length may be less than ``maxSize`` if EOF is reached while
+   reading. If nothing is read, the empty bytes (``b""``) will be returned.
+   
+   :arg maxSize: the maximum number of bytes to read from the ``fileReader``
+   :returns: a new ``bytes`` containing up to the next ``maxSize`` bytes
+             from the ``fileReader``
+   
+   :throws EofError: If the ``fileReader`` offset was already at EOF.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBytes(ref b: bytes, maxSize: int): bool throws
+
+   
+   Read a given number of bytes from a :record:`fileReader` into a
+   :type:`~Bytes.bytes`.
+   
+   The updated ``bytes``'s length may be less than ``maxSize`` if EOF is
+   reached while reading. If nothing is read, it will be set to the empty
+   bytes (``b""``).
+   
+   :arg b: the ``bytes`` to read into — contents will be overwritten
+   :arg maxSize: the maximum number of bytes to read from the ``fileReader``
+   :returns: ``true`` if something was read, and ``false`` otherwise (i.e., the
+             ``fileReader`` was already at EOF).
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBits(ref x: integral, numBits: int): bool throws
+
+   
+   Read bits with binary I/O
+   
+   :arg x: where to store the read bits. This value will have its *numBits*
+           least-significant bits set.
+   :arg numBits: how many bits to read
+   :returns: ``true`` if the bits were read, and ``false`` otherwise (i.e., the
+             :record:`fileReader` was already at EOF).
+   
+   :throws UnexpectedEofError: If EOF was encountered before ``numBits``
+                               could be read.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.readBits(type resultType, numBits: int): resultType throws
+
+   
+   Read bits with binary I/O
+   
+   :arg resultType: type of the value returned
+   :arg numBits: how many bits to read
+   :returns: bits read. This value will have its *numBits* least-significant
+             bits set
+   
+   :throws EofError: If the :record:`fileReader` offset was already at EOF.
+   :throws UnexpectedEofError: If EOF was encountered before ``numBits``
+                               could be read.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeBits(x: integral, numBits: int): void throws
+
+   
+   Write bits with binary I/O
+   
+   :arg x: a value containing *numBits* bits to write the least-significant bits
+   :arg numBits: how many bits to write
+   
+   :throws EofError: If the :record:`fileWriter` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws IllegalArgumentError: If writing more bits than fit into `x`.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeCodepoint(codepoint: int) throws
+
+   
+   Write a single Unicode codepoint to a :record:`fileWriter`
+   
+   :arg codepoint: Unicode codepoint to write
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileReader.readCodepoint(): int throws
+
+   
+   Read a single Unicode codepoint from a :record:`fileReader`
+   
+   :returns: Unicode codepoint read
+   
+   :throws EofError: If the ``fileReader`` offset was already at EOF.
+   :throws UnexpectedEofError: If EOF was encountered while reading a
+                               codepoint.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileReader.readCodepoint(ref codepoint: int): bool throws
+
+   
+   Read a single Unicode codepoint from a :record:`fileReader`
+   
+   :arg codepoint: where to store the read codepoint
+   :returns: ``true`` if the codepoint was read, and ``false`` otherwise (i.e.,
+             the ``fileReader`` was already at EOF).
+   
+   :throws UnexpectedEofError: If EOF was encountered while reading a
+                               codepoint.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeByte(byte: uint(8)) throws
+
+   
+   Write a single byte to a :record:`fileWriter`
+   
+   :arg byte: the byte to write
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileReader.readByte(): uint(8) throws
+
+   
+   Read a single byte from a :record:`fileReader`
+   
+   :returns: the byte read
+   
+   :throws EofError: If the ``fileReader`` offset was already at EOF.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileReader.readByte(ref byte: uint(8)): bool throws
+
+   
+   Read a single byte from a :record:`fileReader`
+   
+   :arg byte: where to store the read byte
+   :returns: ``true`` if the byte was read, and ``false`` otherwise (i.e.,
+             the ``fileReader`` was already at EOF).
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. data:: config param IOSkipBufferingForLargeOps = true
+
+   .. warning::
+
+      IOSkipBufferingForLargeOps is unstable and could change or be removed in the future
+
+   
+   Controll whether large read/write operations can bypass the IO runtime's
+   buffering mechanism.
+   
+   This optimization is on by default as it can improve performance for large
+   operations where buffering doesn't significantly reduce the number of system
+   I/O calls and thus adds unnecessary overhead.
+   
+   To disable the optimization, compile with ``-sIOSkipBufferingForLargeOps=false``.
+   
+   Note that this flag controls an implementation-specific feature and
+   thus is not part of the Chapel language specification.
+
+.. method:: proc fileWriter.writeString(s: string, size = s.size) throws
+
+   
+   Write ``size`` codepoints from a :type:`~String.string` to a
+   :record:`fileWriter`
+   
+   :arg s: the ``string`` to write
+   :arg size: the number of codepoints to write from the ``string``
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   :throws IllegalArgumentError: If ``size`` is larger than ``s.size``
+
+.. method:: proc fileWriter.writeBytes(b: bytes, size = b.size) throws
+
+   
+   Write ``size`` bytes from a :type:`~Bytes.bytes` to a :record:`fileWriter`
+   
+   :arg b: the ``bytes`` to write
+   :arg size: the number of bytes to write from the ``bytes``
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified range.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   :throws IllegalArgumentError: If ``size`` is larger than ``b.size``
+
+.. method:: proc fileWriter.writeBinary(ptr: c_ptr(?t), numBytes: int) throws
+
+   
+   Write ``numBytes`` of data from a :class:`~CTypes.c_ptr` to a
+   :record:`fileWriter`
+   
+   Note that native endianness is always used.
+   
+   If ``numBytes`` is not evenly divisible by the size of ``t``, the remaining
+   bytes will be ignored. For example, if the ``c_ptr``'s internal type is 4
+   bytes in length, and ``numBytes=17``, only 16 bytes will be written.
+   
+   .. warning::
+     This method provides no protection against attempting to access invalid
+     memory
+   
+   :arg ptr: a :class:`~CTypes.c_ptr` to some valid memory
+   :arg numBytes: the number of bytes to write
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeBinary(ptr: c_ptr(void), numBytes: int) throws
+
+   
+   Write ``numBytes`` of data from a ``CTypes.c_ptr(void)`` to a
+   :record:`fileWriter`
+   
+   The data are written to the file one byte at a time.
+   
+   .. warning::
+     This method provides no protection against attempting to access invalid
+     memory
+   
+   :arg ptr: a ``c_ptr(void)`` to some valid memory
+   :arg numBytes: the number of bytes to write
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeBinary(arg: numeric, param endian: endianness = endianness.native) throws
+
+   
+   Write a binary number to the :record:`fileWriter`
+   
+   :arg arg: number to be written
+   :arg endian: :type:`endianness` compile-time argument that specifies the byte
+                order in which to write the number. Defaults to
+                :enumconstant:`endianness.native`.
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileWriter.writeBinary(arg: numeric, endian: endianness) throws
+
+   
+   Write a binary number to the :record:`fileWriter`
+   
+   :arg arg: number to be written
+   :arg endian: :type:`endianness` specifies the byte order in which
+                to write the number.
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeBinary(s: string, size: int = s.size) throws
+
+   
+   Write a :type:`~String.string` to a :record:`fileWriter` in binary format
+   
+   :arg s: the ``string`` to write
+   :arg size: the number of codepoints to write from the ``string``
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   :throws IllegalArgumentError: If ``size`` is larger than ``s.size``.
+
+.. method:: proc fileWriter.writeBinary(b: bytes, size: int = b.size) throws
+
+   
+   Write a :type:`~Bytes.bytes` to a :record:`fileWriter` in binary format
+   
+   :arg b: the ``bytes`` to write
+   :arg size: the number of bytes to write from the ``bytes``
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   :throws IllegalArgumentError: If ``size`` is larger than ``b.size``.
+
+.. method:: proc fileWriter.writeBinary(const ref data: [?d] ?t, param endian: endianness = endianness.native) throws where isSuitableForBinaryReadWrite(data) && data.strides == strideKind.one && (isIntegralType(t) || isRealType(t) || isImagType(t) || isComplexType(t))
+
+   
+   Write an array of binary numbers to a :record:`fileWriter`
+   
+   Note that this routine currently requires a local rectangular non-strided
+   array.
+   
+   :arg data: an array of numbers to write to the fileWriter
+   :arg endian: :type:`endianness` compile-time argument that specifies the byte
+                order in which to read the numbers. Defaults to
+                :enumconstant:`endianness.native`.
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileWriter.writeBinary(const ref data: [] ?t, endian: endianness) throws where isSuitableForBinaryReadWrite(data) && data.strides == strideKind.one && (isIntegralType(t) || isRealType(t) || isImagType(t) || isComplexType(t))
+
+   
+   Write an array of binary numbers to a :record:`fileWriter`
+   
+   Note that this routine currently requires a local rectangular non-strided array.
+   
+   :arg data: an array of numbers to write to the fileWriter
+   :arg endian: :type:`endianness` specifies the byte order in which
+                to write the number.
+   
+   :throws EofError: If the ``fileWriter`` offset was already at EOF.
+   :throws UnexpectedEofError: If the write operation exceeds the
+                               ``fileWriter``'s specified region.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+
+.. method:: proc fileReader.readBinary(ref arg: numeric, param endian: endianness = endianness.native): bool throws
+
+   
+   Read a binary number from the :record:`fileReader`
+   
+   :arg arg: number to be read
+   :arg endian: :type:`endianness` compile-time argument that specifies the byte
+                order in which to read the number. Defaults to
+                :enumconstant:`endianness.native`.
+   :returns: ``true`` if the number was read, and ``false`` otherwise (i.e.,
+             the ``fileReader`` was already at EOF).
+   
+   :throws UnexpectedEofError: If EOF was encountered while reading the
+                               number.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.readBinary(ref arg: numeric, endian: endianness): bool throws
+
+   
+   Read a binary number from the :record:`fileReader`
+   
+   :arg arg: number to be read
+   :arg endian: :type:`endianness` specifies the byte order in which
+                to read the number.
+   :returns: ``true`` if the number was read, and ``false`` otherwise (i.e.,
+             the ``fileReader`` was already at EOF).
+   
+   :throws UnexpectedEofError: If EOF was encountered while reading the
+                               number.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.readBinary(ref s: string, maxSize: int): bool throws
+
+   
+   Read a specified number of codepoints into a :type:`~String.string`
+   
+   The resulting string ``s`` may be smaller than ``maxSize`` if EOF is reached
+   before reading the specified number of codepoints. Additionally, if nothing is
+   read from the :record:`fileReader`, ``s`` will be set to ``""`` (the empty
+   string) and the method will return ``false``.
+   
+   .. note::
+   
+     This method always uses UTF-8 encoding regardless of the fileReader's
+     configuration
+   
+   :arg s: the string to read into — this value is overwritten
+   :arg maxSize: the number of codepoints to read from the ``fileReader``
+   :returns: ``true`` if some codepoints were read, or ``false`` on EOF
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBinary(ref b: bytes, maxSize: int): bool throws
+
+   
+   Read a specified number of bytes into a :type:`~Bytes.bytes`
+   
+   The bytes ``b`` may be smaller than ``maxSize`` if EOF is reached before
+   reading the specified number of bytes. Additionally, if nothing is read from
+   the :record:`fileReader`, ``b`` will be set to ``b""`` (the empty bytes) and
+   the method will return ``false``.
+   
+   :arg b: the bytes to read into — this value is overwritten
+   :arg maxSize: the number of bytes to read from the ``fileReader``
+   :returns: ``true`` if some bytes were read, or ``false`` on EOF
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBinary(ref data: [?d] ?t, param endian = endianness.native): int throws where isSuitableForBinaryReadWrite(data) && data.strides == strideKind.one && (isIntegralType(t) || isRealType(t) || isImagType(t) || isComplexType(t))
+
+   
+   Read an array of binary numbers from a :record:`fileReader`
+   
+   Binary values of the type ``data.eltType`` are consumed from the fileReader
+   until ``data`` is full or EOF is reached.
+   
+   Note that this routine currently requires a local rectangular non-strided array.
+   
+   :arg data: an array to read into – existing values are overwritten.
+   :arg endian: :type:`endianness` compile-time argument that specifies the byte
+                order in which to read the numbers in. Defaults to
+                :enumconstant:`endianness.native`.
+   :returns: the number of values that were read into the array. This can be
+             less than ``data.size`` if EOF was reached, or an error occurred,
+             before filling the array.
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBinary(ref data: [] ?t, endian: endianness): int throws where isSuitableForBinaryReadWrite(data) && data.strides == strideKind.one && (isIntegralType(t) || isRealType(t) || isImagType(t) || isComplexType(t))
+
+   
+   Read an array of binary numbers from a :record:`fileReader`
+   
+   Binary values of the type ``data.eltType`` are consumed from the fileReader
+   until ``data`` is full or EOF is reached.
+   
+   Note that this routine currently requires a local rectangular non-strided
+   array.
+   
+   :arg data: an array to read into – existing values are overwritten.
+   :arg endian: :type:`endianness` specifies the byte order in which
+                to read the number.
+   :returns: the number of values that were read into the array. This can be
+             less than ``data.size`` if EOF was reached, or an error occurred,
+             before filling the array.
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBinary(ptr: c_ptr(?t), maxBytes: int): int throws
+
+   
+   Read up to ``maxBytes`` bytes from a :record:`fileReader` into a
+   :class:`~CTypes.c_ptr`
+   
+   Note that native endianness is always used.
+   
+   If ``maxBytes`` is not evenly divisible by the size of ``t``, then the
+   remaining bytes are ignored.
+   
+   :arg ptr: a :class:`~CTypes.c_ptr` to some memory — existing values will be
+             overwritten
+   :arg maxBytes: the maximum number of bytes to read from the ``fileReader``
+   :returns: the number of bytes that were read. this can be less than
+              ``maxBytes`` if EOF was reached before reading the specified
+              number of bytes, or if ``maxBytes`` is not evenly divisible by
+              the size of ``t``
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readBinary(ptr: c_ptr(void), maxBytes: int): int throws
+
+   
+   Read up to ``maxBytes`` bytes from a :record:`fileReader` into a
+   ``CTypes.c_ptr(void)``
+   
+   Note that data are read from the file one byte at a time.
+   
+   :arg ptr: a ``c_ptr(void)`` to some memory — existing
+             values will be overwritten
+   :arg maxBytes: the maximum number of bytes to read from the ``fileReader``
+   :returns: the number of bytes that were read. this can be less than
+             ``maxBytes`` if EOF was reached before reading the specified number
+             of bytes
+   
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+                        In that event, the fileReader's offset will be
+                        left near the position where the error occurred.
+
+.. method:: proc fileReader.readln(ref args ...?k): bool throws
+
+   .. warning::
+
+      'readln' is unstable and may be removed or modified in a future release
+
+   
+   Read values from a :record:`fileReader` and then consume any bytes until
+   newline is reached. The input will be consumed atomically - the
+   fileReader lock will be held while reading all of the passed values.
+   
+   :arg args: a list of arguments to read. This routine can be called
+              with zero or more such arguments. Basic types are handled
+              internally, but for other types this function will call
+              value.deserialize() with a ``fileReader`` argument as described
+              in :ref:`serialize-deserialize`.
+   :returns: `true` if the read succeeded, and `false` upon end of file.
+   
+   :throws UnexpectedEofError: If EOF was encountered before data could
+                               be read.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.read(type t) throws
+
+   
+   Read a value of passed type.
+   
+   For example, the following line of code reads a value of type `int`
+   from :var:`stdin` and uses it to initialize a variable ``x``:
+   
+   .. code-block:: chapel
+   
+     var x = stdin.read(int);
+   
+   :arg t: the type to read
+   :returns: the value read
+   
+   :throws EofError: If the :record:`fileReader` is already at EOF.
+   :throws UnexpectedEofError: If EOF was encountered before data could
+                               be fully read.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.readln(type t) throws
+
+   .. warning::
+
+      'readln' is unstable and may be removed or modified in a future release
+
+   
+   Read a value of passed type followed by a newline.
+   
+   :arg t: the type to read
+   :returns: the value read
+   
+   :throws EofError: If the :record:`fileReader` is at already EOF.
+   :throws UnexpectedEofError: If EOF was encountered before data could
+                               be fully read.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.readln(type t ...?numTypes) throws where numTypes > 1
+
+   .. warning::
+
+      'readln' is unstable and may be removed or modified in a future release
+
+   
+   Read values of passed types followed by a newline
+   and return a tuple containing the read values.
+   
+   :arg t: more than one type to read
+   :returns: a tuple of the read values
+   
+   :throws EofError: If the :record:`fileReader` is already at EOF.
+   :throws UnexpectedEofError: If EOF was encountered before data could
+                               be fully read.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileReader.read(type t ...?numTypes) throws where numTypes > 1
+
+   
+   Read values of passed types and return a tuple containing the read values.
+   The :record:`fileReader`'s lock will be held while reading — this protects
+   against interleaved reads.
+   
+   :arg t: more than one type to read
+   :returns: a tuple of the read values
+   
+   :throws EofError: If the ``fileReader`` is already at EOF.
+   :throws UnexpectedEofError: If EOF was encountered while more data was
+                               expected.
+   :throws SystemError: If data could not be read from the ``fileReader``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileWriter.write(const args ...?k) throws
+
+   
+   Write values to a :record:`fileWriter`. The output will be produced
+   atomically - the ``fileWriter`` lock will be held while writing all of the
+   passed values.
+   
+   :arg args: a list of arguments to write. Basic types are handled
+              internally, but for other types this function will call
+              value.serialize() with the ``fileWriter`` as an argument.
+   
+   :throws EofError: If EOF is reached before all the arguments could be
+                     written.
+   :throws UnexpectedEofError: If EOF is encountered while writing one of
+                               the arguments.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileWriter.writeln(const args ...?k) throws
+
+   
+   
+   Write values to a :record:`fileWriter` followed by a newline.  The output
+   will be produced atomically - the ``fileWriter`` lock will be held while
+   writing all of the passed values.
+   
+   :arg args: a variable number of arguments to write. This method can be
+              called with zero or more arguments. Basic types are handled
+              internally, but for other types this function will call
+              value.serialize() with the fileWriter as an argument.
+   
+   :throws EofError: If EOF is reached before all the arguments
+                     could be written.
+   :throws UnexpectedEofError: If EOF is encountered while writing one of
+                               the arguments.
+   :throws SystemError: If data could not be written to the ``fileWriter``
+                        due to a :ref:`system error<io-general-sys-error>`.
+   
+
+.. method:: proc fileWriter.flush() throws
+
+   
+   
+   Makes all writes to the :record:`fileWriter`, if any, available to concurrent
+   viewers of its associated file, such as other fileWriters/fileReader or other
+   applications accessing this file concurrently.
+   
+   Unlike :proc:`file.fsync`, this does not commit the written data
+   to the file's device.
+   
+   :throws SystemError: If the flush fails.
+
+.. method:: proc fileReader.assertEOF(errStr: string = "- Not at EOF")
+
+   .. warning::
+
+      'assertEOF' is unstable and may be removed or modified in a future release
+
+   Assert that a :record:`fileReader` has reached end-of-file and that there was
+   no error doing the read.
+
+.. method:: proc fileReader.close() throws
+
+   
+   Close a :record:`fileReader`
+   
+   :throws SystemError: If the ``fileReader`` is not successfully closed.
+
+.. method:: proc fileWriter.close() throws
+
+   
+   Close a :record:`fileWriter`. Implicitly performs the :proc:`fileWriter.flush`
+   operation (see :ref:`about-io-filereader-filewriter-synchronization`).
+   
+   :throws SystemError: If the ``fileWriter`` is not successfully closed.
+
+.. method:: proc fileReader.isClosed(): bool
+
+   
+   Return ``true`` if a :record:`fileReader` is currently closed.
+   
+
+.. method:: proc fileWriter.isClosed(): bool
+
+   
+   Return ``true`` if a :record:`fileWriter` is currently closed.
+   
+
+.. data:: const stdin: fileReader(true)
+
+   A locking :record:`fileReader` instance that reads from standard input. 
+
+.. data:: const stdout: fileWriter(true)
+
+   A locking :record:`fileWriter` instance that writes to standard output. 
+
+.. data:: const stderr: fileWriter(true)
+
+   A locking :record:`fileWriter` instance that writes to standard error. 
+
+.. function:: proc read(ref args ...?n): bool throws
+
+   Equivalent to ``stdin.read``. See :proc:`fileReader.read` 
+
+.. function:: proc read(type t ...?numTypes) throws
+
+   Equivalent to ``stdin.read``. See :proc:`fileReader.read` for types 
+
+.. function:: proc readLine(ref a: [] ?t, maxSize = a.size, stripNewline = false): int throws where a.rank == 1 && a.isRectangular() && a.strides == strideKind.one && (t == uint(8) || t == int(8))
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readLine(ref s: string, maxSize = -1, stripNewline = false): bool throws
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readLine(ref b: bytes, maxSize = -1, stripNewline = false): bool throws
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readLine(type t = string, maxSize = -1, stripNewline = false): t throws where t == string || t == bytes
+
+   Equivalent to ``stdin.readLine``.  See :proc:`fileReader.readLine` 
+
+.. function:: proc readln(ref args ...?n): bool throws
+
+   .. warning::
+
+      'readln' is unstable and may be removed or modified in a future release
+
+   Equivalent to ``stdin.readln``. See :proc:`fileReader.readln` 
+
+.. function:: proc readln(type t ...?numTypes) throws
+
+   .. warning::
+
+      'readln' is unstable and may be removed or modified in a future release
+
+   Equivalent to ``stdin.readln``. See :proc:`fileReader.readln` for types 
+

@@ -1,0 +1,249 @@
+.. default-domain:: chpl
+
+.. module:: Atomics
+   :synopsis: Atomic variables are variables that support atomic operations. Chapel
+
+Atomics
+=======
+
+Atomic variables are variables that support atomic operations. Chapel
+currently supports atomic operations for bools, all supported sizes of
+signed and unsigned integers, as well as all supported sizes of reals.
+
+Most atomic methods accept an optional argument named ``order`` of type
+``memory_order``. The ``order`` argument is used to specify the ordering
+constraints of atomic operations. The supported values are:
+
+  * memory_order_relaxed
+  * memory_order_acquire
+  * memory_order_release
+  * memory_order_acq_rel
+  * memory_order_seq_cst
+
+.. type:: atomic (bool)
+
+   
+   The boolean atomic type.
+   
+
+
+   .. method:: proc read(order: memory_order = memory_order_seq_cst): bool
+
+      
+      :returns: The stored value.
+      
+
+   .. method:: proc write(value: bool, order: memory_order = memory_order_seq_cst)
+
+      
+      Stores `value` as the new value.
+      
+
+   .. method:: proc exchange(value: bool, order: memory_order = memory_order_seq_cst): bool
+
+      
+      Stores `value` as the new value and returns the original value.
+      
+
+   .. method:: proc compareExchange(expected: bool, desired: bool, order: memory_order = memory_order_seq_cst): bool
+
+      Equivalent to :proc:`compareExchangeStrong` 
+
+   .. method:: proc compareExchangeWeak(expected: bool, desired: bool, order: memory_order = memory_order_seq_cst): bool
+
+      
+      Similar to :proc:`compareExchangeStrong`, except that this function may
+      return `false` even if the original value was equal to `expected`. This
+      may happen if the value could not be updated atomically.
+      
+
+   .. method:: proc compareExchangeStrong(expected: bool, desired: bool, order: memory_order = memory_order_seq_cst): bool
+
+      
+      Stores `desired` as the new value, if and only if the original value is
+      equal to `expected`. Returns `true` if `desired` was stored.
+      
+
+   .. method:: proc testAndSet(order: memory_order = memory_order_seq_cst)
+
+      
+      Stores `true` as the new value and returns the old value.
+      
+
+   .. method:: proc clear(order: memory_order = memory_order_seq_cst)
+
+      
+      Stores `false` as the new value.
+      
+
+   .. method:: proc waitFor(val: bool, order: memory_order = memory_order_seq_cst)
+
+      
+      :arg val: Value to compare against.
+      
+      Waits until the stored value is equal to `val`. The implementation may
+      yield the running task while waiting.
+      
+
+   .. method:: proc peek()
+
+      
+      :returns: Stored value using memory_order_relaxed.
+      
+
+   .. method:: proc poke(value: bool)
+
+      
+      Stores `value` as the new value using memory_order_relaxed.
+      
+
+.. type:: atomic (T)
+
+   .. method:: proc read(order: memory_order = memory_order_seq_cst): T
+
+      
+      :returns: The stored value.
+      
+
+   .. method:: proc write(value: T, order: memory_order = memory_order_seq_cst)
+
+      
+      Stores `value` as the new value.
+      
+
+   .. method:: proc exchange(value: T, order: memory_order = memory_order_seq_cst): T
+
+      
+      Stores `value` as the new value and returns the original value.
+      
+
+   .. method:: proc compareExchange(expected: T, desired: T, order: memory_order = memory_order_seq_cst): bool
+
+      Equivalent to :proc:`compareExchangeStrong` 
+
+   .. method:: proc compareExchangeWeak(expected: T, desired: T, order: memory_order = memory_order_seq_cst): bool
+
+      
+      Similar to :proc:`compareExchangeStrong`, except that this function may
+      return `false` even if the original value was equal to `expected`. This
+      may happen if the value could not be updated atomically.
+      
+
+   .. method:: proc compareExchangeStrong(expected: T, desired: T, order: memory_order = memory_order_seq_cst): bool
+
+      
+      Stores `desired` as the new value, if and only if the original value is
+      equal to `expected`. Returns `true` if `desired` was stored.
+      
+
+   .. method:: proc fetchAdd(value: T, order: memory_order = memory_order_seq_cst): T
+
+      
+      :returns: The original value.
+      
+      Adds `value` to the original value and stores the result. Defined for
+      integer and real atomic types.
+      
+
+   .. method:: proc add(value: T, order: memory_order = memory_order_seq_cst): void
+
+      
+      Adds `value` to the original value and stores the result. Defined for
+      integer and real atomic types.
+      
+
+   .. method:: proc fetchSub(value: T, order: memory_order = memory_order_seq_cst): T
+
+      
+      :returns: The original value.
+      
+      Subtracts `value` from the original value and stores the result. Defined
+      for integer and real atomic types.
+      
+
+   .. method:: proc sub(value: T, order: memory_order = memory_order_seq_cst): void
+
+      
+      Subtracts `value` from the original value and stores the result. Defined
+      for integer and real atomic types.
+      
+
+   .. method:: proc fetchOr(value: T, order: memory_order = memory_order_seq_cst): T
+
+      
+      :returns: The original value.
+      
+      Applies the ``|`` operator to `value` and the original value, then stores
+      the result.
+      
+      Only defined for integer atomic types.
+      
+
+   .. method:: proc or(value: T, order: memory_order = memory_order_seq_cst): void
+
+      
+      Applies the ``|`` operator to `value` and the original value, then stores
+      the result.
+      
+      Only defined for integer atomic types.
+      
+
+   .. method:: proc fetchAnd(value: T, order: memory_order = memory_order_seq_cst): T
+
+      
+      :returns: The original value.
+      
+      Applies the ``&`` operator to `value` and the original value, then stores
+      the result.
+      
+      Only defined for integer atomic types.
+      
+
+   .. method:: proc and(value: T, order: memory_order = memory_order_seq_cst): void
+
+      
+      Applies the ``&`` operator to `value` and the original value, then stores
+      the result.
+      
+      Only defined for integer atomic types.
+      
+
+   .. method:: proc fetchXor(value: T, order: memory_order = memory_order_seq_cst): T
+
+      
+      :returns: The original value.
+      
+      Applies the ``^`` operator to `value` and the original value, then stores
+      the result.
+      
+      Only defined for integer atomic types.
+      
+
+   .. method:: proc xor(value: T, order: memory_order = memory_order_seq_cst): void
+
+      
+      Applies the ``^`` operator to `value` and the original value, then stores
+      the result.
+      
+      Only defined for integer atomic types.
+      
+
+   .. method:: proc waitFor(val: T, order: memory_order = memory_order_seq_cst)
+
+      
+      Waits until the stored value is equal to `val`. The implementation may
+      yield the running task while waiting.
+      
+
+   .. method:: proc peek()
+
+      
+      :returns: Stored value using memory_order_relaxed.
+      
+
+   .. method:: proc poke(value: T)
+
+      
+      Stores `value` as the new value using memory_order_relaxed.
+      
+

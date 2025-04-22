@@ -1,0 +1,369 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>LLVM Support &mdash; Chapel Documentation 1.23</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Variables to Detect Compilation Configuration" href="globalvars.html" />
+    <link rel="prev" title="Checking Variable Lifetimes" href="lifetimeChecking.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.23
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.23";
+$pagename = "technotes/llvm";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="nilChecking.html">Checking for Nil Dereferences</a></li>
+<li class="toctree-l3"><a class="reference internal" href="overloadSets.html">Checking Overload Sets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lifetimeChecking.html">Checking Variable Lifetimes</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">LLVM Support</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#building-the-llvm-support">Building the LLVM support</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#activating-the-llvm-support">Activating the LLVM support</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#how-llvm-wide-opt-works">How <code class="docutils literal notranslate"><span class="pre">--llvm-wide-opt</span> <span class="pre">works</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="globalvars.html">Variables to Detect Compilation Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+        
+      <li>LLVM Support</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/technotes/llvm.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="llvm-support">
+<span id="readme-llvm"></span><h1>LLVM Support<a class="headerlink" href="#llvm-support" title="Permalink to this headline">¶</a></h1>
+<p>The Chapel compiler can be built with LLVM support in able to enable
+the following features:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>extern block support (see <a class="reference internal" href="extern.html#readme-extern"><span class="std std-ref">C Interoperability</span></a>). This feature uses the clang
+parser. Note that it is <em>not</em> necessary to use the LLVM code generator in
+order to use extern block support.</li>
+<li>Experimental LLVM code generator. The <code class="docutils literal notranslate"><span class="pre">--llvm</span></code> flag activates the LLVM
+code generator. Note that by default, a Chapel compiler built with LLVM
+support still uses the C backend.</li>
+<li>Experimental LLVM communication optimizations. You can activate these
+communication optimizations with <code class="docutils literal notranslate"><span class="pre">--llvm</span> <span class="pre">--llvm-wide-opt</span></code>. Some
+benchmark programs run faster with these LLVM communication optimizations.</li>
+</ol>
+</div></blockquote>
+<div class="section" id="building-the-llvm-support">
+<h2>Building the LLVM support<a class="headerlink" href="#building-the-llvm-support" title="Permalink to this headline">¶</a></h2>
+<p>To build the compiler with LLVM support for extern blocks, <code class="docutils literal notranslate"><span class="pre">--llvm</span></code> code
+generation, and support for <code class="docutils literal notranslate"><span class="pre">--llvm-wide-opt</span></code>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> ./util/setchplenv.bash
+<span class="nb">export</span> <span class="nv">CHPL_LLVM</span><span class="o">=</span>llvm
+<span class="c1"># or, if you have already installed compatible LLVM libraries</span>
+<span class="c1"># export CHPL_LLVM=system</span>
+
+make <span class="c1"># you might want to do e.g. make -j 16 for a parallel build</span>
+</pre></div>
+</div>
+<p>Note:</p>
+<ul class="simple">
+<li>If you have a built llvm in <code class="docutils literal notranslate"><span class="pre">third-party/llvm/install</span></code>, even if you forget
+to <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">CHPL_LLVM=llvm</span></code>, the default will be to use the built llvm.  You
+can override this default by setting <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM=none</span></code>.</li>
+<li>the Makefile in third-party/llvm will unpack LLVM and Clang source releases
+and build them</li>
+<li>LLVM code generation has not been tested on all supported configurations,
+and some features (such as building a library instead of an executable)
+are not yet supported.</li>
+<li>You can set the environment variable <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM_DEVELOPER</span></code>
+to request a debug build of LLVM.</li>
+<li>The pre-built LLVM that Apple distributes for Macs does not include
+the header files needed for Chapel to use CHPL_LLVM=system.
+However, you can install a Mac Homebrew version of LLVM with, for
+example, <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">llvm&#64;7</span></code> and then set CHPL_LLVM=system.</li>
+</ul>
+</div>
+<div class="section" id="activating-the-llvm-support">
+<h2>Activating the LLVM support<a class="headerlink" href="#activating-the-llvm-support" title="Permalink to this headline">¶</a></h2>
+<p>To compile a program using the LLVM backend, add <code class="docutils literal notranslate"><span class="pre">--llvm</span></code> to the chpl command
+line.</p>
+<p>If you pass a <code class="docutils literal notranslate"><span class="pre">--savec</span></code> directory, the LLVM backend will emit two .bc files
+in that directory:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">chpl__module.bc</span></code> is the version that will be linked</li>
+<li><code class="docutils literal notranslate"><span class="pre">chpl__module-nopt.bc</span></code> is the generated code without optimizations applied.</li>
+</ul>
+<p>Passing <code class="docutils literal notranslate"><span class="pre">--fast</span></code> will cause LLVM optimizations to run.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">--ccflags</span></code> option can control which LLVM optimizations are run, using the
+same syntax as flags to clang.</p>
+<p>Additionally, if you compile a program with <code class="docutils literal notranslate"><span class="pre">--llvm</span> <span class="pre">--llvm-wide-opt</span>
+<span class="pre">--fast</span></code>, you will allow LLVM optimizations to work with global memory.
+For example, the Loop Invariant Code Motion (LICM) optimization might be
+able to hoist an access of a remote variable - ie, a ‘get’ - out of a
+loop.  This optimization has produced better performance with some
+benchmarks.</p>
+<p>Caveats:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">--llvm-wide-opt</span></code> may add communication to or from a task’s stack, so it
+may not function correctly for combinations of tasking and communication
+layers in which some task has a stack outside of an acceptable region for
+communication (e.g. operations on the initial ‘main’ thread may fail with
+<code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code>, <code class="docutils literal notranslate"><span class="pre">CHPL_GASNET_SEGMENT=fast</span></code>).</li>
+</ul>
+</div>
+<div class="section" id="how-llvm-wide-opt-works">
+<h2>How <code class="docutils literal notranslate"><span class="pre">--llvm-wide-opt</span> <span class="pre">works</span></code><a class="headerlink" href="#how-llvm-wide-opt-works" title="Permalink to this headline">¶</a></h2>
+<p>Communication optimization within LLVM uses the address space feature of LLVM
+in order to create a conceptual global address space. In particular, instead of
+generating a call to the runtime functions to ‘put’ or ‘get’, when
+<code class="docutils literal notranslate"><span class="pre">--llvm-wide-opt</span></code> is enabled, the Chapel compiler will generate a load,
+store, or memcpy using an address space 100 pointer. Address space 100 pointers
+represent global memory - and address space 0 pointers continue to represent
+local memory. The existing LLVM optimization passes will operate normally on
+these address space 100 operations. The LLVM documentation describes these
+optimizations and which are normally run.</p>
+<p>Because it may be necessary to build a global pointer or to gather information
+from it - for example when constructing a global pointer from a node number and
+a local address, or extracting the node number or the address - the LLVM code
+generated with <code class="docutils literal notranslate"><span class="pre">--llvm-wide-opt</span></code> includes calls to nonexistent functions to
+mark these operations:</p>
+<ul class="simple">
+<li>.gf.addr extracts an address from a global pointer</li>
+<li>.gf.loc extracts a locale from a global pointer</li>
+<li>.gf.node extracts a node number from a global pointer</li>
+<li>.gf.make constructs a global pointer from a locale and an address</li>
+<li>.gf.g2w converts a global pointer to a wide pointer</li>
+<li>.gf.w2g converts a wide pointer to a global pointer</li>
+</ul>
+<p>These functions will be replaced with the usual runtime functions once all
+global pointers are lowered into wide pointers by the global-to-wide pass.</p>
+<p>After the usual LLVM optimization passes run, two Chapel LLVM passes run:</p>
+<ul class="simple">
+<li>aggregate-global-ops bundles together sequences of loads or sequences of
+stores on adjacent global memory locations into a single memcpy. That way,
+adjacent loads will generate a single ‘get’ instead of several ‘get’ calls.</li>
+<li>global-to-wide converts operations on address space 100 pointers, notably
+including load, store, memcpy, and memset operations, into calls to the
+Chapel runtime. It converts address space 100 pointers into packed pointers
+and any of the special function calls (e.g. .gf.addr to extract the local
+address portion of a global pointer) into the usual operations on a packed
+pointer. In the future, we would like to support converting address space 100
+pointers into the usual Chapel wide pointer format.</li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="globalvars.html" class="btn btn-neutral float-right" title="Variables to Detect Compilation Configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="lifetimeChecking.html" class="btn btn-neutral float-left" title="Checking Variable Lifetimes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Hewlett Packard Enterprise Development LP
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+ 
+
+
+
+</body>
+</html>

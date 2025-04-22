@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reduce Intents &mdash; Chapel Documentation 1.32</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Runtime Support for Atomics" href="atomics.html" />
+    <link rel="prev" title="Querying a Local Subdomain" href="subquery.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.32
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.32";
+$pagename = "technotes/reduceIntents";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local.html">The ‘local’ keyword</a></li>
+<li class="toctree-l3"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Reduce Intents</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examples">Examples</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#user-defined-reduction-example">User-Defined Reduction Example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#future-work">Future Work</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="foreach.html">The 'foreach' Loop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gpu.html">GPU Programming</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#io">IO</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      <li>Reduce Intents</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/reduceIntents.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="reduce-intents">
+<span id="readme-reduceintents"></span><h1>Reduce Intents<a class="headerlink" href="#reduce-intents" title="Permalink to this headline">¶</a></h1>
+<p>Note: this is work in progress and is subject to change.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>A reduce intent is defined as a <a class="reference internal" href="../language/spec/data-parallelism.html#forall-intents"><span class="std std-ref">forall intent</span></a>
+for forall loops and a <a class="reference internal" href="../language/spec/task-parallelism-and-synchronization.html#task-intents"><span class="std std-ref">task intent</span></a> for
+task-parallel constructs.</p>
+<p>Reduce intents are distinct from other forall/task intents:</p>
+<ul class="simple">
+<li><p>The shadow variable for a reduce intent implicitly references
+the accumulation state for the reduction. At the beginning of
+each task, its accumulation state is initialized to the
+identity value for the corresponding reduction. At the end of
+each task, its accumulation state is combined into the
+accumulation state of its parent task, if any, or into
+the top-level accumulation state.</p></li>
+<li><p>The top-level accumulation state is accessed through the shadow
+variable for those loop iterations that correspond to top-level
+yield statements. Those are the yields that occur outside any
+task constructs in the iterator that is leading the loop.</p></li>
+<li><p>The value of the corresponding outer variable immediately prior
+the forall loop or the task-parallel construct is accumulated
+into the top-level accumulation state. The value of the outer
+variable immediately after the loop / construct is the result
+of applying the reduction’s <code class="docutils literal notranslate"><span class="pre">generate</span></code> operation to the top-level
+accumulation state at that point. If this <code class="docutils literal notranslate"><span class="pre">generate</span></code> operation
+returns the accumulation state unchanged, then the implementation
+can be optimized by reusing the outer variable as the top-level
+accumulation state.</p></li>
+</ul>
+<p>Reduce intents are currently implemented for <code class="docutils literal notranslate"><span class="pre">forall</span></code> and
+<code class="docutils literal notranslate"><span class="pre">coforall</span></code> statements.</p>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>Increment <code class="docutils literal notranslate"><span class="pre">x</span></code> in the loop – counts the number of iterations:</p>
+<blockquote>
+<div><div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">forall</span> <span class="nx">myIterator</span><span class="p">()</span> <span class="k">with</span> <span class="p">(</span><span class="o">+</span> <span class="k">reduce</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">x</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;The number of loop iterations is: &quot;</span><span class="p">,</span> <span class="nx">x</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Set <code class="docutils literal notranslate"><span class="pre">x</span></code> in the loop – counts the number of tasks:</p>
+<blockquote>
+<div><div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">forall</span> <span class="nx">myIterator</span><span class="p">()</span> <span class="k">with</span> <span class="p">(</span><span class="o">+</span> <span class="k">reduce</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;The number of tasks is: &quot;</span><span class="p">,</span> <span class="nx">x</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>For a user-defined reduction, there is a task-private instance of the
+reduction class for each task created for the forall or coforall loop.
+The below section shows how to define and use a user-defined reduction.</p>
+</div>
+<div class="section" id="user-defined-reduction-example">
+<span id="readme-reduceintents-interface"></span><h2>User-Defined Reduction Example<a class="headerlink" href="#user-defined-reduction-example" title="Permalink to this headline">¶</a></h2>
+<p>Here is an example that defines and uses a user-defined reduction.</p>
+<blockquote>
+<div><div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="cm">/* Implements + reduction over numeric data. */</span>
+<span class="k">class</span> <span class="nc">PlusReduceOp</span><span class="p">:</span> <span class="nx">ReduceScanOp</span> <span class="p">{</span>
+
+  <span class="cm">/* the type of the elements to be reduced */</span>
+  <span class="kd">type</span> <span class="nx">eltType</span><span class="p">;</span>
+
+  <span class="cm">/* task-private accumulator/reduction state */</span>
+  <span class="kd">var</span> <span class="nx">value</span><span class="p">:</span> <span class="nx">eltType</span><span class="p">;</span>
+
+  <span class="cm">/* identity w.r.t. the reduction operation */</span>
+  <span class="k">proc</span> <span class="nf">identity</span>         <span class="k">return</span> <span class="mi">0</span><span class="p">:</span> <span class="nx">eltType</span><span class="p">;</span>
+
+  <span class="cm">/* accumulate a single element onto the accumulator */</span>
+  <span class="k">proc</span> <span class="nf">accumulate</span><span class="p">(</span><span class="nx">elm</span><span class="p">)</span>  <span class="p">{</span> <span class="nx">value</span> <span class="o">=</span> <span class="nx">value</span> <span class="o">+</span> <span class="nx">elm</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="cm">/* accumulate a single element onto the state */</span>
+  <span class="k">proc</span> <span class="nf">accumulateOntoState</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">state</span><span class="p">,</span> <span class="nx">elm</span><span class="p">)</span>  <span class="p">{</span> <span class="nx">state</span> <span class="o">=</span> <span class="nx">state</span> <span class="o">+</span> <span class="nx">elm</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="cm">/* accumulate the value of the outer variable at the entry to the loop */</span>
+  <span class="c1">// Note: this method is optional. If it is not provided,</span>
+  <span class="c1">// accumulate(outerVar) is used instead.</span>
+  <span class="k">proc</span> <span class="nf">initialAccumulate</span><span class="p">(</span><span class="nx">outerVar</span><span class="p">)</span> <span class="p">{</span> <span class="nx">value</span> <span class="o">=</span> <span class="nx">value</span> <span class="o">+</span> <span class="nx">outerVar</span><span class="p">:</span> <span class="nx">eltType</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="c1">// Note: &#39;this&#39; can be accessed by multiple calls to combine()</span>
+  <span class="c1">// concurrently. The Chapel implementation serializes such calls</span>
+  <span class="c1">// with a lock on &#39;this&#39;.</span>
+  <span class="c1">// &#39;other&#39; will not be accessed concurrently.</span>
+  <span class="cm">/* combine the accumulations in &#39;this&#39; and &#39;other&#39; */</span>
+  <span class="k">proc</span> <span class="nf">combine</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span> <span class="k">borrowed</span> <span class="nx">PlusReduceOp</span><span class="p">)</span>   <span class="p">{</span> <span class="nx">value</span> <span class="o">=</span> <span class="nx">value</span> <span class="o">+</span> <span class="nx">other</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="cm">/* Convert the accumulation into the value of the reduction</span>
+<span class="cm">     that is reported to the user. This is trivial in our case. */</span>
+  <span class="k">proc</span> <span class="nf">generate</span><span class="p">()</span>       <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+
+  <span class="cm">/* produce a new instance of this class */</span>
+  <span class="k">proc</span> <span class="nf">clone</span><span class="p">()</span>          <span class="k">return</span> <span class="k">new</span> <span class="k">unmanaged</span> <span class="nx">PlusReduceOp</span><span class="p">(</span><span class="nx">eltType</span><span class="o">=</span><span class="nx">eltType</span><span class="p">);</span>
+<span class="p">}</span>
+
+
+<span class="c1">// Use the above class.</span>
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">4</span><span class="p">];</span>
+<span class="kd">var</span> <span class="nx">sum</span><span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">forall</span> <span class="nx">elm</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">with</span> <span class="p">(</span><span class="nx">PlusReduceOp</span> <span class="k">reduce</span> <span class="nx">sum</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">sum</span> <span class="o">+=</span> <span class="nx">elm</span><span class="p">;</span>  <span class="c1">// equivalently:  sum reduce= elm;</span>
+<span class="p">}</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">sum</span><span class="p">);</span>
+
+<span class="c1">// To have different input/accumulator/result types of the reduction,</span>
+<span class="c1">// specify the input type explicitly, e.g. PlusReduceOp(int) below:</span>
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="p">[</span><span class="kc">false</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="kc">true</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="kc">true</span><span class="p">];</span>
+<span class="kd">var</span> <span class="nx">sum</span><span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+<span class="k">forall</span> <span class="nx">elm</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">with</span> <span class="p">(</span><span class="nx">PlusReduceOp</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span> <span class="k">reduce</span> <span class="nx">sum</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">sum</span> <span class="k">reduce</span><span class="o">=</span> <span class="nx">elm</span><span class="p">;</span>   <span class="c1">// bools are implicitly coerced to &#39;int&#39; input type</span>
+  <span class="nx">writeln</span><span class="p">(</span><span class="nx">sum</span><span class="p">);</span>      <span class="c1">// accumulation state: int</span>
+<span class="p">}</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">sum</span><span class="p">);</span>        <span class="c1">// result: real</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="future-work">
+<h2>Future Work<a class="headerlink" href="#future-work" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Switch to a light-weight interface for user-defined reductions.
+The current proposal is discussed in
+<a class="reference external" href="https://github.com/chapel-lang/chapel/issues/9879">GitHub issue 9879</a>.</p></li>
+<li><p>Implement <code class="docutils literal notranslate"><span class="pre">reduce=</span></code> for task intents.</p></li>
+<li><p>Implement reduce intents for cobegin statements.
+Consider reduce intents for begin statements.</p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="subquery.html" class="btn btn-neutral float-left" title="Querying a Local Subdomain" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="atomics.html" class="btn btn-neutral float-right" title="Runtime Support for Atomics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

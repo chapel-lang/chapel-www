@@ -1,0 +1,101 @@
+.. default-domain:: chpl
+
+.. module:: BufferedAtomics
+   :synopsis: .. warning::
+
+BufferedAtomics
+===============
+**Usage**
+
+.. code-block:: chapel
+
+   use BufferedAtomics;
+
+
+.. warning::
+  This module has been deprecated - please use :mod:`UnorderedAtomics` instead.
+
+This module provides buffered versions of non-fetching atomic operations for
+all ``int``, ``uint``, and ``real`` types.  Buffered versions of
+:proc:`~Atomics.add()`, :proc:`~Atomics.sub()`, :proc:`~Atomics.or()`,
+:proc:`~Atomics.and()`, and :proc:`~Atomics.xor()` are provided. These
+variants are internally buffered and the buffers are flushed implicitly when
+full or explicitly with :proc:`flushAtomicBuff()`. These buffered operations
+can provide a significant speedup for bulk atomic operations that do not
+require strict ordering of operations:
+
+.. code-block:: chapel
+
+  use BufferedAtomics;
+
+  const numTasksPerLocale = here.maxTaskPar,
+        iters = 10000;
+
+
+  var a: atomic int;
+
+  coforall loc in Locales do on loc do
+    coforall 1..numTasksPerLocale do
+      for i in 1..iters do
+        a.addBuff(i);                   // buffered atomic add
+
+  flushAtomicBuff();                    // flush any pending operations (required)
+
+
+  const itersSum = iters*(iters+1)/2,   // sum from 1..iters
+        numTasks = numLocales * numTasksPerLocale;
+  assert(a.read() == numTasks * itersSum);
+
+It's important to be aware that buffered atomic operations are not
+consistent with regular atomic operations and updates may not be visible
+until the buffers are explicitly flushed with :proc:`flushAtomicBuff()`.
+
+.. code-block:: chapel
+
+  var a: atomic int;
+  a.addBuff(1);
+  writeln(a);        // can print 0 or 1
+  flushAtomicBuff();
+  writeln(a);        // prints 1
+
+Generally speaking they are useful for when you have a large batch of atomic
+updates to perform and the order of those operations doesn't matter.
+
+.. note::
+  Currently, these are only optimized for ``CHPL_NETWORK_ATOMICS=ugni``.
+  Processor atomics or any other implementation falls back to non-buffered
+  operations. Under ugni these operations are internally buffered. When the
+  buffers are flushed, the operations are performed all at once. Cray Linux
+  Environment (CLE) 5.2.UP04 or newer is required for best performance. In
+  our experience, buffered atomics can achieve up to a 5X performance
+  improvement over non-buffered atomics for CLE 5.2UP04 or newer.
+
+
+.. method:: proc AtomicT.addBuff(value: T): void
+
+   Buffered atomic add. 
+
+.. method:: proc AtomicT.subBuff(value: T): void
+
+   Buffered atomic sub. 
+
+.. method:: proc AtomicT.orBuff(value: T): void
+
+   Buffered atomic or. 
+
+.. method:: proc AtomicT.andBuff(value: T): void
+
+   Buffered atomic and. 
+
+.. method:: proc AtomicT.xorBuff(value: T): void
+
+   Buffered atomic xor. 
+
+.. function:: proc flushAtomicBuff(): void
+
+   
+   Flush any atomic operations that are still buffered. Note that this
+   flushes any pending operations on all locales, not just the current
+   locale.
+   
+

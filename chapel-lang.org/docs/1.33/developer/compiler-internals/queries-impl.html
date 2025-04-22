@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Depths of the Query System &mdash; Chapel Documentation 1.33</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="File Format for ‘.dyno’ Files" href="file-format.html" />
+    <link rel="prev" title="Query Framework" href="queries.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.33
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.33";
+$pagename = "developer/compiler-internals/queries-impl";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../bestPractices/index.html">Best Practices for Contributors</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Frontend Library API Docs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="queries.html">Query Framework</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Depths of the Query System</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#vocabulary">Vocabulary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#recomputation-model">Recomputation Model</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="file-format.html">File Format for ‘.dyno’ Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsing.html">Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="resolution.html">Resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="types.html">Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="uast.html">Untyped AST (uAST)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="base.html">Base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="libraries.html">Library Support</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Docs for Contributors</a> &raquo;</li>
+          <li><a href="index.html">Frontend Library API Docs</a> &raquo;</li>
+      <li>Depths of the Query System</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/compiler-internals/queries-impl.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="depths-of-the-query-system">
+<span id="chapter-dyno-chpl-queries-impl"></span><h1>Depths of the Query System<a class="headerlink" href="#depths-of-the-query-system" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="vocabulary">
+<h2>Vocabulary<a class="headerlink" href="#vocabulary" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Dependency</strong>: a query executed as part of another query. If query A
+executes query B, then A is said to depend on B.</p></li>
+<li><p><strong>Preamble</strong>: the code that happens before the main query body is
+run; the contents of <code class="docutils literal notranslate"><span class="pre">QUERY_BEGIN</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="recomputation-model">
+<h2>Recomputation Model<a class="headerlink" href="#recomputation-model" title="Permalink to this headline">¶</a></h2>
+<p>One of the main concerns of the query system when generations and
+incremental compilation are involved is avoiding as much work as
+possible. To this end, the query system avoids re-running queries if
+their results would not change. Since queries are deterministic <a class="footnote-reference brackets" href="#id3" id="id1">1</a>, a
+query’s output cannot change if all of its dependencies remain the same.
+Therefore, the query system’s goal is to check dependencies to see if
+they changed, which, in turn, requires checking the dependencies’
+dependencies, and so on. As a result, recomputation begins with a
+depth-first traversal of the dependency graph.</p>
+<p>Conceptually, if none of the input (leaf) queries have changed, then
+none of the queries depending on them have changed, and so on – and no
+recomputation needs to happen, anywhere. However, there are cases even
+when input queries <em>do</em> change, but recomputation can be avoided for
+most functions. In particular, this can happen if a dependency’s inputs
+do change, but its outputs don’t. However, since queries are implemented
+using plain and unrestricted C++, there isn’t a general way of knowing
+how a change of inputs will affect the output without running the query.
+Therefore, to detect such cases of unchanged output, queries whose inputs
+changed <em>must</em> be re-run. See <cite>Example of Avoiding Recomputation</cite> for some code
+that demonstrates avoiding recomputation.</p>
+<p>The depth-first traversal, combined with the need to recompute queries
+to check if their output has changed, means that dependencies are
+re-computed before the function that called them is re-computed. In
+other words, rather being recomputed <em>top-down</em> (from the top-level
+query down to its dependencies), dependencies are recomputed
+<em>bottom-up</em>. This has several implications for the way that context
+state should be managed (see <a class="reference internal" href="#state-implications">State Implications</a>).</p>
+<p>Once any of a query’s dependencies’ outputs is determined to have
+changed, there’s no use checking its other dependencies – any dependency
+changing is sufficient to need to recompute the whole dependent query.
+Moreover, whether or not other dependencies ought to be run may depend on the
+result of the changed query (see <a class="reference internal" href="#changing-dependency-graph-example">Changing Dependency Graph Example</a>).
+Thus, bottom-up recomputation suspends, and the dependent query is
+called. At this point, the query’s function runs as normal, its
+dependency queries are called as they are encountered in the C++ source
+code, which may invoke their own dependencies being computed, and so on.
+Thus, starting from the query-to-be-recomputed, we are once again back
+to a top-down mode of execution. However, at any point during this
+top-down execution, if the query needs to determine if a dependency
+needs to be recomputed, another bottom-up traversal will be needed.
+Thus, the execution of a query is a layering of top-down and bottom-up
+(re)computations.</p>
+<p>The recomputation-to-check-output requirement has one more practical
+effect. If a dependency is determined to have changed, this has occurred
+by re-running it. That means that when the parent query is called to in
+turn determine its new value, once it reaches the call to the changed
+dependency, the result will already be known, and the saved value will
+be used. More concretely, suppose a particular query depends on queries
+A, B, and C. Suppose also that all three of these queries would produce a
+new output in new revision. In this case, when the parent query is invoked,
+the output of <cite>A</cite> would already have been recomputed, whereas <cite>B</cite> and <cite>C</cite>
+would still be awaiting recomputation; the use of <cite>A</cite> would result in returning
+a cached result, whereas the uses of <cite>B</cite> and <cite>C</cite> would result in invoking
+these queries’ functions. In short, you cannot expect all query dependencies
+to be computed in the same manner (bottom up or top down).</p>
+<div class="section" id="the-preamble-is-always-called">
+<h3>The Preamble is Always Called<a class="headerlink" href="#the-preamble-is-always-called" title="Permalink to this headline">¶</a></h3>
+<p>One important thing to note is that, once you’ve decided that
+recomputation is necessary, “recomputing” the query is pretty much the
+same as computing it in the first place. At the time of writing,
+“recompute” is just a shim for calling the query function with the
+previously-supplied arguments. However, the query function’s body
+includes the preamble, and thus, the preamble is re-run whenever a
+query’s result is recomputed.</p>
+<p>The preamble does a few things, such as check if a query needs to be
+recomputed <a class="footnote-reference brackets" href="#id4" id="id2">2</a>, push it onto a query stack (which records
+dependencies). If you are implementing logic that is sensitive to the
+kind of things that occur in the preamble, keep this in mind.</p>
+</div>
+<div class="section" id="example-of-avoiding-recomputation">
+<h3>Example of Avoiding Recomputation<a class="headerlink" href="#example-of-avoiding-recomputation" title="Permalink to this headline">¶</a></h3>
+<p>Here’s an example of when an input query changes, but a top-level query
+need not change. Suppose you’re reading a string from some input query,
+computing its length, and then performing an expensive computation with
+that somehow solely depends on the length.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">SomeDataStructure</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">expensiveQuery</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">expensiveQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">strLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lengthQuery</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">doSomeExpensiveComputation</span><span class="p">(</span><span class="n">strLen</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">size_t</span><span class="w"> </span><span class="nf">lengthQuery</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">lengthQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inputQuery</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">str</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="nf">inputQuery</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN_INPUT</span><span class="p">(</span><span class="n">inputQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Now, consider the following sequence of steps.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_STORE_INPUT_RESULT</span><span class="p">(</span><span class="n">inputQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;hello&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">firstResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expensiveQuery</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">advanceToNextRevision</span><span class="p">(</span><span class="nb">false</span><span class="w"> </span><span class="cm">/* prepareToGC */</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_STORE_INPUT_RESULT</span><span class="p">(</span><span class="n">inputQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;world&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">secondResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expensiveQuery</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">&quot;hello&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;world&quot;</span></code> have the same length; thus,
+<code class="docutils literal notranslate"><span class="pre">lengthQuery</span></code> will return the same value, even though the input has
+changed. Since queries are deterministic and pure, this means that
+<code class="docutils literal notranslate"><span class="pre">expensiveQuery</span></code> should produce the same result. Thus, even after an
+input query change, the expensive computation can be avoided.</p>
+<p><strong>What steps would the query system take?</strong> When <code class="docutils literal notranslate"><span class="pre">expensiveQuery</span></code> is
+invoked for the second time, the query system will observe that it
+hasn’t been computed yet as of the second generation, and would attempt
+to determine whether or not recomputation should take place. To do so,
+it will perform the depth-first graph traversal with recomputation, as
+described above. The only leaf of the dependency graph in this example
+is <code class="docutils literal notranslate"><span class="pre">inputQuery</span></code>; this query has been explicitly set by the user, so it
+won’t be re-run. However, it will be marked as “requiring recompute” and
+<code class="docutils literal notranslate"><span class="pre">lengthQuery</span></code> would be re- run because of that. However,
+<code class="docutils literal notranslate"><span class="pre">lengthQuery</span></code> will return the same result as before. Thus, the
+recomputation check for <code class="docutils literal notranslate"><span class="pre">expensiveQuery</span></code> will find that none of its
+dependencies have changed, and skip running it.</p>
+<p>A more compilation-oriented example is that of typechecking an expression. A
+user might add a space somewhere in the middle of a function call, but
+the resulting AST would be the same, and thus, typechecking would not
+need to occur.</p>
+</div>
+<div class="section" id="changing-dependency-graph-example">
+<h3>Changing Dependency Graph Example<a class="headerlink" href="#changing-dependency-graph-example" title="Permalink to this headline">¶</a></h3>
+<p>Once one of a query’s dependencies is known to have changed, we stop
+executing the dependencies, and execute the query itself. One of the reasons
+for this is that queries that <cite>were</cite> run in the previous execution may not need
+to be run at all. Consider the following example.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">bool</span><span class="w"> </span><span class="nf">queryWithConditional</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">queryWithConditional</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queryA</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queryB</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Suppose query A returns <code class="docutils literal notranslate"><span class="pre">0</span></code> initially. In that case, both query A
+and query B would be dependencies of <code class="docutils literal notranslate"><span class="pre">queryWithConditional</span></code>. However,
+if the result of query A changes to something nonzero, re-running
+query B would be unnecessary: it would never be called in the parent
+query’s body. Not only that, but re-running query B could be incorrect:
+if it issued errors, these errors would be shown to the user, even
+though there’s no reason why they should be.</p>
+<p>A slightly more complicated case is as follows.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">bool</span><span class="w"> </span><span class="nf">queryWithConditional</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">queryWithConditional</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">queryAResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queryA</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">result</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">queryAResult</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queryB</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queryC</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Suppose that in the above example, query A returns <code class="docutils literal notranslate"><span class="pre">true</span></code> in the first
+generation, and <code class="docutils literal notranslate"><span class="pre">false</span></code> in the second generation. When it’s initially
+computed, <code class="docutils literal notranslate"><span class="pre">queryWithConditional</span></code> would have queries A and B as its
+dependencies. However, once the result of query A changes, it would be
+incorrect to re-run query B (for the same reason as before). Additionally,
+query C, though not listed as a dependency, will need to be executed,
+possibly for the first time. This will happen when <code class="docutils literal notranslate"><span class="pre">queryWithConditional</span></code>
+is itself recomputed. In the end, <code class="docutils literal notranslate"><span class="pre">queryWithConditional</span></code> will have queries
+A and C as its dependencies.</p>
+<p>From a correctness perspective, an important consequence of these examples
+is that dependencies should be checked in the order that they were originally
+called. Otherwise, we might end up recomputing a query that would no longer
+need to be called. Because of this, the query system stores an <cite>ordered</cite> list
+of dependencies, and traverses it first-to-last.</p>
+</div>
+<div class="section" id="state-implications">
+<h3>State Implications<a class="headerlink" href="#state-implications" title="Permalink to this headline">¶</a></h3>
+<p>The occasional bottom-up nature of recomputing queries means that
+<code class="docutils literal notranslate"><span class="pre">Context</span></code> state changes temporarily made by a parent query may or may
+not be visible to a child query. Consider the following example:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">bool</span><span class="w"> </span><span class="nf">childQuery</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">childQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">someStateFlagSet</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">parentQuery</span><span class="p">(</span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">QUERY_BEGIN</span><span class="p">(</span><span class="n">parentQuery</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">someStateFlagSet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">childQuery</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">someStateFlagSet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">QUERY_END</span><span class="p">(</span><span class="n">result</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">Context</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">;</span><span class="w"> </span><span class="c1">// Assume initialized with some real value</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">firstResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parentQuery</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">advanceToNextRevision</span><span class="p">(</span><span class="nb">false</span><span class="w"> </span><span class="cm">/* prepareToGC */</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">secondResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">secondResult</span><span class="p">(</span><span class="n">context</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">firstResult</span></code> variable will be set to <code class="docutils literal notranslate"><span class="pre">true</span></code>, as one would
+expect. The parent query would first be called, set the parent flag, and
+then call the child query. The child query would read the flag and
+return it.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">secondResult</span></code> variable will be set to <code class="docutils literal notranslate"><span class="pre">false</span></code>. In an effort to
+determine whether or not the <code class="docutils literal notranslate"><span class="pre">parentQuery</span></code> needs to be recomputed, the
+query system will begin a depth-first search. It will therefore first
+need to determine if <code class="docutils literal notranslate"><span class="pre">childQuery</span></code> has changed; to do so, it must
+recompute the result. Thus, it calls <code class="docutils literal notranslate"><span class="pre">childQuery</span></code>, which reads
+<code class="docutils literal notranslate"><span class="pre">context-&gt;someStateFlagSet</span></code>, and determines that the flag is <em>not</em> set
+(after all, it was set to false by <code class="docutils literal notranslate"><span class="pre">parentQuery</span></code>!). Thus, the query
+returns <code class="docutils literal notranslate"><span class="pre">false</span></code> – a different value than it returned last time –
+prompting <code class="docutils literal notranslate"><span class="pre">parentQuery</span></code> to be recomputed. Within the parent query, the
+cached value of <code class="docutils literal notranslate"><span class="pre">childQuery</span></code> is used, and the <code class="docutils literal notranslate"><span class="pre">parentQuery</span></code> returns
+<code class="docutils literal notranslate"><span class="pre">false</span></code>, too.</p>
+<p><strong>Does this mean the query system is broken?</strong> No, it does not.
+Modifying global state is an effect, and thus <code class="docutils literal notranslate"><span class="pre">parentQuery</span></code> is not a
+“law-abiding” query.</p>
+<p><strong>So queries cannot rely on any Context state?</strong> Well, not necessary.
+Sometimes storing state in the context is useful. For instance, a query
+might request that errors from its child queries not be issued to the
+user (e.g. if it’s trying to perform a computation that might fail, but
+that failure is a potential and expected result). So, queries might want
+to rely on (mutable) context state – however, this cannot be done in
+query code alone; the context’s implementation must be adjusted to be
+aware of the state. My hope is that this document contains enough
+information about the query’s system behavior to help support such an
+adjustment.</p>
+<dl class="footnote brackets">
+<dt class="label" id="id3"><span class="brackets"><a class="fn-backref" href="#id1">1</a></span></dt>
+<dd><p>or at least supposed to be, under the assumptions of the query system</p>
+</dd>
+<dt class="label" id="id4"><span class="brackets"><a class="fn-backref" href="#id2">2</a></span></dt>
+<dd><p>at the time of writing – and yes, that does mean that if
+<code class="docutils literal notranslate"><span class="pre">recompute</span></code> is called from inside a “needs recompute” function,
+another “needs recompute” will be performed.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="queries.html" class="btn btn-neutral float-left" title="Query Framework" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="file-format.html" class="btn btn-neutral float-right" title="File Format for ‘.dyno’ Files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

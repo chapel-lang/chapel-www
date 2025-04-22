@@ -1,0 +1,257 @@
+.. default-domain:: chpl
+
+.. module:: OS
+   :synopsis: Supports features matching operating system interfaces.
+
+OS
+==
+**Usage**
+
+.. code-block:: chapel
+
+   use OS;
+
+
+or
+
+.. code-block:: chapel
+
+   import OS;
+
+**Submodules**
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   OS/*
+
+Supports features matching operating system interfaces.
+
+This module provides Chapel declarations for the constants, types,
+and functions defined by various operating systems' programmatic
+interfaces.  It is not complete for any operating system, but does
+define those things that have been needed so far in implementing
+other Chapel modules and user programs.  It is expected to grow as
+needed.  In all respects (naming, capitalization, types, semantics)
+the symbols defined here should match their corresponding operating
+system definitions to the extent Chapel can do so.  For documentation
+on these symbols, please see the operating system manual pages.
+
+
+
+.. type:: type errorCode
+
+   A type storing an error code or an error message.
+   An :type:`errorCode` can be compared using == or != to a
+   :type:`CTypes.c_int` or to another :type:`errorCode`. An :type:`errorCode`
+   can be cast to or from a :type:`CTypes.c_int`. It can be assigned the
+   value of a :type:`CTypes.c_int` or another :type:`errorCode`. In addition,
+   :type:`errorCode` can be checked directly in an if statement like so:
+   
+   .. code-block:: chapel
+   
+     var err: errorCode;
+     if err then writeln("err contains an error, ie err != 0");
+     else writeln("err does not contain an error; err == 0");
+   
+   The default intent for a formal of type :type:`errorCode` is `const in`.
+   
+   The default value of the :type:`errorCode` type is undefined.
+
+.. class:: SystemError : Error
+
+   
+   :class:`SystemError` is a base class for :class:`Errors.Error` s
+   generated from ``errorCode``. It provides factory methods to create
+   different subtypes based on the ``errorCode`` that is passed.
+   
+
+   .. method:: proc init(err: errorCode, details: string = "")
+
+      
+      Construct a :class:`SystemError` with a specific error code and optional
+      extra details.
+      
+
+   .. method:: override proc message()
+
+      
+      Provides a formatted string output for :class:`SystemError`, generated
+      from the internal ``err`` and the ``details`` string.
+      
+
+.. function:: proc createSystemError(err: errorCode, details: string = ""): SystemError
+
+   
+   Return the matching :class:`SystemError` subtype for a given ``errorCode``,
+   with an optional string containing extra details.
+   
+   :arg err: the errorCode to generate from
+   :arg details: extra information to include with the error
+   
+
+.. function:: proc createSystemError(err: int, details: string = "")
+
+   
+   Return the matching :class:`SystemError` subtype for a given error number,
+   with an optional string containing extra details.
+   
+   :arg err: the number to generate from
+   :arg details: extra information to include with the error
+   
+
+.. class:: BlockingIoError : SystemError
+
+   
+   :class:`BlockingIoError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.EAGAIN`, :const:`~POSIX.EALREADY`,
+   :const:`~POSIX.EWOULDBLOCK`, and :const:`~POSIX.EINPROGRESS`.
+   
+
+.. class:: ChildProcessError : SystemError
+
+   
+   :class:`ChildProcessError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.ECHILD`.
+   
+
+.. class:: ConnectionError : SystemError
+
+   
+   :class:`ConnectionError` is the subclass of :class:`SystemError` that
+   serves as the base class for all system errors regarding connections.
+   
+
+.. class:: BrokenPipeError : ConnectionError
+
+   
+   :class:`BrokenPipeError` is the subclass of :class:`ConnectionError`
+   corresponding to :const:`~POSIX.EPIPE`
+   
+
+.. class:: ConnectionAbortedError : ConnectionError
+
+   
+   :class:`ConnectionAbortedError` is the subclass of :class:`ConnectionError`
+   corresponding to :const:`~POSIX.ECONNABORTED`.
+   
+
+.. class:: ConnectionRefusedError : ConnectionError
+
+   
+   :class:`ConnectionRefusedError` is the subclass of :class:`ConnectionError`
+   corresponding to :const:`~POSIX.ECONNREFUSED`.
+   
+
+.. class:: ConnectionResetError : ConnectionError
+
+   
+   :class:`ConnectionResetError` is the subclass of :class:`ConnectionError`
+   corresponding to :const:`~POSIX.ECONNRESET`.
+   
+
+.. class:: FileExistsError : SystemError
+
+   
+   :class:`FileExistsError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.EEXIST`.
+   
+
+.. class:: FileNotFoundError : SystemError
+
+   
+   :class:`FileNotFoundError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.ENOENT`.
+   
+
+.. class:: InterruptedError : SystemError
+
+   
+   :class:`InterruptedError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.EINTR`.
+   
+
+.. class:: IsADirectoryError : SystemError
+
+   
+   :class:`IsADirectoryError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.EISDIR`.
+   
+
+.. class:: NotADirectoryError : SystemError
+
+   
+   :class:`NotADirectoryError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.ENOTDIR`.
+   
+
+.. class:: PermissionError : SystemError
+
+   
+   :class:`PermissionError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.EACCES` and :const:`~POSIX.EPERM`.
+   
+
+.. class:: ProcessLookupError : SystemError
+
+   
+   :class:`ProcessLookupError` is the subclass of :class:`SystemError`
+   corresponding to :const:`~POSIX.ESRCH`.
+   
+
+.. class:: TimeoutError : SystemError
+
+   
+   :class:`TimeoutError` is the subclass of :class:`SystemError` corresponding
+   to :const:`~POSIX.ETIMEDOUT`.
+   
+
+.. class:: IoError : SystemError
+
+   
+   :class:`IoError` is the subclass of :class:`SystemError` corresponding to
+   EIO.
+   
+
+.. class:: EofError : Error
+
+   
+   :class:`EofError` is the the Chapel-specific error corresponding to
+   encountering end-of-file.
+   
+
+.. class:: UnexpectedEofError : Error
+
+   
+   :class:`UnexpectedEofError` is the Chapel-specific error
+   corresponding to encountering end-of-file before the requested amount of
+   input could be read.
+   
+   This error can also occur on some writing operations when a
+   :record:`~IO.fileWriter`'s range has been specified, and the write exceeds
+   the valid range.
+   
+
+.. class:: BadFormatError : Error
+
+   
+   :class:`BadFormatError` is the Chapel-specific error corresponding
+   to incorrectly-formatted input.
+   
+
+.. class:: InsufficientCapacityError : IoError
+
+   
+   :class:`InsufficientCapacityError` is a subclass of :class:`IoError`
+   indicating that an IO operation required more storage than was provided
+   
+
+.. function:: proc errorToString(error: errorCode): string
+
+   Convert a errorCode code to a human-readable string describing the error.
+   
+   :arg error: the error code
+   :returns: a string describing the error
+   
+

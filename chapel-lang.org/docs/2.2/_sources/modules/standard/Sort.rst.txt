@@ -1,0 +1,958 @@
+.. _std-sort:
+
+.. default-domain:: chpl
+
+.. module:: Sort
+   :synopsis: This module supports standard algorithms for sorting data.
+
+Sort
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use Sort;
+
+
+or
+
+.. code-block:: chapel
+
+   import Sort;
+
+
+
+This module supports standard algorithms for sorting data.
+It is designed to
+be flexible and efficient, allowing the user to define custom comparators to
+sort any data type, as long as the comparator implements the appropriate
+sorting interface.
+
+The simplest way to sort an array is to call the :proc:`sort` function on the
+array. The sort function will use the default comparator to sort the array in
+ascending order.
+
+.. code-block:: chapel
+
+  var Array = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5];
+
+  sort(Array);
+
+  // This will output: 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 9
+  writeln(Array);
+
+
+The sort function can also accept a region argument to sort a subset of an
+array. This is offered as an optimization over using an array slice which may
+have performance overhead.
+
+
+.. code-block:: chapel
+
+  var Array = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5];
+
+  // Sort only the elemets in the range 1..5
+  // Same as sort(Array[1..5]);
+  sort(Array, region=1..5);
+
+  // This will output: 3, 1, 1, 4, 5, 9, 2, 6, 5, 3, 5
+  writeln(Array);
+
+
+The sort function can also be called on a list, be stable or unstable, and
+accept a custom comparator.
+See the :proc:`sort(x: list)<Sort.sort>` function for details.
+
+.. _comparators:
+
+Comparators
+-----------
+
+Comparators allow sorting data by a mechanism other than the
+default comparison operations between array elements.
+
+The :proc:`sort` function can accept a comparator argument, which defines how
+the data is sorted. If no comparator is passed, the default comparator is
+used.
+
+Reverse sorting is handled by the :record:`ReverseComparator`.
+See :ref:`Reverse Comparator<reverse-comparator>` for details.
+
+
+To use a custom comparator, define a record or a class which implements the
+appropriate sorting interface.
+
+Comparators need to implement one, and only one, of the following interfaces
+as well as at least one of their associated methods:
+
+  * :interface:`keyComparator` -- see `The keyComparator interface`_
+  * :interface:`relativeComparator` -- see `The relativeComparator interface`_
+  * :interface:`keyPartComparator` -- see `The keyPartComparator interface`_
+
+See the section below for discussion of each of these interfaces and methods.
+
+*Future:*
+
+  Provide a unified ``sortComparator`` interface, which can represent an
+  exclusive or (XOR) of the three interfaces above.
+
+
+The keyComparator interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``keyComparator`` interface is used to sort data by a key value. Records
+implementing this interface must define a ``key`` method.
+
+Today, it is an error for a comparator implementing the ``keyComparator``
+interface to contain a ``key`` method as well as one of the other methods
+that are part of the ``relativeComparator`` or ``keyPartComparator``
+interfaces. This restriction might be lifted in future releases.
+
+The .key method
+***************
+
+The ``key(elt)`` method accepts 1 argument, which will be an element from the
+array being sorted.
+
+The default key method would look like this:
+
+.. code-block:: chapel
+
+  proc DefaultComparator.key(elt) {
+    return elt;
+  }
+
+
+As an example, if the user wants to sort an array by the absolute values of its
+elements, the user can define a comparator with a key method as follows:
+
+.. code-block:: chapel
+
+  var Array = [-1, -4, 2, 3];
+
+  // Empty record serves as comparator, implements the keyComparator interface
+  record absComparator : keyComparator { }
+
+  // key method maps an element to the value to be used for comparison
+  proc absComparator.key(elt) { return abs(elt); }
+
+  var absoluteComparator: absComparator;
+
+  sort(Array, comparator=absoluteComparator);
+
+  // This will output: -1, 2, 3, -4
+  writeln(Array);
+
+The return type of ``key(elt)`` must support the ``<``
+operator, which is used by the base compare method of all sort routines. If the
+``<`` operator is not defined for the return type, the user may define it
+themselves like so:
+
+.. code-block:: chapel
+
+  operator <(x: returnType, y: returnType): bool {
+    ...
+  }
+
+
+The relativeComparator interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``relativeComparator`` interface is used to sort data by comparing two
+elements directly. Records implementing this interface must define a
+``compare`` method.
+
+The .compare method
+*******************
+
+The ``compare(x, y)`` method accepts 2 arguments, which will be 2 elements from
+the array being sorted. The return value should be a numeric signed type
+indicating how x and y compare to each other. The conditions between ``x`` and
+``y`` should result in the following return values for ``compare(x, y)``:
+
+  ============ ==========
+  Return Value Condition
+  ============ ==========
+  ``> 0``      ``x > y``
+  ``0``        ``x == y``
+  ``< 0``      ``x < y``
+  ============ ==========
+
+The default compare method for a signed integral type can look like this:
+
+.. code-block:: chapel
+
+    proc DefaultComparator.compare(x, y) {
+      return x - y;
+    }
+
+
+The absolute value comparison example from above can alternatively be
+implemented with a ``relativeComparator`` as follows:
+
+.. code-block:: chapel
+
+  var Array = [-1, -4, 2, 3];
+
+  // Empty record serves as comparator
+  record absComparator : relativeComparator { }
+
+  // compare method defines how 2 elements are compared
+  proc absComparator.compare(x, y) {
+    return abs(x) - abs(y);
+  }
+
+  var absoluteComparator: absComparator;
+
+  sort(Array, comparator=absoluteComparator);
+
+  // This will output: -1, 2, 3, -4
+  writeln(Array);
+
+
+The keyPartComparator interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The keyPartComparator interface defines how a comparator should sort parts of
+a key using the ``keyPart`` method. This is used for certain sort algorithms.
+Records implementing this interface must define a ``keyPart`` method.
+
+A comparator implementing this interface can optionally also provide a
+`compare` method. In that event, the sort algorithm will use whichever is
+appropriate for the algorithm and expect that they have consistent results.
+
+The .keyPart method
+*******************
+
+A ``keyPart(elt, i)`` method returns *parts* of key value at a time. This
+interface supports radix sorting for variable length data types, such as
+strings. It accepts two arguments:
+
+ * ``elt`` is the element being sorted
+ * ``i`` is the part number of the key requested, starting from 0
+
+A ``keyPart`` method should return a tuple consisting of *section* and a *part*.
+
+ * The *section* must be of type :type:`keyPartStatus`. It indicates when the
+   end of ``elt`` has been reached and in that event how it should be sorted
+   relative to other array elements.
+
+ * The *part* can be any signed or unsigned integral type and can contain any
+   value. The *part* will be ignored unless the *section* returned is
+   :enumconstant:`keyPartStatus.returned`.
+
+
+Let's consider several example ``keyPart`` methods. All of these are
+simplifications of ``keyPart`` methods already available in the
+:type:`DefaultComparator`.
+
+This ``keyPart`` method supports sorting tuples of 2 integers:
+
+.. code-block:: chapel
+
+  proc keyPart(elt: 2*int, i: int) {
+    if i > 1 then
+      return (keyPartStatus.pre, 0); // second value is not used
+
+    return (keyPartStatus.returned, elt(i));
+  }
+
+
+Here is a ``keyPart`` to support sorting of strings:
+
+.. code-block:: chapel
+
+  proc keyPart(x: string, i: int): (keyPartStatus, uint(8)) {
+    var len = x.numBytes;
+    var section = if i < len then keyPartStatus.returned  else keyPartStatus.pre;
+    var part =    if i < len then x.byte(i)               else 0:uint(8);
+    return (section, part);
+  }
+
+
+.. _reverse-comparator:
+
+Reverse Comparator
+~~~~~~~~~~~~~~~~~~
+
+Sort functions in Chapel do not have a ``reverse`` argument. Instead, reverse
+sorting is handled through the comparator interface.
+
+An instance of the type :record:`ReverseComparator` can be passed to a sort
+function to reverse the default sorting order.
+
+.. code-block:: chapel
+
+  var Array = [-1, -4, 2, 3];
+
+  // Using module-defined 'ReverseComparator'
+  sort(Array, comparator = new ReverseComparator())
+
+  // This will output: 3, 2, -1, -4
+  writeln(Array);
+
+
+To reverse the sort order of a user-defined comparator, pass the user-defined
+comparator to the initializer of the module-defined
+:record:`ReverseComparator` record, which can be passed to the sort function.
+
+For this example, we will reverse the absolute value comparison from above
+using the ``relativeComparator`` interface, although the same can be done with
+the ``keyComparator`` interface.
+
+.. code-block:: chapel
+
+  var Array = [-1, -4, 2, 3];
+
+  // Empty record serves as comparator
+  record absComparator : relativeComparator{ }
+
+  // compare method defines how 2 elements are compared
+  proc absComparator.compare(x, y) {
+    return abs(x) - abs(y); // ascending order
+  }
+
+  var absReverseComparator: ReverseComparator(absComparator); // reverse order
+
+  sort(Array, comparator=absReverseComparator);
+
+  // This will output: -4, 3, 2, -1
+  writeln(Array);
+
+ 
+
+.. data:: const defaultComparator: DefaultComparator = new DefaultComparator()
+
+   .. warning::
+
+      The variable 'defaultComparator' is now deprecated, please create a new instance of the :record:`DefaultComparator` type instead.
+
+   
+   Instance of :record:`DefaultComparator` used as default ``comparator=``
+   argument when no comparator is passed to a sort function
+
+.. data:: const reverseComparator: ReverseComparator(DefaultComparator) = new ReverseComparator()
+
+   .. warning::
+
+      The variable 'reverseComparator' is now deprecated, please create a new instance of the :type:`ReverseComparator` type reversing the :type:`DefaultComparator` instead.
+
+   
+   Instance of :record:`ReverseComparator` that reverses the default comparator.
+   
+   Pass this as the ``comparator=`` argument of a sort function to reverse the
+   default sort order.
+   
+   
+
+.. function:: proc sort(ref x: [], comparator: ? = new DefaultComparator(), param stable: bool = false)
+
+   
+   
+   Sort the elements in the 1D rectangular array ``x``.
+   After the call, ``x`` will store elements in sorted order.
+   
+   The choice of sorting algorithm used is made by the implementation.
+   
+   .. note::
+   
+     When reordering elements, the sort implementation might use assignment, memory
+     moves, or the swap operator. Additionally, the sort might
+     copy-initialize some elements, for example, to create a pivot in quicksort.
+   
+   .. note::
+   
+     This function currently either uses a parallel radix sort or a parallel
+     improved quick sort. For stable sort, it uses Timsort.
+     The algorithms used will change over time.
+   
+     It currently uses parallel radix sort if the following conditions are met:
+   
+       * the array being sorted is over a non-strided domain
+       * ``comparator`` includes a ``keyPart`` method for ``eltType``
+         or includes a ``key`` returning a value for which the default comparator
+         includes a ``keyPart`` method
+   
+     Note that the default comparator includes ``keyPart`` methods for:
+   
+       * ``int``
+       * tuples of ``int``
+       * ``uint``
+       * tuples of ``uint``
+       * ``real``
+       * tuples of ``real``
+       * ``imag``
+       * tuples of ``imag``
+       * ``string``
+       * ``c_string``
+   
+   :arg x: The array to be sorted
+   :type x: `array`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+     data is sorted.
+   :arg stable: Defaults to ``false``. If it is ``false``, the implementation
+     can sort in a way that reorders equal keys. If it is ``true``, it will use a
+     stable algorithm in order to preserve the order of equal keys.
+    
+
+.. function:: proc sort(ref x: list(?), comparator: ? = new DefaultComparator(), param stable: bool = false)
+
+   
+   
+   Sort the elements in the list ``x``. After the call, ``x`` will store elements
+   in sorted order.
+   
+   See :proc:`sort` declared above for details.
+   
+   .. warning::
+   
+     Sorting the elements of a list may invalidate existing references
+     to the elements contained in the list.
+   
+   :arg x: The list to be sorted
+   :type x: :type:`~List.list`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+     data is sorted.
+   :arg stable: Defaults to ``false``. If it is ``false``, the implementation
+     can sort in a way that reorders equal keys. If it is ``true``, it will use a
+     stable algorithm in order to preserve the order of equal keys.
+    
+
+.. function:: proc sort(ref x: [], comparator, region: range(?), param stable: bool = false)
+
+   
+   
+   Sort the elements in the range 'region' within in the 1D rectangular array
+   ``x``.  After the call, ``x[region]`` will store elements in sorted order.
+   This function accepts a 'region' range as an optimized alternative to using an
+   array view.
+   
+   See the :proc:`sort` declared just above for details.
+   
+   .. note::
+   
+     Due to uncertainty about the usefulness of this routine, it is unstable.
+     Please comment on https://github.com/chapel-lang/chapel/issues/25648 if
+     you find this routine important in your work.
+   
+    
+
+.. function:: proc sort(ref Data: [?Dom] ?eltType, comparator: ?rec = defaultComparator, param stable: bool = false, param inPlaceAlgorithm: bool = false)
+
+   .. warning::
+
+      The 'sort' function with 'Data' and 'inPlaceAlgorithm' arguments has been deprecated, please use the 'sort' function with an 'x' argument instead
+
+   
+   
+   Sort the elements in the 1D rectangular array ``Data``.
+   After the call, ``Data`` will store elements in sorted order.
+   
+   The choice of sorting algorithm used is made by the implementation.
+   
+   .. note::
+   
+     When reordering elements, the sort implementation might use assignment, memory
+     moves, or the swap operator. Additionally, the sort might
+     copy-initialize some elements, for example, to create a pivot in quicksort.
+   
+   .. note::
+   
+     This function currently either uses a parallel radix sort or a parallel
+     improved quick sort.  For stable sort, use :proc:`sort` with ``stable=true``.
+     The algorithms used will change over time.
+   
+     It currently uses parallel radix sort if the following conditions are met:
+   
+       * the array being sorted is over a non-strided domain
+       * ``comparator`` includes a ``keyPart`` method for ``eltType``
+         or includes a ``key`` returning a value for which the default comparator
+         includes a ``keyPart`` method
+   
+     Note that the default comparator includes ``keyPart`` methods for:
+   
+       * ``int``
+       * tuples of ``int``
+       * ``uint``
+       * tuples of ``uint``
+       * ``real``
+       * tuples of ``real``
+       * ``imag``
+       * tuples of ``imag``
+       * ``string``
+       * ``c_string``
+   
+   :arg Data: The array to be sorted
+   :type Data: [] `eltType`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+     data is sorted.
+   :arg stable: Defaults to ``false``. If it is ``false``, the implementation
+     can sort in a way that reorders equal keys. If it is ``true``, it will use a
+     stable algorithm in order to preserve the order of equal keys.
+   :arg inPlaceAlgorithm: Defaults to ``false``. If it is ``false``, the
+     implementation can make a copy of ``Data`` for scratch storage during the
+     sort. If it is ``true``, it will use an in-place algorithm in order to use
+     less memory.
+    
+
+.. function:: proc isSorted(x: [], comparator: ? = new DefaultComparator()): bool
+
+   
+   Check if array `x` is in sorted order
+   
+   :arg x: The array to verify
+   :type x: `array`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+   :returns: ``true`` if array is sorted
+   :rtype: `bool`
+   
+
+.. function:: proc isSorted(x: list(?), comparator: ? = new DefaultComparator()): bool
+
+   
+   Check if list `x` is in sorted order
+   
+   :arg x: The list to verify
+   :type x: :type:`~List.list`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+   :returns: ``true`` if list is sorted
+   :rtype: `bool`
+   
+
+.. function:: proc isSorted(Data: [?Dom] ?eltType, comparator: ?rec = defaultComparator): bool
+
+   .. warning::
+
+      'isSorted' with the argument name 'Data' is deprecated, please use the version with the argument name 'x' instead
+
+   
+   Check if array `Data` is in sorted order
+   
+   :arg Data: The array to verify
+   :type Data: [] `eltType`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+   :returns: ``true`` if array is sorted
+   :rtype: `bool`
+   
+
+.. iterfunction:: iter sorted(x, comparator: ? = new DefaultComparator())
+
+   
+   Yield the elements of argument `x` in sorted order, using the same algorithm
+   as :proc:`sort`.
+   
+   .. note:
+   
+      This is currently implemented as a serial iterator, but will eventually
+      support parallel iteration.
+   
+   :arg x: An iterable value to be sorted and yielded element by element
+   :type x: `iterable`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+   
+   :yields: The elements of x in sorted order
+   :ytype: x's element type
+   
+   
+
+.. interface:: interface keyComparator
+
+   .. warning::
+
+      keyComparator is not yet stable
+
+   
+   The keyComparator interface defines how a comparator should sort elements by
+   returning a *key* for each element in the array.
+
+   .. method:: proc Self.key(elt)
+
+   
+   Given an array element, returns a key element to sort by.
+   
+   :arg elt: the array element being compared
+   :returns: a *key* element to sort by
+   :rtype: a type that support '<'
+   
+
+.. enum:: enum keyPartStatus { pre = -1, returned = 0, post = 1 }
+
+   
+   Indicates when the end of an element has been reached and in that event how
+   it should be sorted relative to other array elements.
+
+   .. enumconstant:: enum constant pre = -1
+
+      No more key parts for element, sort it before those with more parts 
+
+   .. enumconstant:: enum constant returned = 0
+
+      A key part for element is being returned 
+
+   .. enumconstant:: enum constant post = 1
+
+      No more key parts for element, sort it after those with more parts 
+
+.. interface:: interface keyPartComparator
+
+   .. warning::
+
+      keyPartComparator is not yet stable
+
+   
+   The keyPartComparator interface defines how a comparator should sort parts of
+   a key, by defining :proc:`~keyPartComparator.Self.keyPart`. This is used for
+   certain sort algorithms. If :proc:`~keyPartComparator.Self.keyPart` is not
+   appropriate, the sort implementation may use
+   :proc:`~keyPartComparator.Self.compare` instead.
+
+   .. method:: proc Self.keyPart(elt, i: int): (keyPartStatus, integral)
+
+   
+   A ``keyPart(elt, i)`` method returns *parts* of key value at a time. This
+   interface supports radix sorting for variable length data types, such as
+   strings. It accepts two arguments:
+   
+   * ``elt`` is the element being sorted
+   * ``i`` is the part number of the key requested, starting from 0
+   
+   A ``keyPart`` method should return a tuple consisting of *section* and a *part*.
+   
+   * The *section* must be of type :type:`keyPartStatus`. It indicates when the
+     end of ``elt`` has been reached and in that event how it should be sorted
+     relative to other array elements.
+   
+   * The *part* can be any signed or unsigned integral type and can contain any
+     value. The *part* will be ignored unless the *section* returned is
+     :enumconstant:`keyPartStatus.returned`.
+   
+   :arg elt: the element being sorted
+   :arg i: the part number requested
+   :returns: ``(section, part)`` where ``section`` is a :type:`keyPartStatus`
+             and ``part`` is an integral type.
+   
+
+   .. method:: proc Self.compare(x, y: x.type)
+
+   
+   Defines a comparison between two elements of the same type. This method is
+   not required to be implemented by comparators that implement the
+   :interface:`keyPartComparator` interface.
+   
+   :arg x: the first element to compare
+   :arg y: the second element to compare
+   :returns: -1 if ``x`` should be sorted before ``y``,
+              1 if ``x`` should be sorted after ``y``,
+              and 0 if ``x`` and ``y`` are equal
+   :rtype: a signed integral
+   
+
+.. interface:: interface relativeComparator
+
+   .. warning::
+
+      relativeComparator is not yet stable
+
+   
+   The relativeComparator interface defines a comparison between two elements
+
+   .. method:: proc Self.compare(x, y: x.type)
+
+   
+   Defines a comparison between two elements of the same type.
+   
+   :arg x: the first element to compare
+   :arg y: the second element to compare
+   :returns: -1 if ``x`` should be sorted before ``y``,
+              1 if ``x`` should be sorted after ``y``,
+              and 0 if ``x`` and ``y`` are equal
+   :rtype: a signed integral
+   
+
+.. record:: DefaultComparator : keyPartComparator
+
+   .. warning::
+
+      'DefaultComparator' is unstable and will have its name changed in the future
+
+   Default comparator used in sort functions.
+
+   .. method:: proc compare(a, b)
+
+      .. warning::
+
+         compare with 'a' and 'b' arguments is deprecated, please use compare with 'x' and 'y' arguments instead
+
+      
+      Default compare method used in sort functions.
+      Uses the `<` operator to compute the ordering between ``a`` and ``b``.
+      See also `The .compare method`_.
+      
+      :returns: 1 if ``b < a``
+      :returns: 0 if ``a == b``
+      :returns: -1 if ``a < b``
+      
+
+   .. method:: proc compare(x, y: x.type)
+
+      
+      Default compare method used in sort functions.
+      Uses the `<` operator to compute the ordering between ``x`` and ``y``.
+      See also `The .compare method`_.
+      
+      :returns: 1 if ``y < x``
+      :returns: 0 if ``x == y``
+      :returns: -1 if ``x < y``
+      
+
+   .. method:: proc keyPart(elt: integral, i: int): (keyPartStatus, elt.type) where useKeyPartStatus
+
+      
+      Default ``keyPart`` method for integral values.
+      See also `The .keyPart method`_.
+      
+      :arg elt: the `int` or `uint` of any size to sort
+      :arg i: the part number requested
+      
+      :returns: ``(keyPartStatus.returned, x)`` if ``i==0``, or
+                ``(keyPartStatus.pre, x)`` otherwise
+      
+
+   .. method:: proc keyPart(x: integral, i: int): (int(8), x.type) where !useKeyPartStatus
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Default ``keyPart`` method for integral values.
+      See also `The .keyPart method`_.
+      
+      :arg x: the `int` or `uint` of any size to sort
+      :arg i: the part number requested
+      
+      :returns: ``(0, x)`` if ``i==0``, or ``(-1, x)`` otherwise
+      
+
+   .. method:: proc keyPart(elt: real(?), i: int): (keyPartStatus, uint(numBits(elt.type))) where useKeyPartStatus
+
+      
+      Default ``keyPart`` method for `real` values.
+      See also `The .keyPart method`_.
+      
+      :arg elt: the `real` of any width to sort
+      :arg i: the part number requested
+      
+      :returns: ``(keyPartStatus.returned, u)`` if ``i==0``, or
+                ``(keyPartStatus.pre, u)`` otherwise,
+                where `u` is a `uint` storing the bits of the `real`
+                but with some transformations applied to produce the
+                correct sort order.
+      
+
+   .. method:: proc keyPart(x: chpl_anyreal, i: int): (int(8), uint(numBits(x.type))) where !useKeyPartStatus
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Default ``keyPart`` method for `real` values.
+      See also `The .keyPart method`_.
+      
+      :arg x: the `real` of any width to sort
+      :arg i: the part number requested
+      
+      :returns: ``(0, u)`` if ``i==0``, or ``(-1, u)`` otherwise,
+                where `u` is a `uint` storing the bits of the `real`
+                but with some transformations applied to produce the
+                correct sort order.
+      
+
+   .. method:: proc keyPart(elt: imag(?), i: int): (keyPartStatus, uint(numBits(elt.type))) where useKeyPartStatus
+
+      
+      Default ``keyPart`` method for `imag` values.
+      See also `The .keyPart method`_.
+      
+      This method works by calling keyPart with the corresponding `real` value.
+      
+
+   .. method:: proc keyPart(x: chpl_anyimag, i: int): (int(8), uint(numBits(x.type))) where !useKeyPartStatus
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Default ``keyPart`` method for `imag` values.
+      See also `The .keyPart method`_.
+      
+      This method works by calling keyPart with the corresponding `real` value.
+      
+
+   .. method:: proc keyPart(elt: _tuple, i: int) where useKeyPartStatus && isHomogeneousTuple(elt) && (isInt(elt(0)) || isUint(elt(0)) || isReal(elt(0)) || isImag(elt(0)))
+
+      
+      Default ``keyPart`` method for tuples of `int`, `uint`, `real`, or `imag`
+      values.
+      See also `The .keyPart method`_.
+      
+      :arg elt: homogeneous tuple of the numeric type (of any bit width) to sort
+      :arg i: the part number requested
+      
+      :returns: For `int` and `uint`, returns
+                ``(keyPartStatus.pre, elt(i))`` if ``i < elt.size``,
+                or ``(keyPartStatus.returned, 0)`` otherwise.
+                For `real` and `imag`, uses ``keyPart`` to find the `uint`
+                to provide the sorting order.
+      
+
+   .. method:: proc keyPart(x: _tuple, i: int) where !useKeyPartStatus && isHomogeneousTuple(x) && (isInt(x(0)) || isUint(x(0)) || isReal(x(0)) || isImag(x(0)))
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Default ``keyPart`` method for tuples of `int`, `uint`, `real`, or `imag`
+      values.
+      See also `The .keyPart method`_.
+      
+      :arg x: homogeneous tuple of the numeric type (of any bit width) to sort
+      :arg i: the part number requested
+      
+      :returns: For `int` and `uint`, returns
+                ``(0, x(i))`` if ``i < x.size``, or ``(-1, 0)`` otherwise.
+                For `real` and `imag`, uses ``keyPart`` to find the `uint`
+                to provide the sorting order.
+      
+
+   .. method:: proc keyPart(elt: string, i: int): (keyPartStatus, uint(8)) where useKeyPartStatus
+
+      
+      Default ``keyPart`` method for sorting strings.
+      See also `The .keyPart method`_.
+      
+      .. note::
+        Currently assumes that the string is local.
+      
+      :arg elt: the string to sort
+      :arg i: the part number requested
+      
+      :returns: ``(keyPartStatus.returned, byte i of string)`` or
+                ``(keyPartStatus.pre, 0)`` if ``i > elt.size``
+      
+
+   .. method:: proc keyPart(x: string, i: int): (int(8), uint(8)) where !useKeyPartStatus
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Default ``keyPart`` method for sorting strings.
+      See also `The .keyPart method`_.
+      
+      .. note::
+        Currently assumes that the string is local.
+      
+      :arg x: the string to sort
+      :arg i: the part number requested
+      
+      :returns: ``(0, byte i of string)`` or ``(-1, 0)`` if ``i > x.size``
+      
+
+   .. method:: proc keyPart(elt: c_ptrConst(c_char), i: int): (keyPartStatus, uint(8)) where useKeyPartStatus
+
+      
+      Default ``keyPart`` method for sorting `c_ptrConst(c_char)`.
+      See also `The .keyPart method`_.
+      
+      :arg elt: the `c_ptrConst(c_char)` to sort
+      :arg i: the part number requested
+      
+      :returns: ``(keyPartStatus.returned, byte i of string)`` or
+                ``(keyPartStatus.pre, 0)`` if byte ``i`` is ``0``
+      
+
+   .. method:: proc keyPart(x: c_ptrConst(c_char), i: int): (int(8), uint(8)) where !useKeyPartStatus
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Default ``keyPart`` method for sorting `c_ptrConst(c_char)`.
+      See also `The .keyPart method`_.
+      :arg x: the `c_ptrConst(c_char)` to sort
+      :arg i: the part number requested
+      :returns: ``(0, byte i of string)`` or ``(-1, 0)`` if byte ``i`` is ``0``
+      
+
+.. record:: ReverseComparator : keyPartComparator
+
+   .. warning::
+
+      'ReverseComparator' is unstable and will have its name changed in the future
+
+   Reverse comparator built from another comparator.
+
+   .. attribute:: var comparator
+
+      Generic comparator defined in initializer.
+
+   .. method:: proc init()
+
+      
+      Initializer - builds a comparator with a compare method that
+      reverses the sort order of the default comparator.
+      
+
+   .. method:: proc init(comparator)
+
+      
+      Initializer - builds a comparator with a compare method that
+      reverses the sort order of the argument-provided comparator.
+      
+      :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+         data is sorted.
+      
+      
+
+   .. method:: proc keyPart(elt, i) where useKeyPartStatus && (hasKeyPart(elt) || hasKeyPartFromKey(elt))
+
+      
+      Reverses ``comparator.keyPart``. See also `The .keyPart method`_.
+      
+
+   .. method:: proc keyPart(a, i) where !useKeyPartStatus && (hasKeyPart(a) || hasKeyPartFromKey(a))
+
+      .. warning::
+
+         Using :proc:`keyPart` without 'keyPartStatus' is deprecated, compile with '-suseKeyPartStatus' and update your types if necessary
+
+      
+      Reverses ``comparator.keyPart``. See also `The .keyPart method`_.
+      
+
+   .. method:: proc compare(a, b) where hasCompare(a, b) || hasCompareFromKey(a)
+
+      .. warning::
+
+         compare with 'a' and 'b' arguments is deprecated, please use compare with 'x' and 'y' arguments instead
+
+      
+      Reverses ``comparator.compare``. See also `The .compare method`_.
+      
+
+   .. method:: proc compare(x, y: x.type) where hasCompare(x, y) || hasCompareFromKey(x)
+
+      
+      Reverses ``comparator.compare``. See also `The .compare method`_.
+      
+

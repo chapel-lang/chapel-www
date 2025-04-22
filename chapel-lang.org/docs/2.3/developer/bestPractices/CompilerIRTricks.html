@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Examining/Debugging Compiler IR &mdash; Chapel Documentation 2.3</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=c3c8ae58"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="How To Generate Warnings And Error Messages" href="ErrorWarningMessaging.html" />
+    <link rel="prev" title="Tips On Debugging The Compiler" href="CompilerDebugging.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.3
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.3";
+$pagename = "developer/bestPractices/CompilerIRTricks";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Docs for Contributors</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Best Practices for Contributors</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ContributorInfo.html">Contributor Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="DCO.html">Getting started with Chapel and the Developer Certificate of Origin (DCO)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CompilerDebugging.html">Tips On Debugging The Compiler</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Examining/Debugging Compiler IR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ErrorWarningMessaging.html">How To Generate Warnings And Error Messages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="RuntimeLibrary.html">The Chapel Runtime Library</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GeneratedCode.html">All About Compiler-Generated Code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GASNetOnDesktops.html">Running Chapel Programs with GASNet on your Desktop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="git.html">Git tips for Chapel developers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="CHPL_DEVELOPER.html">The CHPL_DEVELOPER environment variable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestSystem.html">Chapel Testing System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="SpellChecking.html">chplspell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Valgrind.html">Valgrind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Sanitizers.html">Sanitizers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Deprecation.html">Chapel’s Deprecation Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Unstable.html">Unstable Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="NightlyTesting.html">Nightly Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="StandardModuleStyle.html">Standard Module Style</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TestAnnotationsLocally.html">How to test ANNOTATIONS.yaml changes locally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildingdocs.html">Building Chapel Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Potpourri.html">Miscellaneous Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../compiler-internals/index.html">Frontend Library API Docs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Docs for Contributors</a></li>
+          <li class="breadcrumb-item"><a href="index.html">Best Practices for Contributors</a></li>
+      <li class="breadcrumb-item active">Examining/Debugging Compiler IR</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/developer/bestPractices/CompilerIRTricks.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="examining-debugging-compiler-ir">
+<span id="best-practices-compiler-ir-tricks"></span><h1>Examining/Debugging Compiler IR<a class="headerlink" href="#examining-debugging-compiler-ir" title="Link to this heading">¶</a></h1>
+<p>See also: <code class="docutils literal notranslate"><span class="pre">CompilerDebugging.txt</span></code>.</p>
+<p>See also: compiler overview in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/doc/rst/developer/implementation/compilerOverview</span></code>.</p>
+<p>An easy way to examine the evolution of the source code is to compile with
+<code class="docutils literal notranslate"><span class="pre">--html</span></code>. For example, when you compile <code class="docutils literal notranslate"><span class="pre">hello.chpl</span></code> with this flag in conjunction
+with <code class="docutils literal notranslate"><span class="pre">--savec</span></code> (useful for reference if you’re trying to understand where a
+given line of code comes from):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># chpl --html -o ./bin/hello ./test/release/examples/hello.chpl --savec ./Hello.Out</span>
+</pre></div>
+</div>
+<p>…you create a directory called <code class="docutils literal notranslate"><span class="pre">log/</span></code> in the current directory. (This trick
+also can be spawned using <code class="docutils literal notranslate"><span class="pre">-t</span></code>.) Note that you can change the defaulted log
+directory by also using <code class="docutils literal notranslate"><span class="pre">--log-dir</span></code>.</p>
+<p>Within this directory contains a file called <code class="docutils literal notranslate"><span class="pre">index.html</span></code>. Point your web
+browser here.</p>
+<p>You will see files corresponding to each generated .c file after every pass
+of the compiler. For example, after the parser (pass 1) handles hello.c, you
+should see output like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">hello</span><span class="p">[</span><span class="mi">70159</span><span class="p">]</span>
+ <span class="n">function</span> <span class="n">chpl__init_hello</span><span class="p">[</span><span class="mi">70160</span><span class="p">]</span> <span class="p">(</span> <span class="p">)</span> <span class="p">:</span> <span class="n">void</span><span class="p">[</span><span class="mi">17</span><span class="p">]</span>
+    <span class="p">{</span>
+          <span class="p">{</span>
+               <span class="p">(</span><span class="mi">70157</span> <span class="n">call</span> <span class="n">writeln</span> <span class="s2">&quot;Hello, world!&quot;</span><span class="p">)</span>
+          <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>As the passes make the code more sophisticated, you will see more calls,
+declarations, etc, and code can move or be removed entirely. Using the output
+from <code class="docutils literal notranslate"><span class="pre">--savec</span></code>, you may line up interesting code samples to see how the compiler
+changes this code over time.</p>
+<p>A key debugging concept is the unique ID associated with each AST node.
+IDs are given sequentially to the nodes when they are constructed.
+See the Compiler Overview document for more details.</p>
+<p>The IDs are commonly shown in debugging and HTML printouts. In the
+above example</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">17</span> <span class="o">-&gt;</span> <span class="n">the</span> <span class="n">void</span> <span class="nb">type</span><span class="p">,</span> <span class="mi">70157</span> <span class="o">-&gt;</span> <span class="n">the</span> <span class="n">call</span> <span class="n">to</span> <span class="n">writeln</span><span class="p">,</span> <span class="n">etc</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>(This call gets a function associated with it within the <code class="docutils literal notranslate"><span class="pre">resolve</span></code> pass.)</p>
+<p>IDs are often used like this while debugging:</p>
+<ul class="simple">
+<li><p>find the ID of an interesting node in the HTML or debugging printout</p></li>
+</ul>
+<blockquote>
+<div><p>(e.g. when printing another node with gdb commands <code class="docutils literal notranslate"><span class="pre">nv</span></code> or <code class="docutils literal notranslate"><span class="pre">lv</span></code>, see <code class="docutils literal notranslate"><span class="pre">CompilerDebugging.txt</span></code>), then</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>break on the creation of that node (see below) to see when/why that happened.</p></li>
+</ul>
+<p>You can also go between the ID and the node pointer:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">myNodePointer</span><span class="o">-&gt;</span><span class="nb">id</span>  <span class="o">//</span> <span class="n">gives</span> <span class="n">the</span> <span class="n">ID</span>
+<span class="n">aid</span><span class="p">(</span><span class="n">myID</span><span class="p">)</span>          <span class="o">//</span> <span class="n">gives</span> <span class="n">the</span> <span class="n">AST</span> <span class="n">pointer</span>
+</pre></div>
+</div>
+<p>The intention is for the IDs to remain the same between different runs
+of the compiler, so that you restart the compiler (with the same arguments)
+to trace the ID you discovered in a previous run. (There are cases when
+IDs change, which should be fixed.)</p>
+<p>Potential gotcha: sometimes code is copied or moved, and the original
+reference is removed. You may have to chase the ID back to a previous
+or parent ID.</p>
+<p>To break on the creation of a particular ID, use <code class="docutils literal notranslate"><span class="pre">--break-on-id</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># chpl --gdb --break-on-id 70157 -o ./bin/hello ./test/release/examples/hello.chpl</span>
+Using<span class="w"> </span>host<span class="w"> </span>libthread_db<span class="w"> </span>library<span class="w"> </span><span class="s2">&quot;/lib64/libthread_db.so.1&quot;</span>.
+Breakpoint<span class="w"> </span><span class="m">1</span><span class="w"> </span>at<span class="w"> </span>0x527ae0
+<span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>run
+Starting<span class="w"> </span>program:<span class="w"> </span>chpl<span class="w"> </span>--break-on-id<span class="w"> </span><span class="m">70157</span><span class="w"> </span>-o<span class="w"> </span>./bin/hello<span class="w"> </span>./test/release/example/hello.chpl
+Breakpoint<span class="w"> </span><span class="m">1</span>,<span class="w"> </span>0x0000000000527ae0<span class="w"> </span><span class="k">in</span><span class="w"> </span>gdbShouldBreakHere<span class="w"> </span><span class="o">()</span>
+<span class="o">(</span>gdb<span class="o">)</span>
+</pre></div>
+</div>
+<p>Should you want to break on more than one ID without running gdb several
+times, the solution is a little contrived.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span><span class="k">break</span><span class="w"> </span>checkid<span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">((</span><span class="nv">id</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">70157</span><span class="o">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">512306</span><span class="o">))</span>
+Breakpoint<span class="w"> </span><span class="m">2</span><span class="w"> </span>at<span class="w"> </span>0x418122:<span class="w"> </span>file<span class="w"> </span>baseAST.cpp,<span class="w"> </span>line<span class="w"> </span><span class="m">182</span>.
+<span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>run
+</pre></div>
+</div>
+<p>As gdb implements this inefficiently, you may want first to break on
+the pass(es) where the desired IDs are created, to reduce the wait time.</p>
+<p>Alternatively, start with <code class="docutils literal notranslate"><span class="pre">--break-on-id</span></code> on the lowest ID.  Once gdb
+breaks on that, update the variable <code class="docutils literal notranslate"><span class="pre">breakOnID</span></code> with the next-lowest ID,
+the next time with the next-next-lowest ID, etc.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span><span class="nv">breakOnID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">512306</span>
+<span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span><span class="k">continue</span>
+</pre></div>
+</div>
+<p>(If you find yourself using this a lot, holler - we should really just
+implement a multiple-ID counterpart to <code class="docutils literal notranslate"><span class="pre">--break-on-id</span></code>.)</p>
+<p>To save some time on html generation, try <code class="docutils literal notranslate"><span class="pre">--html-user</span></code>.
+This generates html only for user modules. In the case
+of <code class="docutils literal notranslate"><span class="pre">hello.chpl</span></code>, only hello will be displayed.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="CompilerDebugging.html" class="btn btn-neutral float-left" title="Tips On Debugging The Compiler" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ErrorWarningMessaging.html" class="btn btn-neutral float-right" title="How To Generate Warnings And Error Messages" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IO Serializers and Deserializers &mdash; Chapel Documentation 2.3</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c3c8ae58"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Checking for Nil Dereferences" href="nilChecking.html" />
+    <link rel="prev" title="Using the Chapel Allocator from C" href="allocators.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.3
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.3";
+$pagename = "technotes/ioSerializers";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#io">IO</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">IO Serializers and Deserializers</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#api-changes-to-standard-io">API Changes to Standard IO</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#serializer-api">Serializer API</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deserializer-api">Deserializer API</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-serializable-interface">The ‘serializable’ Interface</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Technical Notes</a></li>
+      <li class="breadcrumb-item active">IO Serializers and Deserializers</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/ioSerializers.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="io-serializers-and-deserializers">
+<span id="ioserializers"></span><h1>IO Serializers and Deserializers<a class="headerlink" href="#io-serializers-and-deserializers" title="Link to this heading">¶</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Historically, Chapel’s IO module supported formatting options for reading and
+writing values in non-standard formats via the <code class="docutils literal notranslate"><span class="pre">readf</span></code> and <code class="docutils literal notranslate"><span class="pre">writef</span></code> methods
+(e.g., <code class="docutils literal notranslate"><span class="pre">%jt</span></code> for JSON). Chapel 1.32 introduced a new API that allows for
+user-defined formatting with <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code>, rather than
+relying solely on built-in support in the standard library. This new API allows
+for the configuration of <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> with user-defined
+types that can define the format used by methods like <code class="docutils literal notranslate"><span class="pre">read</span></code> and <code class="docutils literal notranslate"><span class="pre">write</span></code>.</p>
+<p>For example, if a user wishes to write a record in JSON format they can now
+use the <code class="docutils literal notranslate"><span class="pre">JSON</span></code> standard module in Chapel 1.32:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">IO</span><span class="p">,</span> <span class="nx">JSON</span><span class="p">;</span>
+
+<span class="k">record</span> <span class="nc">Person</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">name</span> <span class="p">:</span> <span class="kt">string</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">age</span> <span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">f</span> <span class="o">=</span> <span class="nx">open</span><span class="p">(</span><span class="s">&quot;output.txt&quot;</span><span class="p">,</span> <span class="nx">ioMode</span><span class="p">.</span><span class="nx">cw</span><span class="p">);</span>
+
+<span class="c1">// configure &#39;w&#39; to always write in JSON format</span>
+<span class="kd">var</span> <span class="nx">w</span> <span class="o">=</span> <span class="nx">f</span><span class="p">.</span><span class="nx">writer</span><span class="p">(</span><span class="nx">serializer</span><span class="o">=</span><span class="k">new</span> <span class="nx">jsonSerializer</span><span class="p">());</span>
+
+<span class="c1">// writes:</span>
+<span class="c1">// {&quot;name&quot;:&quot;Sam&quot;, &quot;age&quot;:20}</span>
+<span class="kd">var</span> <span class="nx">p</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Person</span><span class="p">(</span><span class="s">&quot;Sam&quot;</span><span class="p">,</span> <span class="mi">20</span><span class="p">);</span>
+<span class="nx">w</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">p</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Serializers and Deserializers interact with user-defined types like <code class="docutils literal notranslate"><span class="pre">Person</span></code>
+by invoking particular methods whose API will be discussed in more detail
+later in this technote. By default, the compiler will generate methods on
+user-defined types capable of interacting with Serializers and Deserializers
+such that most types will simply work out of the box. For more complicated
+cases, users can implement their own methods on their types to customize
+serialization and deserialization.</p>
+<p>In Chapel 1.32, Serializers and Deserializers are enabled by default. Users
+wishing to opt-out of this capability can recompile their programs with
+the config param <code class="docutils literal notranslate"><span class="pre">useIOSerializers</span></code> set to <code class="docutils literal notranslate"><span class="pre">false</span></code>. This config param
+will be available through the Chapel 2.0 release at minimum.</p>
+</section>
+<section id="api-changes-to-standard-io">
+<h2>API Changes to Standard IO<a class="headerlink" href="#api-changes-to-standard-io" title="Link to this heading">¶</a></h2>
+<p>Before diving into the API that Serializers and Deserializers must implement,
+there are additions to the API of standard IO types. For the purposes of this
+document, “Serializer” or “Deserializer” refer to types that implement the
+appropriate API that the standard IO types will invoke.</p>
+<section id="creating-filereaders-and-filewriters">
+<h3>Creating fileReaders and fileWriters<a class="headerlink" href="#creating-filereaders-and-filewriters" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> types can now be created with a specified
+Serializer or Deserializer. The following methods now contain new optional
+<code class="docutils literal notranslate"><span class="pre">serializer</span></code> or <code class="docutils literal notranslate"><span class="pre">deserializer</span></code> arguments that accept a record by the
+<code class="docutils literal notranslate"><span class="pre">in</span></code> intent. The copy of the record will be stored inside of the
+<code class="docutils literal notranslate"><span class="pre">fileReader/Writer</span></code>. The default value for these arguments when
+<code class="docutils literal notranslate"><span class="pre">-suseIOSerializers</span></code> is used will be an instance of <code class="docutils literal notranslate"><span class="pre">DefaultSerializer</span></code> or
+<code class="docutils literal notranslate"><span class="pre">DefaultDeserializer</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">openWriter</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="kt">string</span><span class="p">,</span>
+                <span class="kd">param</span> <span class="nx">kind</span><span class="o">=</span><span class="nx">iokind</span><span class="p">.</span><span class="nx">dynamic</span><span class="p">,</span> <span class="kd">param</span> <span class="nx">locking</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span>
+                <span class="nx">hints</span> <span class="o">=</span> <span class="nx">ioHintSet</span><span class="p">.</span><span class="nx">empty</span><span class="p">,</span>
+                <span class="kd">in</span> <span class="nx">serializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">st</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">DefaultSerializer</span><span class="p">())</span>
+
+<span class="k">proc</span> <span class="nf">file.writer</span><span class="p">(</span><span class="kd">param</span> <span class="nx">kind</span><span class="o">=</span><span class="nx">iokind</span><span class="p">.</span><span class="nx">dynamic</span><span class="p">,</span> <span class="kd">param</span> <span class="nx">locking</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span>
+                 <span class="nx">region</span><span class="p">:</span> <span class="kt">range</span><span class="p">(?)</span> <span class="o">=</span> <span class="mi">0</span><span class="o">..</span><span class="p">,</span> <span class="nx">hints</span> <span class="o">=</span> <span class="nx">ioHintSet</span><span class="p">.</span><span class="nx">empty</span><span class="p">,</span>
+                 <span class="kd">in</span> <span class="nx">serializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">st</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">DefaultSerializer</span><span class="p">())</span>
+
+<span class="k">proc</span> <span class="nf">openReader</span><span class="p">(</span><span class="nx">path</span><span class="p">:</span><span class="kt">string</span><span class="p">,</span>
+                <span class="kd">param</span> <span class="nx">kind</span><span class="o">=</span><span class="nx">iokind</span><span class="p">.</span><span class="nx">dynamic</span><span class="p">,</span> <span class="kd">param</span> <span class="nx">locking</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span>
+                <span class="nx">region</span><span class="p">:</span> <span class="kt">range</span><span class="p">(?)</span> <span class="o">=</span> <span class="mi">0</span><span class="o">..</span><span class="p">,</span> <span class="nx">hints</span><span class="o">=</span><span class="nx">ioHintSet</span><span class="p">.</span><span class="nx">empty</span><span class="p">,</span>
+                <span class="kd">in</span> <span class="nx">deserializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">dt</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">DefaultDeserializer</span><span class="p">())</span>
+
+<span class="k">proc</span> <span class="nf">file.reader</span><span class="p">(</span><span class="kd">param</span> <span class="nx">kind</span><span class="o">=</span><span class="nx">iokind</span><span class="p">.</span><span class="nx">dynamic</span><span class="p">,</span> <span class="kd">param</span> <span class="nx">locking</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span>
+                 <span class="nx">region</span><span class="p">:</span> <span class="kt">range</span><span class="p">(?)</span> <span class="o">=</span> <span class="mi">0</span><span class="o">..</span><span class="p">,</span> <span class="nx">hints</span> <span class="o">=</span> <span class="nx">ioHintSet</span><span class="p">.</span><span class="nx">empty</span><span class="p">,</span>
+                 <span class="kd">in</span> <span class="nx">deserializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">dt</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">DefaultDeserializer</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+<section id="new-fields-on-filereader-and-filewriter">
+<h3>New Fields on fileReader and fileWriter<a class="headerlink" href="#new-fields-on-filereader-and-filewriter" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> types each have a new <code class="docutils literal notranslate"><span class="pre">type</span></code> field
+named <code class="docutils literal notranslate"><span class="pre">deserializerType</span></code> and <code class="docutils literal notranslate"><span class="pre">serializerType</span></code> respectively. These fields
+can be used to constrain arguments to better separate code dedicated to
+particular serialization formats:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">readData</span><span class="p">(</span><span class="nx">data</span><span class="p">:</span> <span class="p">[],</span>
+              <span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="nx">deserializerType</span><span class="o">=</span><span class="nx">jsonDeserializer</span><span class="p">,</span> <span class="p">?))</span> <span class="p">{</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">readData</span><span class="p">(</span><span class="nx">data</span><span class="p">:</span> <span class="p">[],</span>
+              <span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="nx">deserializerType</span><span class="o">=</span><span class="nx">binaryDeserializer</span><span class="p">,</span> <span class="p">?))</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="accessing-serializers-and-deserializers">
+<h3>Accessing Serializers and Deserializers<a class="headerlink" href="#accessing-serializers-and-deserializers" title="Link to this heading">¶</a></h3>
+<p>The instance of a Serializer or Deserializer can be accessed with new methods
+on <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code>, which will return the stored instance
+by <code class="docutils literal notranslate"><span class="pre">ref</span></code>:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">fileReader.deserializer</span> <span class="kd">ref</span> <span class="p">:</span> <span class="nx">deserializerType</span>
+
+<span class="k">proc</span> <span class="nf">fileWriter.serializer</span> <span class="kd">ref</span> <span class="p">:</span> <span class="nx">serializerType</span>
+</pre></div>
+</div>
+<p>These instances are returned by <code class="docutils literal notranslate"><span class="pre">ref</span></code> in case complex implementations require
+modification of some internal state.</p>
+</section>
+<section id="switching-formats-in-place">
+<h3>Switching Formats In-Place<a class="headerlink" href="#switching-formats-in-place" title="Link to this heading">¶</a></h3>
+<p>The IO library now supports the ability to create an alias of a <code class="docutils literal notranslate"><span class="pre">fileReader</span></code>
+or <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> with a new Deserializer or Serializer. This new alias will
+point to the same place in the file as the original, but will use the newly
+specified format when reading or writing. These methods accept either a record
+by <code class="docutils literal notranslate"><span class="pre">in</span></code> intent, or a <code class="docutils literal notranslate"><span class="pre">type</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">fileWriter.withSerializer</span><span class="p">(</span><span class="kd">type</span> <span class="nx">serializerType</span><span class="p">)</span> <span class="p">:</span>
+  <span class="nx">fileWriter</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">kind</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">locking</span><span class="p">,</span> <span class="nx">serializerType</span><span class="p">)</span>
+
+<span class="k">proc</span> <span class="nf">fileWriter.withSerializer</span><span class="p">(</span><span class="kd">in</span> <span class="nx">serializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">st</span><span class="p">)</span> <span class="p">:</span>
+  <span class="nx">fileWriter</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">kind</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">locking</span><span class="p">,</span> <span class="nx">st</span><span class="p">)</span>
+
+<span class="k">proc</span> <span class="nf">fileReader.withDeserializer</span><span class="p">(</span><span class="kd">type</span> <span class="nx">deserializerType</span><span class="p">)</span> <span class="p">:</span>
+  <span class="nx">fileReader</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">kind</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">locking</span><span class="p">,</span> <span class="nx">deserializerType</span><span class="p">)</span>
+
+<span class="k">proc</span> <span class="nf">fileReader.withDeserializer</span><span class="p">(</span><span class="kd">in</span> <span class="nx">deserializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">dt</span><span class="p">)</span> <span class="p">:</span>
+  <span class="nx">fileReader</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">kind</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">locking</span><span class="p">,</span> <span class="nx">dt</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With these methods, mixing serialization formats within the same file is
+a simple process:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// An imaginary &#39;Connection&#39; object that wishes to log the data it sends</span>
+<span class="c1">// as JSON in the form &quot;[INFO] {...}&quot;</span>
+<span class="k">proc</span> <span class="nf">Connection.sendData</span><span class="p">(</span><span class="nx">data</span><span class="p">:</span> <span class="p">[]</span> <span class="nx">Info</span><span class="p">,</span> <span class="nx">log</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">log</span><span class="p">.</span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;[DEBUG] Sending Info data...&quot;</span><span class="p">);</span>
+
+  <span class="k">for</span> <span class="nx">d</span> <span class="kd">in</span> <span class="nx">data</span> <span class="p">{</span>
+    <span class="nx">log</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="s">&quot;[INFO] &quot;</span><span class="p">);</span>
+    <span class="nx">log</span><span class="p">.</span><span class="nx">withSerializer</span><span class="p">(</span><span class="k">new</span> <span class="nx">jsonSerializer</span><span class="p">()).</span><span class="nx">writeln</span><span class="p">(</span><span class="nx">d</span><span class="p">);</span>
+
+    <span class="k">this</span><span class="p">.</span><span class="nx">sendInfo</span><span class="p">(</span><span class="nx">d</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="nx">log</span><span class="p">.</span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;[DEBUG] Done sending Info data.&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">type</span></code> versions of these methods exist for convenience in the case that
+the user wishes for the <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> or <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> to create the instance
+itself. The Serializer or Deserializer in such cases must support
+initialization without any arguments.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Replacing the line from the previous example</span>
+<span class="nx">log</span><span class="p">.</span><span class="nx">withSerializer</span><span class="p">(</span><span class="nx">jsonSerializer</span><span class="p">).</span><span class="nx">writeln</span><span class="p">(</span><span class="nx">d</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="methods-that-invoke-serializers-and-deserializers">
+<h3>Methods That Invoke Serializers and Deserializers<a class="headerlink" href="#methods-that-invoke-serializers-and-deserializers" title="Link to this heading">¶</a></h3>
+<p>The current methods on <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> that will invoke
+Serializers or Deserializers are:</p>
+<ul class="simple">
+<li><p>fileWriter.write</p></li>
+<li><p>fileWriter.writeln</p></li>
+<li><p>fileReader.read</p></li>
+<li><p>fileReader.readln</p></li>
+</ul>
+</section>
+<section id="reading-generic-types-and-borrowed-classes">
+<h3>Reading Generic Types and Borrowed Classes<a class="headerlink" href="#reading-generic-types-and-borrowed-classes" title="Link to this heading">¶</a></h3>
+<p>As of Chapel 1.31 generic types and borrowed classes are no longer valid
+arguments to the versions of <code class="docutils literal notranslate"><span class="pre">read</span></code> and <code class="docutils literal notranslate"><span class="pre">readln</span></code> that accept a <code class="docutils literal notranslate"><span class="pre">type</span></code>
+argument. Note that fully-instantiated generic types are still allowed.</p>
+</section>
+</section>
+<section id="serializer-api">
+<span id="io-serializer-api"></span><h2>Serializer API<a class="headerlink" href="#serializer-api" title="Link to this heading">¶</a></h2>
+<p>The API for a Serializer can be split into a few parts:</p>
+<ol class="arabic simple">
+<li><p>The interface invoked by a <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> to serialize a value</p></li>
+<li><p>The user-defined <code class="docutils literal notranslate"><span class="pre">serialize</span></code> method describing how values of the type should be serialized</p></li>
+<li><p>The serializer interface used to implement <code class="docutils literal notranslate"><span class="pre">serialize</span></code> methods</p></li>
+</ol>
+<section id="the-filewriter-facing-serializer-api">
+<h3>The fileWriter-Facing Serializer API<a class="headerlink" href="#the-filewriter-facing-serializer-api" title="Link to this heading">¶</a></h3>
+<p>A Serializer must implement the <code class="docutils literal notranslate"><span class="pre">serializeValue</span></code> method, which will be used
+to serialize values passed to <code class="docutils literal notranslate"><span class="pre">fileWriter.write</span></code> and <code class="docutils literal notranslate"><span class="pre">fileWriter.writeln</span></code>.</p>
+<p>The signature of the <code class="docutils literal notranslate"><span class="pre">serializeValue</span></code> method is:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.serializeValue</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">,</span> <span class="kd">const</span> <span class="nx">val</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">serializeValue</span></code> method returns nothing, and once invoked has complete
+control over how the provided value is serialized. The given <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> is
+guaranteed to have a <code class="docutils literal notranslate"><span class="pre">serializerType</span></code> identical to the type whose
+<code class="docutils literal notranslate"><span class="pre">serializeValue</span></code> method was called. The <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code> is also defined to be
+non-locking.</p>
+<p>By convention Serializers will invoke a <code class="docutils literal notranslate"><span class="pre">serialize</span></code> method on records and
+classes, but notably may choose not to do so if the class instance is <code class="docutils literal notranslate"><span class="pre">nil</span></code>.</p>
+<p>The implementation of <code class="docutils literal notranslate"><span class="pre">serializeValue</span></code> is expected to handle primitive types
+directly. Those primitive types are:
+- <code class="docutils literal notranslate"><span class="pre">numeric</span></code> types (e.g., integers, reals, complex numbers)
+- <code class="docutils literal notranslate"><span class="pre">bool</span></code> types
+- <code class="docutils literal notranslate"><span class="pre">string</span></code> and <code class="docutils literal notranslate"><span class="pre">bytes</span></code> types
+- <code class="docutils literal notranslate"><span class="pre">nil</span></code> and <code class="docutils literal notranslate"><span class="pre">none</span></code> values
+- <code class="docutils literal notranslate"><span class="pre">enum</span></code> types</p>
+<p>The argument <code class="docutils literal notranslate"><span class="pre">val</span></code> is defined to be a “primitive” type or a type that
+implements either the <code class="docutils literal notranslate"><span class="pre">writeSerializable</span></code> or <code class="docutils literal notranslate"><span class="pre">serializable</span></code> interfaces,
+both of which define a <code class="docutils literal notranslate"><span class="pre">serialize</span></code> method that a Serializer may invoke to
+allow for user-defined serialization of a type.</p>
+</section>
+<section id="the-serialize-method">
+<h3>The ‘serialize’ Method<a class="headerlink" href="#the-serialize-method" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">serialize</span></code> method has the following signature, whose API includes the
+named arguments “writer” and “serializer”:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">T.serialize</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(?),</span> <span class="kd">ref</span> <span class="nx">serializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">st</span><span class="p">)</span> <span class="k">throws</span>
+</pre></div>
+</div>
+<p>Types implementing this method must also indicate that they satisfy the
+<code class="docutils literal notranslate"><span class="pre">writeSerializable</span></code> interface in the type declaration. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">R</span> <span class="p">:</span> <span class="nx">writeSerializable</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Please refer to the <a class="reference internal" href="interfaces.html#readme-interfaces"><span class="std std-ref">interfaces technote</span></a> for more
+information on interfaces and how they can be used.</p>
+<p>For classes, the <code class="docutils literal notranslate"><span class="pre">serialize</span></code> method signature must include <code class="docutils literal notranslate"><span class="pre">override</span></code> to
+account for the <code class="docutils literal notranslate"><span class="pre">serialize</span></code> method on the <code class="docutils literal notranslate"><span class="pre">RootClass</span></code> type.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">writer</span></code> and <code class="docutils literal notranslate"><span class="pre">serializer</span></code> are passed separately to help distinguish the
+method signature from other possible implementations named “serialize”, as well
+as to make it slightly more convenient to call methods on the Serializer.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">serializer</span></code> argument does not necessarily need to be of the same type as
+<code class="docutils literal notranslate"><span class="pre">writer.serializerType</span></code>. Instead, the argument simply needs to implement the
+Serializer API and must serialize in a compatible format with
+<code class="docutils literal notranslate"><span class="pre">writer.serializerType</span></code>. This constraint exists to allow for child classes to
+pass helper objects created by Serializers to parent class <code class="docutils literal notranslate"><span class="pre">serialize</span></code>
+methods. See the <a class="reference internal" href="#serializerinheritance"><span class="std std-ref">serializer inheritance</span></a> section
+for more information.</p>
+</section>
+<section id="the-user-facing-serializer-api">
+<span id="io-serializer-user-api"></span><h3>The User-Facing Serializer API<a class="headerlink" href="#the-user-facing-serializer-api" title="Link to this heading">¶</a></h3>
+<p>The user-facing part of the Serializer API is intended to allow users to
+serialize their types in a format-agnostic way. This is done by invoking a
+variety of API methods, instead of printing specific characters for a specific
+format.</p>
+<p>The user-facing part of the Serializer API is much larger, and is designed to
+support serializing various “kinds” of types. In particular, the API currently
+supports serializing Classes, Records, Tuples, Arrays, Lists, and Maps. A given
+implementation of a Serializer determines how to represent each kind of type
+in its format. For example, JSON lacks a native representation of tuples, and
+so the <code class="docutils literal notranslate"><span class="pre">JSON</span></code> Serializer represents both “list” and “tuple” type-kinds as
+JSON lists (e.g. <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]</span></code>).</p>
+<p>To begin serializing a kind of type, users will invoke one of six available
+“start” methods on a Serializer, each of which return a “helper” object that
+implements an API specific to that kind of type. Note that any of the “start”
+methods may return the same “helper” type as another method, in the case that
+it is useful for the helper to share logic among certain type kinds. For
+example, in the Chapel 1.32 release the <code class="docutils literal notranslate"><span class="pre">defaultSerializer</span></code> type returned
+the same helper object type for both Class and Record type kinds.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In each of these methods, unless otherwise stated, it is entirely up to the
+author of the Serializer to define their behavior. For example, <code class="docutils literal notranslate"><span class="pre">name</span></code>
+arguments for classes and records may not apply to a particular format, and
+might be ignored.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In each of these groups of methods, it should be noted that the name of each
+helper object is purely illustrative, and does not indicate the name of a
+stable interface to be implemented in the future.</p>
+</div>
+<section id="the-record-helper">
+<h4>The Record Helper<a class="headerlink" href="#the-record-helper" title="Link to this heading">¶</a></h4>
+<p>Users may begin serializing a Record type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startRecord</span></code>
+method on a Serializer. This method takes a <code class="docutils literal notranslate"><span class="pre">name</span></code> argument that represents
+the name of the record type, and a <code class="docutils literal notranslate"><span class="pre">size</span></code> argument that represents the
+number of fields to be serialized.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.startRecord</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">:</span> <span class="nx">RecordHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Serialize a field named &#39;name&#39;</span>
+<span class="k">proc</span> <span class="nf">RecordHelper.writeField</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="kd">const</span> <span class="nx">field</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the record according to the serialization format.</span>
+<span class="k">proc</span> <span class="nf">RecordHelper.endRecord</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="the-tuple-helper">
+<h4>The Tuple Helper<a class="headerlink" href="#the-tuple-helper" title="Link to this heading">¶</a></h4>
+<p>Users may begin serializing a Tuple type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startTuple</span></code>
+method on a Serializer. This method takes a <code class="docutils literal notranslate"><span class="pre">size</span></code> argument that represents
+the number of elements to be serialized.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.startTuple</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">:</span> <span class="nx">TupleHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Serialize an element of the tuple.</span>
+<span class="k">proc</span> <span class="nf">TupleHelper.writeElement</span><span class="p">(</span><span class="kd">const</span> <span class="nx">element</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the tuple according to the serialization format.</span>
+<span class="k">proc</span> <span class="nf">TupleHelper.endTuple</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="the-array-helper">
+<h4>The Array Helper<a class="headerlink" href="#the-array-helper" title="Link to this heading">¶</a></h4>
+<p>Users may begin serializing an Array type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startArray</span></code>
+method on a Serializer. This method takes a <code class="docutils literal notranslate"><span class="pre">size</span></code> argument that represents
+the number of array elements to be serialized.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.startArray</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">:</span> <span class="nx">ArrayHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Serialize the start of a new dimension of size ``size``</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.startDim</span><span class="p">(</span><span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Serialize the end of the current dimension</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.endDim</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Serializer an element of the array.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.writeElement</span><span class="p">(</span><span class="kd">const</span> <span class="nx">element</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the array according to the serialization format.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.endArray</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>ArrayHelpers may also optionally implement a <code class="docutils literal notranslate"><span class="pre">writeBulkElements</span></code> method for
+performance:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// If the format permits, write &#39;numElements&#39; of &#39;data&#39; in bulk.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.writeBulkElements</span><span class="p">(</span><span class="nx">data</span><span class="p">:</span> <span class="nx">c_ptr</span><span class="p">(?</span><span class="nx">eltType</span><span class="p">),</span> <span class="nx">numElements</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently users can only test for <code class="docutils literal notranslate"><span class="pre">writeBulkElements</span></code> support by using
+<a class="reference internal" href="../modules/standard/Reflection.html#module-Reflection" title="Reflection: Support for reflecting about properties of a Chapel program's code."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">Reflection</span></code></a>. Improvements to interfaces <em>may</em> provide a more elegant
+approach to the ‘optional’ aspect of this method in the future.</p>
+</div>
+</section>
+<section id="the-list-helper">
+<h4>The List Helper<a class="headerlink" href="#the-list-helper" title="Link to this heading">¶</a></h4>
+<p>Users may begin serializing a List type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startList</span></code>
+method on a Serializer. This method takes a <code class="docutils literal notranslate"><span class="pre">size</span></code> argument that represents
+the number of list elements to be serialized.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.startList</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">:</span> <span class="nx">ListHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Serialize the list element.</span>
+<span class="k">proc</span> <span class="nf">ListHelper.writeElement</span><span class="p">(</span><span class="kd">const</span> <span class="nx">element</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the list according to the serialization format.</span>
+<span class="k">proc</span> <span class="nf">ListHelper.endList</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="the-map-helper">
+<h4>The Map Helper<a class="headerlink" href="#the-map-helper" title="Link to this heading">¶</a></h4>
+<p>Users may begin serializing a Map type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startMap</span></code>
+method on a Serializer. This method takes a <code class="docutils literal notranslate"><span class="pre">size</span></code> argument that represents
+the number of map entries to be serialized.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.startMap</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">:</span> <span class="nx">MapHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Serialize a map key.</span>
+<span class="k">proc</span> <span class="nf">MapHelper.writeKey</span><span class="p">(</span><span class="kd">const</span> <span class="nx">key</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Serialize a map value.</span>
+<span class="k">proc</span> <span class="nf">MapHelper.writeValue</span><span class="p">(</span><span class="kd">const</span> <span class="nx">val</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the map according to the serialization format.</span>
+<span class="k">proc</span> <span class="nf">MapHelper.endMap</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="the-class-helper-serializers-and-inheritance">
+<span id="serializerinheritance"></span><h4>The Class Helper, Serializers, and Inheritance<a class="headerlink" href="#the-class-helper-serializers-and-inheritance" title="Link to this heading">¶</a></h4>
+<p>Users may begin serializing a Class type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startClass</span></code>
+method on a Serializer. The <code class="docutils literal notranslate"><span class="pre">writer</span></code> argument is passed in and will be used
+by the returned ClassHelper to write serialized output. The <code class="docutils literal notranslate"><span class="pre">name</span></code> argument
+is expected to be the name of the class type being serialized. The <code class="docutils literal notranslate"><span class="pre">size</span></code>
+argument is the number of fields being serialized in the current class,
+excluding any parent fields. Parent fields are not included to preserve
+encapsulation of class implementations and to avoid the inextricable coupling
+of parent and child classes.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Serializer.startClass</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">size</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="p">:</span> <span class="nx">ClassHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Serialize a field named &#39;name&#39;</span>
+<span class="k">proc</span> <span class="nf">ClassHelper.writeField</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="kd">const</span> <span class="nx">field</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the class according to the serialization format</span>
+<span class="k">proc</span> <span class="nf">ClassHelper.endClass</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>ClassHelpers are also required to implement <em>the rest</em> of the Serializer API
+since they may be passed to parent <code class="docutils literal notranslate"><span class="pre">serialize</span></code> methods in the
+compiler-generated default implementation of <code class="docutils literal notranslate"><span class="pre">serialize</span></code> methods on classes.</p>
+<p>This may be achieved without too much extra effort by using
+<a class="reference internal" href="forwarding.html#readme-forwarding"><span class="std std-ref">forwarding</span></a> on the stored <code class="docutils literal notranslate"><span class="pre">fileWriter</span></code>’s
+<code class="docutils literal notranslate"><span class="pre">.serializer</span></code> accessor. By allowing ClassHelpers to be passed to parent
+<code class="docutils literal notranslate"><span class="pre">serialize</span></code> methods, formats may capture an inheritance hierarchy if such is
+relevant to their format.</p>
+<p>The following code snippet is an example of writing <code class="docutils literal notranslate"><span class="pre">serialize</span></code> methods for
+a parent and child class:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Parent</span> <span class="p">:</span> <span class="nx">writeSerializable</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">Child</span> <span class="p">:</span> <span class="nx">Parent</span><span class="p">,</span> <span class="nx">writeSerializable</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">y</span> <span class="p">:</span> <span class="kt">int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// When serializing an instance of &#39;Parent&#39;, &#39;serializer&#39; could be the same</span>
+<span class="c1">// type as &#39;writer.serializerType&#39;.</span>
+<span class="c1">//</span>
+<span class="c1">// When serializing an instance of &#39;Child&#39;, &#39;serializer&#39; could be a</span>
+<span class="c1">// ClassHelper type, and so the ClassHelper must satisfy the Serializer API.</span>
+<span class="k">override</span> <span class="k">proc</span> <span class="nf">Parent.serialize</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(?),</span> <span class="kd">ref</span> <span class="nx">serializer</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">ser</span> <span class="o">=</span> <span class="nx">serializer</span><span class="p">.</span><span class="nx">startClass</span><span class="p">(</span><span class="nx">writer</span><span class="p">,</span> <span class="s">&quot;Parent&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="nx">ser</span><span class="p">.</span><span class="nx">writeField</span><span class="p">(</span><span class="s">&quot;x&quot;</span><span class="p">,</span> <span class="nx">x</span><span class="p">);</span>
+  <span class="nx">ser</span><span class="p">.</span><span class="nx">endClass</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="k">override</span> <span class="k">proc</span> <span class="nf">Child.serialize</span><span class="p">(</span><span class="nx">writer</span><span class="p">:</span> <span class="nx">fileWriter</span><span class="p">(?),</span> <span class="kd">ref</span> <span class="nx">serializer</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">ser</span> <span class="o">=</span> <span class="nx">serializer</span><span class="p">.</span><span class="nx">startClass</span><span class="p">(</span><span class="nx">writer</span><span class="p">,</span> <span class="s">&quot;Child&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+
+  <span class="c1">// pass the ClassHelper &#39;ser&#39; to the parent &#39;serialize&#39; method</span>
+  <span class="nx">super</span><span class="p">.</span><span class="nx">serialize</span><span class="p">(</span><span class="nx">writer</span><span class="p">,</span> <span class="nx">ser</span><span class="p">);</span>
+
+  <span class="nx">ser</span><span class="p">.</span><span class="nx">writeField</span><span class="p">(</span><span class="s">&quot;y&quot;</span><span class="p">,</span> <span class="nx">y</span><span class="p">);</span>
+  <span class="nx">ser</span><span class="p">.</span><span class="nx">endClass</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="user-facing-api-notes">
+<h4>User Facing API Notes<a class="headerlink" href="#user-facing-api-notes" title="Link to this heading">¶</a></h4>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This document does not define what errors these methods may or may not
+throw.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="deserializer-api">
+<span id="io-deserializer-api"></span><h2>Deserializer API<a class="headerlink" href="#deserializer-api" title="Link to this heading">¶</a></h2>
+<p>The API for a Deserializer can be split into a few parts:</p>
+<ol class="arabic simple">
+<li><p>The interface invoked by a <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> to deserialize a value</p></li>
+<li><p>The user-defined <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> method and initializer describing how values of the type should be deserialized</p></li>
+<li><p>The deserializer interface used to implement <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> methods and deserializing initializers</p></li>
+</ol>
+<section id="the-filereader-facing-serializer-api">
+<h3>The fileReader-Facing Serializer API<a class="headerlink" href="#the-filereader-facing-serializer-api" title="Link to this heading">¶</a></h3>
+<p>A Deserializer must implement the following methods, corresponding to the
+versions of <code class="docutils literal notranslate"><span class="pre">fileReader.read</span></code> that accept either a type or a value:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.deserializeType</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">,</span>
+                                  <span class="kd">type</span> <span class="nx">readType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">readType</span> <span class="k">throws</span>
+
+<span class="k">proc</span> <span class="nf">Deserializer.deserializeValue</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">,</span>
+                                   <span class="kd">ref</span> <span class="nx">val</span><span class="p">:</span> <span class="p">?</span><span class="nx">readType</span><span class="p">)</span> <span class="p">:</span> <span class="kt">void</span> <span class="k">throws</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">deserializeType</span></code> method is responsible for creating a new instance of
+the given type, and returning that new instance. By convention
+<code class="docutils literal notranslate"><span class="pre">deserializeType</span></code> will invoke a initializer by passing in the <code class="docutils literal notranslate"><span class="pre">reader</span></code> and
+a Deserializer. This technote will refer to such initializers with the desired
+signature as “deserializing initializers”, which can be generated by the
+compiler. If a suitable initializer is not available, this method may attempt
+to invoke a <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> method on a default-initialized value.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">deserializeValue</span></code> method must modify an existing value, which can be
+useful for types that are not cheap to allocate and benefit from re-use (e.g.
+arrays). By convention <code class="docutils literal notranslate"><span class="pre">deserializeValue</span></code> will invoke a <code class="docutils literal notranslate"><span class="pre">deserialize</span></code>
+method on records and classes. If a suitable <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> method is not
+available, this method may attempt to invoke a suitable initializer and assign
+the result into the value.</p>
+<p>For classes, the <code class="docutils literal notranslate"><span class="pre">deserializeValue</span></code> method has the freedom to potentially
+free the given class and/or reassign it, depending on the needs of the
+Deserializer.</p>
+<p>The arguments <code class="docutils literal notranslate"><span class="pre">val</span></code> or <code class="docutils literal notranslate"><span class="pre">readType</span></code> are defined to be a “primitive” type or a
+type that implements at least one of the following interfaces:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">readDeserializable</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">initDeserializable</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">serializable</span></code> (combines <code class="docutils literal notranslate"><span class="pre">writeSerializable</span></code> with the two above)</p></li>
+</ul>
+<p>In both methods, the given <code class="docutils literal notranslate"><span class="pre">fileReader</span></code> is also defined to be non-locking.</p>
+<p>Note that while both methods may invoke initializers or methods that pass
+control back to the user, Deserializers may ignore those options in the case
+that a class is nilable and can be read as <code class="docutils literal notranslate"><span class="pre">nil</span></code>.</p>
+</section>
+<section id="the-deserializing-initializer">
+<h3>The Deserializing Initializer<a class="headerlink" href="#the-deserializing-initializer" title="Link to this heading">¶</a></h3>
+<p>An initializer invoked by a Deserializer must have the following signature,
+including the argument names “reader” and “deserializer”:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">T.init</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(?),</span>
+            <span class="kd">ref</span> <span class="nx">deserializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">dt</span><span class="p">)</span> <span class="k">throws</span>
+</pre></div>
+</div>
+<p>Types implementing this method must also indicate that they satisfy the
+<code class="docutils literal notranslate"><span class="pre">initDeserializable</span></code> interface. Please refer to the
+<a class="reference internal" href="interfaces.html#readme-interfaces"><span class="std std-ref">interfaces technote</span></a> for more information on
+interfaces and how they can be used.</p>
+<p>By default, the compiler will generate a suitable initializer with this
+signature provided that no other user-defined initializers exist.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">reader</span></code> and <code class="docutils literal notranslate"><span class="pre">deserializer</span></code> are passed separately to help distinguish
+the method signature from other possible initializers, as well as to make it
+slightly more convenient to call methods on the Deserializer.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">deserializer</span></code> argument must implement the Deserializer API and must
+deserialize in a compatible format with <code class="docutils literal notranslate"><span class="pre">reader.deserializerType</span></code>. This
+constraint exists to allow for child classes to pass helper objects created
+by Deserializers to parent initializers. See the previous section on
+<a class="reference internal" href="#serializerinheritance"><span class="std std-ref">serializer inheritance</span></a> for more information.</p>
+<p>Generic types have a slightly more complex initializer signature, in that there
+must be a <code class="docutils literal notranslate"><span class="pre">type</span></code> or <code class="docutils literal notranslate"><span class="pre">param</span></code> argument for each <code class="docutils literal notranslate"><span class="pre">type</span></code> or <code class="docutils literal notranslate"><span class="pre">param</span></code> field.
+For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">G</span> <span class="p">:</span> <span class="nx">initDeserializable</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">A</span><span class="p">;</span>
+  <span class="kd">type</span> <span class="nx">B</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="nx">A</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span> <span class="p">:</span> <span class="nx">B</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">G.init</span><span class="p">(</span><span class="kd">type</span> <span class="nx">A</span><span class="p">,</span> <span class="kd">type</span> <span class="nx">B</span><span class="p">,</span>
+            <span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">,</span> <span class="kd">ref</span> <span class="nx">deserializer</span><span class="p">)</span> <span class="k">throws</span> <span class="p">{</span>
+  <span class="cm">/* ... */</span>
+<span class="p">}</span>
+
+<span class="c1">// With a reader &#39;r&#39;</span>
+<span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="nx">G</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span> <span class="kt">real</span><span class="p">));</span>
+<span class="c1">// becomes something like...</span>
+<span class="c1">// new G(A=int, B=real, reader=r, deserializer=r.deserializer)</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Generic types with typeless fields, like “var x;”, cannot yet be
+deserialized using an initializer.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Throwing inside an initializer before the type is fully initialized is not
+yet allowed in Chapel.</p>
+</div>
+</section>
+<section id="the-deserialize-method">
+<h3>The ‘deserialize’ Method<a class="headerlink" href="#the-deserialize-method" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> method has the following signature, and also requires
+its arguments to have the names “reader” and “deserializer”:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">ref</span> <span class="nx">T</span><span class="p">.</span><span class="nx">deserialize</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(?),</span>
+                       <span class="kd">ref</span> <span class="nx">deserializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">dt</span><span class="p">)</span> <span class="k">throws</span>
+</pre></div>
+</div>
+<p>For classes, this signature is slightly different in that it requires the
+<code class="docutils literal notranslate"><span class="pre">override</span></code> keyword and a blank this-intent:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">proc</span> <span class="nf">T.deserialize</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(?),</span>
+                            <span class="kd">ref</span> <span class="nx">deserializer</span><span class="p">:</span> <span class="p">?</span><span class="nx">dt</span><span class="p">)</span> <span class="k">throws</span>
+</pre></div>
+</div>
+<p>By default, the compiler will generate a suitable <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> method with
+this signature provided.</p>
+<p>Types implementing this method must also indicate that they satisfy the
+<code class="docutils literal notranslate"><span class="pre">readDeserializable</span></code> interface. Please refer to the
+<a class="reference internal" href="interfaces.html#readme-interfaces"><span class="std std-ref">interfaces technote</span></a> for more information on
+interfaces and how they can be used.</p>
+</section>
+<section id="the-user-facing-deserializer-api">
+<span id="io-deserializer-user-api"></span><h3>The User-Facing Deserializer API<a class="headerlink" href="#the-user-facing-deserializer-api" title="Link to this heading">¶</a></h3>
+<p>Like the Serializer API, the user-facing part of the Deserializer API is
+relatively large and supports the same set of type kinds as a Serializer. Also
+like the Serializer API, the Deserializer API works through the creation and
+use of helper objects returned by various “start” methods.</p>
+<p>The Deserializer API is also slightly larger due to the need for “type” and
+“by reference” versions of methods like <code class="docutils literal notranslate"><span class="pre">readElement</span></code>, to match the desired
+behavior of the originating <code class="docutils literal notranslate"><span class="pre">fileReader.read</span></code> call. The List and Map type
+kinds also support a <code class="docutils literal notranslate"><span class="pre">hasMore</span></code> method to help users know when they can stop
+reading.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In each of these methods, unless otherwise stated, it is entirely up to the
+author of the Deserializer to define their behavior. For example, <code class="docutils literal notranslate"><span class="pre">name</span></code>
+arguments for classes and records may not apply to a particular format, and
+might be ignored.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In each of these groups of methods, it should be noted that the name of each
+helper object is purely illustrative, and does not indicate the name of a
+stable interface to be implemented in the future.</p>
+</div>
+<section id="id1">
+<h4>The Record Helper<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h4>
+<p>Users may begin deserializing a Record type kind by invoking the
+<code class="docutils literal notranslate"><span class="pre">startRecord</span></code> method on a Deserializer. This method takes a <code class="docutils literal notranslate"><span class="pre">name</span></code> argument
+that represents the name of the record type.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.startRecord</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">)</span> <span class="p">:</span> <span class="nx">RecordHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Deserialize a field named &#39;name&#39;, returns a value of type &#39;fieldType&#39;</span>
+<span class="k">proc</span> <span class="nf">RecordHelper.readField</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="kd">type</span> <span class="nx">fieldType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">fieldType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize a field named &#39;name&#39; in-place.</span>
+<span class="k">proc</span> <span class="nf">RecordHelper.readField</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="kd">ref</span> <span class="nx">field</span> <span class="p">:?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the record according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">RecordHelper.endRecord</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h4>The Tuple Helper<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h4>
+<p>Users may begin deserializing a Tuple type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startTuple</span></code>
+method on a Deserializer.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.startTuple</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">))</span> <span class="p">:</span> <span class="nx">TupleHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Deserialize an element of the tuple, return a value of type &#39;eltType&#39;</span>
+<span class="k">proc</span> <span class="nf">TupleHelper.readElement</span><span class="p">(</span><span class="kd">type</span> <span class="nx">eltType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">eltType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize &#39;element&#39; as a tuple element in-place.</span>
+<span class="k">proc</span> <span class="nf">TupleHelper.readElement</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">element</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the tuple according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">TupleHelper.endTuple</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h4>The Array Helper<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h4>
+<p>Users may begin deserializing an Array type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startArray</span></code>
+method on a Deserializer.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.startArray</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">))</span> <span class="p">:</span> <span class="nx">ArrayHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Deserialize an element of the array, return a value of type &#39;eltType&#39;</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.readElement</span><span class="p">(</span><span class="kd">type</span> <span class="nx">eltType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">eltType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize &#39;element&#39; as an array element in-place.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.readElement</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">element</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Start deserializing a new dimension</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.startDim</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the array dimension according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.endDim</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the array according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.endArray</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>ArrayHelpers may also optionally implement a <code class="docutils literal notranslate"><span class="pre">readBulkElements</span></code> method for
+performance:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// If the format permits, write &#39;numElements&#39; of &#39;data&#39; in bulk.</span>
+<span class="k">proc</span> <span class="nf">ArrayHelper.readBulkElements</span><span class="p">(</span><span class="nx">data</span><span class="p">:</span> <span class="nx">c_ptr</span><span class="p">(?</span><span class="nx">eltType</span><span class="p">),</span> <span class="nx">n</span><span class="p">:</span> <span class="kt">int</span><span class="p">)</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently users can only test for <code class="docutils literal notranslate"><span class="pre">readBulkElements</span></code> support by using
+<a class="reference internal" href="../modules/standard/Reflection.html#module-Reflection" title="Reflection: Support for reflecting about properties of a Chapel program's code."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">Reflection</span></code></a>. Improvements to interfaces <em>may</em> provide a more elegant
+approach to the ‘optional’ aspect of this method in the future.</p>
+</div>
+</section>
+<section id="id4">
+<h4>The List Helper<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h4>
+<p>Users may begin deserializing a List type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startList</span></code>
+method on a Deserializer.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.startList</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">))</span> <span class="p">:</span> <span class="nx">ListHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Deserialize an element of the list, return a value of type &#39;eltType&#39;</span>
+<span class="k">proc</span> <span class="nf">ListHelper.readElement</span><span class="p">(</span><span class="kd">type</span> <span class="nx">eltType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">eltType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize &#39;element&#39; as a list element in-place.</span>
+<span class="k">proc</span> <span class="nf">ListHelper.readElement</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">element</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Returns &#39;true&#39; if there are more elements to deserialize</span>
+<span class="k">proc</span> <span class="nf">ListHelper.hasMore</span><span class="p">()</span> <span class="p">:</span> <span class="kt">bool</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the list according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">ListHelper.endList</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h4>The Map Helper<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h4>
+<p>Users may begin deserializing a Map type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startMap</span></code>
+method on a Deserializer.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.startMap</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">))</span> <span class="p">:</span> <span class="nx">MapHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Deserialize a key of the map, return a value of type &#39;keyType&#39;</span>
+<span class="k">proc</span> <span class="nf">MapHelper.readKey</span><span class="p">(</span><span class="kd">type</span> <span class="nx">keyType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">keyType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize &#39;key&#39; as a map key in-place.</span>
+<span class="k">proc</span> <span class="nf">MapHelper.readKey</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">key</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize a value of the map, return a value of type &#39;valType&#39;</span>
+<span class="k">proc</span> <span class="nf">MapHelper.readValue</span><span class="p">(</span><span class="kd">type</span> <span class="nx">valType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">valType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize &#39;value&#39; as a map value in-place.</span>
+<span class="k">proc</span> <span class="nf">MapHelper.readValue</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">value</span><span class="p">:</span> <span class="p">?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Returns &#39;true&#39; if there are more map entries to deserialize</span>
+<span class="k">proc</span> <span class="nf">MapHelper.hasMore</span><span class="p">()</span> <span class="p">:</span> <span class="kt">bool</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the map according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">MapHelper.endMap</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="the-class-helper">
+<h4>The Class Helper<a class="headerlink" href="#the-class-helper" title="Link to this heading">¶</a></h4>
+<p>Users may begin deserializing a Class type kind by invoking the <code class="docutils literal notranslate"><span class="pre">startClass</span></code>
+method on a Deserializer. This method takes a <code class="docutils literal notranslate"><span class="pre">name</span></code> argument that represents
+the name of the class type.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">Deserializer.startClass</span><span class="p">(</span><span class="nx">reader</span><span class="p">:</span> <span class="nx">fileReader</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="kd">type</span><span class="p">),</span> <span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">)</span> <span class="p">:</span> <span class="nx">ClassHelper</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The returned object must implement the following API:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="c1">// Deserialize a field named &#39;name&#39;, returns a value of type &#39;fieldType&#39;</span>
+<span class="k">proc</span> <span class="nf">ClassHelper.readField</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="kd">type</span> <span class="nx">fieldType</span><span class="p">)</span> <span class="p">:</span> <span class="nx">fieldType</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// Deserialize a field named &#39;name&#39; in-place.</span>
+<span class="k">proc</span> <span class="nf">ClassHelper.readField</span><span class="p">(</span><span class="nx">name</span><span class="p">:</span> <span class="kt">string</span><span class="p">,</span> <span class="kd">ref</span> <span class="nx">field</span> <span class="p">:?)</span> <span class="k">throws</span><span class="p">;</span>
+
+<span class="c1">// End the class according to the deserialization format.</span>
+<span class="k">proc</span> <span class="nf">ClassHelper.endClass</span><span class="p">()</span> <span class="k">throws</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Like in the Serializer API, the ClassHelper must implement <em>the rest</em> of the
+Deserializer API to allow for the ClassHelper to be passed to parent
+initializers and parent <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> methods.</p>
+</section>
+</section>
+</section>
+<section id="the-serializable-interface">
+<h2>The ‘serializable’ Interface<a class="headerlink" href="#the-serializable-interface" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">serializable</span></code> interface mentioned on this document is intended to be
+an interface that requires implementation of all three kinds of user-defined
+methods: <code class="docutils literal notranslate"><span class="pre">serialize</span></code>, <code class="docutils literal notranslate"><span class="pre">deserialize</span></code>, and a deserializing initializer.</p>
+<p>A formal definition of this interface is pending, following the standardization
+of interfaces in the language.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="allocators.html" class="btn btn-neutral float-left" title="Using the Chapel Allocator from C" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="nilChecking.html" class="btn btn-neutral float-right" title="Checking for Nil Dereferences" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interoperability with C &mdash; Chapel Documentation 1.32</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="fileIO.chpl" href="fileIO.html" />
+    <link rel="prev" title="Replicated Distribution" href="replicated.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.32
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.32";
+$pagename = "primers/interopWithC";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Primers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-basics">Language Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#iterators">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#task-parallelism">Task Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#locality">Locality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#data-parallelism">Data Parallelism</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#interoperability">Interoperability</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Chapel&lt;-&gt;C interoperability</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#chapel-as-a-library">Chapel as a Library</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-c-code-in-chapel">Using C Code in Chapel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#library-utilities">Library Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#numerical-libraries">Numerical Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tools">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#language-overview">Language Overview</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Primers</a> &raquo;</li>
+      <li>Interoperability with C</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/primers/interopWithC.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="interoperability-with-c">
+<span id="primers-interopwithc"></span><h1>Interoperability with C<a class="headerlink" href="#interoperability-with-c" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/release/examples/primers/interopWithC.chpl">View interopWithC.chpl on GitHub</a></p>
+<p>By default, Chapel programs are compiled as the main program.  Sometimes the
+program is intended as a library whose contents can be called from other
+sources.  This primer will demonstrate how to call Chapel functions from C
+as well as how to use C symbols in Chapel.</p>
+<div class="section" id="chapel-as-a-library">
+<span id="primers-c-interop-chapel-as-library"></span><h2>Chapel as a Library<a class="headerlink" href="#chapel-as-a-library" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="symbol-availability">
+<span id="primers-c-interop-symbol-availability"></span><h3>Symbol Availability<a class="headerlink" href="#symbol-availability" title="Permalink to this headline">¶</a></h3>
+<p>When creating a library file from Chapel code, only those symbols with
+<code class="docutils literal notranslate"><span class="pre">export</span></code> attached to them will be available from outside the library.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">module</span> <span class="nc">interopWithC</span> <span class="p">{</span>
+
+   <span class="k">export</span> <span class="k">proc</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span> <span class="c1">// foo will be available to outside code</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Called foo()&quot;</span><span class="p">);</span>
+   <span class="p">}</span>
+
+   <span class="k">proc</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span> <span class="c1">// bar will not be available to outside code</span>
+      <span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Called bar()&quot;</span><span class="p">);</span>
+   <span class="p">}</span>
+</pre></div>
+</div>
+<p>At present, only functions can be exported from Chapel code.</p>
+</div>
+<div class="section" id="compiling-the-chapel-library">
+<span id="primers-c-interop-compiling-library"></span><h3>Compiling the Chapel Library<a class="headerlink" href="#compiling-the-chapel-library" title="Permalink to this headline">¶</a></h3>
+<p>To generate a library from a Chapel code file, compile the Chapel file with
+the <code class="docutils literal notranslate"><span class="pre">--library</span></code> flag.  For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chpl --library interopWithC.chpl
+</pre></div>
+</div>
+<p>There are various flags and settings that can be used to modify the library
+that gets created and create additional helper files.  These are listed in
+detail in the <a class="reference internal" href="../technotes/libraries.html#readme-libraries"><span class="std std-ref">Calling Chapel Code from Other Languages</span></a> Technical Note.  For this primer, we
+will focus on the default settings and <code class="docutils literal notranslate"><span class="pre">--static</span></code> compilation - this will
+rely on the generated library being named <code class="docutils literal notranslate"><span class="pre">libinteropWithC.a</span></code>, with a
+generated header file named <code class="docutils literal notranslate"><span class="pre">interopWithC.h</span></code>, both of which live in a
+generated <code class="docutils literal notranslate"><span class="pre">lib</span></code> directory.
+Since <code class="docutils literal notranslate"><span class="pre">--static</span></code> is not supported on MacOS you will have to dynamically link
+the generated library. Please refer to <a class="reference internal" href="../technotes/libraries.html#readme-libraries"><span class="std std-ref">Calling Chapel Code from Other Languages</span></a> for instructions
+on how to do that.</p>
+</div>
+<div class="section" id="using-the-chapel-library">
+<span id="primers-c-interop-using-library"></span><h3>Using the Chapel Library<a class="headerlink" href="#using-the-chapel-library" title="Permalink to this headline">¶</a></h3>
+<p>To access the symbols in the generated Chapel library from a C program,
+<code class="docutils literal notranslate"><span class="pre">#include</span></code> the generated header file:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="c1">// Include the generated header file</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;lib/interopWithC.h&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+<p>Before calling any of the functions defined by the library, the Chapel
+runtime and internal libraries must be initialized.  This is done by calling
+<code class="docutils literal notranslate"><span class="pre">chpl_library_init</span></code>, which is defined in
+<code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/runtime/include/chpl-init.h</span></code> and accessible with the above
+<code class="docutils literal notranslate"><span class="pre">#include</span></code>.</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">argv</span><span class="p">[])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// Initialize the Chapel runtime and internal libraries</span>
+<span class="w">  </span><span class="n">chpl_library_init</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Then, if the exported functions rely upon any global variables, the module
+initialization function declared in the header file must be called.  If there
+is uncertainty about whether doing so is necessary, it is recommended to call
+this function.  In this example, this call occurs like this:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Initialize the compiled Chapel library and any used modules</span>
+<span class="w">  </span><span class="n">chpl__init_interopWithC</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+<p>After that, the exported functions may be called:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="n">foo</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="n">alsoCallsBaz</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="n">callUseMyType</span><span class="p">();</span><span class="w"></span>
+</pre></div>
+</div>
+<p>We will see how we exported <code class="docutils literal notranslate"><span class="pre">alsoCallsBaz()</span></code> and <code class="docutils literal notranslate"><span class="pre">callUseMyType()</span></code> as
+well as their definitions later.</p>
+<p>When ending the C program, the user must explicitly shut down the Chapel
+runtime and module code.  This is done by calling <code class="docutils literal notranslate"><span class="pre">chpl_library_finalize</span></code>:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Shutdown the Chapel runtime and standard modules</span>
+<span class="w">  </span><span class="n">chpl_library_finalize</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"> </span><span class="cm">/* main */</span><span class="w"></span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Once shut down, the Chapel runtime cannot be restarted in the current C
+program.</p>
+</div>
+</div>
+<div class="section" id="compiling-c-code-with-the-chapel-library">
+<span id="primers-c-interop-compiling-2"></span><h3>Compiling C Code with the Chapel Library<a class="headerlink" href="#compiling-c-code-with-the-chapel-library" title="Permalink to this headline">¶</a></h3>
+<p>Compiling C code with the generated Chapel library file is generally complex,
+but can be made simpler through the use of the <code class="docutils literal notranslate"><span class="pre">--library-makefile</span></code> flag
+as described in <a class="reference internal" href="../technotes/libraries.html#readme-libraries-linking"><span class="std std-ref">Compiling C Code with the Library</span></a>.</p>
+<p>An example of compiling a C program with a generated Chapel library using
+the generated Makefile can be found under the <cite>interopWithC</cite> target in the
+<a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/release/examples/primers/Makefile">Makefile</a>
+for the primers directory, to build this source file.  An example of using the
+generated Makefile can be seen in <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/main/test/release/examples/primers/Makefile.cClient">Makefile.cClient</a>.
+To build the C client, first run <cite>make interopWithC</cite> then run <cite>make -f
+Makefile.cClient</cite>.</p>
+</div>
+</div>
+<div class="section" id="using-c-code-in-chapel">
+<span id="primers-c-interop-using-c"></span><h2>Using C Code in Chapel<a class="headerlink" href="#using-c-code-in-chapel" title="Permalink to this headline">¶</a></h2>
+<p>Chapel has support for C code but we need to tell the compiler
+about the C symbols using the <code class="docutils literal notranslate"><span class="pre">extern</span></code> keyword.
+Using the <code class="docutils literal notranslate"><span class="pre">extern</span></code> keyword for declaring external
+functions can be done as follows:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">baz</span><span class="p">():</span> <span class="kt">int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The function can then be called as normal:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">callsBaz</span><span class="p">()</span> <span class="p">{</span>
+   <span class="nx">writeln</span><span class="p">(</span><span class="nx">baz</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Such functions can even be called in exported functions:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">export</span> <span class="k">proc</span> <span class="nf">alsoCallsBaz</span><span class="p">()</span> <span class="p">{</span>
+   <span class="nx">writeln</span><span class="p">(</span><span class="nx">baz</span><span class="p">());</span>
+   <span class="nx">callsBaz</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>You can tell the chapel compiler where to look for these C functions by adding a
+require statement:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">require</span> <span class="s">&quot;cHelper.h&quot;</span><span class="p">,</span> <span class="s">&quot;cHelper.c&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>When requiring a C file, object file, or archived library,
+the appropriate header file must also be required.</p>
+<p>Chapel also supports require statements for <code class="docutils literal notranslate"><span class="pre">.o</span></code> files and
+for archived libraries using the <code class="docutils literal notranslate"><span class="pre">-l</span></code> flag:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">require</span> <span class="s">&quot;bar.o&quot;</span><span class="p">,</span> <span class="s">&quot;-lfoo&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Alternatively you can also include their names while invoking the chapel compiler:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chpl cHelper.h cHelper.c foo.h -lfoo interopWithC.chpl
+</pre></div>
+</div>
+<p>Unlike <code class="docutils literal notranslate"><span class="pre">export</span></code>, <code class="docutils literal notranslate"><span class="pre">extern</span></code> can also be applied to global variables,
+struct definitions, or even typedefs.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">int</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span>
+<span class="k">extern</span> <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">uint</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span>
+<span class="k">extern</span> <span class="kd">type</span> <span class="nx">myType</span> <span class="o">=</span> <span class="kt">int</span><span class="p">;</span>
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">useMyType</span><span class="p">(</span><span class="nx">arg</span><span class="p">:</span> <span class="nx">myType</span><span class="p">):</span> <span class="kt">int</span><span class="p">;</span> <span class="c1">// an extern function using the typedef</span>
+
+<span class="k">export</span> <span class="k">proc</span> <span class="nf">callUseMyType</span><span class="p">()</span> <span class="p">{</span>
+   <span class="kd">var</span> <span class="nx">blah</span><span class="p">:</span> <span class="nx">myType</span> <span class="o">=</span> <span class="mi">17</span><span class="p">;</span>
+   <span class="nx">writeln</span><span class="p">(</span><span class="nx">useMyType</span><span class="p">(</span><span class="nx">blah</span><span class="p">));</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Chapel also has a standard module named <a class="reference internal" href="../modules/standard/CTypes.html#module-CTypes" title="CTypes: Defines C types and related routines to support interoperability."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CTypes</span></code></a> (located in
+<code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/modules/standard/</span></code>).
+This module defines a few C types which align with the C compiler
+specification and do not require the <code class="docutils literal notranslate"><span class="pre">extern</span></code> keyword,
+such as <code class="docutils literal notranslate"><span class="pre">c_int</span></code> and <code class="docutils literal notranslate"><span class="pre">c_char</span></code>. For more information about these types see
+the <a class="reference internal" href="../technotes/extern.html#readme-extern"><span class="std std-ref">C Interoperability</span></a> Technical Note.</p>
+<p>You can include CTypes using a simple use statement:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">CTypes</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>We must always make sure the types align as the C compiler specification allows for
+different sizes for the same type depending on the compiler.</p>
+<p>In order to pass an array to C, we use the following declaration:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">sumArray</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span> <span class="p">[]</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">size</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">):</span> <span class="nx">c_int</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Where an array would be</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">arr</span> <span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="o">..</span><span class="mi">9</span><span class="p">]</span> <span class="kt">int</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>Keep in mind that since Chapel has 64 bit ints, so is the array we created above.
+Therefore, the C function must also accept an array of type <code class="docutils literal notranslate"><span class="pre">int64_t</span></code> .</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&quot;Sum of Array: &quot;</span><span class="p">,</span> <span class="nx">sumArray</span><span class="p">(</span><span class="nx">arr</span><span class="p">,</span> <span class="mi">10</span><span class="p">:</span><span class="nx">c_int</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>While dealing with <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code> s, you can also assign default arguments to them
+which then can be omitted at the call site as usual. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">sum</span><span class="p">(</span><span class="nx">a</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">,</span> <span class="nx">b</span><span class="p">:</span> <span class="nx">c_int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span> <span class="kt">int</span><span class="p">;</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">sum</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">));</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">sum</span><span class="p">(</span><span class="mi">10</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>A C struct can be used in Chapel by declaring it as an <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">record</span></code>.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">rec</span> <span class="p">{</span>
+   <span class="kd">var</span> <span class="nx">a</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">giveRec</span><span class="p">():</span> <span class="nx">rec</span><span class="p">;</span> <span class="c1">// returns an instance of the struct</span>
+</pre></div>
+</div>
+<p>You do not have to inform chapel about all the fields of a record,
+only the ones that you wish to directly manipulate using Chapel code.</p>
+<p>For example, a record with no declared fields is possible even though
+the actual C struct might have a nonzero number of fields.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">record</span> <span class="nc">notReallyEmpty</span><span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This means that the type is just reduced to being able to be passed around to
+other functions and without the ability to directly manipulate it.</p>
+<p>As of now the struct must be defined completely in the included header file
+and must also be typdef’d.
+In order to include a struct which is not typedef’d or if you want to import it
+under another name simply state its external name after the <code class="docutils literal notranslate"><span class="pre">extern</span></code> keyword:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;struct person&quot;</span> <span class="k">record</span> <span class="nc">person</span><span class="p">{</span>
+   <span class="kd">var</span> <span class="nx">name</span><span class="p">:</span> <span class="nx">c_ptrConst</span><span class="p">(</span><span class="nx">c_char</span><span class="p">);</span>
+   <span class="kd">var</span> <span class="nx">age</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">proc</span></code> s can also be renamed in a similar fashion.</p>
+<p>Since most functions dealing with structs often return pointers, you can use the
+ref intent for function arguments when their C counterparts are dealing with
+pointers.</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">require</span> <span class="s">&quot;fact.c&quot;</span><span class="p">,</span> <span class="s">&quot;fact.h&quot;</span><span class="p">;</span>
+
+<span class="k">extern</span> <span class="k">record</span> <span class="nc">data</span><span class="p">{</span>
+   <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="nx">c_int</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">getNewData</span><span class="p">()</span> <span class="kd">ref</span> <span class="p">:</span> <span class="nx">data</span><span class="p">;</span>
+
+<span class="kd">ref</span> <span class="nx">d</span> <span class="p">:</span><span class="nx">data</span><span class="p">;</span>
+<span class="nx">d</span> <span class="o">=</span> <span class="nx">getNewData</span><span class="p">();</span>
+
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">fact_d</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">:</span> <span class="nx">data</span><span class="p">)</span> <span class="kd">ref</span> <span class="p">:</span> <span class="nx">data</span><span class="p">;</span>
+<span class="kd">ref</span> <span class="nx">f</span> <span class="p">:</span> <span class="nx">data</span><span class="p">;</span>
+<span class="nx">f</span> <span class="o">=</span> <span class="nx">fact_d</span><span class="p">(</span><span class="nx">d</span><span class="p">);</span>
+
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">d</span><span class="p">);</span>
+<span class="nx">writeln</span><span class="p">(</span><span class="nx">f</span><span class="p">);</span>
+
+<span class="k">extern</span> <span class="k">proc</span> <span class="nf">cFree</span><span class="p">(</span><span class="kd">ref</span> <span class="nx">x</span><span class="p">);</span>
+<span class="nx">cFree</span><span class="p">(</span><span class="nx">d</span><span class="p">);</span>
+<span class="nx">cFree</span><span class="p">(</span><span class="nx">f</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>If you do not care about the type for a certain variable or argument, you can
+use the <code class="docutils literal notranslate"><span class="pre">opaque</span></code> keyword to indicate to the compiler that you do not know about
+the type.
+Such a variable will not be much use except for the ability to pass it to different routines
+which accept the same underlying type. (Be careful here as it may lead to unmatched types.)</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">proc</span> <span class="nf">getDataStructPtr</span><span class="p">()</span> <span class="kd">ref</span> <span class="p">:</span> <span class="kt">opaque</span><span class="p">;</span>
+<span class="kd">ref</span> <span class="nx">structPtr</span><span class="p">:</span> <span class="kt">opaque</span> <span class="o">=</span> <span class="nx">getDataStructPtr</span><span class="p">();</span>
+<span class="nx">cFree</span><span class="p">(</span><span class="nx">structPtr</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>For the ability to use C code in Chapel without an external C file,
+you can also use extern blocks which allow you to put C code directly into Chapel files.
+To avoid cluttering your namespace you can also put these inside a module.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>As of now, chapel must be used with LLVM support to use the extern block syntax.
+See <a class="reference internal" href="../technotes/llvm.html#readme-llvm"><span class="std std-ref">LLVM Support</span></a> on how to build chapel with LLVM support.</p>
+</div>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span>   <span class="k">module</span> <span class="nc">CDemo</span> <span class="p">{</span>
+      <span class="k">extern</span> <span class="p">{</span>
+         <span class="o">#</span><span class="nx">include</span> <span class="o">&lt;</span><span class="nx">math</span><span class="p">.</span><span class="nx">h</span><span class="o">&gt;</span>
+
+         <span class="nx">static</span> <span class="nx">double</span> <span class="nx">square</span><span class="p">(</span><span class="nx">double</span> <span class="nx">num</span><span class="p">){</span>
+            <span class="k">return</span> <span class="nx">pow</span><span class="p">(</span><span class="nx">num</span><span class="p">,</span><span class="mi">2</span><span class="p">);</span>
+         <span class="p">}</span>
+      <span class="p">}</span>
+   <span class="p">}</span>
+   <span class="nx">writeln</span><span class="p">(</span><span class="nx">CDemo</span><span class="p">.</span><span class="nx">square</span><span class="p">(</span><span class="mi">3</span><span class="p">));</span>
+<span class="p">}</span> <span class="c1">// interopWithC</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="replicated.html" class="btn btn-neutral float-left" title="Replicated Distribution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="fileIO.html" class="btn btn-neutral float-right" title="fileIO.chpl" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

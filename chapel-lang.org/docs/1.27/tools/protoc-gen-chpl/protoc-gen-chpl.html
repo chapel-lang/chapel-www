@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Protocol Buffers Support in Chapel &mdash; Chapel Documentation 1.27</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/style.css" type="text/css" />
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Docs for Contributors" href="../../developer/index.html" />
+    <link rel="prev" title="Mason" href="../mason/mason.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.27
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.27";
+$pagename = "tools/protoc-gen-chpl/protoc-gen-chpl";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../c2chapel/c2chapel.html">c2chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chpldoc/chpldoc.html">chpldoc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chplvis/chplvis.html">chplvis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mason/mason.html">Mason</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Protocol Buffers Support in Chapel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#installation-instructions">Installation Instructions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#defining-protocol-format">Defining protocol format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compiling-your-protocol-buffers">Compiling your protocol buffers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-generated-file">The generated file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#serialization-and-parsing">Serialization and parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#features">Features</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tools</a> &raquo;</li>
+      <li>Protocol Buffers Support in Chapel</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tools/protoc-gen-chpl/protoc-gen-chpl.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="protocol-buffers-support-in-chapel">
+<span id="readme-protobuf"></span><h1>Protocol Buffers Support in Chapel<a class="headerlink" href="#protocol-buffers-support-in-chapel" title="Permalink to this headline">¶</a></h1>
+<p>This document describes a Google Protocol Buffers implementation for Chapel.
+<a class="reference external" href="https://developers.google.com/protocol-buffers">Protocol Buffers</a> is a language-neutral, platform-neutral, extensible mechanism
+for serializing structured data. The protocol buffer language is a language for
+specifying the schema for structured data. This schema is compiled into language
+specific bindings.</p>
+<p>This project is comprised of two components:</p>
+<ul class="simple">
+<li><p>Code generator: The <code class="docutils literal notranslate"><span class="pre">protoc-gen-chpl</span></code> tool is a compiler plugin to <code class="docutils literal notranslate"><span class="pre">protoc</span></code>, the protocol
+buffer compiler. It enables the <code class="docutils literal notranslate"><span class="pre">protoc</span></code> compiler to generate Chapel code.</p></li>
+<li><p>Chapel library: A module that has the runtime implementation of protobufs
+in Chapel and provides functionality to serialize messages in wire format.</p></li>
+</ul>
+<div class="section" id="installation-instructions">
+<h2>Installation Instructions<a class="headerlink" href="#installation-instructions" title="Permalink to this headline">¶</a></h2>
+<p>You should have the protocol buffer compiler, <code class="docutils literal notranslate"><span class="pre">v3.0.0</span></code> or higher, installed on your system.
+Please see the official installation <a class="reference external" href="https://github.com/protocolbuffers/protobuf#protocol-compiler-installation">guide</a>.</p>
+<p>Once you have the compiler installed, in <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME</span></code> run the following:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make protoc-gen-chpl
+</pre></div>
+</div>
+<p>It builds the <code class="docutils literal notranslate"><span class="pre">protoc-gen-chpl</span></code> binary so that the command line interface can be used.
+This installs <code class="docutils literal notranslate"><span class="pre">protoc-gen-chpl</span></code> in the same place as the chapel compiler (<code class="docutils literal notranslate"><span class="pre">chpl</span></code>) so that
+it can be used anywhere in the user’s file system.</p>
+<p>To remove protobuf support, change directory to <code class="docutils literal notranslate"><span class="pre">$CHPL_HOME/tools/protoc-gen-chpl</span></code> and run:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make clean
+</pre></div>
+</div>
+</div>
+<div class="section" id="defining-protocol-format">
+<h2>Defining protocol format<a class="headerlink" href="#defining-protocol-format" title="Permalink to this headline">¶</a></h2>
+<p>To make use of the Chapel protobuf implementation you need to start by defining
+a <code class="docutils literal notranslate"><span class="pre">.proto</span></code> file. The definitions in a <code class="docutils literal notranslate"><span class="pre">.proto</span></code> file contain a message for each
+data structure you want to serialize, then specify a name and a type for each
+field in the message.</p>
+<p>Below is an example of an <code class="docutils literal notranslate"><span class="pre">addressbook</span></code> for a person. This section describes a
+simple <code class="docutils literal notranslate"><span class="pre">.proto</span></code> file and the corresponding generated chapel code. For complete
+details on <code class="docutils literal notranslate"><span class="pre">.proto</span></code> files see the links at the end of this document.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The Chapel implementation only supports the <a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3">proto3</a> syntax of protobuf.</p>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">.proto</span></code> file starts with an optional package declaration, which helps to prevent
+naming conflicts between different projects.</p>
+<div class="highlight-proto notranslate"><div class="highlight"><pre><span></span><span class="k">syntax</span> <span class="o">=</span> <span class="s">&quot;proto3&quot;</span><span class="p">;</span>
+<span class="kn">package</span> <span class="nn">addressbook</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>In Chapel the generated records will be placed in a module matching the <code class="docutils literal notranslate"><span class="pre">package</span></code>
+name. If the <code class="docutils literal notranslate"><span class="pre">package</span></code> name is not specified the module takes the name of the
+proto file with all non-alphanumeric characters replaced by an <code class="docutils literal notranslate"><span class="pre">underscore</span></code>.</p>
+<p>Next, you have to define your messages. A message is just an aggregate containing
+a set of typed fields. Many standard simple data types are available as field types,
+including int64, int32, float, double, and string.</p>
+<div class="highlight-proto notranslate"><div class="highlight"><pre><span></span><span class="kd">message</span> <span class="nc">Person</span> <span class="p">{</span>
+  <span class="kt">string</span> <span class="na">name</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="kt">int32</span> <span class="na">id</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>  <span class="c1">// Unique ID number for this person.</span>
+  <span class="kt">string</span> <span class="na">email</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span>
+
+  <span class="kd">enum</span> <span class="n">PhoneType</span> <span class="p">{</span>
+    <span class="na">MOBILE</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="na">HOME</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="na">WORK</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kd">message</span> <span class="nc">PhoneNumber</span> <span class="p">{</span>
+    <span class="kt">string</span> <span class="na">number</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">PhoneType</span> <span class="na">phntype</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">repeated</span> <span class="n">PhoneNumber</span> <span class="na">phones</span> <span class="o">=</span> <span class="mi">4</span><span class="p">;</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In the above example the <code class="docutils literal notranslate"><span class="pre">Person</span></code> message contains a <code class="docutils literal notranslate"><span class="pre">string</span></code> typed <code class="docutils literal notranslate"><span class="pre">name</span></code>
+field with field number <code class="docutils literal notranslate"><span class="pre">1</span></code>, a <code class="docutils literal notranslate"><span class="pre">int32</span></code> typed <code class="docutils literal notranslate"><span class="pre">id</span></code> field with field number
+<code class="docutils literal notranslate"><span class="pre">2</span></code> as well as a <code class="docutils literal notranslate"><span class="pre">string</span></code> typed <code class="docutils literal notranslate"><span class="pre">email</span></code> field with field number <code class="docutils literal notranslate"><span class="pre">3</span></code>. You
+can also define enum types if you want one of your fields to have one of a
+predefined list of values - here you want to specify that a phone type can be
+one of MOBILE, HOME, or WORK. You can also define nested messages and use these
+as field types, like the <code class="docutils literal notranslate"><span class="pre">PhoneNumber</span></code> message containing a <code class="docutils literal notranslate"><span class="pre">string</span></code> typed
+<code class="docutils literal notranslate"><span class="pre">number</span></code> field with field number <code class="docutils literal notranslate"><span class="pre">1</span></code> and a <code class="docutils literal notranslate"><span class="pre">phntype</span></code> enum field with field
+number <code class="docutils literal notranslate"><span class="pre">2</span></code>. The <code class="docutils literal notranslate"><span class="pre">phones</span></code> field with field number <code class="docutils literal notranslate"><span class="pre">4</span></code> is an example of a repeated message
+field. If a field is repeated, the field may be repeated any number of times
+(including zero). The order of the repeated values will be preserved in the protocol
+buffer. If a field is not set, a default value is assigned to the field by Chapel.</p>
+</div>
+<div class="section" id="compiling-your-protocol-buffers">
+<h2>Compiling your protocol buffers<a class="headerlink" href="#compiling-your-protocol-buffers" title="Permalink to this headline">¶</a></h2>
+<p>The code generator is integrated with the protoc compiler toolchain
+included in the default Protocol Buffers distribution. Use the <code class="docutils literal notranslate"><span class="pre">protoc</span></code> command
+with the <code class="docutils literal notranslate"><span class="pre">--chpl_out</span></code> flag to invoke the Chapel code generator and write the
+output <code class="docutils literal notranslate"><span class="pre">chpl</span></code> file to a specific location.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">protoc --chpl_out=$DST_DIR $SRC_DIR/addressbook.proto</span>
+</pre></div>
+</div>
+<p>This generates <code class="docutils literal notranslate"><span class="pre">addressbook.chpl</span></code> in your specified directory.</p>
+</div>
+<div class="section" id="the-generated-file">
+<h2>The generated file<a class="headerlink" href="#the-generated-file" title="Permalink to this headline">¶</a></h2>
+<p>The generated <code class="docutils literal notranslate"><span class="pre">addressbook.chpl</span></code> file will contain:</p>
+<ul class="simple">
+<li><p>A wrapper module with the name <code class="docutils literal notranslate"><span class="pre">addressbook</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Person</span></code> record with <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">email</span></code> and <code class="docutils literal notranslate"><span class="pre">phones</span></code> fields.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Person_PhoneNumber</span></code> record with <code class="docutils literal notranslate"><span class="pre">number</span></code> and <code class="docutils literal notranslate"><span class="pre">phntype</span></code> fields.</p></li>
+<li><p>An enum with the name <code class="docutils literal notranslate"><span class="pre">Person_PhoneType</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">serialize</span></code> and <code class="docutils literal notranslate"><span class="pre">deserialize</span></code> functions for serialization/parsing.</p></li>
+</ul>
+<p>You can import this module to a <code class="docutils literal notranslate"><span class="pre">chpl</span></code> file and can create an instance of <code class="docutils literal notranslate"><span class="pre">Person</span></code>
+for populating data;</p>
+<div class="highlight-chpl notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">addressbook</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">IO</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">messageObj</span><span class="p">:</span> <span class="nx">Person</span><span class="p">;</span>
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">name</span> <span class="o">=</span> <span class="s">&quot;John&quot;</span><span class="p">;</span>
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">id</span> <span class="o">=</span> <span class="mi">429496729</span><span class="p">;</span>
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">email</span> <span class="o">=</span> <span class="s">&quot;John@a.com&quot;</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">phoneNumber1</span><span class="p">:</span> <span class="nx">Person_PhoneNumber</span><span class="p">;</span>
+<span class="nx">phoneNumber1</span><span class="p">.</span><span class="nx">number</span> <span class="o">=</span> <span class="s">&quot;555-4321&quot;</span><span class="p">;</span>
+<span class="nx">phoneNumber1</span><span class="p">.</span><span class="nx">phntype</span> <span class="o">=</span> <span class="nx">Person_PhoneType</span><span class="p">.</span><span class="nx">HOME</span><span class="p">;</span>
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">phones</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="nx">phoneNumber1</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">phoneNumber2</span><span class="p">:</span> <span class="nx">Person_PhoneNumber</span><span class="p">;</span>
+<span class="nx">phoneNumber2</span><span class="p">.</span><span class="nx">number</span> <span class="o">=</span> <span class="s">&quot;555-4444&quot;</span><span class="p">;</span>
+<span class="nx">phoneNumber2</span><span class="p">.</span><span class="nx">phntype</span> <span class="o">=</span> <span class="nx">Person_PhoneType</span><span class="p">.</span><span class="nx">WORK</span><span class="p">;</span>
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">phones</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="nx">phoneNumber2</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="serialization-and-parsing">
+<h2>Serialization and parsing<a class="headerlink" href="#serialization-and-parsing" title="Permalink to this headline">¶</a></h2>
+<p>The whole purpose of using protocol buffers is to serialize your data so that it
+can be parsed elsewhere. You can serialize your message object using the
+<code class="docutils literal notranslate"><span class="pre">IO</span></code> module and the <code class="docutils literal notranslate"><span class="pre">serialize</span></code> function.</p>
+<div class="highlight-chpl notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">file</span> <span class="o">=</span> <span class="nx">open</span><span class="p">(</span><span class="s">&quot;out&quot;</span><span class="p">,</span> <span class="nx">iomode</span><span class="p">.</span><span class="nx">cw</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">writingChannel</span> <span class="o">=</span> <span class="nx">file</span><span class="p">.</span><span class="nx">writer</span><span class="p">();</span>
+
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">serialize</span><span class="p">(</span><span class="nx">writingChannel</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Parsing is also similar, each generated record has a <code class="docutils literal notranslate"><span class="pre">deserialize</span></code>
+function. So to parse the file we have just created we can use:</p>
+<div class="highlight-chpl notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">addressbook</span><span class="p">;</span>
+<span class="k">use</span> <span class="nx">IO</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">file</span> <span class="o">=</span> <span class="nx">open</span><span class="p">(</span><span class="s">&quot;out&quot;</span><span class="p">,</span> <span class="nx">iomode</span><span class="p">.</span><span class="nx">r</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">readingChannel</span> <span class="o">=</span> <span class="nx">file</span><span class="p">.</span><span class="nx">reader</span><span class="p">();</span>
+
+<span class="kd">var</span> <span class="nx">messageObj</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Person</span><span class="p">();</span>
+<span class="nx">messageObj</span><span class="p">.</span><span class="nx">deserialize</span><span class="p">(</span><span class="nx">readingChannel</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
+<p>The following features are currently supported</p>
+<ol class="arabic simple">
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#simple">Message definitions</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#scalar">Scalar value types</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#unknowns">Unknown fields</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#packages">Packages</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#enum">Enumerations</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#specifying_field_rules">Repeated fields</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#nested">Nested types</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#other">Using other message types</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#any">Any message type</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#oneof">Oneofs</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/protocol-buffers/docs/proto3#maps">Maps</a></p></li>
+</ol>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../mason/mason.html" class="btn btn-neutral float-left" title="Mason" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../../developer/index.html" class="btn btn-neutral float-right" title="Docs for Contributors" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

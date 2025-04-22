@@ -1,0 +1,875 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Initializers &mdash; Chapel Documentation 1.17</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.17" href="../index.html"/>
+        <link rel="up" title="Technical Notes" href="index.html"/>
+        <link rel="next" title="Exporting Chapel as a Library" href="libraries.html"/>
+        <link rel="prev" title="Forwarding Methods Calls" href="forwarding.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.17";
+$pagename = "technotes/initializers";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel's Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auxIO.html">Auxiliary I/O Systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chpl-ipe.html">Interactive Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Initializers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#constructors-or-initializers-but-not-both">Constructors or Initializers but not both</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#initializers-for-records">Initializers for Records</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-complete-method">The complete method</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#delegating-to-other-init-methods">Delegating to other init methods</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#record-initialization-vs-record-assignment">Record Initialization vs Record Assignment</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#post-initialization-for-records">Post Initialization for Records</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initializers-for-generic-records">Initializers for Generic Records</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#initializers-for-classes">Initializers for Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#initializers-or-constructors">Initializers or Constructors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#parents-before-children">Parents before Children</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#dynamic-dispatch">Dynamic Dispatch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-postinit-method">The postinit method</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#remaining-work">Remaining Work</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#compiler-generated-initializers">Compiler Generated Initializers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#interaction-with-error-handling">Interaction With Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#noinit">Noinit</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The 'local' keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="voidVariables.html">Void Variables and Fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      
+    <li>Initializers</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/technotes/initializers.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="initializers">
+<span id="readme-initializers"></span><h1>Initializers<a class="headerlink" href="#initializers" title="Permalink to this headline">¶</a></h1>
+<p>Chapel is transitioning from the use of constructors for class and
+record types to a new strategy called initializers.  Initializers
+retain the convenience of constructors for simple types and provide
+additional power and flexibility for more complex types; particularly
+for generic types.</p>
+<p>A discussion of the original design and rationale is provided in <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/10.rst">CHIP 10</a>.</p>
+<p>Chapel's 1.16 release, in October 2017, provided a preview
+implementation of this feature.</p>
+<p>Release 1.17 advances this effort.  Bugs have been fixed, features
+have been added, and many components of the internal implementation of
+Chapel have transitioned from explicit constructors to explicit
+initializers.  A discussion of the experiences and concerns from this
+effort is provided in <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/23.rst">CHIP 23</a>.  These experiences resulted in a
+useful simplification for record types and an important change in the
+specification for classes with inheritance.</p>
+<p>This release continues to provide full support for constructors and it
+provides significant support for initializers.  The Chapel team
+remains determined to deprecate constructors as soon as initializers
+are sufficiently mature.</p>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Consider a simple record declaration</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">LabeledPoint</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span>   <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span>   <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">p1</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">LabeledPoint</span><span class="p">(</span><span class="nx">x</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="nx">y</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">p2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">LabeledPoint</span><span class="p">(</span><span class="nx">txt</span> <span class="o">=</span> <span class="s">&#39;Seattle&#39;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>For release 1.17 the compiler continues to generate an all-fields
+constructor for this program.  As this is a record, rather than a
+class, the compiler also continues to generate a default copy
+constructor and a default assignment operator. These could be written
+as</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">LabeledPoint</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span>   <span class="kt">real</span>   <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                  <span class="nx">y</span><span class="p">:</span>   <span class="kt">real</span>   <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                  <span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span>   <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">y</span>   <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">txt</span> <span class="o">=</span> <span class="nx">txt</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">LabeledPoint</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span> <span class="nx">LabeledPoint</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span>   <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">y</span>   <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">y</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">txt</span> <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">txt</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">=</span> <span class="p">(</span><span class="kd">ref</span> <span class="nx">dst</span><span class="p">:</span> <span class="nx">LabeledPoint</span><span class="p">,</span> <span class="nx">src</span><span class="p">:</span> <span class="nx">LabeledPoint</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">dst</span><span class="p">.</span><span class="nx">x</span>   <span class="o">=</span> <span class="nx">src</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+  <span class="nx">dst</span><span class="p">.</span><span class="nx">y</span>   <span class="o">=</span> <span class="nx">src</span><span class="p">.</span><span class="nx">y</span><span class="p">;</span>
+  <span class="nx">dst</span><span class="p">.</span><span class="nx">txt</span> <span class="o">=</span> <span class="nx">src</span><span class="p">.</span><span class="nx">txt</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For simple type declarations like this, the migration from
+constructors to initializers will be largely unnoticed.  At some point
+in the future the compiler will generate a default all-fields
+initializer and a default copy initializer.  The definition of
+the default initializers will be largely the same as the default
+constructors but with the inclusion of an additional builtin
+method.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span>   <span class="kt">real</span>   <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+          <span class="nx">y</span><span class="p">:</span>   <span class="kt">real</span>   <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+          <span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span>   <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">y</span>   <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">txt</span> <span class="o">=</span> <span class="nx">txt</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span> <span class="nx">LabeledPoint</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">x</span>   <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">y</span>   <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">y</span><span class="p">;</span>
+  <span class="nx">this</span><span class="p">.</span><span class="nx">txt</span> <span class="o">=</span> <span class="nx">other</span><span class="p">.</span><span class="nx">txt</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">proc</span> <span class="nf">postinit</span><span class="p">()</span> <span class="p">{</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Separately the compiler will continue to generate the same default
+assignment operator.  The <code class="docutils literal"><span class="pre">new</span></code> operator will perform three
+steps</p>
+<ol class="arabic simple">
+<li>allocate space</li>
+<li>invoke an appropriate version of the <code class="docutils literal"><span class="pre">init</span></code> method based
+on the types of the subexpressions for the <code class="docutils literal"><span class="pre">new</span></code> operator</li>
+<li>invoke the <code class="docutils literal"><span class="pre">postinit</span></code> method</li>
+</ol>
+<p>This effort would be largely uninteresting if it were merely a change
+in name.  The benefits of initializers compared to constructors become
+evident for more sophisticated types and particularly for generic
+types.</p>
+<p>The <code class="docutils literal"><span class="pre">init</span></code> and <code class="docutils literal"><span class="pre">postinit</span></code> methods are discussed in more detail
+below.  This tech note discusses these methods for the simpler case of
+record types in some detail, and then describes the extensions
+required to support classes with inheritance.</p>
+</div>
+<div class="section" id="constructors-or-initializers-but-not-both">
+<h2>Constructors or Initializers but not both<a class="headerlink" href="#constructors-or-initializers-but-not-both" title="Permalink to this headline">¶</a></h2>
+<p>In release 1.17, a record or class type may include user-defined
+constructors or user-defined initializers but not both.  If there are
+no user-defined initializers then the compiler will continue to
+generate the appropriate default constructors.</p>
+<p>If there are any user-defined initializers then the default constructors
+are suppressed.  For a record type, a default copy initializer will be
+generated unless it is defined by the application.  However there will
+not be a default all-fields initializer.</p>
+</div>
+<div class="section" id="initializers-for-records">
+<h2>Initializers for Records<a class="headerlink" href="#initializers-for-records" title="Permalink to this headline">¶</a></h2>
+<p>Field initialization may be customized by defining one or more
+overloads of the <code class="docutils literal"><span class="pre">init</span></code> method. Consider the following definition
+for LabeledPoint.  There are two overloads for the <code class="docutils literal"><span class="pre">init</span></code> method
+that are distinguished by their signatures.  These methods cannot
+return a value. The type designer can rely on the compiler to
+insert default field initializations when appropriate.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">LabeledPoint</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span>   <span class="kt">real</span>   <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span>   <span class="kt">real</span>   <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span> <span class="o">=</span> <span class="s">&#39;Unlabeled&#39;</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">_y</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="nx">_x</span><span class="p">;</span>
+    <span class="nx">y</span> <span class="o">=</span> <span class="nx">_y</span><span class="p">;</span>
+                     <span class="c1">// Compiler inserts txt = &#39;Unlabeled&#39;;</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_txt</span><span class="p">:</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+                     <span class="c1">// Compiler inserts x = 1.0;</span>
+                     <span class="c1">// Compiler inserts y = 1.0;</span>
+    <span class="nx">txt</span> <span class="o">=</span> <span class="nx">_txt</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">const</span> <span class="nx">p1</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">LabeledPoint</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">p2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">LabeledPoint</span><span class="p">(</span><span class="s">&#39;London&#39;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Fields must be initialized in field declaration order.  This reduces
+ambiguity for omitted field initializations and ensures that
+observable side-effects occur in a well defined order.</p>
+<p>Fields may be initialized within a conditional statement. The same set
+of fields must be initialized in every branch.  The compiler will
+initialize any omitted fields in a natural way.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">z</span><span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_z</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">_z</span> <span class="o">&lt;</span> <span class="mi">5</span> <span class="p">{</span>
+      <span class="nx">x</span> <span class="o">=</span> <span class="nx">_z</span><span class="p">;</span>
+                     <span class="c1">// Compiler inserts y = 1.0;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                     <span class="c1">// Compiler inserts x = 1.0;</span>
+      <span class="nx">y</span> <span class="o">=</span> <span class="nx">_z</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="nx">z</span> <span class="o">=</span> <span class="nx">_z</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_x</span> <span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">_y</span> <span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">_x</span> <span class="o">+</span> <span class="nx">_y</span> <span class="o">&lt;</span> <span class="mf">8.0</span> <span class="p">{</span>
+      <span class="nx">x</span> <span class="o">=</span> <span class="nx">_x</span><span class="p">;</span>
+      <span class="nx">y</span> <span class="o">=</span> <span class="nx">_y</span><span class="p">;</span>
+    <span class="p">}</span>                <span class="c1">// Compiler inserts the else branch</span>
+                     <span class="c1">//     else {</span>
+                     <span class="c1">//     x = 1.0;</span>
+                     <span class="c1">//     y = 1.0;</span>
+                     <span class="c1">//   }</span>
+
+                     <span class="c1">// Compiler inserts z = 5.0;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="the-complete-method">
+<h3>The complete method<a class="headerlink" href="#the-complete-method" title="Permalink to this headline">¶</a></h3>
+<p>To promote safety, an <code class="docutils literal"><span class="pre">init</span></code> method cannot call a method on <code class="docutils literal"><span class="pre">this</span></code>
+until every field has been initialized.  Similarly an <code class="docutils literal"><span class="pre">init</span></code> method
+cannot pass <code class="docutils literal"><span class="pre">this</span></code> as an actual to a function until every field has
+been initialized.</p>
+<p>The support for default field initialization introduces the potential
+for confusion about the overall status of initialization.  This is
+resolved by calling a builtin method named <code class="docutils literal"><span class="pre">complete</span></code>.  Unlike the
+builtin methods <code class="docutils literal"><span class="pre">init</span></code> and <code class="docutils literal"><span class="pre">postinit</span></code>, this method cannot be
+overridden.  Calling this method makes it clear to the developer and
+the compiler that the record should be considered to be fully
+initialized.  The compiler will insert any remaining default field
+initializations.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">LabeledPoint</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span>   <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span>   <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+
+                     <span class="c1">// Compiler inserts y   = 1.0;</span>
+                     <span class="c1">// Compiler inserts txt = &#39;&#39;;</span>
+
+    <span class="nx">this</span><span class="p">.</span><span class="nx">complete</span><span class="p">();</span>
+
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&#39;In init &#39;</span><span class="p">,</span> <span class="nx">this</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">y</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+                     <span class="c1">// Compiler inserts this.complete();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="delegating-to-other-init-methods">
+<h3>Delegating to other init methods<a class="headerlink" href="#delegating-to-other-init-methods" title="Permalink to this headline">¶</a></h3>
+<p>An overload of the <code class="docutils literal"><span class="pre">init</span></code> method may delegate to another
+<code class="docutils literal"><span class="pre">init</span></code> method. For example it might be convenient to define
+three overloads as follows</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">LabeledPoint</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span><span class="p">:</span>   <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span><span class="p">:</span>   <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">txt</span> <span class="p">:</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span>   <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">y</span>   <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">txt</span> <span class="o">=</span> <span class="nx">txt</span><span class="p">;</span>
+                      <span class="c1">// Compiler inserts a call to this.complete();</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">y</span><span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="s">&#39;Unlabeled&#39;</span><span class="p">);</span>
+
+    <span class="nx">writeln</span><span class="p">(</span><span class="s">&#39;init 2 :- &#39;</span><span class="p">,</span> <span class="nx">this</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">txt</span><span class="p">:</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">init</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="nx">txt</span><span class="p">);</span>
+
+    <span class="nx">this</span><span class="p">.</span><span class="nx">someOtherMethod</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A field cannot be initialized more than once.  This requirement
+is enforced by preventing an <code class="docutils literal"><span class="pre">init</span></code> method from initializing
+any fields if it delegates to another <code class="docutils literal"><span class="pre">init</span></code> method.</p>
+<p>The current instance is known to be fully initialized when a
+call to a delegated initializer returns.  It is safe to call
+non-builtin methods and to pass <code class="docutils literal"><span class="pre">this</span></code> as an actual to functions
+without calling this.complete().</p>
+<p>An <code class="docutils literal"><span class="pre">init</span></code> method may delegate to another <code class="docutils literal"><span class="pre">init</span></code> method within a
+conditional statement.  However every branch must fully initialize the
+record.  This can be accomplished by delegating to an <code class="docutils literal"><span class="pre">init</span></code> method
+or by invoking the builtin method this.complete() within every branch.</p>
+</div>
+<div class="section" id="record-initialization-vs-record-assignment">
+<h3>Record Initialization vs Record Assignment<a class="headerlink" href="#record-initialization-vs-record-assignment" title="Permalink to this headline">¶</a></h3>
+<p>It is important to distinguish between initialization and assignment
+within the body of a record initializer.  For background consider the
+following simple examples for variable initialization and assignment</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">proc</span> <span class="nf">example</span><span class="p">(</span><span class="nx">other</span> <span class="p">:</span> <span class="nx">MyRecord</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>                     <span class="c1">// x is initialized</span>
+
+  <span class="nx">x</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>                         <span class="c1">// Assignment operator is invoked</span>
+
+
+
+  <span class="kd">var</span> <span class="nx">r</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MyRecord</span><span class="p">(</span><span class="o">..</span><span class="p">.);</span>      <span class="c1">// r is initialized</span>
+
+  <span class="nx">r</span> <span class="o">=</span> <span class="nx">other</span><span class="p">;</span>                      <span class="c1">// Assignment operator is invoked</span>
+
+  <span class="nx">r</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MyRecord</span><span class="p">(</span><span class="o">..</span><span class="p">.);</span>          <span class="c1">// Initialization of an internal temporary</span>
+                                  <span class="c1">// followed by assignment to r</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The difference between initialization and assignment is generally
+unimportant for a variable with a primitive type or a class type.
+There is usually little need to override the assignment operator
+for these types and the default assignment operators are as efficient
+as variable initialization.</p>
+<p>The distinction is particularly important for variables with record
+type when the record includes fields with class type.  In this case it
+is important to consider the ownership of the class instance that
+is referenced by the field.  The assignment operator for the record
+must enforce the desired rules for sharing the class instance and the
+class instance should be deleted when the last reference is removed.</p>
+<p>Consider the initializer for Point3D in the following contrived
+example.  Point3D includes a field with a record type.  This field is
+initialized and then assigned.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point2D</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">y</span> <span class="p">:</span> <span class="kt">real</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+    <span class="nx">y</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_x</span> <span class="p">:</span> <span class="kt">real</span><span class="p">,</span> <span class="nx">_y</span> <span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">x</span> <span class="o">=</span> <span class="nx">_x</span><span class="p">;</span>
+    <span class="nx">y</span> <span class="o">=</span> <span class="nx">_y</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">record</span> <span class="nc">Point3D</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">p</span> <span class="p">:</span> <span class="nx">Point2D</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">z</span> <span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_p</span> <span class="p">:</span> <span class="nx">Point2D</span><span class="p">,</span> <span class="nx">_z</span> <span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">p</span> <span class="o">=</span> <span class="nx">_p</span><span class="p">;</span>                       <span class="c1">// Initialize p</span>
+    <span class="nx">z</span> <span class="o">=</span> <span class="nx">_z</span><span class="p">;</span>                       <span class="c1">// Initialize z</span>
+
+    <span class="nx">p</span> <span class="o">=</span> <span class="nx">_p</span><span class="p">;</span>                       <span class="c1">// Assign p</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">p2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Point2D</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">p3</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Point3D</span><span class="p">(</span><span class="nx">p2</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Within the <code class="docutils literal"><span class="pre">init</span></code> method for Point3D, the local field <code class="docutils literal"><span class="pre">p</span></code> is
+initialized using the default copy initializer.  Later it is
+assigned, in fact to the same value, using the default
+assignment operator.</p>
+<p>Now consider the following alternative and invalid definition for
+Point3D.init()</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point3D</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">p</span> <span class="p">:</span> <span class="nx">Point2D</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">z</span> <span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_p</span> <span class="p">:</span> <span class="nx">Point2D</span><span class="p">,</span> <span class="nx">_z</span> <span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">z</span> <span class="o">=</span> <span class="nx">_z</span><span class="p">;</span>                       <span class="c1">// Initialize z</span>
+
+    <span class="nx">p</span> <span class="o">=</span> <span class="nx">_p</span><span class="p">;</span>                       <span class="c1">// COMPILER ERROR</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>It is unclear if the type designer intended that both of these
+statements should be field initializations but accidentally reversed
+the initializations, or s/he intended the compiler to insert a default
+field initialization before the initialization of <code class="docutils literal"><span class="pre">z</span></code> followed by an
+assignment.  This ambiguity is addressed by signaling an error at
+compile time.  Here is an alternative that clarifies that assignment
+is intended</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point3D</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">p</span> <span class="p">:</span> <span class="nx">Point2D</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">z</span> <span class="p">:</span> <span class="kt">real</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_p</span> <span class="p">:</span> <span class="nx">Point2D</span><span class="p">,</span> <span class="nx">_z</span> <span class="p">:</span> <span class="kt">real</span><span class="p">)</span> <span class="p">{</span>
+                                  <span class="c1">// Compiler insert p.init()</span>
+    <span class="nx">z</span> <span class="o">=</span> <span class="nx">_z</span><span class="p">;</span>                       <span class="c1">// Initialize z</span>
+
+    <span class="nx">complete</span><span class="p">();</span>
+
+    <span class="nx">p</span> <span class="o">=</span> <span class="nx">_p</span><span class="p">;</span>                       <span class="c1">// Assignment</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="post-initialization-for-records">
+<h3>Post Initialization for Records<a class="headerlink" href="#post-initialization-for-records" title="Permalink to this headline">¶</a></h3>
+<p>A record type that defines an initializer also implements a
+<code class="docutils literal"><span class="pre">postinit</span></code> method.  This method is invoked when the <code class="docutils literal"><span class="pre">init</span></code> method
+returns i.e. after the record is fully initialized.  The <code class="docutils literal"><span class="pre">postinit</span></code>
+method does not accept any formals and does not return a value.
+The compiler-generated definition has no observable effect.</p>
+<p>A user may override this method and customize the behavior.  Writing a
+<code class="docutils literal"><span class="pre">postinit</span></code> method provides a way for the record author to leverage
+the default all-fields initializer while also specifying additional
+computation to perform before returning the new object.</p>
+</div>
+<div class="section" id="initializers-for-generic-records">
+<h3>Initializers for Generic Records<a class="headerlink" href="#initializers-for-generic-records" title="Permalink to this headline">¶</a></h3>
+<p>Consider the following record declaration</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">t</span><span class="p">;</span>
+  <span class="kd">var</span>  <span class="nx">x</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+  <span class="kd">var</span>  <span class="nx">y</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+
+  <span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The declaration describes a family of user-defined types rather than
+a specific type.  The set of actual types that will be generated by
+this declaration depends on the definition of any overloads for the
+<code class="docutils literal"><span class="pre">init</span></code> method and the set of <code class="docutils literal"><span class="pre">new</span></code> expressions in the program.</p>
+<p>Now consider the following program</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">record</span> <span class="nc">Point</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">t</span><span class="p">;</span>
+  <span class="kd">var</span>  <span class="nx">x</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+  <span class="kd">var</span>  <span class="nx">y</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">t</span> <span class="o">=</span> <span class="nx">x</span><span class="p">.</span><span class="kd">type</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">y</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">p1</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span>   <span class="mi">2</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">p2</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Point</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This program will generate two user defined types; Point(int) and
+Point(real).  In Chapel we say that the Point declaration defines a
+generic type.</p>
+<p>A user-defined type is generic if it includes at least one generic field.
+A generic field is one of</p>
+<ol class="arabic simple">
+<li>a specified or unspecified type alias,</li>
+<li>a parameter field, or</li>
+<li>a var or const field that has no type and no initialization expression.</li>
+</ol>
+<p>User-defined initializers provide notable flexibility for generic types
+compared to user-defined constructors.  This flexibility is evident
+in the range of <code class="docutils literal"><span class="pre">init</span></code> method that can be supported and hence for
+the allowable <code class="docutils literal"><span class="pre">new</span></code> expressions.</p>
+</div>
+</div>
+<div class="section" id="initializers-for-classes">
+<h2>Initializers for Classes<a class="headerlink" href="#initializers-for-classes" title="Permalink to this headline">¶</a></h2>
+<p>Class types include two factors that require additional consideration;
+inheritance, and dynamic dispatch for method calls.</p>
+<p>In an application that includes a class type that does not inherit
+from some other class type and that is not a base type for any other
+class type, the discussion of initializers for records can be
+applied directly.</p>
+<div class="section" id="initializers-or-constructors">
+<h3>Initializers or Constructors<a class="headerlink" href="#initializers-or-constructors" title="Permalink to this headline">¶</a></h3>
+<p>A base class can rely on initializers or constructors but not both.
+Release Chapel 1.17 continues to rely on constructors as the default
+i.e. if there are no user-defined initializers then the base class
+relies on constructors.</p>
+<p>If a base class relies on initializers then any derived classes must
+rely on initializers i.e. must include user-defined initializers.
+If a base class relies on constructors then derived classes may
+not include user-defined initializers.</p>
+</div>
+<div class="section" id="parents-before-children">
+<h3>Parents before Children<a class="headerlink" href="#parents-before-children" title="Permalink to this headline">¶</a></h3>
+<p>Chapel's approach to generic types and for data dependent types,
+e.g. arrays, may require that a parent's fields be initialized before
+those of a derived class.  This is supported by requiring that an
+<code class="docutils literal"><span class="pre">init</span></code> method to delegate to an <code class="docutils literal"><span class="pre">init</span></code> method of the parent class
+before any local fields are initialized.</p>
+<p>In the following example the class Point2 is a generic class that defines
+two fields that are constrained to be of the same type. The class
+Point3 defines a field that must also have this type.  Hence it is
+necessary that the initializer for Point2 be analyzed before that
+of Point3.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Point2</span> <span class="p">{</span>
+  <span class="kd">type</span> <span class="nx">t</span><span class="p">;</span>
+
+  <span class="kd">var</span>  <span class="nx">x</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+  <span class="kd">var</span>  <span class="nx">y</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">t</span> <span class="o">=</span> <span class="nx">x</span><span class="p">.</span><span class="kd">type</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">x</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+    <span class="nx">this</span><span class="p">.</span><span class="nx">y</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">Point3</span> <span class="p">:</span> <span class="nx">Point2</span> <span class="p">{</span>
+  <span class="kd">var</span>  <span class="nx">z</span><span class="p">:</span> <span class="nx">t</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">);</span>
+
+                         <span class="c1">// compiler inserts z.init()</span>
+  <span class="p">}</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">z</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">);</span>
+
+    <span class="nx">this</span><span class="p">.</span><span class="nx">z</span> <span class="o">=</span> <span class="nx">z</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This second example provides an example for data dependent types.  It
+is required the arrays <code class="docutils literal"><span class="pre">a</span></code> and <code class="docutils literal"><span class="pre">b</span></code> share the same domain and hence
+the initializer for class Base must execute before the initializer for
+Derived.</p>
+<div class="highlight-chapel"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Base</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">d</span> <span class="p">:</span> <span class="k">domain</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">a</span> <span class="p">:</span> <span class="p">[</span><span class="nx">d</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_a</span> <span class="p">:</span> <span class="p">[]</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">d</span> <span class="o">=</span> <span class="nx">_a</span><span class="p">.</span><span class="k">domain</span><span class="p">;</span>
+    <span class="nx">a</span> <span class="o">=</span> <span class="nx">_a</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">Derived</span> <span class="p">:</span> <span class="nx">Base</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">b</span> <span class="p">:</span> <span class="p">[</span><span class="nx">d</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+
+  <span class="k">proc</span> <span class="nf">init</span><span class="p">(</span><span class="nx">_a</span> <span class="p">:</span> <span class="p">[]</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">super</span><span class="p">.</span><span class="nx">init</span><span class="p">(</span><span class="nx">_a</span><span class="p">);</span>
+
+    <span class="c1">// Compiler inserts initialization for b[]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>An <code class="docutils literal"><span class="pre">init</span></code> method for a derived class may delegate to another
+<code class="docutils literal"><span class="pre">init</span></code> method for the same class so long as this leads to a
+delegation to the parent class.</p>
+<p>If an <code class="docutils literal"><span class="pre">init</span></code> method for a derived class does not delegate to
+any <code class="docutils literal"><span class="pre">init</span></code> method, the compiler will insert a call to super.init()
+as the first statement.</p>
+</div>
+<div class="section" id="dynamic-dispatch">
+<h3>Dynamic Dispatch<a class="headerlink" href="#dynamic-dispatch" title="Permalink to this headline">¶</a></h3>
+<p>An instance of class type is not fully initialized until the <code class="docutils literal"><span class="pre">init</span></code>
+method for the most derived class returns. Care is required to ensure
+that a call to a non-init method cannot access an uninitialized field.
+This is achieved by updating the runtime type of the instance during
+the execution of the <code class="docutils literal"><span class="pre">init</span></code> methods.</p>
+<p>An <code class="docutils literal"><span class="pre">init</span></code> method may not call any non-init method until the parent
+class has been initialized i.e. until the call to super.init(...) has
+returned.  At this point the dynamic type of the instance will be that
+of the parent class.  The <code class="docutils literal"><span class="pre">init</span></code> method can invoke any method that
+is defined on the parent class and dynamic dispatch will occur in a
+manner that is safe.  It is also permitted to pass <code class="docutils literal"><span class="pre">this</span></code> as an
+actual to functions so long as the formal can be an instance of the
+parent type.</p>
+<p>If an <code class="docutils literal"><span class="pre">init</span></code> method invokes the this.complete() method, the dynamic
+type of the instance will be updated to match the current type. It
+becomes possible to invoke methods that are defined on the current type
+and dynamic dispatch for methods defined on the parent type will use
+the current type.</p>
+</div>
+<div class="section" id="the-postinit-method">
+<h3>The postinit method<a class="headerlink" href="#the-postinit-method" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">postinit</span></code> method for the most derived type will be invoked
+when the selected <code class="docutils literal"><span class="pre">init</span></code> method returns.  At this point the
+instance will be fully initialized.  Any method calls within an
+override of a <code class="docutils literal"><span class="pre">postinit</span></code> method will dispatch on the instance's
+final type.</p>
+<p>The <code class="docutils literal"><span class="pre">postinit</span></code> method for a derived class must delegate to the
+<code class="docutils literal"><span class="pre">postinit</span></code> method for the parent class.  It is most natural
+to delegate to the parent class as the first statement but there
+is no requirement to do so.  If an override of this method does not
+delegate to the parent class, the compiler will insert a call to
+super.postinit() as the first statement.</p>
+</div>
+</div>
+<div class="section" id="remaining-work">
+<h2>Remaining Work<a class="headerlink" href="#remaining-work" title="Permalink to this headline">¶</a></h2>
+<p>With the 1.17 release, support for initializers is mostly stable
+with a few bugs and some unimplemented features remaining.  It is
+recommended that new applications with user-defined class or record
+types use initializers when possible.  Please report any bugs
+encountered using the guidance described at the <a class="reference external" href="https://chapel-lang.org/docs/usingchapel/bugs.html">bugs</a> page.</p>
+<div class="section" id="compiler-generated-initializers">
+<h3>Compiler Generated Initializers<a class="headerlink" href="#compiler-generated-initializers" title="Permalink to this headline">¶</a></h3>
+<p>Support for compiler generated initializers is considerably more
+mature than it was for the 1.16 release.  With the 1.17 release
+the developer-oriented flag <code class="docutils literal"><span class="pre">--force-initializers</span></code> will attempt to
+generate default initializers for classes and records defined in
+application modules.</p>
+<p>Additionally the compiler has a mechanism that has been used to cause
+classes and records that are defined in internal, standard, and
+package modules to use default initializers rather than default
+constructors.</p>
+<p>While many cases are now working there are still failure cases that
+require attention.</p>
+</div>
+<div class="section" id="interaction-with-error-handling">
+<h3>Interaction With Error Handling<a class="headerlink" href="#interaction-with-error-handling" title="Permalink to this headline">¶</a></h3>
+<p>Release 1.17 has limited support for error handling constructs: an
+initializer cannot be declared as <code class="docutils literal"><span class="pre">throws</span></code>, and only <code class="docutils literal"><span class="pre">try!</span></code>
+statements without <code class="docutils literal"><span class="pre">catch</span></code> blocks are allowed in the body.</p>
+<p>In the world where initializers can <code class="docutils literal"><span class="pre">throw</span></code>, we will only allow child classes
+to <code class="docutils literal"><span class="pre">throw</span></code> if the parent initializer <code class="docutils literal"><span class="pre">throws</span></code> (though there may be
+complications with chains of initializers, such as an initializer that calls
+another initializer on the type, which calls a parent initializer that
+<code class="docutils literal"><span class="pre">throws</span></code>, etc.).</p>
+</div>
+<div class="section" id="noinit">
+<h3>Noinit<a class="headerlink" href="#noinit" title="Permalink to this headline">¶</a></h3>
+<p>The syntax for declaring a variable includes the ability to use the
+<code class="docutils literal"><span class="pre">noinit</span></code> keyword in place of an initial value.  If the variable has
+record or class type this is intended to call an initializer that
+customizes the meaning of this keyword for that type.  More details on
+the direction for this support can be found in the <a class="reference external" href="https://github.com/chapel-lang/chapel/blob/master/doc/rst/developer/chips/10.rst#noinit">noinit section</a>
+of CHIP 10.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="libraries.html" class="btn btn-neutral float-right" title="Exporting Chapel as a Library" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="forwarding.html" class="btn btn-neutral" title="Forwarding Methods Calls" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.17.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+.. default-domain:: chpl
+
+.. module:: ChapelLocale
+   :synopsis: A *locale* is a Chapel abstraction for a piece of a target
+
+Locales
+=======
+
+A *locale* is a Chapel abstraction for a piece of a target
+architecture that has processing and storage capabilities.
+Generally speaking, the tasks running within a locale have
+roughly uniform access to values stored in the locale's local
+memory and longer latencies for accessing the memories of other
+locales.  As examples, a single shared memory machine would be
+defined as a single locale, while in a system consisting of a
+group of network-connected multicore nodes or SMPs each node
+would be defined as a locale.
+
+Chapel provides several predefined methods on locales, as well as
+a few variables that describe the locales upon which a program is
+running.
+
+
+.. class:: locale
+
+   
+   ``locale`` is the abstract class from which the various
+   implementations inherit.  It specifies the required interface
+   and implements part of it, but requires the rest to be provided
+   by the corresponding concrete classes.
+   
+
+
+   .. attribute:: var numCores: int
+
+      
+      This is the number of processors on this locale.  The term
+      *cores* here is a misnomer.  The value is actually the number
+      of instances of the CPU architecture, so for a locale with a
+      multithreaded hardware architecture, it's the number of
+      threads.  Also, only processors actually available to the
+      program are in this count.  If the OS has made some of them
+      off-limits to the program, for example, those are not
+      included.
+      
+
+   .. attribute:: var maxTaskPar: int
+
+      
+      This is the maximum task concurrency that one can expect to
+      achieve on this locale.  The value comes from an estimate by the
+      runtime tasking layer.  Typically it is the number of physical
+      processor cores available to the program.  Creating more tasks
+      than this will probably increase walltime rather than decrease
+      it.
+      
+
+   .. attribute:: const callStackSize: size_t
+
+      
+      ``callStackSize`` holds the size of a task stack on a given
+      locale.  Thus, ``here.callStackSize`` is the size of the call
+      stack for any task on the current locale, including the
+      caller.
+      
+
+   .. method:: proc id: int
+
+      
+      Get the integer identifier for the top-level locale the
+      current task is running on.
+      
+      :returns: locale number, in the range ``0..numLocales-1``
+      :rtype: int
+      
+
+   .. method:: proc name
+
+      
+      Get the name of the top-level locale the current task is
+      running on.
+      
+      :returns: locale name
+      :rtype: string
+      
+
+.. function:: proc here
+
+   
+   This returns the locale from which the call is made.
+   
+   :return: current locale
+   :rtype: locale
+   
+
+.. data:: config const numLocales: int
+
+   
+   ``numLocales`` is the number of top-level (network connected)
+   locales.
+   
+
+.. data:: const LocaleSpace = {0..numLocales-1}
+
+   
+   This is the domain over which the global ``Locales`` array is
+   defined.
+   
+
+.. data:: const Locales: [LocaleSpace] locale
+
+   
+   The global ``Locales`` array contains an entry for each
+   top-level locale.  One of the most common code idioms in all of
+   Chapel is the following, which spreads parallel tasks across the
+   network-connected locales upon which the program is running:
+   
+   .. code-block:: chapel
+   
+     coforall loc in Locales { on loc { ... } }
+   
+

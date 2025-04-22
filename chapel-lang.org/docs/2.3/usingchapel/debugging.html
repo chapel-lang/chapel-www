@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debugging Chapel Programs &mdash; Chapel Documentation 2.3</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c3c8ae58"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Reporting Chapel Issues" href="bugs.html" />
+    <link rel="prev" title="Chapel Tasks" href="tasks.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.3
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.3";
+$pagename = "usingchapel/debugging";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Using Chapel</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="portability.html">Where can I use Chapel?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="prereqs.html">Chapel Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chplenv.html">Setting up Your Environment for Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="building.html">Building Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="compiling.html">Compiling Chapel Programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="editor-support.html">Editor Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="man.html">Chapel Man Page</a></li>
+<li class="toctree-l2"><a class="reference internal" href="executing.html">Executing Chapel Programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="multilocale.html">Multilocale Chapel Execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="launcher.html">Chapel Launchers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tasks.html">Chapel Tasks</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Debugging Chapel Programs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#running-in-gdb-lldb">Running in gdb/lldb</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#running-in-gdb-lldb-with-a-launcher">Running in gdb/lldb with a launcher</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-debugger-breakpoint-statement">The <cite>Debugger.breakpoint</cite> statement</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#best-known-configuration">Best Known Configuration</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#building-the-compiler">Building the Compiler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-the-application">Building the Application</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#tracking-and-reporting-on-tasks">Tracking and Reporting on Tasks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-constants-for-tracking-memory">Configuration Constants for Tracking Memory</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="bugs.html">Reporting Chapel Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Using Chapel</a></li>
+      <li class="breadcrumb-item active">Debugging Chapel Programs</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/usingchapel/debugging.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="debugging-chapel-programs">
+<span id="readme-debugging"></span><h1><a class="toc-backref" href="#id1" role="doc-backlink">Debugging Chapel Programs</a><a class="headerlink" href="#debugging-chapel-programs" title="Link to this heading">¶</a></h1>
+<p>This document discusses support for debugging your Chapel program and a set of
+experimental settings to enable task monitoring and memory tracking.</p>
+<nav class="contents" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#debugging-chapel-programs" id="id1">Debugging Chapel Programs</a></p>
+<ul>
+<li><p><a class="reference internal" href="#running-in-gdb-lldb" id="id2">Running in gdb/lldb</a></p>
+<ul>
+<li><p><a class="reference internal" href="#running-in-gdb-lldb-with-a-launcher" id="id3">Running in gdb/lldb with a launcher</a></p></li>
+<li><p><a class="reference internal" href="#the-debugger-breakpoint-statement" id="id4">The <cite>Debugger.breakpoint</cite> statement</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#best-known-configuration" id="id5">Best Known Configuration</a></p>
+<ul>
+<li><p><a class="reference internal" href="#building-the-compiler" id="id6">Building the Compiler</a></p></li>
+<li><p><a class="reference internal" href="#building-the-application" id="id7">Building the Application</a></p>
+<ul>
+<li><p><a class="reference internal" href="#notes-on-munging" id="id8">Notes on munging</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#tracking-and-reporting-on-tasks" id="id9">Tracking and Reporting on Tasks</a></p></li>
+<li><p><a class="reference internal" href="#configuration-constants-for-tracking-memory" id="id10">Configuration Constants for Tracking Memory</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+<section id="running-in-gdb-lldb">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Running in gdb/lldb</a><a class="headerlink" href="#running-in-gdb-lldb" title="Link to this heading">¶</a></h2>
+<p>The compiler-generated executable has a <code class="docutils literal notranslate"><span class="pre">--gdb</span></code> flag that can be used to
+launch the program within a <code class="docutils literal notranslate"><span class="pre">gdb</span></code> session.  A similar flag, <code class="docutils literal notranslate"><span class="pre">--lldb</span></code>,
+exists to launch the program within a <code class="docutils literal notranslate"><span class="pre">lldb</span></code> session. For best results, you
+should follow <a class="reference internal" href="#best-known-configuration">Best Known Configuration</a> to build Chapel and build your
+application.</p>
+<section id="running-in-gdb-lldb-with-a-launcher">
+<h3><a class="toc-backref" href="#id3" role="doc-backlink">Running in gdb/lldb with a launcher</a><a class="headerlink" href="#running-in-gdb-lldb-with-a-launcher" title="Link to this heading">¶</a></h3>
+<p>When using almost any launcher, you can launch <code class="docutils literal notranslate"><span class="pre">gdb</span></code> by setting the
+environment variable <code class="docutils literal notranslate"><span class="pre">CHPL_COMM_USE_GDB</span></code> when running the program.
+This will open up a separate terminal emulator window for each locale,
+each running the debugger on that locale’s program instance.  On the Mac
+OS X (darwin) platform, you can launch <code class="docutils literal notranslate"><span class="pre">lldb</span></code> instead, by setting the
+<code class="docutils literal notranslate"><span class="pre">CHPL_COMM_USE_LLDB</span></code> environment variable.  This works in all of these
+launchers:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">amudprun</span>
+<span class="n">aprun</span>
+<span class="n">gasnetrun_ibv</span>
+<span class="n">gasnetrun_mpi</span>
+<span class="n">gasnetrun_ofi</span>
+<span class="n">mpirun4ofi</span>
+<span class="n">pbs</span><span class="o">-</span><span class="n">aprun</span>
+<span class="n">smp</span>
+</pre></div>
+</div>
+<p>The default terminal emulator program is <code class="docutils literal notranslate"><span class="pre">xterm</span></code>,
+but by setting the environment variable <code class="docutils literal notranslate"><span class="pre">CHPL_COMM_DBG_TERM=urxvt</span></code>
+you can force use of <code class="docutils literal notranslate"><span class="pre">urxvt</span></code> instead.
+Whichever terminal emulator is used must be in your <code class="docutils literal notranslate"><span class="pre">PATH</span></code>
+on the compute node or an error will result.
+Note that it is the user’s responsibility to make sure things are set up
+so the terminal emulator run in the target environment can open its
+display window in the launch environment.</p>
+</section>
+<section id="the-debugger-breakpoint-statement">
+<h3><a class="toc-backref" href="#id4" role="doc-backlink">The <cite>Debugger.breakpoint</cite> statement</a><a class="headerlink" href="#the-debugger-breakpoint-statement" title="Link to this heading">¶</a></h3>
+<p>The <a class="reference internal" href="../modules/standard/Debugger.html#module-Debugger" title="Debugger: Provides a collection of useful debugging utilities."><code class="xref any chpl chpl-mod docutils literal notranslate"><span class="pre">Debugger</span></code></a> module provides a parenless function called <cite>breakpoint</cite>.
+When the code is compiled and run with debug symbols, i.e. <code class="docutils literal notranslate"><span class="pre">-g</span></code>, the attached
+debugger will automatically stop at calls to this function as a breakpoint.
+Code that contains <cite>breakpoint</cite> that is compiled without <code class="docutils literal notranslate"><span class="pre">-g</span></code> will work as
+normal with no side effects. Saving the generated code to as temporary
+directory with <code class="docutils literal notranslate"><span class="pre">--savec</span> <span class="pre">DIRECTORY</span></code> will also allow the debugger to read and
+display Chapel source code. This works well with either the LLVM or C backends.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Executables will not run as expected if <cite>breakpoint</cite> is used in code compiled with <code class="docutils literal notranslate"><span class="pre">-g</span></code> and not run attached to a debugger.</p>
+</div>
+</section>
+</section>
+<section id="best-known-configuration">
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Best Known Configuration</a><a class="headerlink" href="#best-known-configuration" title="Link to this heading">¶</a></h2>
+<p>The current best practice for debugging Chapel source code is to use the C
+backend and use a series of flags to improve the debuggability of the generated
+executable. This can be done in two steps.</p>
+<ol class="arabic">
+<li><p>Build the compiler with <code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_COMPILER</span></code> set to <code class="docutils literal notranslate"><span class="pre">gnu</span></code>
+(or <code class="docutils literal notranslate"><span class="pre">clang</span></code> if on Mac):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">CHPL_TARGET_COMPILER</span><span class="o">=</span>gnu<span class="w"> </span>make
+<span class="c1"># On MacOS</span>
+<span class="c1"># CHPL_TARGET_COMPILER=clang make</span>
+</pre></div>
+</div>
+</li>
+<li><p>Build the executable from Chapel source code:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chpl<span class="w"> </span>-g<span class="w"> </span>--target-compiler<span class="o">=</span>gnu<span class="w"> </span>--savec<span class="w"> </span>&lt;dir&gt;<span class="w"> </span>--preserve-inlined-line-numbers<span class="w"> </span>--no-munge-user-idents<span class="w"> </span>--no-return-by-ref<span class="w"> </span>--no-inline<span class="w"> </span>&lt;source_file&gt;
+<span class="c1"># On MacOS</span>
+<span class="c1"># chpl -g --target-compiler=clang --savec &lt;dir&gt; --preserve-inlined-line-numbers --no-munge-user-idents --no-return-by-ref --no-inline &lt;source_file&gt;</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p>For more details on these settings, read the rest of this section.</p>
+<section id="building-the-compiler">
+<h3><a class="toc-backref" href="#id6" role="doc-backlink">Building the Compiler</a><a class="headerlink" href="#building-the-compiler" title="Link to this heading">¶</a></h3>
+<p>For best results while debugging, we recommend building the compiler with
+<code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_COMPILER</span></code> set to <code class="docutils literal notranslate"><span class="pre">gnu</span></code> (or <code class="docutils literal notranslate"><span class="pre">clang</span></code> if on Mac). See
+<a class="reference internal" href="chplenv.html#readme-chplenv"><span class="std std-ref">Setting up Your Environment for Chapel</span></a> for more information on building the compiler.</p>
+<p>With two invocations of the build command, both backends can be built. First
+execute <code class="docutils literal notranslate"><span class="pre">make</span></code> (which uses the LLVM backend by default) and then execute
+<code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_COMPILER=gnu</span> <span class="pre">make</span></code>. This will keep the default as LLVM and allow
+switching to the C backend as needed for debugging. This can be done for a
+particular invocation of the compiler with <code class="docutils literal notranslate"><span class="pre">chpl</span> <span class="pre">--target-compiler=gnu</span> <span class="pre">...</span></code>.</p>
+</section>
+<section id="building-the-application">
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">Building the Application</a><a class="headerlink" href="#building-the-application" title="Link to this heading">¶</a></h3>
+<p>The following flags can be useful for making the generated C more amenable to
+debugging. Any of them can be omitted as desired.</p>
+<blockquote>
+<div><table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Flag</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-g</span></code></p></td>
+<td><p>Generate debug symbols in the executable</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--target-compiler=gnu</span></code></p></td>
+<td><p>Target the C backend</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--savec</span> <span class="pre">&lt;dir&gt;</span></code></p></td>
+<td><p>Write out the generated C to a given
+directory</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--preserve-inlined-line-numbers</span></code></p></td>
+<td><p>When code gets inlined (e.g. replacing a
+function call with the function body)
+maintain the filename and line number
+information of the original function.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--no-munge-user-idents</span></code></p></td>
+<td><p>Don’t munge user identifiers (e.g.
+variable or function names). Munging
+typically prevents conflicts with
+identifiers in external code but makes
+debugging harder.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--no-return-by-ref</span></code></p></td>
+<td><p>Don’t use an extra reference argument
+when compiling a Chapel function that
+returns a record.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--no-inline</span></code></p></td>
+<td><p>Avoid inlining in many cases.</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<section id="notes-on-munging">
+<h4><a class="toc-backref" href="#id8" role="doc-backlink">Notes on munging</a><a class="headerlink" href="#notes-on-munging" title="Link to this heading">¶</a></h4>
+<p>The utility of using a debugger with Chapel depends greatly on your familiarity
+with the Chapel generated code.  However, if your program is crashing or running
+into a runtime error, you can often determine where that is taking place by
+looking at a stack trace within <code class="docutils literal notranslate"><span class="pre">gdb</span></code>.</p>
+<p>When debugging Chapel, it is useful to know that in generating its code,
+the Chapel compiler renames user identifiers.  By default, the Chapel
+compiler munges all user identifiers, such that a variable named <code class="docutils literal notranslate"><span class="pre">x</span></code>
+would be code generated as <code class="docutils literal notranslate"><span class="pre">x_chpl</span></code>.  This munging can be controlled
+using the <code class="docutils literal notranslate"><span class="pre">--[no-]munge-user-idents</span></code> flag (see the <code class="docutils literal notranslate"><span class="pre">chpl</span></code> man page
+for more information).  In some cases, additional munging may be
+required or applied that cannot be turned off.</p>
+<p>The net effect of this is that Chapel variables can often be inspected
+using <code class="docutils literal notranslate"><span class="pre">p</span></code> <em>name</em><code class="docutils literal notranslate"><span class="pre">_chpl</span></code> (or <code class="docutils literal notranslate"><span class="pre">p</span></code> <em>name</em><code class="docutils literal notranslate"><span class="pre">_chpl&lt;TAB&gt;</span></code> in cases
+where the compiler has further renamed the variable).  If the
+<code class="docutils literal notranslate"><span class="pre">--no-munge-user-idents</span></code> flag is used, <code class="docutils literal notranslate"><span class="pre">p</span></code> <em>name</em> or
+<code class="docutils literal notranslate"><span class="pre">p</span></code> <em>name</em><code class="docutils literal notranslate"><span class="pre">&lt;TAB&gt;</span></code> should work in most cases.</p>
+<p>See <a class="reference internal" href="../developer/bestPractices/GeneratedCode.html#more-munging-info"><span class="std std-ref">Why are my identifiers renamed in the generated code?</span></a> for more information on munging.</p>
+<p>Over time, we plan to improve our ability to debug the generated C
+code for a Chapel program.  If you find yourself debugging the
+generated code a lot and need help or have requests for better
+support, please let us know so that we can prioritize accordingly.</p>
+</section>
+</section>
+</section>
+<section id="tracking-and-reporting-on-tasks">
+<h2><a class="toc-backref" href="#id9" role="doc-backlink">Tracking and Reporting on Tasks</a><a class="headerlink" href="#tracking-and-reporting-on-tasks" title="Link to this heading">¶</a></h2>
+<p>For certain tasking layers, Chapel supports an experimental
+capability for tracking the status of tasks, primarily designed for
+use in a single-locale execution.  To enable this capability, your
+program must be compiled with the <code class="docutils literal notranslate"><span class="pre">--task-tracking</span></code> flag.</p>
+<p>The feature itself is enabled at execution time by setting the boolean
+environment variable <code class="docutils literal notranslate"><span class="pre">CHPL_RT_ENABLE_TASK_REPORTING</span></code> to any of the
+values “1”, “yes”, or “true”.  If this is done, then when <code class="docutils literal notranslate"><span class="pre">&lt;CTRL-C&gt;</span></code>
+is entered while a program is executing, a list of pending and executing
+tasks will be printed to the console, giving an indication of which
+tasks are at which source locations.  This is only supported with
+<code class="docutils literal notranslate"><span class="pre">CHPL_TASKS=fifo</span></code>.</p>
+<p>Note that task tracking adds a fair amount of runtime overhead to
+task-parallel programs.</p>
+</section>
+<section id="configuration-constants-for-tracking-memory">
+<h2><a class="toc-backref" href="#id10" role="doc-backlink">Configuration Constants for Tracking Memory</a><a class="headerlink" href="#configuration-constants-for-tracking-memory" title="Link to this heading">¶</a></h2>
+<p>Chapel supports a number of configuration constants related to dynamic
+memory allocation for the compiler-generated executable, currently
+designed for use primarily by the development team to track memory
+usage in tests.</p>
+<p>For full information on these configuration constants consult
+<a class="reference internal" href="../modules/standard/MemDiagnostics.html#module-MemDiagnostics" title="MemDiagnostics: Provides routines for reasoning about memory usage."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">MemDiagnostics</span></code></a>.</p>
+<p>A brief synopsis of these configuration constants is as follows:</p>
+<blockquote>
+<div><dl class="option-list">
+<dt><kbd><span class="option">--memTrack</span></kbd></dt>
+<dd><p>turn on memory tracking and enable reporting</p>
+</dd>
+<dt><kbd><span class="option">--memStats</span></kbd></dt>
+<dd><p>call <code class="docutils literal notranslate"><span class="pre">printMemAllocStats()</span></code> on normal termination</p>
+</dd>
+<dt><kbd><span class="option">--memLeaksByType</span></kbd></dt>
+<dd><p>call <code class="docutils literal notranslate"><span class="pre">printMemAllocsByType()</span></code> on normal termination</p>
+</dd>
+<dt><kbd><span class="option">--memLeaks</span></kbd></dt>
+<dd><p>call <code class="docutils literal notranslate"><span class="pre">printMemAllocs()</span></code> on normal termination</p>
+</dd>
+<dt><kbd><span class="option">--memMax=<var>int</var></span></kbd></dt>
+<dd><p>set maximum level of allocatable memory</p>
+</dd>
+<dt><kbd><span class="option">--memThreshold=<var>int</var></span></kbd></dt>
+<dd><p>set minimum threshold for memory tracking</p>
+</dd>
+<dt><kbd><span class="option">--memLog=<var>string</var></span></kbd></dt>
+<dd><p>file to contain all memory reporting</p>
+</dd>
+<dt><kbd><span class="option">--memLeaksLog=<var>string</var></span></kbd></dt>
+<dd><p>if set, append final stats and leaks-by-type here</p>
+</dd>
+</dl>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tasks.html" class="btn btn-neutral float-left" title="Chapel Tasks" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="bugs.html" class="btn btn-neutral float-right" title="Reporting Chapel Issues" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Using Chapel on Amazon Web Services &mdash; Chapel Documentation 2.3</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c3c8ae58"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Using Chapel on Raspberry Pi" href="raspberrypi.html" />
+    <link rel="prev" title="Using Chapel on Windows" href="windows.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.3
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.3";
+$pagename = "platforms/aws";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Platform-Specific Notes</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#major-platforms">Major Platforms</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="macosx.html">Using Chapel on Mac OS X</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cray.html">Using Chapel on HPE Cray Systems</a></li>
+<li class="toctree-l3"><a class="reference internal" href="windows.html">Using Chapel on Windows</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Using Chapel on Amazon Web Services</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#configuring-a-parallelcluster">Configuring a ParallelCluster</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#launching-and-connecting">Launching and Connecting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#getting-chapel">Getting Chapel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-chapel-programs">Running Chapel Programs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cleanup">Cleanup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#frequently-asked-questions">Frequently Asked Questions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="raspberrypi.html">Using Chapel on Raspberry Pi</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#networks">Networks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#older-platforms">Older Platforms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Platform-Specific Notes</a></li>
+      <li class="breadcrumb-item active">Using Chapel on Amazon Web Services</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/platforms/aws.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="using-chapel-on-amazon-web-services">
+<span id="readme-aws"></span><h1>Using Chapel on Amazon Web Services<a class="headerlink" href="#using-chapel-on-amazon-web-services" title="Link to this heading">¶</a></h1>
+<p>This page contains information on how to use <a class="reference external" href="https://aws.amazon.com/hpc/parallelcluster">AWS ParallelCluster</a> to run Chapel in the cloud.
+ParallelCluster is a commandline tool that helps you create and manage High
+Performance Computing (HPC) clusters in the AWS cloud. It uses a simple
+configuration file to create a cluster that can be customized to your needs.
+The following steps will guide you through the process of setting up a cluster
+and running Chapel programs on it.</p>
+<p>Before getting started, you will need an AWS account, which can be created
+here: <a class="reference external" href="https://aws.amazon.com/">https://aws.amazon.com/</a></p>
+<p>This guide assumes you have the ParallelCluster CLI installed and configured.
+If you do not, follow the steps <a class="reference external" href="https://docs.aws.amazon.com/parallelcluster/latest/ug/install-v3-parallelcluster.html">here</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This document was last updated for ParallelCluster v3.10.0. Other versions may not have the same features and adjustments may be necessary.</p>
+</div>
+<section id="configuring-a-parallelcluster">
+<h2>Configuring a ParallelCluster<a class="headerlink" href="#configuring-a-parallelcluster" title="Link to this heading">¶</a></h2>
+<p>ParallelCluster uses a configuration file to define the cluster. Running the
+<code class="docutils literal notranslate"><span class="pre">pcluster</span> <span class="pre">configure</span></code> command walks through the process of creating a
+configuration file for a cluster. The command requires the flag <code class="docutils literal notranslate"><span class="pre">-c</span>
+<span class="pre">CONFIG_NAME</span></code>, where <code class="docutils literal notranslate"><span class="pre">CONFIG_NAME</span></code> is the path to the YAML file where the
+generated config file will go. Listed below are a few key options to consider
+when configuring a cluster for Chapel.</p>
+<ul>
+<li><dl>
+<dt>EC2 Key Pair Name</dt><dd><p>Make sure to have an EC2 key pair created in the same region you are creating
+the cluster. This key pair will be used to access the instances in the
+cluster.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you plan to use <code class="docutils literal notranslate"><span class="pre">ubuntu</span></code>, make sure the key pair type is <code class="docutils literal notranslate"><span class="pre">ED25519</span></code>.</p>
+</div>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Scheduler</dt><dd><p>The default scheduler is <code class="docutils literal notranslate"><span class="pre">slurm</span></code>. AWS Batch is also available, but not
+currently supported by Chapel.</p>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>Operating System</dt><dd><p>We recommend using either <code class="docutils literal notranslate"><span class="pre">alinux2023</span></code>, <code class="docutils literal notranslate"><span class="pre">ubuntu2204</span></code>, or <code class="docutils literal notranslate"><span class="pre">rhel9</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The default AMI for <code class="docutils literal notranslate"><span class="pre">alinux2023</span></code> does not have the necessary drivers for
+GPUs. If you plan to use GPUs, we recommend using <code class="docutils literal notranslate"><span class="pre">ubuntu2204</span></code>.</p>
+</div>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Head node instance type</dt><dd><p>The default instance type is <code class="docutils literal notranslate"><span class="pre">t2.micro</span></code>. This is the node that will be
+compiling Chapel programs. We recommend using an instance type with more
+memory, such as <code class="docutils literal notranslate"><span class="pre">t2.medium</span></code> or <code class="docutils literal notranslate"><span class="pre">m5.large</span></code>.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Number of queues</dt><dd><p>This is number of slurm queues that will be created. The default is 1 and
+most users should not need to change this. After selecting the number of
+queues, you will be prompted to enter the name of each queue.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Number of compute resources for queue</dt><dd><p>This is the number of different types of nodes that will be created for this
+queue. The default is 1 and most users should not need to change this.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Compute instance type for compute resource in queue</dt><dd><p>This is the type of instance that will be created for this queue. It is
+recommended to use the same architecture as the head node instance type (i.e.
+don’t use an x86 head node and an ARM compute node).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Maximum instance count</dt><dd><p>This is the maximum number of nodes that will be created for this queue. It
+also determines the maximum number of locales that can be used in a Chapel
+program. Four compute nodes is the minimum needed to successfully run
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">check</span></code>.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Automate VPC creation? and Automate Subnet creation?</dt><dd><p>ParallelCluster runs in a Virtual Private Network (VPC). If you do not have a
+VPC created, you can have ParallelCluster create one for you. If you already
+have a VPC, you can choose to use it. ParallelCluster can also configure the
+head node and compute nodes in several subnet configurations. Chapel works
+well with many of these configurations, but we recommend using a public
+subnet for the head node and a private subnet for the compute nodes.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Following <code class="docutils literal notranslate"><span class="pre">pcluster</span> <span class="pre">configure</span></code>, the generated configuration file will look
+something like this:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">Region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-1</span>
+<span class="nt">Image</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alinux2023</span>
+<span class="nt">HeadNode</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">InstanceType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">t2.medium</span>
+<span class="w">  </span><span class="nt">Networking</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">SubnetId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUBNETID</span>
+<span class="w">  </span><span class="nt">Ssh</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">KeyName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">KEYNAME</span>
+<span class="nt">Scheduling</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Scheduler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurm</span>
+<span class="w">  </span><span class="nt">SlurmQueues</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">queue1</span>
+<span class="w">    </span><span class="nt">ComputeResources</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">c5n18xlarge</span>
+<span class="w">      </span><span class="nt">Instances</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">InstanceType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">c5n.18xlarge</span>
+<span class="w">      </span><span class="nt">MinCount</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">      </span><span class="nt">MaxCount</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">    </span><span class="nt">Networking</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">SubnetIds</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUBNETID</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ParallelCluster will use whatever the default region is for the AWS CLI. If
+that is not set or not the desired region, you can set the region at the
+command line as <code class="docutils literal notranslate"><span class="pre">pcluster</span> <span class="pre">configure</span> <span class="pre">-r</span> <span class="pre">REGION</span></code>. Note that all cluster
+resources will be created in the region specified in the configuration file,
+and that other resources (such as the key pair or additional volumes) must be
+in the same region.</p>
+</div>
+<section id="performance-notes">
+<h3>Performance Notes<a class="headerlink" href="#performance-notes" title="Link to this heading">¶</a></h3>
+<p>For best performance, we recommend the following:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Use a placement group for the compute nodes.</dt><dd><p>This will reduce the latency between the nodes and improve performance. This
+requires using an instance type that supports <code class="docutils literal notranslate"><span class="pre">cluster</span></code> placement, such as
+<code class="docutils literal notranslate"><span class="pre">c5n.18xlarge</span></code>.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Set <code class="docutils literal notranslate"><span class="pre">MinCount</span></code> to some non-zero value.</dt><dd><p>This will create the compute nodes when the cluster is created, rather than
+waiting for them to be created when the first job is submitted. Using a
+<code class="docutils literal notranslate"><span class="pre">MinCount</span></code> of 0 results in significant overhead when running programs. For
+best performance, we recommend setting <code class="docutils literal notranslate"><span class="pre">MinCount</span></code> to the same value as
+<code class="docutils literal notranslate"><span class="pre">MaxCount</span></code>, however this will result in AWS charges for the compute nodes
+even when they are not being used.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Enable EFA (Elastic Fabric Adapter) for the compute nodes.</dt><dd><p>EFA is a network interface for HPC applications that require low-latency and
+high-bandwidth communications between nodes. This requires using an instance
+type that supports EFA, such as <code class="docutils literal notranslate"><span class="pre">c5n.18xlarge</span></code>.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<p>These additional options can be added to the configuration file:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">Region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-1</span>
+<span class="nt">Image</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alinux2023</span>
+<span class="nt">HeadNode</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">InstanceType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">t2.medium</span>
+<span class="w">  </span><span class="nt">Networking</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">SubnetId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUBNETID</span>
+<span class="w">  </span><span class="nt">Ssh</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">KeyName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">KEYNAME</span>
+<span class="nt">Scheduling</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Scheduler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurm</span>
+<span class="w">  </span><span class="nt">SlurmQueues</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">queue1</span>
+<span class="w">    </span><span class="nt">ComputeResources</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">c5n18xlarge</span>
+<span class="w">      </span><span class="nt">Instances</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">InstanceType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">c5n.18xlarge</span>
+<span class="w">      </span><span class="nt">MinCount</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">      </span><span class="nt">MaxCount</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">      </span><span class="nt">Efa</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">Networking</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">PlacementGroup</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">      </span><span class="nt">SubnetIds</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUBNETID</span>
+</pre></div>
+</div>
+<p>It also possible to use instances with GPUs. We recommend using <code class="docutils literal notranslate"><span class="pre">G4dn</span></code>,
+<code class="docutils literal notranslate"><span class="pre">G5</span></code>, <code class="docutils literal notranslate"><span class="pre">P3</span></code>, or <code class="docutils literal notranslate"><span class="pre">P4</span></code> instances. For best experience, we recommend using
+<code class="docutils literal notranslate"><span class="pre">ubuntu2204</span></code> with these instances as it is the easiest path to install the
+proper drivers.</p>
+</section>
+</section>
+<section id="launching-and-connecting">
+<h2>Launching and Connecting<a class="headerlink" href="#launching-and-connecting" title="Link to this heading">¶</a></h2>
+<p>To launch the cluster, run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pcluster<span class="w"> </span>create-cluster<span class="w"> </span>-c<span class="w"> </span>CONFIG_NAME<span class="w"> </span>-n<span class="w"> </span>mycluster
+</pre></div>
+</div>
+<p>This will start the process of allocating the AWS resources required. To check
+the process of the cluster creation, run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pcluster<span class="w"> </span>describe-cluster<span class="w"> </span>-n<span class="w"> </span>mycluster
+</pre></div>
+</div>
+<p>This will report various details about the cluster, including the status of the
+cluster. Once the cluster is in the <code class="docutils literal notranslate"><span class="pre">CREATE_COMPLETE</span></code> state, you can access
+the head node. To query just the status of the cluster, use <code class="docutils literal notranslate"><span class="pre">pcluster</span>
+<span class="pre">describe-cluster</span> <span class="pre">-n</span> <span class="pre">mycluster</span> <span class="pre">--query</span> <span class="pre">clusterStatus</span></code>.</p>
+<p>Connecting to the head node depends on how the VPC was set up. If the head node
+exists in a public subnet, you can connect to it using the public IP address.
+If the head node exists in a private subnet, you will need to connect to it
+using the AWS session manager.</p>
+<ul>
+<li><p>Connecting via a public subnet:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh<span class="w"> </span>-i<span class="w"> </span>/path/to/key.pem<span class="w"> </span>ec2-user@<span class="sb">`</span>pcluster<span class="w"> </span>describe-cluster<span class="w"> </span>-n<span class="w"> </span>mycluster<span class="w"> </span>--query<span class="w"> </span>headNode.publicIpAddress<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;&quot;&#39;</span><span class="sb">`</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The username may be different depending on the AMI used. The default
+username for Amazon Linux 2023 and Red Hat 9 is <code class="docutils literal notranslate"><span class="pre">ec2-user</span></code>. The default
+username for Ubuntu 22.04 is <code class="docutils literal notranslate"><span class="pre">ubuntu</span></code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">key.pem</span></code> is the private key that corresponds to the public key used
+when creating the EC2 key pair, specified in the configuration file.</p>
+</div>
+</div></blockquote>
+</li>
+<li><p>Connecting via the AWS session manager:</p>
+<blockquote>
+<div><p>Query the instance ID of the head node:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pcluster<span class="w"> </span>describe-cluster<span class="w"> </span>-n<span class="w"> </span>mycluster<span class="w"> </span>--query<span class="w"> </span>headNode.instanceId
+</pre></div>
+</div>
+<p>Open the AWS console and navigate to the EC2 Instances view. Select the head
+node instance (with an ID matching the one queried above) and click the
+“Connect” button. This will open a new window with a list of connection
+options. Select “Session Manager” and click the “Connect” button. This will
+open a new window with a terminal that is connected to the head node. After
+connecting to the node, run <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">su</span> <span class="pre">ec2-user</span></code> to switch to the default
+user (for Ubuntu, use <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">su</span> <span class="pre">ubuntu</span></code>). Then run <code class="docutils literal notranslate"><span class="pre">cd</span></code> to go to the home
+directory.</p>
+</div></blockquote>
+</li>
+</ul>
+</section>
+<section id="getting-chapel">
+<h2>Getting Chapel<a class="headerlink" href="#getting-chapel" title="Link to this heading">¶</a></h2>
+<p>Once connected to the instance via ssh, you need to install Chapel.
+If you are using an OS that has a pre-built libfabric+slurm binary for Chapel,
+you can download and install it using the system package manager.
+For example, to install Chapel 2.2 on Ubuntu 22.04:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://github.com/chapel-lang/chapel/releases/download/2.2.0/chapel-ofi-slurm-2.2.0-1.ubuntu22.amd64.deb
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>./chapel-ofi-slurm-2.2.0-1.ubuntu22.amd64.deb
+</pre></div>
+</div>
+<p>If there is no pre-built binary for your OS, you can build Chapel from source.</p>
+<section id="building-chapel-from-source">
+<h3>Building Chapel from Source<a class="headerlink" href="#building-chapel-from-source" title="Link to this heading">¶</a></h3>
+<p>To build Chapel from source for use on the cluster, follow these steps:</p>
+<ul>
+<li><p>Install the dependencies as shown on the <a class="reference internal" href="../usingchapel/prereqs.html#readme-prereqs-installation"><span class="std std-ref">Installation</span></a> page.</p>
+<blockquote>
+<div><p>If using a GPU instance, install the CUDA toolkit from the <a class="reference external" href="https://developer.nvidia.com/cuda-downloads">NVIDIA website</a>.</p>
+</div></blockquote>
+</li>
+<li><p>Download a Chapel release from the <a class="reference external" href="https://chapel-lang.org/download.html">Download</a> page.</p></li>
+<li><p>Build the Chapel release with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=ofi</span></code> as shown on the <a class="reference internal" href="../usingchapel/building.html#readme-building"><span class="std std-ref">Building Chapel</span></a> page.</p>
+<blockquote>
+<div><p>For best results, we recommend running the following prior to building
+Chapel. Users may wish to add this to their <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># this path may need to be adjusted, depending on where the Chapel release was downloaded</span>
+.<span class="w"> </span>~/chapel/util/setchplenv.bash
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_COMM</span><span class="o">=</span>ofi
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LAUNCHER</span><span class="o">=</span>slurm-srun
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_COMM_OFI_OOB</span><span class="o">=</span>pmi2
+
+<span class="c1"># these paths may need to be adjusted, for example on some OSes the</span>
+<span class="c1"># EFA path may be &quot;lib&quot; instead of &quot;lib64&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LIBFABRIC</span><span class="o">=</span>system
+<span class="nb">export</span><span class="w"> </span><span class="nv">PKG_CONFIG_PATH</span><span class="o">=</span>/opt/amazon/efa/lib64/pkgconfig/
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LD_FLAGS</span><span class="o">=</span><span class="s2">&quot;-L/opt/slurm/lib/ -Wl,-rpath,/opt/slurm/lib/&quot;</span>
+</pre></div>
+</div>
+<p>If using a GPU instance, use the following in addition to the above:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LOCALE_MODEL</span><span class="o">=</span>gpu
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_LLVM</span><span class="o">=</span>bundled
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_GPU</span><span class="o">=</span>nvidia
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+</ul>
+</section>
+</section>
+<section id="running-chapel-programs">
+<h2>Running Chapel Programs<a class="headerlink" href="#running-chapel-programs" title="Link to this heading">¶</a></h2>
+<p>A few final steps are left to configure the environment to run Chapel programs.
+These are required regardless of whether Chapel was installed from a package or
+built from source. These environment variables should be set before running any
+Chapel code. Users may wish to add this to their <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">SLURM_MPI_TYPE</span><span class="o">=</span>pmi2
+<span class="c1"># if using a cluster without EFA, use FI_PROVIDER=tcp instead</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FI_PROVIDER</span><span class="o">=</span>efa
+
+<span class="c1"># these are not required, but can improve performance</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_COMM_OFI_DEDICATED_AMH_CORES</span><span class="o">=</span><span class="nb">true</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_COMM_OFI_CONNECT_EAGERLY</span><span class="o">=</span><span class="nb">true</span>
+</pre></div>
+</div>
+<p>For best performance, users should also set <code class="docutils literal notranslate"><span class="pre">export</span>
+<span class="pre">FI_EFA_USE_DEVICE_RDMA=1</span></code>. This enables higher network performance by using
+the RDMA capabilities of EFA, but it is only available on newer instances.
+If you are unsure if your instance supports this, try setting it and running
+a Chapel program. If the program fails with an error about
+<code class="docutils literal notranslate"><span class="pre">FI_EFA_USE_DEVICE_RDMA</span></code>, then your instance does not support this
+feature.</p>
+<p>Lastly, due to limitations in the number of pages that can be registered with EFA,
+by default Chapel will try and use transparent huge pages. Make sure your
+cluster has transparent huge pages enabled and has enough huge pages.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">NUM_NODES</span><span class="o">=</span>&lt;max<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>nodes<span class="w"> </span><span class="k">in</span><span class="w"> </span>your<span class="w"> </span>cluster&gt;
+<span class="nv">NUM_PAGES</span><span class="o">=</span>&lt;number<span class="w"> </span>of<span class="w"> </span>pages<span class="w"> </span>to<span class="w"> </span>use&gt;
+<span class="nb">echo</span><span class="w"> </span>always<span class="w"> </span><span class="p">|</span><span class="w"> </span>srun<span class="w"> </span>--nodes<span class="w"> </span><span class="nv">$NUM_NODES</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/sys/kernel/mm/transparent_hugepage/enabled<span class="w"> </span>&gt;/dev/null
+<span class="nb">echo</span><span class="w"> </span><span class="nv">$NUM_PAGES</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>srun<span class="w"> </span>--nodes<span class="w"> </span><span class="nv">$NUM_NODES</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages<span class="w"> </span>&gt;/dev/null
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Setting more huge pages than there is memory on the system can cause the
+system to hang. Make sure to set the number of huge pages to a value
+that is less than the total memory on the system (you can query this
+with <code class="docutils literal notranslate"><span class="pre">srun</span> <span class="pre">lsmem</span></code>). If you set it too low, you may get out of memory
+errors when running Chapel programs. Try increasing the number of huge
+pages or set a max heap size with <code class="docutils literal notranslate"><span class="pre">CHPL_RT_MAX_HEAP_SIZE</span></code>.</p>
+</div>
+<p>If you wish to not use transparent huge pages, set <code class="docutils literal notranslate"><span class="pre">export</span>
+<span class="pre">CHPL_RT_COMM_OFI_THP_HINT=0</span></code>. Depending on your system, you my also need to
+set <code class="docutils literal notranslate"><span class="pre">CHPL_RT_MAX_HEAP_SIZE</span></code> to a value less than <code class="docutils literal notranslate"><span class="pre">96G</span></code>.</p>
+<p>If all of the above steps have been completed successfully, you should be able
+to use your cluster to run Chapel programs. If you have a cluster with 4 or
+more compute nodes, you can run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">check</span></code> from <code class="docutils literal notranslate"><span class="pre">CHPL_HOME</span></code> to test the
+Chapel installation. If you have a cluster with less than 4 nodes, you can test
+your configuration compile and run the <code class="docutils literal notranslate"><span class="pre">hello</span></code> program as shown below:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chpl<span class="w"> </span>~/chapel/examples/hello.chpl
+./hello<span class="w"> </span>-nl<span class="w"> </span><span class="m">2</span>
+</pre></div>
+</div>
+</section>
+<section id="cleanup">
+<h2>Cleanup<a class="headerlink" href="#cleanup" title="Link to this heading">¶</a></h2>
+<p>When you are done with the cluster, you can delete it with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pcluster<span class="w"> </span>delete-cluster<span class="w"> </span>-n<span class="w"> </span>mycluster
+</pre></div>
+</div>
+<p>This will delete all of the resources associated with the cluster, including
+the storage. If you have data on the cluster that you want to keep, you should
+back it up before deleting the cluster.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If desired, users can create their own storage volumes and attach them to
+the cluster at configure time. For example, users can add the following to
+their configuration file prior to running <code class="docutils literal notranslate"><span class="pre">pcluster</span> <span class="pre">create-cluster</span></code>:</p>
+<blockquote>
+<div><div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">SharedStorage</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">MountDir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/scratch</span>
+<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scratch</span>
+<span class="w">    </span><span class="nt">StorageType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ebs</span>
+<span class="w">    </span><span class="nt">EbsSettings</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">VolumeId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VOLUMEID</span>
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">VOLUMEID</span></code> with the ID of the volume you want to attach. After
+the cluster is created, the volume will be mounted at <code class="docutils literal notranslate"><span class="pre">/scratch</span></code> on both
+the head node and the compute nodes. Users can then use the volume as they
+see fit. When the cluster is deleted, the volume will be detached but not
+deleted. Make sure when creating the volume that it is in the same region
+as the cluster.</p>
+<p>For more information on attaching volumes to a cluster, see the <a class="reference external" href="https://docs.aws.amazon.com/parallelcluster/latest/ug/shared-storage-quotas-integration-v3.html">ParallelCluster documentation</a>.</p>
+</div></blockquote>
+</div>
+</section>
+<section id="frequently-asked-questions">
+<h2>Frequently Asked Questions<a class="headerlink" href="#frequently-asked-questions" title="Link to this heading">¶</a></h2>
+<p><strong>How do I resolve the following error:</strong>
+<code class="docutils literal notranslate"><span class="pre">virtual</span> <span class="pre">memory</span> <span class="pre">exhausted:</span> <span class="pre">Cannot</span> <span class="pre">allocate</span> <span class="pre">memory</span></code></p>
+<p>This is a common error on systems with limited memory resources, such as the
+free tier of EC2 instances. If you do not wish to launch an instance with more
+memory resources, you can create a swap file or swap partition.</p>
+<p>This can be done on Linux distributions with the following steps:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Log in as root</span>
+sudo<span class="w"> </span>-s
+
+<span class="c1"># Create a 512MB swap file (1024 * 512MB = 524288 block size)</span>
+dd<span class="w"> </span><span class="k">if</span><span class="o">=</span>/dev/zero<span class="w"> </span><span class="nv">of</span><span class="o">=</span>/swapfile1<span class="w"> </span><span class="nv">bs</span><span class="o">=</span><span class="m">1024</span><span class="w"> </span><span class="nv">count</span><span class="o">=</span><span class="m">524288</span>
+
+<span class="c1"># Secure swap file</span>
+chown<span class="w"> </span>root:root<span class="w"> </span>/swapfile1
+chmod<span class="w"> </span><span class="m">0600</span><span class="w"> </span>/swapfile1
+
+<span class="c1"># Set up linux swap file</span>
+mkswap<span class="w"> </span>/swapfile1
+
+<span class="c1"># Enable swap file</span>
+swapon<span class="w"> </span>/swapfile1
+</pre></div>
+</div>
+<p>Then edit <code class="docutils literal notranslate"><span class="pre">/etc/fstab</span></code> to include:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/swapfile1<span class="w"> </span>none<span class="w"> </span>swap<span class="w"> </span>sw<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+</pre></div>
+</div>
+<p>Enable the new swapfile without rebooting:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>swapoff<span class="w"> </span>-a
+swapon<span class="w"> </span>-a
+</pre></div>
+</div>
+<p>Confirm the swapfile is working:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>free<span class="w"> </span>-m
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="windows.html" class="btn btn-neutral float-left" title="Using Chapel on Windows" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="raspberrypi.html" class="btn btn-neutral float-right" title="Using Chapel on Raspberry Pi" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

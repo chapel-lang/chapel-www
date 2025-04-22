@@ -1,0 +1,626 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Auxiliary I/O Systems &mdash; Chapel Documentation 1.18</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/style.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="Chapel Documentation 1.18" href="../index.html"/>
+        <link rel="up" title="Technical Notes" href="index.html"/>
+        <link rel="next" title="Interactive Chapel" href="chpl-ipe.html"/>
+        <link rel="prev" title="Runtime Support for Atomics" href="atomics.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>1.18
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "1.18";
+$pagename = "technotes/auxIO";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="allocators.html">Chapel's Use of Allocators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="atomics.html">Runtime Support for Atomics</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Auxiliary I/O Systems</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#i-o-systems-supported">I/O Systems Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-hdfs">Setting up HDFS</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sample-bashrc">Sample .bashrc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#enabling-hdfs-support">Enabling HDFS Support</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#installing-curl-dependencies">Installing Curl Dependencies</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#enabling-curl-support">Enabling Curl Support</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#chpl-auxio-include-chpl-auxio-libs">CHPL_AUXIO_INCLUDE &amp; CHPL_AUXIO_LIBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chpl-aux-filesys">CHPL_AUX_FILESYS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#parallel-and-distributed-i-o-features">Parallel and Distributed I/O Features</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chpl-ipe.html">Interactive Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dsi.html">Domain Map Standard Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errorHandling.html">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extern.html">C Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="firstClassFns.html">First-class Functions in Chapel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forwarding.html">Forwarding Methods Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="libraries.html">Exporting Chapel as a Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llvm.html">LLVM Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">The 'local' keyword</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localeModels.html">Locale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Support for main() Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_search.html">Module Search Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reduceIntents.html">Reduce Intents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sets.html">Associative Set Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subquery.html">Querying a Local Subdomain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="voidVariables.html">Void Variables and Fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../builtins/index.html">Built-in Types and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Archived Language Specifications</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Technical Notes</a> &raquo;</li>
+      
+    <li>Auxiliary I/O Systems</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/technotes/auxIO.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="auxiliary-i-o-systems">
+<span id="readme-auxio"></span><h1>Auxiliary I/O Systems<a class="headerlink" href="#auxiliary-i-o-systems" title="Permalink to this headline">¶</a></h1>
+<p>This document describes Chapel support for Auxiliary I/O (AIO) systems. It also
+provides instructions on how to set Chapel up to support multiple Auxiliary I/O
+systems simultaneously.</p>
+<div class="section" id="i-o-systems-supported">
+<h2>I/O Systems Supported<a class="headerlink" href="#i-o-systems-supported" title="Permalink to this headline">¶</a></h2>
+<p>Currently, the I/O systems supported are:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Lustre</li>
+<li><a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a></li>
+<li><a class="reference internal" href="../modules/packages/Curl.html#module-Curl" title="Curl: Simple support for many network protocols with libcurl"><code class="xref chpl chpl-mod docutils literal"><span class="pre">Curl</span></code></a></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="setting-up-hdfs">
+<span id="auxio-hdfs-deps"></span><h2>Setting up HDFS<a class="headerlink" href="#setting-up-hdfs" title="Permalink to this headline">¶</a></h2>
+<p>HDFS is the Hadoop Distributed Filesystem. This section demonstrates how to set
+up a Hadoop installation. If you already have access to an HDFS filesystem, you
+can skip ahead to <a class="reference internal" href="#enabling-hdfs-support"><span>Enabling HDFS Support</span></a>.</p>
+<p>The <a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a> functionality in Chapel is dependent Hadoop being
+installed.  The <code class="docutils literal"><span class="pre">HADOOP_INSTALL</span></code>, <code class="docutils literal"><span class="pre">JAVA_INSTALL</span></code> and <code class="docutils literal"><span class="pre">CLASSPATH</span></code>
+environment variables must be set as described below.
+Without this it will not compile with <a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a>, even if
+the flags are set. As well, the <a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a> functionality is also dependent upon the
+<code class="docutils literal"><span class="pre">CHPL_AUXIO_INCLUDE</span></code> and <code class="docutils literal"><span class="pre">CHPL_AUXIO_LIBS</span></code> environment variables being set
+properly.</p>
+<p>If you have a working installation of Hadoop already, you can skip
+this section, other than to set up your <code class="docutils literal"><span class="pre">CLASSPATH</span></code> environment
+variable.  This section is written so that people without sudo
+permission can install and use <a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a>.  If you do have sudo permissions,
+you can usually install all of these via a package manager.</p>
+<p>The general outline for these instructions are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="#setup-hadoop-1"><span>Step 1</span></a>:  Install and point to the jdk to provide code Chapel needs to
+compile against libhdfs</li>
+<li><a class="reference internal" href="#setup-hadoop-2"><span>Step 2</span></a>: Install Hadoop</li>
+<li><a class="reference internal" href="#setup-hadoop-3"><span>Step 3</span></a>: Set up Hadoop on (a) the local host or (b) a cluster of hosts</li>
+<li><a class="reference internal" href="#setup-hadoop-4"><span>Step 4</span></a>: Start up HDFS</li>
+<li><a class="reference internal" href="#setup-hadoop-5"><span>Step 5</span></a>: Stop HDFS when you're done</li>
+<li><a class="reference internal" href="#setup-hadoop-6"><span>Step 6</span></a>: Set up Chapel to run in distributed mode</li>
+</ul>
+</div></blockquote>
+<p>First reflect your directory structure and version numbers (etc) in the
+<a class="reference internal" href="#setup-hadoop-bashrc"><span>sample .bashrc</span></a> and put it in your .bashrc (or
+other shell rc file of your choice) and source whichever one you put it into.</p>
+<ol class="arabic simple" id="setup-hadoop-1">
+<li>Make sure you have a SERVER edition of the jdk installed and
+point <code class="docutils literal"><span class="pre">JAVA_INSTALL</span></code> to it (see the
+<a class="reference internal" href="#setup-hadoop-bashrc"><span>sample .bashrc</span></a> below)</li>
+</ol>
+<ol class="arabic" id="setup-hadoop-2" start="2">
+<li><p class="first">Install Hadoop</p>
+<ul>
+<li><p class="first">Download the latest version of Hadoop and unpack it</p>
+</li>
+<li><p class="first">Now in the unpacked directory, open <code class="docutils literal"><span class="pre">conf/hadoop-env.sh</span></code> and edit:</p>
+<ul>
+<li><p class="first">set <code class="docutils literal"><span class="pre">JAVA_INSTALL</span></code> to be the part before <code class="docutils literal"><span class="pre">bin/</span></code> when you do:</p>
+<blockquote>
+<div><div class="highlight-sh"><div class="highlight"><pre><span></span>which java
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">set <code class="docutils literal"><span class="pre">HADOOP_CLASSPATH=$HADOOP_HOME/&quot;&quot;*:$HADOOP_HOME/lib/&quot;&quot;*:</span></code></p>
+</li>
+</ul>
+</li>
+<li><p class="first">Now in conf/hdfs-site.xml put the replication number that you
+want for the field <code class="docutils literal"><span class="pre">dfs.replication</span></code> (this will set the
+replication of blocks of the files in HDFS)</p>
+</li>
+<li><p class="first">Now set up passwordless ssh, if you haven't yet:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>ssh-keygen -t dsa -P <span class="s1">&#39;&#39;</span> -f ~/.ssh/id_dsa
+cat ~/.ssh/id_dsa.pub &gt;&gt; ~/.ssh/authorized_keys
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ol>
+<ol class="arabic" id="setup-hadoop-3" start="3">
+<li><p class="first">Set up Hadoop</p>
+<ol class="loweralpha">
+<li><p class="first">For the local host - See the
+<a class="reference external" href="http://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html">Hadoop website</a>
+for good documentation on how to do this.</p>
+</li>
+<li><p class="first">For a cluster of hosts. If you want to run Hadoop over a cluster, there
+are good tutorials online. Although it is usually as easy as making
+edits to the following files in <code class="docutils literal"><span class="pre">$HADOOP_HOME/conf</span></code>:</p>
+<ul>
+<li><p class="first">adding the name of the nodes to <code class="docutils literal"><span class="pre">slaves</span></code></p>
+</li>
+<li><p class="first">putting what you want to be the namenode in <code class="docutils literal"><span class="pre">masters</span></code></p>
+</li>
+<li><p class="first">putting the master node in <code class="docutils literal"><span class="pre">core-site.xml</span></code> and <code class="docutils literal"><span class="pre">mapred-site.xml</span></code></p>
+</li>
+<li><p class="first">running:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>hadoop-daemon.sh start datanode
+hadoop-daemon.sh start tasktracker
+</pre></div>
+</div>
+</li>
+</ul>
+<p>After this go to your datanode site and you should see a new
+datanode.</p>
+<p>A good online tutorial for this as well can be found here on the
+<a class="reference external" href="http://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/ClusterSetup.html">Hadoop Cluster Setup Documentation</a></p>
+</li>
+</ol>
+</li>
+</ol>
+<ol class="arabic" id="setup-hadoop-4" start="4">
+<li><p class="first">Start HDFS</p>
+<ul>
+<li><p class="first">Now all we need to do is format the namenode and start things up:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>hadoop namenode -format
+start-all.sh  <span class="c1"># (This will start hdfs and the tasktracker/jobtracker)</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">In general, hadoop has the same type of commands as bash,
+usually in the form:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>hadoop dfs -&lt;command&gt; &lt;regular args to that command&gt;
+</pre></div>
+</div>
+</li>
+<li><p class="first">At this point, you can compile and run Chapel programs using HDFS</p>
+</li>
+<li><p class="first">You can check the status of Hadoop via http, for example on a local
+host (e.g., for <a class="reference internal" href="#setup-hadoop-3"><span>3a above</span></a>), using:</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal"><span class="pre">http://localhost:50070/</span></code></li>
+<li><code class="docutils literal"><span class="pre">http://localhost:50030/</span></code></li>
+</ul>
+</div></blockquote>
+<p>For cluster mode (<a class="reference internal" href="#setup-hadoop-3"><span>3b</span></a>), you'll use the name of the
+master host in the URL and its port (see the web for details).</p>
+</li>
+</ul>
+</li>
+</ol>
+<ol class="arabic" id="setup-hadoop-5" start="5">
+<li><p class="first">Shut things down:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>stop-all.sh   <span class="c1"># (This will stop hdfs and mapreduce)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic simple" id="setup-hadoop-6" start="6">
+<li>Set up Chapel to run in distributed mode:<ul>
+<li>You'll need to set up your Chapel environment to target multiple
+locales in the standard way (see <a class="reference internal" href="../usingchapel/multilocale.html#readme-multilocale"><span>Multilocale Chapel Execution</span></a> and the
+&quot;Settings to run Chapel on multiple nodes&quot; section of the
+<a class="reference internal" href="#setup-hadoop-bashrc"><span>Sample .bashrc</span></a> below).</li>
+<li>After this you should be able to run Chapel code with HDFS over
+a cluster of computers the same way as you normally would.</li>
+</ul>
+</li>
+</ol>
+<div class="section" id="sample-bashrc">
+<span id="setup-hadoop-bashrc"></span><h3>Sample .bashrc<a class="headerlink" href="#sample-bashrc" title="Permalink to this headline">¶</a></h3>
+<p>Here is a sample .bashrc for using Hadoop within Chapel:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="c1">#</span>
+<span class="c1"># For Hadoop</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">HADOOP_INSTALL</span><span class="o">=</span>&lt;Place where you have Hadoop installed&gt;
+<span class="nb">export</span> <span class="nv">HADOOP_HOME</span><span class="o">=</span><span class="nv">$HADOOP_INSTALL</span>
+<span class="nb">export</span> <span class="nv">HADOOP_VERSION</span><span class="o">=</span>&lt;Your Hadoop version number&gt;
+<span class="c1">#</span>
+<span class="c1"># Note that the following environment variables might contain more paths than</span>
+<span class="c1"># those listed below if you have more than one IO system enabled. These are all</span>
+<span class="c1"># that you will need in order to use HDFS (only)</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">CHPL_AUXIO_INCLUDE</span><span class="o">=</span><span class="s2">&quot;-I</span><span class="nv">$JAVA_INSTALL</span><span class="s2">/include -I</span><span class="nv">$JAVA_INSTALL</span><span class="s2">/include/linux  -I</span><span class="nv">$HADOOP_INSTALL</span><span class="s2">/src/c++/libhdfs&quot;</span>
+<span class="nb">export</span> <span class="nv">CHPL_AUXIO_LIBS</span><span class="o">=</span><span class="s2">&quot;-L</span><span class="nv">$JAVA_INSTALL</span><span class="s2">/jre/lib/amd64/server -L</span><span class="nv">$HADOOP_INSTALL</span><span class="s2">/c++/Linux-amd64-64/lib&quot;</span>
+
+<span class="c1">#</span>
+<span class="c1"># So we can run things such as start-all.sh etc. from anywhere and</span>
+<span class="c1"># don&#39;t need to be in $HADOOP_INSTALL</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$HADOOP_INSTALL</span>/bin
+
+<span class="c1">#</span>
+<span class="c1"># Point to the JDK installation</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">JAVA_INSTALL</span><span class="o">=</span>&lt;Place where you have the jdk installed&gt;
+
+<span class="c1">#</span>
+<span class="c1"># Add Hadoop directories to the Java class path</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">CLASSPATH</span><span class="o">=</span><span class="nv">$CLASSPATH</span>:<span class="nv">$HADOOP_HOME</span>/<span class="s2">&quot;&quot;</span>*:<span class="nv">$HADOOP_HOME</span>/lib/<span class="s2">&quot;&quot;</span>*:<span class="nv">$HADOOP_HOME</span>/conf/<span class="s2">&quot;&quot;</span>*:<span class="k">$(</span>hadoop classpath<span class="k">)</span>:
+
+<span class="c1">#</span>
+<span class="c1"># So we don&#39;t have to &quot;install&quot; these things</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span><span class="nv">$LD_LIBRARY_PATH</span>:<span class="nv">$HADOOP_HOME</span>/c++/Linux-amd64-64/lib:<span class="nv">$HADOOP_HOME</span>/src/c++/libhdfs:<span class="nv">$JAVA_INSTALL</span>/jre/lib/amd64/server:<span class="nv">$JAVA_INSTALL</span>:<span class="nv">$HADOOP_HOME</span>/lib:<span class="nv">$JAVA_INSTALL</span>/jre/lib/amd64:<span class="nv">$CLASSPATH</span>
+
+<span class="c1">#</span>
+<span class="c1"># Settings to run Chapel on multiple nodes</span>
+<span class="c1">#</span>
+<span class="nb">export</span> <span class="nv">GASNET_SPAWNFN</span><span class="o">=</span>S
+<span class="nb">export</span> <span class="nv">SSH_SERVERS</span><span class="o">=</span>&lt;the names of the computers in your cluster&gt;
+<span class="nb">export</span> <span class="nv">SSH_CMD</span><span class="o">=</span>ssh
+<span class="nb">export</span> <span class="nv">SSH_OPTIONS</span><span class="o">=</span>-x
+<span class="nb">export</span> <span class="nv">GASNET_ROUTE_OUTPUT</span><span class="o">=</span><span class="m">0</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="enabling-hdfs-support">
+<span id="id1"></span><h3>Enabling HDFS Support<a class="headerlink" href="#enabling-hdfs-support" title="Permalink to this headline">¶</a></h3>
+<p>There are two ways to configure Chapel to work with HDFS: using the Java
+implementation with libhdfs; or using a C/C++ implementation with libhdfs3.</p>
+<p>The user should set their <code class="docutils literal"><span class="pre">CHPL_AUX_FILESYS</span></code> accordingly:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="c1"># C/C++ implementation</span>
+<span class="nb">export</span> <span class="nv">CHPL_AUX_FILESYS</span><span class="o">=</span>hdfs3
+</pre></div>
+</div>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="c1"># Java implementation. Also set environment variables noted above.</span>
+<span class="nb">export</span> <span class="nv">CHPL_AUX_FILESYS</span><span class="o">=</span>hdfs
+</pre></div>
+</div>
+<p>Then, rebuild Chapel by executing <code class="docutils literal"><span class="pre">make</span></code> from <code class="docutils literal"><span class="pre">$CHPL_HOME</span></code>.</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>make
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If HDFS support is not enabled (which is the default), all
+features described in <a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a> will compile successfully but will result
+in an error at runtime such as: &quot;No HDFS Support&quot;.</p>
+</div>
+</div>
+</div>
+<div class="section" id="installing-curl-dependencies">
+<h2>Installing Curl Dependencies<a class="headerlink" href="#installing-curl-dependencies" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="../modules/packages/Curl.html#module-Curl" title="Curl: Simple support for many network protocols with libcurl"><code class="xref chpl chpl-mod docutils literal"><span class="pre">Curl</span></code></a> functionality in Chapel is dependent on libcurl. For
+information on how to install libcurl, see the
+<a class="reference external" href="https://curl.haxx.se/docs/install.html">curl installation instructions</a></p>
+<p>The environment variables <code class="docutils literal"><span class="pre">CHPL_AUXIO_INCLUDE</span></code> and <code class="docutils literal"><span class="pre">CHPL_AUXIO_LIBS</span></code> must
+be set to point to the include and lib directories for libcurl respectively.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If libcurl is installed system-wide you should not need to set these
+variables.</p>
+</div>
+<div class="section" id="enabling-curl-support">
+<h3>Enabling Curl Support<a class="headerlink" href="#enabling-curl-support" title="Permalink to this headline">¶</a></h3>
+<p>Once you have ensured that libcurl is installed, and have the two variables
+above defined, set the environment variable <code class="docutils literal"><span class="pre">CHPL_AUX_FILESYS</span></code> to 'curl' to
+enable <a class="reference internal" href="../modules/packages/Curl.html#module-Curl" title="Curl: Simple support for many network protocols with libcurl"><code class="xref chpl chpl-mod docutils literal"><span class="pre">Curl</span></code></a> support:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">CHPL_AUX_FILESYS</span><span class="o">=</span>curl
+</pre></div>
+</div>
+<p>Then, rebuild Chapel by executing <code class="docutils literal"><span class="pre">make`'</span> <span class="pre">from</span> <span class="pre">``$CHPL_HOME</span></code>:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>make
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If Curl support is not enabled (which is the default), all features
+described below will compile successfully but will result in an error at
+runtime, saying: &quot;No Curl Support&quot;.</p>
+</div>
+<p>The AIO system depends upon three environment variables:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">CHPL_AUX_FILESYS</span></code>
+<code class="docutils literal"><span class="pre">CHPL_AUXIO_INCLUDE</span></code>
+<code class="docutils literal"><span class="pre">CHPL_AUXIO_LIBS</span></code></div></blockquote>
+<p>In the following sections, we will explain what they should be set to, and give
+the general idea of what they do.</p>
+</div>
+</div>
+<div class="section" id="chpl-auxio-include-chpl-auxio-libs">
+<h2>CHPL_AUXIO_INCLUDE &amp; CHPL_AUXIO_LIBS<a class="headerlink" href="#chpl-auxio-include-chpl-auxio-libs" title="Permalink to this headline">¶</a></h2>
+<p>These paths are for the extra libraries that will be linked in with the runtime
+when it is compiled. For instance, if I installed libcurl, and had it install in
+<code class="docutils literal"><span class="pre">~/include</span></code> and <code class="docutils literal"><span class="pre">~/lib</span></code> you would set them to be:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">CHPL_AUXIO_LIBS</span><span class="o">=</span><span class="s2">&quot;-L~/include&quot;</span>
+<span class="nb">export</span> <span class="nv">CHPL_AUXIO_INCLUDE</span><span class="o">=</span><span class="s2">&quot;-I~/lib&quot;</span>
+</pre></div>
+</div>
+<p>In general, you want it so that if you had a .c file that used the libraries
+that you wish to compile Chapel with, all you would need to do to compile this
+file would be:</p>
+<p><code class="docutils literal"><span class="pre">cc</span> <span class="pre">$CHPL_AUXIO_LIBS</span> <span class="pre">$CHPL_AUXIO_INCLUDE</span> <span class="pre">&lt;any</span> <span class="pre">libraries&gt;</span> <span class="pre">&lt;the</span> <span class="pre">.c</span> <span class="pre">file&gt;</span></code></p>
+<p>where &lt;any libraries&gt; might be <code class="docutils literal"><span class="pre">-lcurl</span></code>, <code class="docutils literal"><span class="pre">-lhdfs</span></code>, <code class="docutils literal"><span class="pre">-lhdfs3</span></code>, <code class="docutils literal"><span class="pre">-ljvm</span></code> etc.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">It is not necessary to pass these library flags, or library/include paths
+to the Chapel compiler invocations (chpl) as the values in <code class="docutils literal"><span class="pre">CHPL_AUXIO_LIBS</span></code>
+and <code class="docutils literal"><span class="pre">CHPL_AUXIO_INCLUDE</span></code> will be used there as well as in building the
+Chapel runtime</p>
+</div>
+</div>
+<div class="section" id="chpl-aux-filesys">
+<h2>CHPL_AUX_FILESYS<a class="headerlink" href="#chpl-aux-filesys" title="Permalink to this headline">¶</a></h2>
+<p>This is a space delimited string detailing what AIO systems we wish to compile
+Chapel with (and use). For example if we wanted to enable <a class="reference internal" href="../modules/packages/Curl.html#module-Curl" title="Curl: Simple support for many network protocols with libcurl"><code class="xref chpl chpl-mod docutils literal"><span class="pre">Curl</span></code></a> and
+<a class="reference internal" href="../modules/packages/HDFS.html#module-HDFS" title="HDFS: Support for Hadoop Distributed Filesystem"><code class="xref chpl chpl-mod docutils literal"><span class="pre">HDFS</span></code></a> support simultaneously we would set:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">CHPL_AUX_FILESYS=&quot;hdfs</span> <span class="pre">curl&quot;</span></code></div></blockquote>
+<p>Assuming that you have correctly defined <code class="docutils literal"><span class="pre">CHPL_AUXIO_INCLUDE</span></code> and
+<code class="docutils literal"><span class="pre">CHPL_AUXIO_LIBS</span></code> as detailed above, and have the correct libraries
+installed.</p>
+<p>If you only have one AIO system that you wish to use, you may simply set
+<code class="docutils literal"><span class="pre">CHPL_AUX_FILESYS=&lt;system&gt;</span></code>. For example, if we only wanted Apache Hadoop
+HDFS support, we would set:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">CHPL_AUX_FILESYS=hdfs</span></code></div></blockquote>
+</div>
+<div class="section" id="parallel-and-distributed-i-o-features">
+<h2>Parallel and Distributed I/O Features<a class="headerlink" href="#parallel-and-distributed-i-o-features" title="Permalink to this headline">¶</a></h2>
+<p>We support two functions for Parallel and Distributed file systems (these also
+work on &quot;standard&quot; file systems as well).</p>
+<p><code class="docutils literal"><span class="pre">file.getchunk(start:int(64),</span> <span class="pre">end:int(64)):(int(64),</span> <span class="pre">int(64))</span></code></p>
+<blockquote>
+<div><ul>
+<li><p class="first">This returns the first logical <em>chunk</em> of the file that is inside this
+section. If no <em>chunk</em> can be found inside this region, (0,0) is returned.
+If no arguments are provided, we return the start and end of the first
+logical chunk for this file.</p>
+<blockquote>
+<div><ul class="simple">
+<li>On Lustre, this returns the first stripe for the file that is inside
+this region.</li>
+<li>On HDFS, this returns the first block for the file that is inside this
+region.</li>
+<li>On local file systems, it returns the first <em>optimal transfer block</em>
+(from fstatfs) inside this section of the file.</li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal"><span class="pre">file.localesForRegion(start:int(64),</span> <span class="pre">end:int(64)):domain(locale)</span></code></p>
+<blockquote>
+<div><ul>
+<li><p class="first">This returns the <em>best locales</em> for a given chunk of the file. If no
+individual or set of locales are <em>best</em> (i.e., there is some sort of data
+affinity that we can exploit), we return all locales.</p>
+<blockquote>
+<div><ul class="simple">
+<li>On Lustre, no locale are <em>best</em>, so we return all locales</li>
+<li>On HDFS, we return the block owners for that specific block</li>
+<li>On local file systems, we return all locales, since no individual
+locale is best.</li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="chpl-ipe.html" class="btn btn-neutral float-right" title="Interactive Chapel" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="atomics.html" class="btn btn-neutral" title="Runtime Support for Atomics" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Cray Inc.
+
+    </p>
+  </div> 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.18.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+ 
+
+
+
+</body>
+</html>
