@@ -5,7 +5,7 @@ import tomllib
 import sys
 
 
-# This script is used to lint the artifacts list in the `data/publications.toml`
+# This script is used to lint the artifacts list in the `data/artifacts.toml`
 # file, according to the rules described below.
 
 # Each resource is represented as a TOML table, with a unique 'slug' for a name.
