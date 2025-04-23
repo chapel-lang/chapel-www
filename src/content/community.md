@@ -44,13 +44,13 @@ keywords = ["TODO"]
   url="https://github.com/chapel-lang/chapel/issues"
 
 [[LiveEvents]]
-  name="Demo Sessions"
-  description="A live monthly demo introducing Chapel features"
-  url="https://outlook.office365.com/calendar/published/cfd54391a94d41648a8c15e1ccf5d870@hpe.com/1eb05c67756a4576b540c8946faba28915354704168464865139/calendar.html"
+  name="Chapel project weekly meeting"
+  description="Our project's main weekly meeting, featuring news, status, demos, discussions, and office hours."
+  url="https://github.com/chapel-lang/chapel/discussions/categories/weekly-meeting-topics"
 
 [[LiveEvents]]
-  name="Office Hours"
-  description="A monthly open session for Q&A with Chapel developers"
+  name="Demo Sessions"
+  description="A live monthly demo introducing Chapel features"
   url="https://outlook.office365.com/calendar/published/cfd54391a94d41648a8c15e1ccf5d870@hpe.com/1eb05c67756a4576b540c8946faba28915354704168464865139/calendar.html"
 
 [[LiveEvents]]
