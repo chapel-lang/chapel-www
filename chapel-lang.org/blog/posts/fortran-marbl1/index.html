@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00cbff">
+    
+    <meta name="description" content="An introduction to interoperating between Chapel and Fortran">
+    
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
+    
+    
+    
+    
+    
+    
+    
+    <style>.sidenote-checkbox { display: none; }</style>
+    <style>.feather { width: 1rem; height: 1rem; }</style>
+    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
+    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
+    <link rel="icon" type="image/png" href="../../img/favicon.ico">
+
+    <script src="../../js/dropdown-menu.js" defer></script>
+
+    <title>Chapel/Fortran Interop in an Ocean Model: Introduction</title>
+</head>
+<body>
+<header>
+    
+    <div class="container">
+        <a class="site-title" href="../../">
+            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
+            <h1>Chapel Language Blog</h1>
+        </a>
+    </div>
+    <nav id="Header">
+        <div class="container">
+            <a href="../../about">About</a>
+            <a href="https://chapel-lang.org">Chapel Website</a>
+            <a href="../../featured">Featured</a>
+            <a href="../../series">Series</a>
+            <a href="../../tags">Tags</a>
+            <a href="../../authors">Authors</a>
+            <a href="../../posts">All Posts</a>
+        </div>
+    </nav>
+    
+</header>
+<main class="container">
+<h2>Chapel/Fortran Interop in an Ocean Model: Introduction</h2>
+<div class="post-subscript">
+    <p>Posted on April 24, 2025.</p>
+    <p>
+        Tags:
+        
+        <a class="button" href="../../tags/earth-sciences">Earth Sciences</a>
+        
+        <a class="button" href="../../tags/interoperability">Interoperability</a>
+        
+        <a class="button" href="../../tags/how-to">How-To</a>
+        
+        <a class="button" href="../../tags/performance">Performance</a>
+        
+    </p>
+    <p>
+    By:
+    <a href="../../authors/brandon-neth">Brandon Neth</a>, <a href="../../authors/michelle-strout">Michelle Strout</a>
+    </p>
+</div>
+
+<div class="post-content">
+    
+    <div class="table-of-contents">
+        <div class="wrapper">
+            <span class="header">Table of Contents</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#why-interoperate">Why Interoperate?</a></li>
+    <li><a href="#a-basic-example">A Basic Example</a></li>
+    <li><a href="#adding-threaded-parallelism">Adding Threaded Parallelism</a></li>
+    <li><a href="#the-big-one-distributed-parallelism">The Big One: Distributed Parallelism</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ul>
+</nav>
+        </div>
+    </div>
+    
+
+    
+
+    <p>In this blog series, we share about a collaboration between HPE&rsquo;s Advanced Programming Team and <a href="https://cworthy.org"target="_blank" rel="noopener">[C]Worthy</a>, a nonprofit startup working on safe, effective ocean-based carbon dioxide removal.</p>
+<p>Scientists at [C]Worthy are developing a state-of-the-art, massively parallel ocean modeling code in Chapel, combining fluid dynamics with the many biological, geological, and chemical processes occurring in the ocean and atmosphere.
+Simulating these processes could be done in Chapel, but a robust and popular Fortran library already exists: the <strong>Mar</strong>ine <strong>B</strong>iogeochemistry <strong>L</strong>ibrary (<a href="https://github.com/marbl-ecosys/MARBL/tree/marbl0.45.0"target="_blank" rel="noopener">MARBL</a>).
+Our challenge, and the focus of this series, is integrating the Fortran MARBL library into [C]Worthy&rsquo;s Chapel program that simulates fluid dynamics.</p>
+<p>There&rsquo;s so much to share about the science, but we&rsquo;ll have to save that for a later post in the series.
+Today, we want to begin by sharing techniques we used to support interoperating between Chapel and Fortran.
+This post focuses on making function calls on arrays across the language boundary, with a future post focusing on supporting arbitrary, user-defined data structures.</p>
+<h3 id="why-interoperate">
+  <a href="#why-interoperate">Why Interoperate?</a>
+</h3>
+<p>The aim of the Chapel programming language is to give developers a tool they can use to write fast, scalable, and portable applications with ease.
+In our view, we&rsquo;ve been successful.
+<a href="../7qs-bachman">For example</a>, the tech lead at [C]Worthy was able to learn Chapel, write a distributed image analysis code in it, and have collaborators present the results in less than six months.
+But there are countless applications, libraries, and packages already written in other languages, and it doesn&rsquo;t always make sense to completely re-implement software in every language.</p>
+<p>This is where interoperability, meaning the integration of multiple programming languages in one application, fits in.
+Robust interoperability support enables developers to reuse existing code without giving up flexibility in their choice of language.
+It means avoiding the costs, in both time and headache, of re-writing, re-testing, and re-debugging software in a new language.
+And it means using the best tools for each task, without compromise.</p>
+<p>There are as many possibilities as there are languages:
+a Python script uses a C implementation to speed up common algorithms;
+a C++ application calls out to Swift or Rust for security-critical tasks;
+or, as we&rsquo;ll learn about here, a distributed parallel Chapel program that uses existing functions written in Fortran (or in C, to access <a href="../netcdf1">NetCDF support</a>).
+Let&rsquo;s dive in.</p>
+<h3 id="a-basic-example">
+  <a href="#a-basic-example">A Basic Example</a>
+</h3>
+<p>Chapel/Fortran interoperability hinges on the fact that Chapel and Fortran both independently interoperate with C.
+Essentially, <strong>we use a C header file as a bridge to connect a function call in Chapel to its implementation in Fortran</strong>.</p>
+<p>Let&rsquo;s say we&rsquo;ve got the following functions in Fortran that convert an array of temperatures between Fahrenheit and Celsius. We use this example for brevity, acknowledging that most practical applications of interoperability would use much more complex functions.</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/temperatures.f90 download="temperatures.f90">temperatures.f90</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fortran" data-lang="fortran"><span class="line"><span class="cl"><span class="k">module</span><span class="w"> </span><span class="n">temperatures</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nb">iso_c_binding</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">contains</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">subroutine</span><span class="w"> </span><span class="n">FtoC</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">)</span><span class="w"> </span><span class="k">bind</span><span class="p">(</span><span class="n">C</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;FtoC&#39;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">integer</span><span class="p">(</span><span class="k">c_int</span><span class="p">),</span><span class="w"> </span><span class="k">intent</span><span class="p">(</span><span class="n">in</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="nb">len</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">real</span><span class="p">(</span><span class="k">c_double</span><span class="p">),</span><span class="w"> </span><span class="k">intent</span><span class="p">(</span><span class="n">inout</span><span class="p">),</span><span class="w"> </span><span class="k">dimension</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">arr</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">arr</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">3</span><span class="mf">2.0</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">5.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">9.0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">end</span><span class="w"> </span><span class="k">subroutine</span><span class="w"> </span><span class="n">FtoC</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">subroutine</span><span class="w"> </span><span class="n">CtoF</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">)</span><span class="w"> </span><span class="k">bind</span><span class="p">(</span><span class="n">C</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;CtoF&#39;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">integer</span><span class="p">(</span><span class="k">c_int</span><span class="p">),</span><span class="w"> </span><span class="k">intent</span><span class="p">(</span><span class="n">in</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="nb">len</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">real</span><span class="p">(</span><span class="k">c_double</span><span class="p">),</span><span class="w"> </span><span class="k">intent</span><span class="p">(</span><span class="n">inout</span><span class="p">),</span><span class="w"> </span><span class="k">dimension</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">arr</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">arr</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">9.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">5.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="mf">2.0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">end</span><span class="w"> </span><span class="k">subroutine</span><span class="w"> </span><span class="n">CtoF</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">end</span><span class="w"> </span><span class="k">module</span><span class="w"> </span><span class="n">temperatures</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<details>
+    <summary><strong>Click here for help interpreting the Fortran code</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>We&rsquo;ll go line by line.</p>
+<ul>
+<li>Line 1 defines a module, called <code>temperatures</code>, that contains code. This is essentially identical to a Chapel module. It can define data types, include other modules, and define procedures.</li>
+<li>Line 2 includes the <code>iso_c_binding</code> module, which contains everything necessary to call Fortran methods from other languages. We&rsquo;ll see the symbols from this module show up soon.</li>
+<li>Line 3 separates the part of the module that includes other modules and defines custom data types from the part of the module that defines subroutines.</li>
+<li>Line 4 declares a subroutine (a procedure without a return value), called <code>FtoC</code>, that takes two arguments. The <code>bind(...)</code> statement tells the Fortran compiler that it may be called by programs in other languages using the name <code>FtoC</code>.</li>
+<li>Lines 5 and 6 provide information about the arguments to the subroutine. Notice that the declarations of the arguments are different from their order within the subroutine&rsquo;s signature on the line above. This allows us to use one argument to define the other. The <code>len</code> argument is an integer that is expected to be the same bitwidth as a C <code>int</code>. Furthermore, the <code>len</code> argument is just an input argument, not an output argument. The <code>arr</code> argument is an array of real numbers with the same bitwidth as a C <code>double</code>. The array has length <code>len</code>.</li>
+<li>Line 8 implements the subroutine&rsquo;s operation. Fortran supports scalar promotion, so the same arithmetic is computed for each element of the array.</li>
+<li>Line 9 ends the subroutine, and the rest of the file is very similar to the <code>FtoC</code> subroutine, but performs the inverse conversion.</li>
+</ul>
+    </div>
+</details>
+
+<p>To indicate to the Chapel program how to use these methods, we need a corresponding C header file that exposes the interface. That looks like this:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/temperatures.h download="temperatures.h">temperatures.h</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">CtoF</span><span class="p">(</span><span class="kt">double</span> <span class="o">*</span><span class="n">arr</span><span class="p">,</span> <span class="k">const</span> <span class="kt">int</span> <span class="o">*</span><span class="n">len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">FtoC</span><span class="p">(</span><span class="kt">double</span> <span class="o">*</span><span class="n">arr</span><span class="p">,</span> <span class="k">const</span> <span class="kt">int</span> <span class="o">*</span><span class="n">len</span><span class="p">);</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<p>Note that in addition to the the <code>double*</code> typed <code>arr</code> argument, we also use a pointer for the <code>len</code> argument. This is because Fortran uses pass-by-reference by default.
+You can use the <code>value</code> attribute within the definition of the subroutine arguments to use pass-by-value.
+This is not commonly used in the Fortran code we&rsquo;ve seen though, so we omit it here.</p>
+<p>Finally, we can use our Fortran subroutines in Chapel. Let&rsquo;s populate an array and pass it in:</p>
+
+
+
+
+
+<div class="file" data-code-type="main">
+    <div class="file-header">
+        <a href=code/sequential.chpl download="sequential.chpl">sequential.chpl</a>
+        
+    </div>
+
+    
+    <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">require</span><span class="w"> </span><span class="s">&#34;temperatures.h&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">FtoC</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">CtoF</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">32.0</span><span class="p">,</span><span class="w"> </span><span class="mf">212.0</span><span class="p">,</span><span class="w"> </span><span class="mf">98.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">100.0</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Original Array: &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">arr</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">FtoC</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">arr</span><span class="p">),</span><span class="w"> </span><span class="nx">arr</span><span class="p">.</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After FtoC:     &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">arr</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">CtoF</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">arr</span><span class="p">),</span><span class="w"> </span><span class="nx">arr</span><span class="p">.</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After CtoF:     &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">arr</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+
+</div>
+
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0"></label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right" style="margin-top: -16.5rem"><span class="sidenote-delimiter">[note:</span>
+These signatures were generated manually. Alternatively, the <code><a href = "https://chapel-lang.org/docs/tools/c2chapel/c2chapel.html">c2chapel</a></code> tool can be used to generate <code>extern</code> declarations automatically, or an 
+<a href = "https://chapel-lang.org/docs/technotes/extern.html#support-for-extern-blocks"><i>extern block</i></a> can be used to have the Chapel compiler parse the C header file contents directly.
+<span class="sidenote-delimiter">]</span></span></span>
+<details>
+    <summary><strong>Click here for help interpreting the Chapel code</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>We&rsquo;ll go line by line again.</p>
+<ul>
+<li>Line 1 imports a Chapel module called <code>CTypes</code> that contains procedures and data types useful for interoperating with C code, for example the data types <code>c_ptr</code>, <code>c_double</code>, and <code>c_int</code>.</li>
+<li>Line 2 indicates to the Chapel compiler that during compilation it should also include the <code>temperatures.h</code> file.</li>
+<li>Lines 4 and 5 declare that there are two procedures, <code>FtoC</code> and <code>CtoF</code>, that are defined elsewhere, and that during compilation, we will provide their implementations.</li>
+<li>Line 7 declares an array of real numbers that has 5 elements, initialized using an array literal.</li>
+<li>Lines 9, 11, and 13 print a string to <code>stdout</code>, followed by a string representation of the array <code>arr</code>.</li>
+<li>Lines 10 and 12 make calls to the procedures defined in the Fortran file—the same ones that were declared as being <code>extern</code> in lines 4 and 5.  Note that the arguments to these procedures are not the array and length variables alone. Instead, we use the <code>c_ptrTo</code> procedure to create a pointer to the data of the array that will be compatible with the C-like implementations. This is necessary because Chapel arrays are not represented as raw blocks of memory. Similarly, we cast <code>arr.size</code>, which in Chapel is by default 64 bits wide, to a <code>c_int</code> which is 32 bits wide on most machines.</li>
+</ul>
+    </div>
+</details>
+
+<p>We need two compilation commands:</p>
+<ol>
+<li>Compile the Fortran code to an object file:<br><code>gfortran -c temperatures.f90</code></li>
+<li>Compile the object file along with the Chapel source:<br><code>chpl sequential.chpl temperatures.o</code></li>
+</ol>
+<p>When we run, we&rsquo;ll get the following output:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">Original Array: 32.0 212.0 98.6 0.0 100.0
+</span></span></span><span class="line"><span class="cl"><span class="go">After FtoC:     0.0 100.0 37.0 -17.7778 37.7778
+</span></span></span><span class="line"><span class="cl"><span class="go">After CtoF:     32.0 212.0 98.6 0.0 100.0
+</span></span></span></code></pre></div><p>And there we have it. A Chapel program using procedures implemented in Fortran.</p>
+<h3 id="adding-threaded-parallelism">
+  <a href="#adding-threaded-parallelism">Adding Threaded Parallelism</a>
+</h3>
+<p>Next, we add shared-memory parallelism to this application.
+And while we&rsquo;re at it, let&rsquo;s change our data slightly.
+Instead of a 1D array of temperatures, what if we had a 2D grid of temperatures? Perhaps even a grid of ocean surface temperatures?</p>
+<p>Our Chapel program starts much the same. We import the C header file, declare the <code>extern</code> procedures, and initialize our data, using a <code>forall</code> loop to do so in parallel:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">require</span><span class="w"> </span><span class="s">&#34;temperatures.h&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">FtoC</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">CtoF</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">temps</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">32.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Original Array&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">temps</span><span class="p">);</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>We could use the Fortran functions on this array in one go, sequentially:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">FtoC</span><span class="p">(</span><span class="nx">temps</span><span class="p">,</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>But we can also use multiple threads to apply the function in parallel using Chapel&rsquo;s <code>forall</code> loop:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">FtoC</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">n</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After FtoC&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">temps</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">CtoF</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">n</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After CtoF&#34;</span><span class="p">);</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<details>
+    <summary><strong>Performance comparison</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Let&rsquo;s compare the performance of a sequential version and a parallel version.
+The code is nearly identical, except for how the Fortran subroutines are called.
+The sequential version makes a single, sequential call to each of the subroutines.
+The threaded version iterates over the rows in parallel, using multithreading to process multiple rows at a time.</p>
+<p>Sequential:</p>
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">Time</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">require</span><span class="w"> </span><span class="s">&#34;temperatures.h&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">FtoC</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">CtoF</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">temps</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">32.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">s</span><span class="p">:</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">s</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">FtoC</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">temps</span><span class="p">),</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">CtoF</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">temps</span><span class="p">),</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">s</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Sequential,&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;,&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>Threaded:</p>
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">Time</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">require</span><span class="w"> </span><span class="s">&#34;temperatures.h&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">FtoC</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">CtoF</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">temps</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">32.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">s</span><span class="p">:</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">s</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">FtoC</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">n</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">CtoF</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">n</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">s</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Threaded,&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;,&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>If we run for different values of <code>n</code> and plot the output, we can see the threaded version significantly outperforms the sequential. Data was collected using an Apple Macbook Pro with an M2 Pro processor and 32GB memory, using 8 threads for the threaded version:</p>
+<figure class="fullwide"><img src="../../posts/fortran-marbl1/code/times.png"><figcaption>
+      <h4>Sequential and Threaded Execution Times.</h4>
+    </figcaption>
+</figure>
+
+    </div>
+</details>
+
+<p>We can see from this example that Chapel can be used as a powerful tool to orchestrate shared-memory parallelism for codes written in Fortran.
+But why stop here? Let&rsquo;s add another layer: distributed-memory parallelism.</p>
+<h3 id="the-big-one-distributed-parallelism">
+  <a href="#the-big-one-distributed-parallelism">The Big One: Distributed Parallelism</a>
+</h3>
+<p>For most problem sizes of interest, shared-memory parallelism is useful but ultimately insufficient, as the problems simply cannot fit within a single compute node&rsquo;s memory.
+For the type of ocean modeling we want to tackle, we need to distribute our program across multiple compute nodes (<em>locales</em> in Chapel parlance).
+This is a problem that Chapel is tailor-made to solve.</p>
+<p>Let&rsquo;s make another jump, from a 2D grid of temperatures to a 3D cube of them.
+Our code is still eminently recognizable compared to the 2D example:</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">require</span><span class="w"> </span><span class="s">&#34;temperatures.h&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">FtoC</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">CtoF</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">distDomain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">});</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">temps</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">distDomain</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>An important change: rather than declaring our array&rsquo;s indices anonymously with the array, we use <code>blockDist.createDomain</code> to create a named <em>domain</em> that distributes our array&rsquo;s indices and their corresponding elements across the locales we use to execute the program.
+Chapel uses &ldquo;locales&rdquo; to refer to separate execution environments that do not share access to the same memory, but are involved in the execution of the same program.</p>
+<p>Our initialization needs almost no modification.
+The <code>forall</code> loop, which previously parallelized our initialization across multiple threads, now handles distributing the execution both across locales and across threads.
+This is because the <code>forall</code> loop is iterating over a distributed domain.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">distDomain</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">k</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Original Array&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">temps</span><span class="p">);</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<p>We use a different strategy for distributing the execution of the Fortran subroutines.
+Using the <code>coforall</code> loop combined with the <code>on</code> clause, we distribute execution over multiple locales.
+On each locale, we get the portion of the array that lives on that locale, then use shared-memory parallelism to apply the Fortran subroutine.</p>
+<p>
+
+
+
+
+
+
+
+
+
+
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">localIndices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">distDomain</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">localTemps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">localSlice</span><span class="p">(</span><span class="nx">localIndices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">localIndices</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">FtoC</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">].</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After FtoC&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">temps</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">localIndices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">distDomain</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">localTemps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">localSlice</span><span class="p">(</span><span class="nx">localIndices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">localIndices</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">CtoF</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">].</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;After CtoF&#34;</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">temps</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+
+<details>
+    <summary><strong>Click here for help interpreting the above loop.</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>The first line of the above block is what allows us to run the code on all the locales (nodes) our program is using.
+The <code>coforall</code> loop iterates over the program&rsquo;s locales, launching parallel tasks that execute the body of the <code>coforall</code>.
+The <code>on loc</code> statement indicates that the code within the block should be run on that locale.
+Combined with the <code>coforall</code> loop over the locales, this has the effect of starting a task on each locale in parallel.</p>
+<p>Within the <code>on loc</code> block, we use <code>distDomain.localSubdomain()</code> to get the portion of the domain that belongs to that locale.
+Similarly, we get a reference to the portion of the array on that locale using the <code>temps.localSlice(localIndices)</code> call.
+This ensures that each locale is only working on its portion of the distributed array.</p>
+<p>Finally, the <code>forall i in localIndices.dim(0)</code> loop uses shared-memory parallelism within each locale to call out to the Fortran subroutine, as in our previous, shared-memory version.</p>
+
+    </div>
+</details>
+</p>
+<details>
+    <summary><strong>Performance comparison</strong></summary>
+
+    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        <p>Let&rsquo;s compare the performance of the sequential, multi-threading, and distributed versions of this approach.
+We can actually do this all with one code, leveraging Chapel&rsquo;s <a href="https://chapel-lang.org/docs/language/spec/data-parallelism.html#configuration-constants-for-default-data-parallelism"target="_blank" rel="noopener">parallelism configuration constants</a> to vary how many parallel threads each locale uses.</p>
+<p>The sequential version runs with <code>--numLocales=1 --dataParTaskPerLocale=1</code>.
+The multithreaded version runs with <code>--numLocales=1 --dataParTaskPerLocale=16</code>. Leaving <code>dataParTaskPerLocale</code> unset defaults the thread count to the maximum number of threads, but we set it to 16 here to be explicit.
+Finally, we run the distributed version with 2 and 8 locales. These use 16 threads as well.</p>
+<p>We&rsquo;ve removed the prints and added timers, but otherwise the code is identical to the above example:</p>
+<div data-code-type="main" data-code-section="">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">CTypes</span><span class="p">,</span><span class="w"> </span><span class="nx">Time</span><span class="p">,</span><span class="w"> </span><span class="nx">BlockDist</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">require</span><span class="w"> </span><span class="s">&#34;temperatures.h&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">FtoC</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">CtoF</span><span class="p">(</span><span class="nx">arr</span><span class="p">:</span><span class="w"> </span><span class="nx">c_ptr</span><span class="p">(</span><span class="nx">c_double</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">len</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">distDomain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blockDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">});</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">temps</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">distDomain</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">distDomain</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">temps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">k</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">s</span><span class="p">:</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">s</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">localIndices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">distDomain</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">localTemps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">localSlice</span><span class="p">(</span><span class="nx">localIndices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">localIndices</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">FtoC</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">].</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">localIndices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">distDomain</span><span class="p">.</span><span class="nx">localSubdomain</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">localTemps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">temps</span><span class="p">.</span><span class="nx">localSlice</span><span class="p">(</span><span class="nx">localIndices</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">localIndices</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">CtoF</span><span class="p">(</span><span class="nx">c_ptrTo</span><span class="p">(</span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">]),</span><span class="w"> </span><span class="nx">localTemps</span><span class="p">[</span><span class="nx">i</span><span class="p">,</span><span class="o">..</span><span class="p">,</span><span class="o">..</span><span class="p">].</span><span class="nx">size</span><span class="p">:</span><span class="w"> </span><span class="nx">c_int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">s</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">version</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">if</span><span class="w"> </span><span class="nx">numLocales</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">dataParTasksPerLocale</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;Sequential&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">numLocales</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;Threaded&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#34;Distributed &#34;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">numLocales</span><span class="p">:</span><span class="kt">string</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&#34; Nodes&#34;</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">version</span><span class="p">,</span><span class="s">&#34;,&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">,</span><span class="s">&#34;,&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>Here&rsquo;s the plot of execution times for the different versions. Data was collected on an HPE Cray EX system:</p>
+<figure class="fullwide"><img src="../../posts/fortran-marbl1/code/distributedComparison.png"><figcaption>
+      <h4>Sequential, Threaded, and Distributed Execution Times.</h4>
+    </figcaption>
+</figure>
+<p>And here&rsquo;s the same data without the sequential data points:</p>
+<figure class="fullwide"><img src="../../posts/fortran-marbl1/code/distributedComparisonParallelOnly.png"><figcaption>
+      <h4>Threaded, and Distributed Execution Times.</h4>
+    </figcaption>
+</figure>
+
+    </div>
+</details>
+
+<p>This example shows the real power of Chapel for orchestrating parallelism.
+Because the language is built with parallel programming in mind, introducing parallelism doesn&rsquo;t mean completely rewriting the code.
+Nor does it mean having to learn a whole new programming model (or two!), as is the case when using OpenMP and MPI.
+Instead, we can make shared- or distributed-memory parallel calls to the same Fortran routine, without touching the Fortran code once.</p>
+<h3 id="summary">
+  <a href="#summary">Summary</a>
+</h3>
+<p>We&rsquo;ve looked at three versions of function call interoperability between Chapel and Fortran: sequentially, with shared-memory parallelism, and with distributed-memory parallelism.
+In each case, we&rsquo;ve used the same Fortran subroutines, orchestrating parallelism with Chapel.
+But the ocean can&rsquo;t be grasped with function calls alone.
+In the next post, we&rsquo;ll look at Chapel/Fortran interoperability for user-defined data types.</p>
+
+</div>
+
+        </main>
+<div class="container">
+    <div class="share-view">
+        <h3>Share this article:</h3>
+        <div class="share-buttons">
+        
+        
+        
+        <a style="--button-color: #6cb0f9; --button-color-light: white;" class="button share-button" href="https://bsky.app/intent/compose?text=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Chapel%2FFortran&#43;Interop&#43;in&#43;an&#43;Ocean&#43;Model%3A&#43;Introduction%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ffortran-marbl1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/bluesky-logo.jpg" alt="Share on BlueSky">
+</a>
+
+        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Chapel%2FFortran&#43;Interop&#43;in&#43;an&#43;Ocean&#43;Model%3A&#43;Introduction%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ffortran-marbl1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+</a>
+
+        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Chapel%2FFortran&#43;Interop&#43;in&#43;an&#43;Ocean&#43;Model%3A&#43;Introduction%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ffortran-marbl1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+</a>
+
+        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Chapel%2FFortran&#43;Interop&#43;in&#43;an&#43;Ocean&#43;Model%3A&#43;Introduction&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ffortran-marbl1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+</a>
+
+        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Chapel%2FFortran&#43;Interop&#43;in&#43;an&#43;Ocean&#43;Model%3A&#43;Introduction%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ffortran-marbl1%2F" target="_blank" rel="noopener noreferrer">
+    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+    </body>
+</html>
