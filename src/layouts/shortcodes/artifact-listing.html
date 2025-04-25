@@ -1,0 +1,51 @@
+{{$var := .Get 0}}
+{{$summary := .Get 1 }}
+
+{{ with index .Site.Data.artifacts $var }}
+  <div class="publication">
+    {{ if isset . "url" }} <a href="{{ .url }}"> {{ end }}
+    <b>{{ .title }}</b>
+    {{ if isset . "url" }} </a> {{ end }}
+
+    {{ if or (isset . "video") (isset . "slides") (isset . "extraLink")}}
+      [
+      {{ if isset . "video" }} <a href="{{ .video }}">Video</a> {{ end }}
+      {{ if and (isset . "video") (isset . "slides") }} | {{ end }}
+      {{ if isset . "slides" }} <a href="{{ .slides }}">Slides</a> {{ end }}
+      {{ if and (or (isset . "video") (isset . "slides")) (isset . "extraLink") }} | {{ end }}
+      {{ if isset . "extraLink" }} <a href="{{ .extraLink }}"> {{ .extraLinkText }} </a> {{ end }}
+      ]
+    {{ end }}
+
+    {{ .authors }},
+    {{ if isset . "venue" }} <i>{{ .venue }}</i>, {{ end }}
+    {{ .date }}
+
+    {{ if isset . "linkList" }}
+      {{ if isset . "linkListLabel" }}
+        <ul>
+          <li>{{ .linkListLabel | title }}:
+      {{ end }}
+            <ul>
+              {{ $listLen := len .linkList }}
+              {{ if (not (eq ($listLen) (len .linkListTexts))) }}
+                {{ errorf "Mismatched number of links and link names in entry '%s': %p" $var $.Position }}
+              {{ end }}
+              {{ $entry := . }}
+              {{ range $i := (len .linkList) }}
+                <li><a href="{{ index $entry.linkList $i }}">{{ index $entry.linkListTexts $i }}</a></li>
+              {{ end }}
+            </ul>
+      {{ if isset . "linkListLabel" }}
+          </li>
+        </ul>
+      {{ end }}
+    {{ end }}
+
+    <div class="publication-description">
+      <p>{{ .description}}</p>
+    </div>
+  </div>
+{{ else }}
+  {{ errorf "No artifact found with slug '%s' when trying to generate listing, referenced at: %p" $var .Position }}
+{{ end }}
