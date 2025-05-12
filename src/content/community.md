@@ -46,7 +46,7 @@ keywords = ["TODO"]
 [[LiveEvents]]
   name="Chapel project weekly meeting"
   description="Our project's main weekly meeting, featuring news, status, demos, discussions, and office hours."
-  url="https://github.com/chapel-lang/chapel/discussions/categories/weekly-meeting-topics"
+  url="https://github.com/chapel-lang/chapel/discussions/categories/weekly-meeting-topics?discussions_q="
 
 [[LiveEvents]]
   name="Demo Sessions"
