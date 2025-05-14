@@ -5,19 +5,24 @@ keywords = ["TODO"]
 
 # Presentations {#presentations}
 
-{{<publication-list "featuredPresentations" "Featured Presentations">}}
+{{<publication-list "featuredPresentations" "Featured Chapel Presentations">}}
+  {{<artifact-listing "kaust25">}}
   {{<artifact-listing "linuxcon23">}}
   {{<artifact-listing "hpeDevMeetup23">}}
   {{<artifact-listing "pnw-plse24">}}
   {{<artifact-listing "openSourceConnector24">}}
 {{</publication-list>}}
 
-{{<publication-list "userPresentations" "Featured Presentations by Chapel Users">}}
+{{<publication-list "userPresentations" "Featured Presentations of Chapel Applications">}}
+  {{<artifact-listing "cug25">}}
+  {{<artifact-listing "clsac24">}}
   {{<artifact-listing "paw-atm23-bachman">}}
   {{<artifact-listing "paw-atm23-westerhout">}}
 {{</publication-list>}}
 
 {{<publication-list "recentPresentations" "Other Recent Presentations">}}
+  {{<artifact-listing "uwplselunch">}}
+  {{<artifact-listing "hpsfapp">}}
   {{<artifact-listing "linuxcon24">}}
   {{<artifact-listing "cug24">}}
   {{<artifact-listing "hpeTechTalk24">}}
