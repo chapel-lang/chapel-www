@@ -40,6 +40,7 @@ keywords = ["TODO"]
   {{<artifact-listing "innerSourcing2">}}
   {{<artifact-listing "ccdsc24">}}
   {{<artifact-listing "amd2024">}}
+  {{<artifact-listing "bader">}}
   {{<artifact-listing "linuxcon24">}}
   {{<artifact-listing "cug24">}}
   {{<artifact-listing "hpeTechTalk24">}}
