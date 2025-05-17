@@ -17,6 +17,7 @@ keywords = ["TODO"]
 {{<publication-list "userPresentations" "Featured Presentations of Chapel Applications">}}
   {{<artifact-listing "cug25">}}
   {{<artifact-listing "hppss-sc24">}}
+  {{<artifact-listing "paw-atm24-champs">}}
   {{<artifact-listing "paw-atm24-suffix">}}
   {{<artifact-listing "pangeo">}}
   {{<artifact-listing "clsac24">}}
@@ -25,11 +26,20 @@ keywords = ["TODO"]
 {{</publication-list>}}
 
 {{<publication-list "recentPresentations" "Other Recent Presentations">}}
+  {{<artifact-listing "pnwplse2025">}}
   {{<artifact-listing "hpsfcon2025">}}
+  {{<artifact-listing "gtc2025">}}
+  {{<artifact-listing "nasa-champs2025">}}
   {{<artifact-listing "uwplselunch">}}
   {{<artifact-listing "hpsfapp">}}
+  {{<artifact-listing "sc24demo">}}
+  {{<artifact-listing "waccpd24">}}
+  {{<artifact-listing "eduhpc24">}}
   {{<artifact-listing "nasa24">}}
   {{<artifact-listing "jhu-apl">}}
+  {{<artifact-listing "innerSourcing2">}}
+  {{<artifact-listing "ccdsc24">}}
+  {{<artifact-listing "amd2024">}}
   {{<artifact-listing "linuxcon24">}}
   {{<artifact-listing "cug24">}}
   {{<artifact-listing "hpeTechTalk24">}}

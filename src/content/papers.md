@@ -6,6 +6,7 @@ keywords = ["TODO"]
 # Papers {#papers}
 
 {{<publication-list "featuredPublications" "Featured Publications">}}
+  {{<artifact-listing "hpec24-vf2-ps">}}
   {{<artifact-listing "ccpe23">}}
   {{<artifact-listing "ems23">}}
   {{<artifact-listing "lcpc22">}}
@@ -14,6 +15,9 @@ keywords = ["TODO"]
 {{</publication-list>}}
 
 {{<publication-list "recentPublications" "Recent Publications">}}
+  {{<artifact-listing "ipdps2024">}}
+  {{<artifact-listing "hpec24-deploy">}}
+  {{<artifact-listing "europar24">}}
   {{<artifact-listing "pdco22">}}
   {{<artifact-listing "cug22">}}
   {{<artifact-listing "pmam22">}}
