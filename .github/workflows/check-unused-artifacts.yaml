@@ -1,0 +1,25 @@
+name: check-unused-artifacts
+
+on: pull_request
+
+jobs:
+  check-unused-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: count PR commits
+        run: echo "PR_NUM_COMMITS=$(( ${{ github.event.pull_request.commits }} + 2 ))" >> "${GITHUB_ENV}"
+      - name: checkout commits on PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ env.PR_NUM_COMMITS }}
+      - name: check for unused artifacts
+        run: |
+          baseSHA=${{github.event.pull_request.base.sha}}
+          headSHA=${{github.event.pull_request.head.sha}}
+
+          echo "Base SHA: $baseSHA"
+          echo "Head SHA: $headSHA"
+          echo "${{github.event.pull_request.commits}} commits in PR"
+
+          git diff $headSHA $baseSHA
+
