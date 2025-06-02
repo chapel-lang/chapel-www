@@ -12,7 +12,6 @@ keywords = ["TODO"]
 {{</publication-list>}}
 
 {{<publication-list "recentPublications" "Recent Publications">}}
-  {{<artifact-listing "lcpc22">}}
   {{<artifact-listing "pdco22">}}
   {{<artifact-listing "cug22">}}
   {{<artifact-listing "pmam22">}}
