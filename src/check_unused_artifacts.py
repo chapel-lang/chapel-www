@@ -52,6 +52,8 @@ def main():
         for slug in unused_slugs:
             print(f"  - {slug}")
         sys.exit(1)
+    else:
+        print("No unused slugs found in diff.")
 
 
 if __name__ == "__main__":
