@@ -17,7 +17,7 @@ def main():
     parser.add_argument("diff_filename", type=str, help="Path to the diff to search for newly missing artifacts in")
     args = parser.parse_args()
 
-    slugs_to_check = []
+    slugs_to_check = set()
     all_slugs = set()
     unused_slugs = set()
 
@@ -39,12 +39,23 @@ def main():
                     print(f"Detected added slug '{added_slug}' in the diff.")
                     slugs_to_check.append(added_slug)
 
+    checked_slugs = set()
     for slug in slugs_to_check:
+        # If we already checked an occurance of this slug, no need to check it
+        # again
+        if slug in checked_slugs:
+            continue
+
+        # If the slug is not in the artifact list, we're all good
+        # (it was removed)
         if slug not in all_slugs:
             continue
+
         search_string = f"{listing_macro_name} \"{slug}\""
         if subprocess.run(["git", "grep", "-q", search_string]).returncode != 0:
             unused_slugs.add(slug)
+
+        checked_slugs.add(slug)
 
     if unused_slugs:
         print()
