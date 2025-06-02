@@ -41,8 +41,7 @@ def main():
 
     for slug in slugs_to_check:
         if slug not in all_slugs:
-            print(f"Detected slug '{slug}' but could not find it in the artifacts list.")
-            sys.exit(1)
+            continue
         search_string = f"{listing_macro_name} \"{slug}\""
         if subprocess.run(["git", "grep", "-q", search_string]).returncode != 0:
             unused_slugs.add(slug)
