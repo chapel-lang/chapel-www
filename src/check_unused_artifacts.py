@@ -33,7 +33,7 @@ def main():
                 print(f"Detected removed slug '{removed_slug}' in the diff.")
                 slugs_to_check.append(removed_slug)
             if line.startswith("+"):
-                match = re.search(r"^\[(\w+)\]$", line)
+                match = re.search(r"^\+\[(\w+)\]$", line)
                 if match:
                     added_slug = match.group(1)
                     print(f"Detected added slug '{added_slug}' in the diff.")
