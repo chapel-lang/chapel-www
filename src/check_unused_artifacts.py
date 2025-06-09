@@ -17,7 +17,7 @@ def main():
     parser.add_argument("diff_filename", type=str, help="Path to the diff to search for newly missing artifacts in")
     args = parser.parse_args()
 
-    slugs_to_check = set()
+    slugs_to_check = []
     all_slugs = set()
     unused_slugs = set()
 
