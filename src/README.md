@@ -24,7 +24,7 @@ brew install hugo
 
 Generating the blog content information:
 ```
-python3 process_rss.py
+python3 util/process_rss.py
 ```
 
 To preview the website using a local server, run from the `src` directory:
@@ -101,8 +101,8 @@ Each of these content files begins with a metadata header, which contains toml e
 To add new resources to the resources pages, you will need to add entries to
 `data/artifacts.toml` file, any relevant resource files to the `static/`
 subdirectory, and possibly update the body of the `resources.md` page to render
-your resources. See comments in the `lint_artifacts.py` script for how this
-information should be formatted. This script should be run to validate any
+your resources. See comments in the `util/lint_artifacts.py` script for how
+this information should be formatted. This script should be run to validate any
 changes to the list.
 
 ## Shortcodes
