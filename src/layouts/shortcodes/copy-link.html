@@ -1,0 +1,58 @@
+{{- $url  := .Get "url" -}}
+{{- $text := .Get "text" | default "Copy link" -}}
+
+<button type="button" class="copy-link js-copy-link"
+        data-url="{{ $url }}">
+  <span class="copy-link__label">{{ $text }}</span>
+  <svg class="copy-link__icon" width="11" height="11" viewBox="0 0 24 24"
+       fill="none" stroke="currentColor" stroke-width="2.5"
+       aria-hidden="true" focusable="false">
+    <rect x="9" y="9" width="13" height="13" rx="2"/>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>
+</button>
+{{- if not (.Page.Store.Get "copyLinkJS") -}}
+{{- .Page.Store.Set "copyLinkJS" true -}}
+<script>
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function handleCopy(btn) {
+    const url   = btn.dataset.url;
+    const label = btn.querySelector('.copy-link__label');
+    const orig  = label.textContent;
+
+    const showFeedback = () => {
+      label.textContent = '\u2713 Copied';
+      btn.classList.add('copy-link--ok');
+      setTimeout(() => {
+        label.textContent = orig;
+        btn.classList.remove('copy-link--ok');
+      }, 2500);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(showFeedback).catch(() => {
+        if (legacyCopy(url)) showFeedback();
+      });
+    } else if (legacyCopy(url)) {
+      showFeedback();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-copy-link');
+    if (btn) handleCopy(btn);
+  });
+</script>
+{{- end -}}
