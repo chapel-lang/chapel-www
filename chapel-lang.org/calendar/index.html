@@ -307,7 +307,69 @@
 
                         <div>
                           <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FLos_Angeles&showPrint=0&src=MWNlNTYyNzEzZjFkODdjOGRiNjRiZTBhYmQ1OWNlOTkxNDhmMzgzZmFjMmJjNGQ5ZTVhYTc2MmMxMjYyNGQzZUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%23039be5" style="border:solid 1px #777" width="800" height="600" frameborder="0" scrolling="no"></iframe>
-<p class="content-paragraph"><strong>Non-Google Calendar users:</strong> If your app supports subscribing to online calendars, copy this <a href="https://calendar.google.com/calendar/ical/1ce562713f1d87c8db64be0abd59ce99148f383fac2bc4d9e5aa762c12624d3e%40group.calendar.google.com/public/basic.ics"><strong>iCal URL</strong></a> into it</p>
+<p class="content-paragraph"><strong>Non-Google Calendar users:</strong> If your app supports subscribing to online calendars, copy this
+<button type="button" class="copy-link js-copy-link"
+        data-url="https://calendar.google.com/calendar/ical/1ce562713f1d87c8db64be0abd59ce99148f383fac2bc4d9e5aa762c12624d3e%40group.calendar.google.com/public/basic.ics">
+  <span class="copy-link__label">iCal URL</span><svg class="copy-link__icon" width="11" height="11" viewBox="0 0 24 24"
+     fill="none" stroke="currentColor" stroke-width="2.5"
+     aria-hidden="true" focusable="false">
+  <rect x="9" y="9" width="13" height="13" rx="2"/>
+  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+</svg>
+</button><script>
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  const _copyState = new WeakMap();
+
+  function handleCopy(btn) {
+    const url   = btn.dataset.url;
+    const label = btn.querySelector('.copy-link__label');
+
+    
+    
+    let state = _copyState.get(btn);
+    if (state) {
+      clearTimeout(state.timeoutId);
+    } else {
+      state = { origText: label.textContent };
+      _copyState.set(btn, state);
+    }
+
+    const showFeedback = () => {
+      label.textContent = '\u2713 Copied';
+      btn.classList.add('copy-link--ok');
+      state.timeoutId = setTimeout(() => {
+        label.textContent = state.origText;
+        btn.classList.remove('copy-link--ok');
+        _copyState.delete(btn);
+      }, 2500);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(showFeedback).catch(() => {
+        if (legacyCopy(url)) showFeedback();
+      });
+    } else if (legacyCopy(url)) {
+      showFeedback();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-copy-link');
+    if (btn) handleCopy(btn);
+  });
+</script> into it.</p>
 
                         </div>
 
