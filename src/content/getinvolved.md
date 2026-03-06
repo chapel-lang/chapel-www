@@ -42,7 +42,7 @@ community:
   - doing a 5-minute demo in our [weekly project meeting](https://github.com/chapel-lang/chapel/discussions/categories/weekly-meeting-topics)
   - proposing a longer introduction in a [weekly deep-dive meeting](https://github.com/chapel-lang/chapel/discussions/27247)
   - [proposing](https://github.com/chapel-lang/chapel-blog/#readme) and writing a [Chapel blog](/blog) post
-  - submitting a talk to [ChapelCon](/chapelcon)
+  - submitting a talk to [ChapelCon](/chapelcon/)
   - contributing the code back as a [Mason package](/docs/tools/mason/mason.html), [example](https://github.com/chapel-lang/ChapelExamplesAndTeachingMaterials), or [test](https://chapel-lang.org/docs/developer/bestPractices/TestSystem.html)[^1]
 
 

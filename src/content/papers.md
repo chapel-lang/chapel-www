@@ -70,4 +70,4 @@ description = "Papers and publications related to the Chapel language"
 
 #### [Chronological Papers Archive](/papers-archived/)
 
-#### [ChapelCon / CHIUW Papers](/chapelcon)
+#### [ChapelCon / CHIUW Papers](/chapelcon/)

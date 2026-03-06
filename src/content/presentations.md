@@ -113,4 +113,4 @@ description = "Slides and videos from Chapel-related presentations"
 
 #### [Chronological Presentation Archives](/presentations-archived/)
 
-#### [ChapelCon / CHIUW Presentations](/chapelcon)
+#### [ChapelCon / CHIUW Presentations](/chapelcon/)
