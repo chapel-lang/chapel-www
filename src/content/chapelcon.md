@@ -11,7 +11,7 @@ open to anyone interested in Chapel or parallel programming.  In
 recent years, it has been held online and has been free to attend.
 {.content-paragraph}
 
-* [**ChapelCon '25**](/chapelcon25): October 7–10, online, in a
+* [**ChapelCon '25**](/chapelcon25/): October 7–10, online, in a
   virtual format
 * [**ChapelCon '24**](/ChapelCon24.html): June 5&ndash;7, online, in a
   virtual format

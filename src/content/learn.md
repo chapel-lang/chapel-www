@@ -58,7 +58,7 @@ keywords = ["FAQ","How do I","questions","what if"]
 
 [[coding]]
   title=""""I'd like to install Chapel.""""
-  description="""See the [**downloading Chapel**](../download) instructions.  """
+  description="""See the [**downloading Chapel**](../download/) instructions.  """
 
 [[coding]]
   title=""""I'd like to try Chapel without installing it.""""
@@ -71,7 +71,7 @@ keywords = ["FAQ","How do I","questions","what if"]
 [[recommended]]
   name="Introductory Tutorial"
   description="Learn about the basics of Chapel, including how to compile and run Chapel programs. This tutorial works through a heat diffusion simulation."
-  url="/tutorials"
+  url="/tutorials/"
 
 [[recommended]]
   name="Parallel Programming in Chapel"

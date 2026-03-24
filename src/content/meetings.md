@@ -23,5 +23,5 @@ description = "Regular meetings of the Chapel community"
 
  
 
-To view Chapel meeting details, see the [**community calendar**](/calendar)
+To view Chapel meeting details, see the [**community calendar**](/calendar/)
 {.content-paragraph}
