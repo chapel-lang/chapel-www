@@ -15,7 +15,6 @@ From: https://stackoverflow.com/questions/31821974/support-user-time-zone-in-emb
 
 **Non-Google Calendar users:** If your app supports subscribing to online calendars, click to copy this
 {{< copy-link url="https://calendar.google.com/calendar/ical/1ce562713f1d87c8db64be0abd59ce99148f383fac2bc4d9e5aa762c12624d3e%40group.calendar.google.com/public/basic.ics" text="iCal URL" >}} into it.
-{.content-paragraph}
 
 <script type="text/javascript">
   var timezone = jstz.determine();
