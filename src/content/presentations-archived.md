@@ -15,6 +15,19 @@ please let us know.
 
 ### 2026
 
+<!-- Mar 2026 -->
+
+{{<artifact-listing "hpsfcon26-dyno">}}
+{{<artifact-listing "hpsfcon26-tools">}}
+{{<artifact-listing "hpsfcon26-compiler">}}
+{{<artifact-listing "hpsfcon26-demo">}}
+{{<artifact-listing "hpsfcon26-users">}}
+{{<artifact-listing "hpsfcon26-panel">}}
+{{<artifact-listing "hpsfcon26-techdebt">}}
+{{<artifact-listing "hpsfcon26-adoption">}}
+{{<artifact-listing "hpsfcon26-gpu">}}
+
+
 <!-- Feb 2026 -->
 
 {{<artifact-listing "fosdem26">}}
