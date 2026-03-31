@@ -77,14 +77,14 @@ economics, finance, and elsewhere.  Regardless of the field, a common task is
 to scan through a large dataset, often stored in something like a CSV file, and
 process it — for example, by finding averages, running sums, etc.  This type of
 computation has shown up recently in a viral coding competition called the
-“<a href="https://github.com/gunnarmorling/1brc" rel="noopener" target="_blank">One Billion Row Challenge</a>” (1BRC).
+“<a href="https://github.com/gunnarmorling/1brc">One Billion Row Challenge</a>” (1BRC).
 In this blog post, we focus on creating a straightforward, yet parallel,
 implementation of the 1BRC in Chapel to execute on a multicore machine.</p>
 <p>The goal of the 1BRC is to read data from a file that (aptly enough) contains
 one billion rows of temperature data, consisting of pairs of weather station
 names and temperature values. As the data is read in, it is aggregated to find
 the min, max, and average temperatures for each weather station.</p>
-<p>On the <a href="https://github.com/gunnarmorling/1brc" rel="noopener" target="_blank">official GitHub page</a>, the
+<p>On the <a href="https://github.com/gunnarmorling/1brc">official GitHub page</a>, the
 challenge has contestants submit Java-based implementations.  These
 implementations are evaluated in terms of their execution times, but to remove the cost
 of I/O overhead, the data file is first loaded onto a RAM disk before starting
@@ -343,7 +343,7 @@ though it is still fairly straightforward.</p>
 <p>One notable difference is that in the Chapel version, we represent the data
 read in from the file in a special <code>cityTemp</code> record.  We supply this record
 with a <code>deserialize</code> method that specifies how to read the value from a file.
-For more information about deserializers see this <a href="https://chapel-lang.org/docs/technotes/ioSerializers.html" rel="noopener" target="_blank">technical
+For more information about deserializers see this <a href="https://chapel-lang.org/docs/technotes/ioSerializers.html">technical
 note</a>.</p>
 <p>When running the Python and Chapel versions, we can already see a difference in
 terms of performance. On a 64-core (AMD EPYC 7513) machine, the Python version
@@ -362,7 +362,7 @@ faster by introducing parallelism.</p>
 in parallel.  We would like each task to process whole, unsplit, lines of
 data, but figuring out the exact byte-offset to split the file up can be
 difficult.  Thankfully, Chapel has a
-<a href="https://chapel-lang.org/docs/main/modules/packages/ParallelIO.html" rel="noopener" target="_blank"><code>ParallelIO</code></a>
+<a href="https://chapel-lang.org/docs/main/modules/packages/ParallelIO.html"><code>ParallelIO</code></a>
 module that can handle these details for you.</p>
 <p>Using the <code>ParallelIO</code> module, one simple approach would be to read all the rows of
 the file in as an array, and then use a <code>forall</code> loop to iterate through that
@@ -372,7 +372,7 @@ array in parallel.  This can be quite easily expressed as:</p>
 </span></span></span></code></pre></div><p>An even better approach would be to avoid loading the entire file into memory
 by processing it a line at a time, and this is possible using the <code>ParallelIO</code>
 module’s
-<a href="https://chapel-lang.org/docs/main/modules/packages/ParallelIO.html#ParallelIO.readDelimited" rel="noopener" target="_blank">readDelimited</a>
+<a href="https://chapel-lang.org/docs/main/modules/packages/ParallelIO.html#ParallelIO.readDelimited">readDelimited</a>
 iterator.</p>
 <p>So, we could replace our original loop:</p>
 <div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="k">while</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="nx">ct</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -407,7 +407,7 @@ the map a <code>ref</code> intent using a <code>with</code> clause like this:</p
 condition. So what to do?  Well, Chapel has another map datatype that’s meant
 for concurrent updates like this: the <code>ConcurrentMap</code> type, so let’s use that!</p>
 <p>The way to do a parallel-safe update with <code>ConcurrentMap</code> is to use its
-<a href="https://chapel-lang.org/docs/modules/packages/ConcurrentMap.html#ConcurrentMap.ConcurrentMap.update" rel="noopener" target="_blank">update</a>
+<a href="https://chapel-lang.org/docs/modules/packages/ConcurrentMap.html#ConcurrentMap.ConcurrentMap.update">update</a>
 method.  In our implementation, we’ll call <code>update</code> like this:</p>
 <div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chpl" data-lang="chpl"><span class="line"><span class="cl"><span class="nx">cityTempStats</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">updater</span><span class="p">(</span><span class="nx">ct</span><span class="p">.</span><span class="nx">temp</span><span class="p">),</span><span class="w"> </span><span class="nx">token</span><span class="p">);</span><span class="w">
 </span></span></span></code></pre></div><p>In this case, <code>ct.city</code> is the key to update in the <code>cityTempStats</code> map.  But,
