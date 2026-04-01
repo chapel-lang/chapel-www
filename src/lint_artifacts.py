@@ -122,8 +122,7 @@ def validate_artifact(artifact: dict) -> None:
         raise ValueError("Mismatch between linkList and linkListTexts lengths")
 
     required_fields_encountered = fields & required_fields
-    if len(required_fields_encountered) != len(required_fields):
-        missing_fields = set(required_fields) - required_fields_encountered
+    if missing_fields := set(required_fields) - required_fields_encountered:
         raise ValueError(f"Missing required fields: {missing_fields}")
 
 
