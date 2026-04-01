@@ -3,6 +3,7 @@
 import argparse
 import tomllib
 import sys
+import urllib
 
 
 # This script is used to lint the artifacts list in the `data/artifacts.toml`
@@ -18,8 +19,13 @@ required_fields = {
     "description",      # some information about what the resource is
     "type",             # any types of artifact this resource contains (see valid_types)
 }
-optional_fields = {
+non_link_opt_fields = {
     "venue",            # where the resource originally appeared (required for some types)
+    "extraLinkText",    # a name for the extra link
+    "linkListTexts",    # respective text to display for each link
+    "linkListLabel",    # a label for what the list of links are
+}
+link_opt_fields = {
     "url",              # a link that will be attached to the title of the resource when rendered
     "slides",           # a link to a slide deck relevant to this resource. If this
                         # resource is included, the word "Slides" will appear within brackets
@@ -32,12 +38,10 @@ optional_fields = {
     "extraLink",        # link to an external resource that is neither a slide deck
                         # nor a video, or when you have multiple decks or videos.
                         # If present, extraLinkText must also be present.
-    "extraLinkText",    # a name for the extra link
     "linkList",         # a list of several links to be displayed. If present,
                         # linkListTexts and linkListLabel must also be present.
-    "linkListTexts",    # respective text to display for each link
-    "linkListLabel",    # a label for what the list of links are
 }
+optional_fields = non_link_opt_fields | link_opt_fields
 valid_fields = required_fields | optional_fields
 valid_types = {
     "paper",
@@ -56,7 +60,18 @@ types_requiring_venue = {
 
 # BEGIN SCRIPT BODY
 
-def validate_artifact(artifact: dict):
+def validate_artifact_link(link: str, field: str) -> None:
+    split = urllib.parse.urlsplit(link)
+    if not split.netloc:
+        # It is not absolute. Ensure it at is at least relative to the
+        # root of the site.
+        if split.path[0] != '/':
+            raise ValueError((
+                f"Link for field '{field}' is not absolute or"
+                f"relative to site root: {link}"
+            ))
+
+def validate_artifact(artifact: dict) -> None:
     fields = set(artifact.keys())
     for field, value in artifact.items():
         if field not in valid_fields:
@@ -76,6 +91,12 @@ def validate_artifact(artifact: dict):
             for item in value:
                 if not isinstance(item, str):
                     raise ValueError(f"Field '{field}' must be a list of strings")
+        elif field in link_opt_fields:
+            if isinstance(value, list):
+                for link in value:
+                    validate_artifact_link(link, field)
+            else:
+                validate_artifact(value, field)
         else:
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
