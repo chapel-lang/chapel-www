@@ -31,6 +31,7 @@ link_opt_fields = {
     "paper",            # a link to a paper relevant to this resource
     "slides",           # a link to a slide deck relevant to this resource
     "video",            # a link to a video relevant to this resource
+    "code",             # a link to code relevant to this resource
     "extraLink",        # a link to an external resource that is none of the
                         # above kinds of resource, or for overflow when there
                         # are multiple of the same kind of resource.
