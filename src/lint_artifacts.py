@@ -120,6 +120,8 @@ def validate_artifact(artifact: dict) -> None:
         raise ValueError("Must specify linkList, linkListTexts, and linkListLabel together")
     if "linkList" in fields and len(artifact["linkList"]) != len(artifact["linkListTexts"]):
         raise ValueError("Mismatch between linkList and linkListTexts lengths")
+    if not link_opt_fields & fields:
+        raise ValueError(f"Must specify at least one of the following link fields: {link_opt_fields}")
 
     required_fields_encountered = fields & required_fields
     if missing_fields := set(required_fields) - required_fields_encountered:
