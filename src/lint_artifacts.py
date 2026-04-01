@@ -3,7 +3,7 @@
 import argparse
 import tomllib
 import sys
-import urllib
+import urllib.parse
 
 
 # This script is used to lint the artifacts list in the `data/artifacts.toml`
