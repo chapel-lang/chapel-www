@@ -62,18 +62,18 @@ types_requiring_venue = {
 
 # BEGIN SCRIPT BODY
 
-def find_file(name, path):
+def find_file_rel(name, path):
     for root, dirs, files in os.walk(path):
         if name in files:
-            return os.path.join(root, name)
+            return os.path.join("/", os.path.relpath(root, path), name)
 
 def validate_artifact_link(link: str, field: str) -> None:
     split = urllib.parse.urlsplit(link)
     if not split.netloc:
         # It is not absolute. Ensure it at is at least relative to the
         # root of the site.
-        if split.path[0] != '/':
-            if found := find_file(split.path, "."):
+        if not split.path.startswith("/"):
+            if found := find_file_rel(split.path, "./chapel-lang.org"):
                 found_str = f"Found potential matching file at: {found}"
             else:
                 found_str = "No potential matching file found."
