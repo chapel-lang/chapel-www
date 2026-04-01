@@ -96,7 +96,7 @@ def validate_artifact(artifact: dict) -> None:
                 for link in value:
                     validate_artifact_link(link, field)
             else:
-                validate_artifact(value, field)
+                validate_artifact_link(value, field)
         else:
             if value.strip() == "":
                 raise ValueError(f"Empty value for field {field}")
