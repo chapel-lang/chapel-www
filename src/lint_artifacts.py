@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
-import tomllib
+import os
 import sys
+import textwrap
+import tomllib
 import urllib.parse
 
 
@@ -60,16 +62,27 @@ types_requiring_venue = {
 
 # BEGIN SCRIPT BODY
 
+def find_file(name, path):
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            return os.path.join(root, name)
+
 def validate_artifact_link(link: str, field: str) -> None:
     split = urllib.parse.urlsplit(link)
     if not split.netloc:
         # It is not absolute. Ensure it at is at least relative to the
         # root of the site.
         if split.path[0] != '/':
-            raise ValueError((
-                f"Link for field '{field}' is not absolute or "
-                f"relative to site root: {link}"
-            ))
+            if found := find_file(split.path, "."):
+                found_str = f"Found potential matching file at: {found}"
+            else:
+                found_str = "No potential matching file found."
+            raise ValueError(
+                f"Link for field '{field}' is not absolute or " +
+                f"relative to site root: {link}" +
+                "\n" +
+                found_str
+            )
 
 def validate_artifact(artifact: dict) -> None:
     fields = set(artifact.keys())
@@ -124,7 +137,7 @@ def lint_artifacts_list(data):
                 raise ValueError(f"Non-string slug")
             validate_artifact(data[slug])
         except ValueError as e:
-            error_msg = f"Error in slug '{slug}': {e}"
+            error_msg = str(e)
             errored_slugs[slug] = error_msg
             print(error_msg)
             continue
@@ -149,7 +162,8 @@ def main():
         if (errored_slugs):
             print(f"Issues found in {len(errored_slugs)} slugs:")
             for slug, error_msg in errored_slugs.items():
-                print(f"  {slug}: {error_msg}")
+                print(f"{slug}:")
+                print(textwrap.indent(error_msg, "  "))
             sys.exit(1)
         else:
             print("No errors found in artifacts list.")
