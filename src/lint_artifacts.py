@@ -67,7 +67,7 @@ def validate_artifact_link(link: str, field: str) -> None:
         # root of the site.
         if split.path[0] != '/':
             raise ValueError((
-                f"Link for field '{field}' is not absolute or"
+                f"Link for field '{field}' is not absolute or "
                 f"relative to site root: {link}"
             ))
 
