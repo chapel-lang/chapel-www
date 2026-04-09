@@ -83,7 +83,7 @@ def validate_artifact_link(link: str, field: str) -> None:
 def validate_artifact(artifact: dict) -> None:
     fields = set(artifact.keys())
     for field, value in artifact.items():
-        if field not in valid_fields and field != "url":
+        if field not in valid_fields:
             raise ValueError(f"Unexpected field '{field}'")
         if field == "type":
             has_types_requiring_venue = set(value) & types_requiring_venue
