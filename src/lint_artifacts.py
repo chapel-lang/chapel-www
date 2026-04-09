@@ -78,7 +78,7 @@ def validate_artifact_link(link: str, field: str) -> None:
             else:
                 found_str = "No potential matching file found."
             raise ValueError(
-                f"Link for field '{field}' is not absolute or " +
+                f"Link for field '{field}' is not absolute nor " +
                 f"relative to site root: {link}" +
                 "\n" +
                 found_str
