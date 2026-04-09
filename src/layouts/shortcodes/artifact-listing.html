@@ -7,17 +7,26 @@
   <div class="publication" id="{{ $anchor_id }}">
     <b>{{ .title }}</b>
 
-    {{ if or (isset . "video") (isset . "slides") (isset . "code") (isset . "extraLink")}}
-      [
-      {{ if isset . "video" }} <a href="{{ .video }}">Video</a> {{ end }}
-      {{ if and (isset . "video") (isset . "slides") }} | {{ end }}
-      {{ if isset . "slides" }} <a href="{{ .slides }}">Slides</a> {{ end }}
-      {{ if and (isset . "video") (isset . "slides") (isset . "code") }} | {{ end }}
-      {{ if isset . "code" }} <a href="{{ .code }}">Code</a> {{ end }}
-      {{ if and (or (isset . "video") (isset . "slides") (isset . "code")) (isset . "extraLink") }} | {{ end }}
-      {{ if isset . "extraLink" }} <a href="{{ .extraLink }}"> {{ .extraLinkText }} </a> {{ end }}
-      ]
+    {{ $artifact_data := . }}
+    {{ $valid_link_types := slice "paper" "video" "slides" "code" "extraLink" }}
+    {{ $links_present := slice }}
+    {{ range $valid_link_types }}
+      {{ if isset $artifact_data . }}
+        {{ $links_present = $links_present | append . }}
+      {{ end }}
     {{ end }}
+    [
+      {{ range $index, $link_type := $links_present }}
+        {{ if $index }} | {{ end }}
+        <a href="{{ index $artifact_data $link_type }}">
+        {{ if eq $link_type "extraLink" }}
+          {{ strings.FirstUpper $artifact_data.extraLinkText }}
+        {{ else }}
+          {{ strings.FirstUpper $link_type }}
+        {{ end }}
+        </a>
+      {{ end }}
+    ]
 
     <a href="#{{ $anchor_id }}">&#128279;</a>
 
