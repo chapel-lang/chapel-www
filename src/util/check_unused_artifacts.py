@@ -39,13 +39,10 @@ def main():
                     print(f"Detected added slug '{added_slug}' in the diff.")
                     slugs_to_check.append(added_slug)
 
-    checked_slugs = set()
-    for slug in slugs_to_check:
-        # If we already checked an occurance of this slug, no need to check it
-        # again
-        if slug in checked_slugs:
-            continue
+    # Remove duplicates from slug list, keeping order of first appearance
+    slugs_to_check = list(dict.fromkeys(slugs_to_check))
 
+    for slug in slugs_to_check:
         # If the slug is not in the artifact list, we're all good
         # (it was removed)
         if slug not in all_slugs:
@@ -54,8 +51,6 @@ def main():
         search_string = f"{listing_macro_name} \"{slug}\""
         if subprocess.run(["git", "grep", "-q", search_string]).returncode != 0:
             unused_slugs.add(slug)
-
-        checked_slugs.add(slug)
 
     if unused_slugs:
         print()
