@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="Comparison of transformers in Chapel, C++, and PyTorch focusing on multi-threaded CPUs" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Transformers From Scratch in Chapel and C++, Part 2</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>Transformers From Scratch in Chapel and C++, Part 2</h2>
+<div class="post-subscript">
+<p>Posted on December 12, 2025.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/user-experiences/">User Experiences</a>
+<a class="button" href="../../tags/language-comparison/">Language Comparison</a>
+<a class="button" href="../../tags/ai/ml/">AI/ML</a>
+<a class="button" href="../../tags/performance/">Performance</a>
+<a class="button" href="../../tags/benchmarks/">Benchmarks</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/thitrin-sastarasadhit">Thitrin Sastarasadhit</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/transformers-from-scratch-in-chapel-and-c++/">Transformers From Scratch in Chapel and C++</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents sticky">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#full-size-model-on-single-and-multiple-threads">Full-Size Model on Single and Multiple Threads</a>
+<ul>
+<li><a href="#result-of-forward-pass">Result of Forward Pass</a></li>
+<li><a href="#result-of-backward-pass">Result of Backward Pass</a></li>
+<li><a href="#overall-result">Overall Result</a></li>
+</ul>
+</li>
+<li><a href="#discussion-full-size-model-performance">Discussion Full-Size Model Performance</a>
+<ul>
+<li><a href="#matrix-multiplication">Matrix Multiplication</a></li>
+<li><a href="#matrix-operations">Matrix Operations</a></li>
+<li><a href="#softmax">Softmax</a></li>
+<li><a href="#layernorm">LayerNorm</a></li>
+<li><a href="#multihead-attention">Multihead Attention</a></li>
+<li><a href="#other-layers">Other Layers</a></li>
+</ul>
+</li>
+<li><a href="#discussion-on-productivity">Discussion on Productivity</a></li>
+<li><a href="#conclusion">Conclusion</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<h3 id="introduction">
+<a href="#introduction">Introduction</a>
+</h3>
+<p>This is the second and final part of this series, which studies the expression of transformers in Chapel and C++, comparing to Python. If you’re just joining us, you may want to check out the <a href="../../posts/transformer-part1/">previous article</a>, where we explored the experimental methodology and the first test, running a small-size model on a single thread. In this part, we focus on the second test, which uses a full-size model on single and multiple threads, while also discussing the productivity of Chapel in developing this project.</p>
+<h3 id="full-size-model-on-single-and-multiple-threads">
+<a href="#full-size-model-on-single-and-multiple-threads">Full-Size Model on Single and Multiple Threads</a>
+</h3>
+<p>In this test, we moved our experiment to Machine B and set the model to full-size, as it has enough memory. The C++ version is integrated with OpenMP to enable multi-threaded computation, and for Chapel, multiple language features such as <code>forall</code>, <code>coforall</code>, and custom iterators were used. The parallel algorithms used in both C++ and Chapel are exactly the same. Synchronization happens at the end of each layer in both the forward pass and backward pass. The degree of parallelism for each layer is estimated individually to achieve the best performance on Machine B; for example, Softmax performs best on 68 cores, while LayerNorm performs best on 52 cores.</p>
+<p>To see the gained speed-up, all models were tested with both a single thread and multiple threads on Machine B. The benchmark was conducted in the same way as on Machine A, but with only 40 iterations, as the single-threaded benchmarking took a while. The detailed data from this experiment can be viewed in <a href="https://docs.google.com/spreadsheets/d/15OgtaSJbzP82hHbCX5l9eBHmcuK-GTmn3bShM3-8Fxc/edit?usp=sharing">this Google Spreadsheet</a>, and all implementations can be obtained from <a href="https://github.com/markthitrin/Transformer/tree/MultiThread">this GitHub link</a></p>
+<h4 id="result-of-forward-pass">
+<a href="#result-of-forward-pass">Result of Forward Pass</a>
+</h4>
+<p>Now, it can be seen in Figures 4 and 5 that both PyTorch versions gain a huge advantage from having an optimized linear algebra library integrated into the model, resulting in better performance in the Linear and Multihead-Attention layers. Nevertheless, they still lost to Chapel and C++ on other layers. Although it might seem unfair to compare the Chapel and C++ versions, which are written from scratch, I think it is still a good idea to have existing frameworks as a reference.</p>
+<figure class="fullwide"><img alt="Fig. 4. Time spent on each layer (in microseconds) during a single forward-pass training iteration for each model, measured on Machine B (single-threaded) using the full-size model configuration." src="../../posts/transformer-part2/each-single-forward.png"/><figcaption>
+<p><strong>Fig. 4.</strong> Time spent on each layer (in microseconds) during a single forward-pass training iteration for each model, measured on Machine B (single-threaded) using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<figure class="fullwide"><img alt="Fig. 5. Time spent on each layer (in microseconds) during a single forward-pass training iteration for each model, measured on Machine B (multi-threaded) using the full-size model configuration." src="../../posts/transformer-part2/each-multi-forward.png"/><figcaption>
+<p><strong>Fig. 5.</strong> Time spent on each layer (in microseconds) during a single forward-pass training iteration for each model, measured on Machine B (multi-threaded) using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<figure class="fullwide"><img alt="Fig. 6. Speedup of each layer’s forward pass in each model, tested on Machine B compared to its single-threaded version, using the full-size model configuration." src="../../posts/transformer-part2/each-speedup-forward.png"/><figcaption>
+<p><strong>Fig. 6.</strong> Speedup of each layer’s forward pass in each model, tested on Machine B compared to its single-threaded version, using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<p>The Chapel version somehow outperforms the C++ version, thanks to performance in the Linear layer, which consumes huge resources. However, layers such as DropOut and Softmax in the Chapel version are still slower than in the C++ version. The reasons for such effects are likely the same as the reasons mentioned in the <a href="../../posts/transformer-part1/#softmax">single-threaded discussion</a>.</p>
+<h4 id="result-of-backward-pass">
+<a href="#result-of-backward-pass">Result of Backward Pass</a>
+</h4>
+<figure class="fullwide"><img alt="Fig. 7. Time spent on each layer (in microseconds) during a single backward-pass training iteration for each model, measured on Machine B (single-threaded) using the full-size model configuration." src="../../posts/transformer-part2/each-single-backward.png"/><figcaption>
+<p><strong>Fig. 7.</strong> Time spent on each layer (in microseconds) during a single backward-pass training iteration for each model, measured on Machine B (single-threaded) using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<figure class="fullwide"><img alt="Fig. 8. Time spent on each layer (in microseconds) during a single backward-pass training iteration for each model, measured on Machine B (multi-threaded) using the full-size model configuration." src="../../posts/transformer-part2/each-multi-backward.png"/><figcaption>
+<p><strong>Fig. 8.</strong> Time spent on each layer (in microseconds) during a single backward-pass training iteration for each model, measured on Machine B (multi-threaded) using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<figure class="fullwide"><img alt="Fig. 9. Speedup of each layer’s backward pass in each model, tested on Machine B compared to its single-threaded version, using the full-size model configuration." src="../../posts/transformer-part2/each-speedup-backward.png"/><figcaption>
+<p><strong>Fig. 9.</strong> Speedup of each layer’s backward pass in each model, tested on Machine B compared to its single-threaded version, using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<p>As you can see from Figure 8. performance of almost all layers of Chapel and C++ are on par with each other in the backward pass, except LayerNorm which happened to be slower. Besides, both need more optimization on linear algebra in order to be as good as PyTorch. Figure 9 shows that in this case, Chapel exploited the parallalism better than C++ in many layers. I have not fully understood the reason, but I suspect that this is probably due to the lower computation per time achieved in a single thread with the same memory bandwith request. Thus, the achievable performance of such layers is limited by the memory bandwith of the machine itself, and the final performance turned out to be the same.</p>
+<h4 id="overall-result">
+<a href="#overall-result">Overall Result</a>
+</h4>
+<figure class="fullwide"><img alt="Fig. 10. Time spent on each layer (in microseconds) per training iteration (including forward, backward, and update) for each model tested on Machine B (single-threaded) using the full-size model configuration." src="../../posts/transformer-part2/total-single.png"/><figcaption>
+<p><strong>Fig. 10</strong>. Time spent on each layer (in microseconds) per training iteration (including forward, backward, and update) for each model tested on Machine B (single-threaded) using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<figure class="fullwide"><img alt="Fig. 11. Time spent on each layer (in microseconds) per training iteration (including forward, backward, and update) for each model tested on Machine B (multi-threaded) using the full-size model configuration." src="../../posts/transformer-part2/total-multi.png"/><figcaption>
+<p><strong>Fig. 11</strong>. Time spent on each layer (in microseconds) per training iteration (including forward, backward, and update) for each model tested on Machine B (multi-threaded) using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<figure class="fullwide"><img alt="Fig. 12. Speedup of total time per training iteration (including forward, backward, and update) for each model tested on Machine B compared to its single-threaded version using the full-size model configuration." src="../../posts/transformer-part2/speedup-total.png"/><figcaption>
+<p><strong>Fig. 12</strong>. Speedup of total time per training iteration (including forward, backward, and update) for each model tested on Machine B compared to its single-threaded version using the full-size model configuration.</p>
+</figcaption>
+</figure>
+<p>In conclusion, the overall performance achieved is reasonable, with Chapel performing slightly better than C++ thanks to its improved multi-threaded attention and linear layers. All versions gained about 20 times speedup with multi-threading enabled.</p>
+<h3 id="discussion-full-size-model-performance">
+<a href="#discussion-full-size-model-performance">Discussion Full-Size Model Performance</a>
+</h3>
+<p>In this section, I will discuss the implementation details and optimizations I applied to achieve these results.</p>
+<h4 id="matrix-multiplication">
+<a href="#matrix-multiplication">Matrix Multiplication</a>
+</h4>
+<p>The method I chose is to parallelize the two outermost loops of the blocked tiled matrix multiplication. Since the computation-to-memory-access ratio in the inner loop is very high, the degree of parallelism for this function does not need to be limited.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">ii</span><span class="p">,</span><span class="w"> </span><span class="nx">jj</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">MatMulPar</span><span class="p">(</span><span class="nx">d1</span><span class="p">,</span><span class="w"> </span><span class="nx">d3</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// iterate ii and jj in parallel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">kk</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">d2</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// iterate kk sequentially
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="c1">// Perform matrix multiplication for each block
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h4 id="matrix-operations">
+<a href="#matrix-operations">Matrix Operations</a>
+</h4>
+<p>These functions simply divide the work into consecutive blocks. Since element-wise operations such as <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and other reduction functions have a low computation-to-memory-access ratio, the parallelism of these methods needs to be limited. According to estimation and testing, the suitable number of threads is typically around 24.</p>
+<h4 id="softmax">
+<a href="#softmax">Softmax</a>
+</h4>
+<p>This layer requires special care, as the algorithm needs a buffer to cache the exponential values. When introducing parallelism, separating the buffer for each thread is necessary.</p>
+<p>I encountered a problem defining the buffer, as I initially tried to declare the buffer inside the loop the same way I did in the C++ version.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="c1">// Chapel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">buffer</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">dom</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span><span class="w"> </span><span class="c1">// memory allocation
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">Exp</span><span class="p">(</span><span class="nx">input</span><span class="p">,</span><span class="w"> </span><span class="nx">buffer</span><span class="p">)</span><span class="w"> </span><span class="c1">// compute exp one time
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">SumReduce</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="nx">sum</span><span class="p">)</span><span class="w"> </span><span class="c1">// use 1
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">Div</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="nx">output</span><span class="p">)</span><span class="w"> </span><span class="c1">// use 2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// automatically deallocated of buffer at the end of this iteration
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><div class="highlight"><pre class="chroma" tabindex="0"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="c1">// C++
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="cp">#pragma omp parallel
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span><span class="n">i</span> <span class="o">&lt;</span> <span class="n">row</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">float</span> <span class="n">buffer</span><span class="p">[</span><span class="n">size</span><span class="p">];</span> <span class="c1">// stack memory
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">Exp</span><span class="p">(</span><span class="n">input</span><span class="p">,</span> <span class="n">buffer</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">SumReduce</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">sum</span><span class="p">)</span> <span class="c1">// use 1
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">Div</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span> <span class="c1">// use 2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// no memory deallocation for buffer
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre></div><p>The performance turned out to be very poor. This is likely because declaring the buffer inside the loop causes heap allocation and deallocation on every iteration, whereas in C++, declaring <code>float buffer[size];</code> allocates the memory on the stack, avoiding this overhead. To solve this problem, the buffer must be declared outside the loop, with each thread accessing a different segment of the buffer.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">buffer</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">dom</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span><span class="w"> </span><span class="c1">// memory allocation one time
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">Exp</span><span class="p">(</span><span class="nx">input</span><span class="p">,</span><span class="w"> </span><span class="nx">buffer</span><span class="p">[</span><span class="nx">thread</span><span class="p">[</span><span class="nx">i</span><span class="p">]])</span><span class="w"> </span><span class="c1">// compute exp into thread i's buffer chunk
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">SumReduce</span><span class="p">(</span><span class="nx">buffer</span><span class="p">[</span><span class="nx">thread</span><span class="p">[</span><span class="nx">i</span><span class="p">]],</span><span class="w"> </span><span class="nx">sum</span><span class="p">)</span><span class="w"> </span><span class="c1">// use 1
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">Div</span><span class="p">(</span><span class="nx">buffer</span><span class="p">[</span><span class="nx">thread</span><span class="p">[</span><span class="nx">i</span><span class="p">]],</span><span class="w"> </span><span class="nx">output</span><span class="p">)</span><span class="w"> </span><span class="c1">// use 2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// no memory deallocation for buffer
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h4 id="layernorm">
+<a href="#layernorm">LayerNorm</a>
+</h4>
+<p>An observation that can be seen in Figure 8 is that LayerNorm is surprisingly much slower than C++ in the backward pass. This occurs in both single-threaded and multi-threaded execution on the full-size model. I have not yet fully understood the reason behind LayerNorm being the slowest on large-size matrices, even though the compiled loops are very similar. Chapel causes much more L1 cache misses than C++ does when tested with <code>perf stat</code>.</p>
+<h4 id="multihead-attention">
+<a href="#multihead-attention">Multihead Attention</a>
+</h4>
+<p>The new design of this layer is not complicated. Although the flow of the multihead attention layer offers opportunities for parallelism, the size of the matrices used to compute in this layer are already very large and utilize all the resources on the machine during the multiplication. Therefore, parallelization on some of the outer loops is not required.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="cm">/*...*/</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Matrix is large and consumes all resources when computed, 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="c1">// so no need for parallelization here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..#</span><span class="nx">batch</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulABTPar</span><span class="p">(</span><span class="nx">WQ</span><span class="p">,</span><span class="w"> </span><span class="nx">inputQ</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">QT</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">]);</span><span class="w"> </span><span class="c1">// QT = (WQ)^T * inputQ
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="nx">MatMulABTPar</span><span class="p">(</span><span class="nx">WK</span><span class="p">,</span><span class="w"> </span><span class="nx">inputK</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">KT</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">]);</span><span class="w"> </span><span class="c1">// KT = (WK)^T * inputK
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="nx">MatMulABTPar</span><span class="p">(</span><span class="nx">WV</span><span class="p">,</span><span class="w"> </span><span class="nx">inputV</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">VT</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">]);</span><span class="w"> </span><span class="c1">// VT = (WV)^T * inputV
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Matrix inside is small, so parallelization here is preferable
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..#</span><span class="nx">batch</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">head</span><span class="p">)</span><span class="o">..#</span><span class="nx">head</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">MatMulATBPar</span><span class="p">(</span><span class="nx">QT</span><span class="p">[(</span><span class="nx">j</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">blockPerHead</span><span class="p">)</span><span class="o">..#</span><span class="nx">blockPerHead</span><span class="p">],</span><span class="w"> </span><span class="nx">KT</span><span class="p">[(</span><span class="nx">j</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">blockPerHead</span><span class="p">)</span><span class="o">..#</span><span class="nx">blockPerHead</span><span class="p">],</span><span class="w"> </span><span class="nx">A</span><span class="p">[(</span><span class="nx">j</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">blockAtt</span><span class="p">)</span><span class="o">..#</span><span class="nx">blockAtt</span><span class="p">]);</span><span class="w"> </span><span class="c1">// A = (Q)^T * K
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h4 id="other-layers">
+<a href="#other-layers">Other Layers</a>
+</h4>
+<p>As for the implementation of other layers, it is straightforward. Some layers might not be able to exploit all available parallelism—for example, the embedding layer, which doesn’t use much computation. Fortunately, this layer doesn’t consume as many resources as the Linear and Multihead-Attention layers and therefore does not impact performance significantly.</p>
+<p>During optimization, every parameter update was done individually using task creation features in both C++ with OpenMP and Chapel. This part of the training process is already much better than in PyTorch when running single-threaded, and it improves even more with parallelism. Additionally, both C++ and Chapel tend to have the same performance when doing the parameter updating.</p>
+<h3 id="discussion-on-productivity">
+<a href="#discussion-on-productivity">Discussion on Productivity</a>
+</h3>
+<p>As this is my very first Chapel project, whereas I have been writing C++ for years, productivity isn’t fairly comparable. However, it did exhibit some advantages and disadvantages throughout the project, allowing me to share some thoughts about them as a user.</p>
+<p>There are several things that I like about Chapel:</p>
+<ul>
+<li>The language is easy to learn, as it’s similar to Python.</li>
+<li>It provides easy parallel programming through for loops, custom parallel iterators, automated thread scheduling, etc.</li>
+<li>As a language that requires type declaration of variables, this allows the user to detect errors at compile time.</li>
+<li>Object memory management</li>
+<li>Memory management between threads</li>
+<li>It is easier to make the program run on multiple locales.</li>
+<li>The Chapel developers are very active and friendly, as can be seen through continuous updates and quick responses to the reported issues.</li>
+</ul>
+<p>Nevertheless, there are several shortcomings I found about Chapel, too:</p>
+<ul>
+<li>Long compilation times, and especially so when multi-locale is introduced.</li>
+<li>Downcasting among numeric types, such from <code>real(64)</code> to <code>real(32)</code>, is done implicitly in C++, but not in Chapel (This is my personal thought; I am not sure which approach is better.)</li>
+<li>All the performance issues that I mentioned in this blog. This causes tricky fixes to be made, and it makes the code a bit messy.</li>
+</ul>
+<p>Chapel took as long as C++ to implement the transformer model in this project, as it required some tricky fixes. The productivity of implementing and parallel programming tends to be the same as C++ and OpenMP, as far as this project is concerned. I believe that having the same level of expertise, Chapel could be more productive than C++ and Python in doing scientific simulations that require parallelism on multithreading and multiple locales, as it automates data movement and configuration. However, it has many fewer support frameworks than Python, making it hard to create a project, and less control over the machine than C++, making it difficult to conduct performance research.</p>
+<p>One controversial thought I have is that generative AI, such as ChatGPT, should be able to help programmers fix and implement projects, for example, by creating simple test cases. However, since the language is not yet very popular and has less code available on the Internet, combined with the backwards-incompatible evolution of the language, current large language models do not have much knowledge of it and can easily become confused, which can cause them to produce faulty code. Interestingly, there is already a Chapel blog, <a href="../../posts/claude-mcp/"><em>Experimenting with the Model Context Protocol and Chapel</em></a>, that explores this idea. By using the Model Context Protocol (MCP), they achieved surprisingly good results. I believe that improving the capability of large language models in Chapel programming could greatly impact productivity and should be investigated and improved further.</p>
+<p>In the end, Chapel serves well as a programming language dedicated to parallel programming and indeed increases productivity compared to C++. It also has many features that can improve the language’s performance and efficiency.</p>
+<p>Even though today it might be more feasible to enable parallel programming by creating a programming language dedicated to it, I dream of having a highly capable compiler, interpreter, or tool that can handle all parallelization, optimization, and deployment automatically and can be applied to any programming language.</p>
+<h3 id="conclusion">
+<a href="#conclusion">Conclusion</a>
+</h3>
+<p>This project illustrates an attempt to implement the Transformer model in Chapel. Across both parts, we explored single-threaded and multi-threaded performance, and compared Chapel with C++ and PyTorch. The final performance achieved is reasonable and comparable to C++, and potentially to PyTorch if its optimized linear algebra algorithms are utilized. Nevertheless, many performance issues were encountered during implementation, such as problems with multidimensional arrays, vectorization, loop unrolling, random number generation, and more. Currently, many issues have been resolved; for example, vectorization now enables optimization in exponential computations. Some problems are still being addressed but can be mitigated using special techniques, such as optimized random number generation and ternary operation handling.</p>
+<p>Additionally, I would like to see some language features implemented, such as <code>ref</code> in classes and records, as well as stack-allocated arrays. Faster compilation times would also be a great improvement.</p>
+<p>Regarding the limitations of this project, due to time constraints and my current capabilities, the scope is limited to CPU performance, both single-threaded and multi-threaded. GPU and multi-locale performance are interesting topics but were not explored. These areas could be investigated further in the future to evaluate performance differences on GPU and multi-locale systems.</p>
+<p>As this is my first Chapel project, and one of my first performance-measurement projects at this scale, many improvements can surely be made in code design, implementation, testing, benchmarking, and presentation. I would greatly appreciate any advice and comments. You can submit them via email at <a href="mailto:thitrin.sastarasadhit@gmail.com">thitrin.sastarasadhit@gmail.com</a>. I look forward to improving myself, growing in this field, and making a meaningful impact.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+2%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part2%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+2%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part2%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+2%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part2%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+2&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part2%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+2%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part2%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/transformer-part1/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Transformers From Scratch in Chapel and C++, Part 1
+
+
+                    </span>
+</span>
+</a>
+</div>
+</nav>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{{- $url  := .Get "url" -}}
+{{- $text := .Get "text" | default "Copy link" -}}
+
+<button type="button" class="copy-link js-copy-link"
+        data-url="{{ $url }}">
+  <span class="copy-link__label">{{ $text }}</span>
+  {{- partial "icon-copy-link.html" . -}}
+</button>
+{{- if not (.Page.Store.Get "copyLinkJS") -}}
+{{- .Page.Store.Set "copyLinkJS" true -}}
+<script>
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  const _copyState = new WeakMap();
+
+  function handleCopy(btn) {
+    const url   = btn.dataset.url;
+    const label = btn.querySelector('.copy-link__label');
+
+    // Retrieve existing state (repeated click while feedback is showing) or
+    // create fresh state capturing the real pre-click label text.
+    let state = _copyState.get(btn);
+    if (state) {
+      clearTimeout(state.timeoutId);
+    } else {
+      state = { origText: label.textContent };
+      _copyState.set(btn, state);
+    }
+
+    const showFeedback = () => {
+      label.textContent = '\u2713 Copied';
+      btn.classList.add('copy-link--ok');
+      state.timeoutId = setTimeout(() => {
+        label.textContent = state.origText;
+        btn.classList.remove('copy-link--ok');
+        _copyState.delete(btn);
+      }, 2500);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(showFeedback).catch(() => {
+        if (legacyCopy(url)) showFeedback();
+      });
+    } else if (legacyCopy(url)) {
+      showFeedback();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-copy-link');
+    if (btn) handleCopy(btn);
+  });
+</script>
+{{- end -}}

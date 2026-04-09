@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="The seventh archival post from the 2012 IEEE TCSC blog series, with a current reflection on it" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>10 Myths About Scalable Parallel Programming Languages (Redux),  Part 7: Minimalist Language Designs</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>10 Myths About Scalable Parallel Programming Languages (Redux)<br/>  Part 7: Minimalist Language Designs</h2>
+<div class="post-subscript">
+<p>Posted on October 15, 2025.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/editorial/">Editorial</a>
+<a class="button" href="../../tags/archival-posts-/-reprints/">Archival Posts / Reprints</a>
+<a class="button" href="../../tags/language-comparison/">Language Comparison</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/10-myths-about-scalable-parallel-programming-languages-redux/">10 Myths About Scalable Parallel Programming Languages (Redux)</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#background">Background</a></li>
+<li><a href="#the-original-article-reprinted">The Original Article, Reprinted</a>
+<ul>
+<li><a href="#myth-8-to-be-successful-scalable-parallel-programming-languages-should-be-smallminimal">Myth #8: To be successful, scalable parallel programming languages should be small/minimal.</a></li>
+<li><a href="#a-case-study-in-minimalism-co-array-fortran">A Case Study in Minimalism: Co-Array Fortran</a></li>
+<li><a href="#academic-vs-deployed-languages">Academic vs. Deployed Languages</a></li>
+<li><a href="#overwhelming-the-user">Overwhelming the User?</a></li>
+<li><a href="#counterpoint-8-many-of-the-successful-software-systems-we-use-are-large-in-order-to-be-general-and-productive--more-important-than-minimalism-is-the-languages-approachability-and-documentationie-can-one-make-effective-use-of-it-without-being-familiar-with-all-of-its-features">Counterpoint #8: Many of the successful software systems we use are large in order to be general and productive.  More important than minimalism is the language’s approachability and documentation—i.e., can one make effective use of it without being familiar with all of its features?</a></li>
+<li><a href="#bibliography">Bibliography</a></li>
+</ul>
+</li>
+<li><a href="#reflections-on-the-original-article">Reflections on the Original Article</a>
+<ul>
+<li><a href="#chapels-size-and-feature-set">Chapel’s Size and Feature Set</a></li>
+<li><a href="#chapel-documentation">Chapel Documentation</a></li>
+<li><a href="#an-spmd-bookkeeping-example">An SPMD Bookkeeping Example</a></li>
+</ul>
+</li>
+<li><a href="#wrapping-up">Wrapping Up</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<h3 id="background">
+<a href="#background">Background</a>
+</h3>
+<p>In 2012, I wrote a series of eight blog posts entitled “Myths About
+Scalable Parallel Programming Languages” for the IEEE Technical
+Community on Scalable Computing (TCSC).  In it, I described
+discouraging attitudes that our team encountered when talking about
+developing Chapel, and then gave my personal rebuttals to them.  That
+series has generally been unavailable for many years, so for its 13th
+anniversary, we’re reprinting the original series here on the Chapel
+blog, along with new commentary about how well or poorly the ideas
+have held up over time.  For a more detailed introduction to both the
+original series and these reprints, please see <a href="../../posts/10myths-part1/">the first
+article</a> in this series.</p>
+<p>This month, we’re reprinting the series’ seventh article, originally
+published on October 15, 2012.  Comments in the sidebar and <a href="#reflections-on-the-original-article">the
+sections that follow the reprint</a> give a few of my current
+thoughts and reflections on it.</p>
+<hr/>
+<h3 id="the-original-article-reprinted">
+<a href="#the-original-article-reprinted">The Original Article, Reprinted</a>
+</h3>
+<p class="big">Myths About Scalable Parallel Programming Languages:<br/>
+Part 7: Minimalist Language Designs</p>
+<p>This is the seventh in a series of blog articles that I’m writing with
+the goal of describing and responding to some of the misconceptions
+about scalable parallel programming languages that our team encounters
+when describing our work designing and implementing Chapel
+(<a href="https://chapel-lang.org">https://chapel-lang.org</a>)</p>
+<p>For more background on Chapel or this series of articles, please refer
+to <a href="../../posts/10myths-part1/#the-original-article-reprinted">part 1</a>; subsequent myths are covered in
+parts <a href="../../posts/10myths-part2/#the-original-article-reprinted">2</a>, <a href="../../posts/10myths-part3/#the-original-article-reprinted">3</a>, <a href="../../posts/10myths-part4/#the-original-article-reprinted">4</a>, <a href="../../posts/10myths-part5/#the-original-article-reprinted">5</a>, and <a href="../../posts/10myths-part6/#the-original-article-reprinted">6</a>.</p>
+<h4 id="myth-8-to-be-successful-scalable-parallel-programming-languages-should-be-smallminimal">
+<a href="#myth-8-to-be-successful-scalable-parallel-programming-languages-should-be-smallminimal">Myth #8: To be successful, scalable parallel programming languages should be small/minimal.</a>
+</h4>
+<p>A <span class="sidenote"><label class="sidenote-label" for="sidenote-0">fairly common notion</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>(or so it seemed to me
+in 2012, at least… let’s return to this <a href="#reflections-on-the-original-article">below</a>)<span class="sidenote-delimiter">]</span></span></span> in parallel
+programming language design is that developing a small language with a
+minimal set of features is ideal.  While I would agree that language
+developers should avoid the temptation to put every feature that they
+think of into the language, for fear of creating a kitchen sink
+design, I also believe that the value placed on minimal language
+design can often be overrated.</p>
+<h4 id="a-case-study-in-minimalism-co-array-fortran">
+<a href="#a-case-study-in-minimalism-co-array-fortran">A Case Study in Minimalism: Co-Array Fortran</a>
+</h4>
+<p>One rationale for minimalism in language design is to simplify the
+implementation.  And this is a worthy goal since <span class="sidenote"><label class="sidenote-label" for="sidenote-1">many proposed languages</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -3.5rem"><span class="sidenote-delimiter">[note:</span>You may be wondering, as I am while
+re-reading this tonight, what languages I was referring to here.  I
+imagine that High-Performance Fortran (HPF)—<a href="../../posts/10myths-part2/">discussed earlier in this
+series</a>—was at the top of my mind.  That
+said, it may be that Fortress—one of our sibling languages in the
+DARPA HPCS program—may have been as well.  The Fortress team had just
+announced that it was winding down the project a few months before I
+published this; and of the three HPCS languages, it felt the most
+expansive and audacious in design to me.  Beyond those two, there were
+dozens of other failed parallel programming languages in the 1990’s,
+and I imagine my use of “many” refers to them.  That said, today I
+find myself wondering how many of them failed to gain broad adoption
+due to complexity, as opposed to other reasons.<span class="sidenote-delimiter">]</span></span></span> have
+failed for being more complex than their implementations could handle
+or optimize for.  But the danger of being too minimal is that the
+language may not be sufficiently general or productive to be
+attractive and adopted by the user community.</p>
+<p>One of my favorite minimal languages is Co-Array Fortran (CAF)
+[<a href="#bibliography">1</a>].  CAF set out to define the
+smallest change required to Fortran to make it an effective parallel
+language; CAF was originally given the clever name F–– to emphasize
+what a small change it constituted [<a href="#bibliography">2</a>].  And to my thinking, it succeeded in this goal.
+CAF’s core extension to Fortran is a very simple, elegant, and
+powerful concept known as the <em>co-dimension</em>.  CAF programs are
+written and executed in a Single-Program, Multiple-Data (SPMD) manner,
+and <em>co-arrays</em>—variables with a co-dimension—permit the user to refer
+to the copies of the variable stored by other <em>images</em>—the other
+copies of the program within the SPMD execution.  For example, the
+expression <code>a[i]</code> refers to the copy of the scalar variable <code>a</code> stored
+by the <code>i</code>th instance of the SPMD program execution.  Note that the
+use of square brackets for co-array dimensions syntactically
+distinguishes them from Fortran’s use of parentheses for traditional
+array indexing.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+Adopting any new technology requires time and effort from potential
+users. In order to consider this investment worthwhile, users will
+weigh the technology’s expected payoff against the effort required.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<p>Given the widespread adoption of SPMD programming models,
+co-dimensions represent a very natural and elegant way to support
+communication between program instances.  Like other PGAS languages,
+CAF supports single-sided communication, which can improve execution
+times by eliminating buffering and by decoupling data transfer from
+synchronization.  Moreover, the use of square brackets in CAF makes
+these communication events “pop” syntactically so that <span class="sidenote"><label class="sidenote-label" for="sidenote-2">programmers</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>And compilers, for that
+matter…<span class="sidenote-delimiter">]</span></span></span> can determine where their algorithms require
+communication, and then work to eliminate unnecessary cases.  While
+co-arrays are the core concept in CAF, the language also supports
+other features to help with SPMD programming such as routines for
+synchronization and collectives.</p>
+<p>In spite of its elegance, CAF has failed to be adopted as broadly as
+its proponents had hoped (so far, anyway—its inclusion in the Fortran
+2008 standard [<a href="#bibliography">3</a>] could improve that
+situation <span class="sidenote"><label class="sidenote-label" for="sidenote-3">over time</label><input class="sidenote-checkbox" id="sidenote-3" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -15.5rem"><span class="sidenote-delimiter">[note:</span>If it seems odd that I
+was writing speculatively about the future of Fortran 2008 in 2012,
+keep in mind that Fortran 2008 wasn’t approved until 2010, and even
+then there can be a lag between finalizing a language standard and
+having compilers support all of its new features (not to mention
+getting users to start using those new features).<br/><br/>While I understand Fortran 2008 to have enjoyed some amount of uptake
+since I originally wrote this article, I think few would consider its
+coarray features to have achieved <em>broad</em> adoption—and certainly
+nowhere near the level of MPI.  Then again, nothing else has either
+(yet…!).<span class="sidenote-delimiter">]</span></span></span>).  Several explanations have been offered
+for its lack of adoption, such as the dearth of mature implementations
+or disappointing performance portability due to the lack of good
+support for fine-grained, single-sided communication in many network
+architectures.  These are almost certainly factors contributing to the
+lack of CAF adoption, but in my opinion, the biggest strike against
+CAF is the one that was intended to be its strength: its minimalism.</p>
+<p>Adopting any new technology requires time and effort from potential
+users.  In order to consider this investment worthwhile, most users
+will weigh the technology’s expected payoff against the effort
+required.  My sense is that in evaluating the cost::benefit ratio of
+switching from MPI to CAF, most users conclude that the benefit in
+expressing communication more elegantly is not sufficiently valuable
+to make the conversion worthwhile.  As in most MPI programs, CAF’s
+SPMD model requires a certain amount of bookkeeping code that incurs
+programming effort regardless of how nicely the communication is
+expressed.  In fact, I would claim that any parallel programming model
+which requires SPMD programming from its users is unlikely to supplant
+MPI, simply because <span class="sidenote"><label class="sidenote-label" for="sidenote-4">the bookkeeping overheads</label><input class="sidenote-checkbox" id="sidenote-4" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -5.5rem"><span class="sidenote-delimiter">[note:</span><a href="https://chapel-lang.org/blog/posts/10myths-part6/#the-original-article-reprinted">Last month’s
+article</a>
+gave some high-level indications of the syntactic overheads of
+SPMD-oriented bookkeeping, but didn’t really illustrate them very
+clearly.  I’ll attempt to remedy this with a simple example in the
+<a href="#an-spmd-bookkeeping-example">discussion section below</a>.<span class="sidenote-delimiter">]</span></span></span> of SPMD programming
+outweigh the benefits of an incrementally more attractive SPMD
+notation.  So why risk switching away from something that has proven
+so effective?</p>
+<p>CAF also has rules governing its SPMD execution that are stricter than
+MPI’s.  For example, CAF constrains how co-array declarations must be
+encountered in order to maintain a symmetric heap across program
+images.  Meanwhile, powerful MPI concepts like communicators—useful
+for referring to subsets of the program images—<span class="sidenote"><label class="sidenote-label" for="sidenote-5">do not have a natural counterpart in CAF</label><input class="sidenote-checkbox" id="sidenote-5" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>It’s important to note
+that Fortran 2018 has since addressed this specific concern by adding
+support for <em>teams</em>, which permit the complete set of program images
+to be subdivided into groups.  For example, slide 63 of <a href="https://stevelionel.com/drfortran/wp-content/uploads/2022/08/Modern-Fortran.pdf">this
+presentation</a>
+illustrates a conceptual use of teams to execute distinct parts of a
+coupled climate model—the same motivator I used here.<span class="sidenote-delimiter">]</span></span></span>.
+The combination of these factors makes CAF best when writing
+algorithms in which all the program images are computing the same
+thing, whereas MPI programs can more easily create general teams of
+processes that are doing completely different things, as in a coupled
+climate model.  The net result is that for a slight boost in
+programmability, the CAF user must give up a certain amount of
+flexibility and generality, or at least ease-of-use.  My impression is
+that for most potential users, this tradeoff does not come out in
+CAF’s favor and therefore does not warrant switching away from MPI—the
+rewards are simply not great enough to outweigh the liabilities.  I’d
+also argue that it was CAF’s self-imposed minimalism that limits those
+rewards; that it chose to focus on supporting a common case rather
+than supporting the more general case and optimizing for the common
+one.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+In creating Chapel, our goal wasn’t to do an academic study or publish
+some papers, but to create a parallel programming language that could
+plausibly be adopted to write a broad spectrum of real-world HPC
+computations.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="academic-vs-deployed-languages">
+<a href="#academic-vs-deployed-languages">Academic vs. Deployed Languages</a>
+</h4>
+<p>As anyone who’s investigated it knows, Chapel is not a particularly
+minimal language.  It has distinct concepts for data and task
+parallelism, a rich set of array types, locality abstractions, and a
+very rich base language with support for <span class="sidenote"><label class="sidenote-label" for="sidenote-6">object-oriented programming</label><input class="sidenote-checkbox" id="sidenote-6" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Chapel’s object-oriented features have
+become even less minimal since this article was written, with the
+addition of class memory management types and nilable vs. non-nilable
+class types.  Both of these were added based on feedback and requests
+from users, reflecting features that had become popular in Rust and
+Swift, not to mention modern C++.<span class="sidenote-delimiter">]</span></span></span>, iterators, ranges,
+and type inference.  When we started work on Chapel, I recall a
+colleague of Hans Zima’s expressing concern that by undertaking such a
+rich language, we not only risked failure, but also the possibility of
+not being able to determine <em>why</em> we had failed due to the multitude
+of features.</p>
+<p>In my mind, this concern is a wise one to keep in mind for academic
+projects.  In a scientific study, it makes sense to change the fewest
+number of things possible—ideally one—so that you can measure the
+effects of that change against the status quo.  In a sense, this is
+what made ZPL a successful academic project: it focused on the design
+of a language with support for array-based parallel programming with
+the goal of a syntax-based (“WYSIWYG”) performance model
+[<a href="#bibliography">4</a>].  In pursuit of this goal, it
+didn’t support task parallelism, nested parallelism, object-oriented
+programming, or even a particularly modern syntax or base language.
+This focused its research agenda but, in my opinion, made it
+essentially unadoptable.  It simply wasn’t general enough to support
+the complexities of real parallel applications.</p>
+<p>In creating Chapel, our goal wasn’t to do an academic study or publish
+some papers, but to create a parallel programming language that could
+plausibly be adopted to write a <span class="sidenote"><label class="sidenote-label" for="sidenote-7">broad spectrum of real-world HPC computations</label><input class="sidenote-checkbox" id="sidenote-7" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>The broad range of
+applications that Chapel has been used for since this article was
+originally published is one of the things I am most proud of and
+gratified by.  In recent years, users have successfully applied Chapel
+to fields as diverse as astrophysics, computational fluid dynamics,
+satellite image analysis, climate research, hydrological modeling,
+quantum physics, branch-and-bound computations, large-scale data
+science, and AI.  Read more about such examples in our <a href="../../series/7-questions-for-chapel-users/">7 Questions
+for Chapel Users</a> series,
+as well as the Chapel website’s
+<a href="https://chapel-lang.org/papers/">papers</a> and
+<a href="https://chapel-lang.org/presentations/">presentations</a>
+pages.<span class="sidenote-delimiter">]</span></span></span>; and in doing so, to add value in the form of
+productivity far beyond what existing HPC programming models provide.
+To us, this suggested creating a language that strives to be at least
+as rich as the most productive desktop languages (e.g., <span class="sidenote"><label class="sidenote-label" for="sidenote-8">Java, C#, Python, Matlab</label><input class="sidenote-checkbox" id="sidenote-8" type="checkbox"/><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>Though they weren’t around when
+we were first designing Chapel, I would add languages like Rust,
+Swift, and Julia to this list if we were starting out
+today.<span class="sidenote-delimiter">]</span></span></span>), that can do anything MPI can do, that offers
+an alternative to SPMD programming, and that adds significant value to
+a parallel programmer (in terms of clarity, abstractions, conciseness,
+etc.).  To expect such a language to be minimal strikes me as being
+naïve.  Or, as one of my colleagues says when Chapel is accused of
+being too feature-rich: “Go big or go home!”</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+Most computer users, certainly HPC programmers, use large complex
+software systems every day without being paralyzed by the large number
+of features.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="overwhelming-the-user">
+<a href="#overwhelming-the-user">Overwhelming the User?</a>
+</h4>
+<p>One of the reasons that I believe people get nervous about
+feature-rich languages is the learning curve.  There is a sense that
+large languages will overwhelm users, compromising the languages'
+adoptability.  While I understand this concern, I don’t share it.
+Most computer users, certainly HPC programmers, use large complex
+software systems every day without being paralyzed by the large number
+of features.  LaTeX, the bash shell, UNIX, C++, MPI, and GNU Make are
+all examples of powerful, adopted software systems that are also quite
+large and feature-rich.  One can imagine more minimal counterparts to
+these technologies, yet the size of these systems has not been a
+liability in their adoption, and in fact has been a strength.  A key
+characteristic is that users can utilize them effectively without
+being familiar with every single feature (or, in many cases, a
+significant fraction of them).</p>
+<p>So what does this tell us?  To me, it suggests that it is more
+important to support a rich set of features than to be minimal; and
+that to be effective, there should be a core set of features that are
+approachable and useful without requiring the user to be familiar with
+every single feature.  Arguably, another important characteristic of
+these systems is <span class="sidenote"><label class="sidenote-label" for="sidenote-9">good documentation</label><input class="sidenote-checkbox" id="sidenote-9" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>I’ll touch
+on the state of Chapel’s documentation in 2012 versus today in the
+<a href="#chapel-documentation">discussion section below</a>.<span class="sidenote-delimiter">]</span></span></span> that enables a user to
+find and learn about additional concepts as they need them.</p>
+<p>Again, I don’t mean to suggest that language designers should adopt
+every idea that occurs to them; care should be taken to select
+features that add power and benefit by inclusion in a language,
+particularly ones that result in better syntax or optimization
+opportunities.  Otherwise, the feature is probably more appropriate as
+a standard library feature rather than a core language concept.  That
+said, in the case of general and scalable parallel languages, we
+should fully expect that in order to be adoptable, such languages are
+likely to require at least as many features as our best serial or
+desktop languages.</p>
+<p>This brings us to this month’s conclusion:</p>
+<h4 id="counterpoint-8-many-of-the-successful-software-systems-we-use-are-large-in-order-to-be-general-and-productive--more-important-than-minimalism-is-the-languages-approachability-and-documentationie-can-one-make-effective-use-of-it-without-being-familiar-with-all-of-its-features">
+<a href="#counterpoint-8-many-of-the-successful-software-systems-we-use-are-large-in-order-to-be-general-and-productive--more-important-than-minimalism-is-the-languages-approachability-and-documentationie-can-one-make-effective-use-of-it-without-being-familiar-with-all-of-its-features">Counterpoint #8: Many of the successful software systems we use are large in order to be general and productive.  More important than minimalism is the language’s approachability and documentation—i.e., can one make effective use of it without being familiar with all of its features?</a>
+</h4>
+<p>Tune in next time for the final myths in this series about scalable
+parallel programming languages.</p>
+<h4 id="bibliography">
+<a href="#bibliography">Bibliography</a>
+</h4>
+<p>[1] R. Numerich, J. Reid, <a href="https://dl.acm.org/doi/10.1145/289918.289920">Co-array Fortran for Parallel
+Programming</a>, SIGPLAN
+Fortran Forum 17:2, pp. 1–31, August 1998.</p>
+<p>[2] R. Numerich, <a href="https://www.researchgate.net/publication/220061034_F--_A_Parallel_Extension_to_Cray_Fortran">F––: A Parallel extension to Cray
+Fortran</a>,
+Scientific Programming 6:3, pp. 275–284, 1997.</p>
+<p>[3] R. Numerich, J. Reid, <a href="https://dl.acm.org/doi/10.1145/1080399.1080400">Co-arrays in the next Fortran
+Standard</a>, SIGPLAN
+Fortran Forum 24:2, pp. 4–17, August 2005.</p>
+<p>[4] B. Chamberlain, S.-E. Choi, E Lewis, C. Lin, L. Snyder,
+W. Weathersby, <a href="https://research.cs.washington.edu/zpl/papers/data/Chamberlain98ZPL.pdf">ZPL’s WYSIWYG Performance
+Model</a>,
+HIPS ‘98: Proceedings of the IEEE Workshop on High-Level Parallel
+Programming Models and Supportive Environments, 1998.</p>
+<hr/>
+<h3 id="reflections-on-the-original-article">
+<a href="#reflections-on-the-original-article">Reflections on the Original Article</a>
+</h3>
+<p>Re-reading the original article today, I wonder whether this myth is
+one that will resonate at all with modern readers.  As one of my
+colleagues points out, currently popular languages like Python, Julia,
+and Rust are definitely in the “feature-rich” category rather than
+being minimal.  Meanwhile, each new version of C++ adds lots of new
+features to what was already a fairly sizable language.  So perhaps
+whatever preference toward minimalism I was reacting to in 2012 either
+no longer exists, or was somehow specific to the HPC community.</p>
+<p>In any case, my belief in bigger, more general languages that can be
+learned incrementally remains as strong today as it was in back
+then—particularly for scalable parallel programming.  In this
+section, I’ll reflect on why this is and what I think about Chapel’s
+current size and features. Then I’ll touch on the state of Chapel
+documentation and wrap up with an illustration of the bookkeeping
+that’s required by SPMD programs.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+There are very few features provided by typical, mainstream, adopted
+programming languages that can be ignored in a language for scalable
+parallel computing.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="chapels-size-and-feature-set">
+<a href="#chapels-size-and-feature-set">Chapel’s Size and Feature Set</a>
+</h4>
+<p>While people sometimes reel at how large and feature-rich Chapel is,
+the closing statement of the article remains true for me: That there
+are very few features provided by typical, mainstream, adopted
+programming languages that can be ignored in a language for scalable
+parallel computing without compromising generality or adoption.  And
+then, beyond those features, you must add additional capabilities to
+express the parallelism and locality required for scalable parallel
+applications, ideally in a way that supports performance,
+optimization, and clarity.</p>
+<p>Generally in Chapel, when we’ve tried to ignore, or at least put off,
+incorporating certain traditional language features in hopes that they
+are non-essential (“for now”), users have typically called us on it.
+Specific cases of this include error-handling, first-class procedures,
+record initializers, and automated memory management for classes—all
+of which have now been added to the language and implemented based on
+user requests.  A few areas that have been neglected remain sore
+points, such as the lack of <code>ref</code> fields and Chapel’s not-yet-complete
+support for interfaces.</p>
+<p>Meanwhile, I think it’s worth stressing that when it comes to core
+features that introduce parallelism and control locality, Chapel is
+more minimal than it might first appear.  There are exactly three
+keywords in the language that introduce new parallel tasks (<code>begin</code>,
+<code>cobegin</code>, and <code>coforall</code>) and one keyword that indicates the
+potential for hardware parallelization like vectorization (<code>foreach</code>).
+There is also just one keyword to transfer a task’s execution or
+declaration context to another locale (<code>on</code>).</p>
+<p>Most of Chapel’s complexity with respect to parallelism relates to its
+user-facing mechanisms for creating new parallel abstractions, such as
+<span class="sidenote"><label class="sidenote-label" for="sidenote-10">parallel iterators or distributions</label><input class="sidenote-checkbox" id="sidenote-10" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Ironically,
+these are also both features that would benefit from improvements to
+the aforementioned lack of good support for interfaces<span class="sidenote-delimiter">]</span></span></span>.
+However, many users never need to learn how to create these
+abstractions, and those that do rarely need to do so from day one.
+Meanwhile, beginning users benefit from the existence of these
+abstractions whenever they declare a distributed array or invoke a
+<code>forall</code> loop (either explicitly, or implicitly through features like
+<em>promotion</em>).</p>
+<p>Generally speaking, I feel very comfortable with Chapel’s size, both
+on its own terms, and relative to popular modern languages.  When I
+think about features it contains that feel neglected, only two come to
+mind.  The first is the <code>let</code> expression, which has been a part of the
+language since its inception, yet which has rarely been used in
+practice (while also having its share of detractors over the years).
+Based on this experience, it seems like one of the least important
+features in the language; though it also feels fairly innocuous.</p>
+<p>The second is a (relatively) new feature, the <code>manage</code> statement,
+which was introduced around four years ago.  Despite being popular and
+anticipated when it was introduced, to my knowledge, it hasn’t been
+used much in practice.  That said, there are some current efforts to
+add utilities based on <code>manage</code> to the standard library, and given the
+feature’s success in Python, I remain optimistic that their use will
+grow in the coming years.</p>
+<p>The fact that only these two examples come to mind after years of
+using Chapel and supporting users with it is a big part of what makes
+me feel that Chapel is not oversized.  And more to the point, we have
+had key users express their gratitude that Chapel is very approachable
+while also having additional depths when more control or complexity
+is required, suggesting that the whole language need not be learned
+to use it effectively.</p>
+<h4 id="chapel-documentation">
+<a href="#chapel-documentation">Chapel Documentation</a>
+</h4>
+<p>This month’s article stresses the importance of good documentation in
+learning a language.  This is an area where Chapel has made
+outstanding strides since the article was originally written, though
+more can, and should, still be done.</p>
+<p>Looking back at Chapel <span class="sidenote"><label class="sidenote-label" for="sidenote-11">version 1.6</label><input class="sidenote-checkbox" id="sidenote-11" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>It’s purely
+coincidental that this past month’s release was version 2.6.  There’s
+no logical relationship between the numerical symmetry and the
+thirteen years that have passed between articles.<span class="sidenote-delimiter">]</span></span></span>,
+which was released just a few days after this article’s publication,
+it left a lot to be desired in terms of documentation.  It included
+PDF versions of the language specification and quick-reference sheet.
+It also had a couple dozen primer examples that were made available as
+commented source code files that you could bring up in your editor.
+Finally, it had 32 README-style text files, all of which were
+maddeningly named <code>README.*</code> (<code>README.ibm</code>, <code>README.building</code>,
+<code>README.atomics</code>, etc.), as though named by <span class="sidenote"><label class="sidenote-label" for="sidenote-12">someone</label><input class="sidenote-checkbox" id="sidenote-12" type="checkbox"/><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>(very likely me… but I’d like to think I’ve improved
+since then)<span class="sidenote-delimiter">]</span></span></span> who liked Lewis Carroll more than useful
+file extensions.  Notably, we had no online, HTML, hyperlinked
+documentation, and no search capability.  As it happens, Chapel 1.6
+was also the first release to support a prototype of our <code>chpldoc</code>
+tool that generates <span class="sidenote"><label class="sidenote-label" for="sidenote-13">HTML documentation</label><input class="sidenote-checkbox" id="sidenote-13" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Even
+so, we did not reach the point of using it to publish web-based
+documentation for our library modules until <a href="https://chapel-lang.org/docs/1.11">Chapel
+1.11</a>, 2-1/2 years
+later.<span class="sidenote-delimiter">]</span></span></span> from comments in the code.</p>
+<p>Contrast the state in 2012 with <a href="https://chapel-lang.org/docs/2.6/">Chapel’s documentation
+hierarchy</a> today, where the
+primers, technical notes, and specification are all rendered directly
+online, along with our library modules.  There have also been many
+significant improvements and resources that have been added over the
+years, as tracked in the Documentation sections of our <a href="https://github.com/chapel-lang/chapel/blob/main/CHANGES.md">CHANGES
+file</a>.  In
+total, we now have over 370 distinct pages of HTML documentation, much
+of which is indexed, and all of which is searchable.</p>
+<p>Despite these great strides, documentation remains a place where
+further investment and improvements would still be beneficial.  Chapel
+would benefit greatly from a user’s guide or textbook that provides a
+more complete and readable introduction to Chapel.  We would also like
+to have alternatives to written documentation, such as a library of
+short videos that teach Chapel features and workflows, or an online
+course for learning Chapel.  We’ve made some progress here in recent
+years, by kicking off a monthly demo session, <a href="https://www.youtube.com/playlist?list=PLuqM5RJ2KYFjYgOStSfrNshIQ0I-AibHY">archived on
+YouTube</a>;
+“<a href="../../tags/how-to/">how-to</a>” articles on this blog, and a
+<a href="https://github.com/chapel-lang/ChapelExamplesAndTeachingMaterials">repository of code examples and
+resources</a>
+stemming from our monthly meet-up about teaching Chapel.  It seems the
+task of improving documentation is never done; and simultaneously, it
+is an activity that often feels difficult to prioritize or fund as
+compared to adding the next language feature or optimization.  That
+said, it remains crucial because of its importance in making the
+language more approachable and usable.</p>
+<h4 id="an-spmd-bookkeeping-example">
+<a href="#an-spmd-bookkeeping-example">An SPMD Bookkeeping Example</a>
+</h4>
+<p>In <a href="../../posts/10myths-part6/">last month’s article</a>, we saw some
+examples of how benchmark implementations in MPI, CAF, or SHMEM
+required more code than in Chapel, SAC, or ZPL.  In that article, I
+attributed this to the bookkeeping required by SPMD programming
+models, yet did not take the time and space to describe the causes
+well.  One of the nice things about CAF’s minimalism and clean design
+is that it can make this bookkeeping much clearer.</p>
+<p>In this section, we’ll look at a simple program that uses a Monte
+Carlo method to compute an approximation of <small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi></mrow><annotation encoding="application/x-tex">\pi</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span></small> in
+both CAF and Chapel.  The program takes the approach of computing <em>n</em>
+random coordinates and then seeing what fraction of them fall within a
+quadrant of the unit circle.  Given that the quarter-circle’s area is
+<small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi mathvariant="normal">/</mi><mn>4</mn><mo stretchy="false">(</mo><mi>π</mi><mo>⋅</mo><msup><mn>1</mn><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">1/4(\pi\cdot 1^2)</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1/4</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord">1</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></small> and the square’s is 1, we can
+multiply the resulting ratio by four to get an approximation of
+<small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi></mrow><annotation encoding="application/x-tex">\pi</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span></span></span></span></small>.</p>
+<p>Here is an implementation in CAF, with comments to guide you through
+the code:</p>
+<div class="file" data-code-path="code/pi.f90" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="pi.f90" href="code/pi.f90">pi.f90</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-fortran" data-lang="fortran"><span class="line"><span class="cl"><span class="c">! since CAF is SPMD, all processors/images will run a copy of main...
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="k">program</span><span class="w"> </span><span class="n">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">implicit</span><span class="w"> </span><span class="k">none</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! thus, these declarations are executed by each image, giving each its own copy
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">integer</span><span class="p">,</span><span class="w"> </span><span class="k">parameter</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000000</span><span class="w">      </span><span class="c">! the number of random samples to take
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">integer</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">n_local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nb">num_images</span><span class="p">()</span><span class="w">  </span><span class="c">! the per-image problem size
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">real</span><span class="p">,</span><span class="w"> </span><span class="k">allocatable</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">x</span><span class="p">(:),</span><span class="w"> </span><span class="n">y</span><span class="p">(:)</span><span class="w">        </span><span class="c">! per-image arrays of random coords
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">integer</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">within_circle</span><span class="p">[</span><span class="o">*</span><span class="p">]</span><span class="w">            </span><span class="c">! a coarray counting points in the circle
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">integer</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">i</span><span class="w">                           </span><span class="c">! an integer loop counter
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">integer</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">n_actual</span><span class="w">                    </span><span class="c">! the actual value of 'n' we're using
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! the computation of 'n_local' above assumes 'n' divides evenly by #images;
+</span></span></span><span class="line"><span class="cl"><span class="c">! compute the actual value of 'n' we're ending up with if it doesn't...
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="n">n_actual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n_local</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">num_images</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! warn if 'n_actual != n' on image 1 only (to avoid printing a warning per image)
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">n_actual</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="n">n</span><span class="w">  </span><span class="p">.</span><span class="nb">AND</span><span class="p">.</span><span class="w"> </span><span class="nb">this_image</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="s2">"warning: only computing "</span><span class="p">,</span><span class="n">n_actual</span><span class="p">,</span><span class="s2">"points, not"</span><span class="p">,</span><span class="n">n</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">end</span><span class="w"> </span><span class="k">if</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! allocate each image's coordinate arrays using the local problem size
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">allocate</span><span class="p">(</span><span class="n">x</span><span class="p">(</span><span class="n">n_local</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">allocate</span><span class="p">(</span><span class="n">y</span><span class="p">(</span><span class="n">n_local</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! fill each image's local coordinate arrays with random values
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">call</span><span class="w"> </span><span class="nb">random_number</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">call</span><span class="w"> </span><span class="nb">random_number</span><span class="p">(</span><span class="n">y</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! compute how many of each image's coords lie within a quadrant of the unit circle
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="n">within_circle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">within_circle</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">count</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! make sure all images are done computing before reading their results
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">sync</span><span class="w"> </span><span class="k">all</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! have image 1...
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nb">this_image</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! ...add each image's local count to its own, where '[i]' reads image 'i's copy
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">     </span><span class="k">do</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nb">num_images</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">within_circle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">within_circle</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">within_circle</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="k">end</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c">! ...print the result
+</span></span></span><span class="line"><span class="cl"><span class="c"></span><span class="w">     </span><span class="k">print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="s2">"pi is approximately"</span><span class="p">,</span><span class="w"> </span><span class="mf">4.0</span><span class="o">*</span><span class="n">within_circle</span><span class="o">/</span><span class="n">n_actual</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">end</span><span class="w"> </span><span class="k">if</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">end</span><span class="w"> </span><span class="k">program</span><span class="w"> </span><span class="n">main</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>One thing I did in this program, which was admittedly lazy, was to
+divide the global problem size, <em>n</em>, by the number of images running
+the program as though it divides evenly, when it very well may not—and
+then printing a warning when it doesn’t.  With a bit more code and
+care, I could’ve given the images varying local problem sizes such
+that the total across images was <em>n</em>, as you would want in a real
+application.  However, this would’ve required a bit more code while
+making the same point—that care must be taken when dividing a global
+problem space between images in the SPMD model.  In this case, where
+the problem size merely acts as a local count and array size, the
+bookkeeping is not so bad.  However, in cases where the problem size
+matters—say the images are storing chunks of a dataframe or a
+discretized volume—things can get more challenging, particularly when
+each image must also know how many elements others own, as in a
+stencil computation.</p>
+<p>Summarizing the comments in the code above, ways in which SPMD
+bookkeeping come up in this simple example include:</p>
+<ul>
+<li>storing and computing using distinct global vs. local problem sizes</li>
+<li>using conditionals to avoid doing redundant work on all images</li>
+<li>using explicit synchronization to ensure communication readiness</li>
+<li>using communication (co-array indexing here) to transfer data between images</li>
+</ul>
+<p>All said, Fortran 2008’s coarray features make the communication steps
+far more concise and elegant than in MPI, demonstrating the benefits
+of using a compiled parallel language over a library-based approach.
+That said, the need for this additional bookkeeping remains, due to
+requiring users to code using an SPMD model in the first place.</p>
+<p>In Chapel, the same computation can be written as follows:</p>
+<div class="file" data-code-path="code/pi.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="pi.chpl" href="code/pi.chpl">pi.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">// use standard modules for block-distributed arrays and random numbers
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/dists/BlockDist.html"><span class="nx">BlockDist</span></a><span class="p">,</span><span class="w"> </span><a href="../../../docs/modules/standard/Random.html"><span class="nx">Random</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// the number of random samples to compute (run with '--n=...' to change)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="nx">_000_000</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// create block-distributed coordinate arrays over the indices 1 thru n
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">X</span><span class="p">,</span><span class="w"> </span><span class="nx">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><a href="../../../docs/modules/dists/BlockDist.html#BlockDist.blockDist"><span class="nx">blockDist</span></a><span class="p">.</span><a href="../../../docs/modules/dists/BlockDist.html#BlockDist.blockDist.createArray"><span class="nx">createArray</span></a><span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="kt">real</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// fill the arrays with random (x,y) values
+</span></span></span><span class="line"><span class="cl"><a href="../../../docs/modules/standard/Random.html#Random.fillRandom"><span class="c1"></span></a><a href="../../../docs/modules/standard/Random.html#Random.fillRandom"><span class="nx">fillRandom</span></a><span class="p">(</span><span class="nx">X</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><a href="../../../docs/modules/standard/Random.html#Random.fillRandom"><span class="w"></span></a><a href="../../../docs/modules/standard/Random.html#Random.fillRandom"><span class="nx">fillRandom</span></a><span class="p">(</span><span class="nx">Y</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// compute how many (x,y) points lie within a quadrant of the unit circle
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">withinCircle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">(</span><span class="nx">X</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">Y</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// print the result
+</span></span></span><span class="line"><span class="cl"><a href="../../../docs/modules/standard/IO.html#IO.writeln"><span class="c1"></span></a><a href="../../../docs/modules/standard/IO.html#IO.writeln"><span class="nx">writeln</span></a><span class="p">(</span><span class="s">"pi is approximately "</span><span class="p">,</span><span class="w"> </span><span class="mf">4.0</span><span class="o">*</span><span class="nx">withinCircle</span><span class="o">/</span><span class="nx">n</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>Chapel obviates the need for such SPMD bookkeeping by virtue of:</p>
+<ul>
+<li>
+<p>its global view of control flow, in which one task starts running
+the program rather than one per processor as in SPMD-based
+approaches</p>
+</li>
+<li>
+<p>its global-view arrays, in which a single logical array can be
+distributed across program images (<em>locales</em>) with all the
+bookkeeping and parallelization handled by the distribution.</p>
+</li>
+</ul>
+<p>The result is a program that much more closely resembles traditional
+desktop programming.</p>
+<p>At the same time, Chapel is general enough that explicit SPMD
+patterns <span class="sidenote"><label class="sidenote-label" for="sidenote-14">can be written</label><input class="sidenote-checkbox" id="sidenote-14" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Moreover, users can
+even create coarray-like data structures in Chapel by creating
+block-distributed arrays of arrays.<span class="sidenote-delimiter">]</span></span></span> when required.
+This combination of abstractions and flexibility are part of what make
+Chapel a large, rather than minimal language.  Yet, it’s also why
+Chapel can support compact, readable, performant code, while also
+supporting manual overrides when desired.</p>
+<h3 id="wrapping-up">
+<a href="#wrapping-up">Wrapping Up</a>
+</h3>
+<p>That concludes this month’s look at the relationship between the size
+of a language’s feature set and its productivity and capabilities.
+Next month, join us for the final article in the series, in which we
+tackle our last two myths, relating to whether Chapel is perfect and
+whether it will ultimately be broadly adopted.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+7%3A+Minimalist+Language+Designs%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part7%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+7%3A+Minimalist+Language+Designs%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part7%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+7%3A+Minimalist+Language+Designs%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part7%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=10+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+7%3A+Minimalist+Language+Designs&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part7%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+7%3A+Minimalist+Language+Designs%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part7%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/10myths-part6/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+  Part 6: Performance of Higher-Level Languages
+
+
+                    </span>
+</span>
+</a>
+</div>
+<div class="series-button-wrapper next">
+<a class="button" href="../../posts/10myths-part8/">
+<span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+  Part 8: Striving Toward Adoptability
+
+
+                    </span>
+</span>
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-right"></use>
+</svg>
+</a>
+</div>
+</nav>
+</body>
+</html>

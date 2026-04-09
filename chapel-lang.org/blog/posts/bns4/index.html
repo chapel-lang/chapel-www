@@ -1,133 +1,104 @@
 <!DOCTYPE html>
+
 <html data-theme="light" lang="en"><head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#00cbff">
-    
-    <meta name="description" content="Writing a distributed and parallel Navier-Stokes solver in Chapel, with an MPI performance comparison">
-    
-
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
-    
-    
-    
-    
-    
-    
-    <style>.sidenote-checkbox { display: none; }</style>
-    <style>.feather { width: 1rem; height: 1rem; }</style>
-    <link rel="stylesheet" href="../../scss/style.min.css" media="screen,print">
-    <link rel="stylesheet" href="../../scss/sidenotes.min.css" media="screen,print">
-    <link rel="stylesheet" href="../../css/syntax.min.css" media="screen,print">
-    <link rel="stylesheet" href="../../scss/syntax-terminal.min.css" media="screen,print">
-    <link rel="stylesheet" href="../../scss/code.min.css" media="screen,print">
-    <link rel="icon" type="image/png" href="../../img/favicon.ico">
-
-    <script src="../../js/dropdown-menu.js" defer></script>
-
-    <title>Navier-Stokes in Chapel — Distributed Cavity-Flow Solver</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="Writing a distributed and parallel Navier-Stokes solver in Chapel, with an MPI performance comparison" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Navier-Stokes in Chapel — Distributed Cavity-Flow Solver</title>
 </head>
 <body>
 <header>
-    
-    <div class="container">
-        <a class="site-title" href="../../">
-            <img alt="Chapel logo" width="50" height="50" src="../../img/logo.png">
-            <h1>Chapel Language Blog</h1>
-        </a>
-    </div>
-    <nav id="Header">
-        <div class="container">
-            <a href="../../about">About</a>
-            <a href="https://chapel-lang.org">Chapel Website</a>
-            <a href="../../featured">Featured</a>
-            <a href="../../series">Series</a>
-            <a href="../../tags">Tags</a>
-            <a href="../../authors">Authors</a>
-            <a href="../../posts">All Posts</a>
-        </div>
-    </nav>
-    
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
 </header>
 <main class="container">
 <h2>Navier-Stokes in Chapel — Distributed Cavity-Flow Solver</h2>
 <div class="post-subscript">
-    <p>Posted on November 14, 2024.</p>
-    <p>
+<p>Posted on November 14, 2024.</p>
+<p>
         Tags:
         
-        <a class="button" href="../../tags/math">Math</a>
-        
-        <a class="button" href="../../tags/differential-equations">Differential Equations</a>
-        
-        <a class="button" href="../../tags/how-to">How-to</a>
-        
-        <a class="button" href="../../tags/computational-fluid-dynamics">Computational Fluid Dynamics</a>
-        
-        <a class="button" href="../../tags/language-comparison">Language Comparison</a>
-        
-    </p>
-    <p>
+        <a class="button" href="../../tags/math/">Math</a>
+<a class="button" href="../../tags/differential-equations/">Differential Equations</a>
+<a class="button" href="../../tags/how-to/">How-to</a>
+<a class="button" href="../../tags/computational-fluid-dynamics/">Computational Fluid Dynamics</a>
+<a class="button" href="../../tags/language-comparison/">Language Comparison</a>
+</p>
+<p>
     By:
     <a href="../../authors/jeremiah-corrado">Jeremiah Corrado</a>
-    </p>
+</p>
+<p>
+        Part of a series: <a href="../../series/navier-stokes-in-chapel/">Navier-Stokes in Chapel</a>
+</p>
 </div>
-
 <div class="post-content">
-    
-    <div class="table-of-contents">
-        <div class="wrapper">
-            <span class="header">Table of Contents</span>
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#distributed-cavity-flow-simulation-code">Distributed Cavity-Flow Simulation Code</a>
-      <ul>
-        <li><a href="#simulation-constants-and-settings">Simulation Constants and Settings</a></li>
-        <li><a href="#domain-distribution">Domain Distribution</a></li>
-        <li><a href="#arrays--boundary-conditions">Arrays &amp; Boundary Conditions</a></li>
-        <li><a href="#halo-updates">Halo Updates</a></li>
-        <li><a href="#the-full-code">The Full Code</a></li>
-      </ul>
-    </li>
-    <li><a href="#compiling-and-running">Compiling and Running</a></li>
-    <li><a href="#comparison-with-cmpiopenmp">Comparison with C++/MPI/OpenMP</a></li>
-    <li><a href="#performance-experiment-setup-and-results">Performance Experiment Setup and Results</a></li>
-    <li><a href="#conclusion">Conclusion</a></li>
-  </ul>
+<div class="table-of-contents">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#distributed-cavity-flow-simulation-code">Distributed Cavity-Flow Simulation Code</a>
+<ul>
+<li><a href="#simulation-constants-and-settings">Simulation Constants and Settings</a></li>
+<li><a href="#domain-distribution">Domain Distribution</a></li>
+<li><a href="#arrays--boundary-conditions">Arrays &amp; Boundary Conditions</a></li>
+<li><a href="#halo-updates">Halo Updates</a></li>
+<li><a href="#the-full-code">The Full Code</a></li>
+</ul>
+</li>
+<li><a href="#compiling-and-running">Compiling and Running</a></li>
+<li><a href="#comparison-with-cmpiopenmp">Comparison with C++/MPI/OpenMP</a></li>
+<li><a href="#performance-experiment-setup-and-results">Performance Experiment Setup and Results</a></li>
+<li><a href="#conclusion">Conclusion</a></li>
+</ul>
 </nav>
-        </div>
-    </div>
-    
-
-    
-
-    <p>This article is a direct continuation of <a href="../../posts/bns3/">Part 3</a> in this series, where we discussed several aspects of Chapel&rsquo;s distributed programming capabilities, and used those to create a distributed version of the code from <a href="../../posts/bns2/">Part 2</a>. If you haven&rsquo;t already, you may want to read the previous article before continuing.</p>
-<p>Here, we&rsquo;ll use those distributed-programming features to port one of the full Navier-Stokes simulation codes from the Barba Group&rsquo;s <a href="https://lorenabarba.com/blog/cfd-python-12-steps-to-navier-stokes/"target="_blank" rel="noopener">12 steps to Navier-Stokes</a> tutorial to Chapel, allowing us to efficiently run simulations on any hardware ranging from a laptop to a supercomputer. And by comparing with a version written with C++, MPI, and OpenMP, we&rsquo;ll see that the Chapel code, which is only slightly longer than the original Python code, is able to match the performance of the industry-standard HPC software stack.</p>
+</div>
+</div>
+<p>This article is a direct continuation of <a href="../../posts/bns3/">Part 3</a> in this series, where we discussed several aspects of Chapel’s distributed programming capabilities, and used those to create a distributed version of the code from <a href="../../posts/bns2/">Part 2</a>. If you haven’t already, you may want to read the previous article before continuing.</p>
+<p>Here, we’ll use those distributed-programming features to port one of the full Navier-Stokes simulation codes from the Barba Group’s <a href="https://lorenabarba.com/blog/cfd-python-12-steps-to-navier-stokes/">12 steps to Navier-Stokes</a> tutorial to Chapel, allowing us to efficiently run simulations on any hardware ranging from a laptop to a supercomputer. And by comparing with a version written with C++, MPI, and OpenMP, we’ll see that the Chapel code, which is only slightly longer than the original Python code, is able to match the performance of the industry-standard HPC software stack.</p>
 <h3 id="distributed-cavity-flow-simulation-code">
-  <a href="#distributed-cavity-flow-simulation-code">Distributed Cavity-Flow Simulation Code</a>
+<a href="#distributed-cavity-flow-simulation-code">Distributed Cavity-Flow Simulation Code</a>
 </h3>
-<p><a href="https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/14_Step_11.ipynb"target="_blank" rel="noopener">Step 11</a> of the Tutorial discusses Cavity flow. This kind of Navier-Stokes simulation shows how a fluid moves and evolves in a closed cavity (a rectangle in our case) given some boundary conditions. Each step of our simulation will compute a momentum vector for all of the finite difference points in our 2D grid (this is a composition of the <code>u</code> and <code>v</code> arrays discussed below). It also uses the Poisson Solver to compute the fluid&rsquo;s pressure, <code>p</code>, at each finite difference point. Both quantities will be rendered in the final solution plot.</p>
-<p>The full Navier-Stokes code follows a very similar structure to the Poisson code from the previous articles, and only takes a few deviations from Step 11 of the tutorial. As such, I&rsquo;ll give a high-level summary of the code that only calls out the areas where those differences pop up, rather than going through it line-by-line.</p>
+<p><a href="https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/14_Step_11.ipynb">Step 11</a> of the Tutorial discusses Cavity flow. This kind of Navier-Stokes simulation shows how a fluid moves and evolves in a closed cavity (a rectangle in our case) given some boundary conditions. Each step of our simulation will compute a momentum vector for all of the finite difference points in our 2D grid (this is a composition of the <code>u</code> and <code>v</code> arrays discussed below). It also uses the Poisson Solver to compute the fluid’s pressure, <code>p</code>, at each finite difference point. Both quantities will be rendered in the final solution plot.</p>
+<p>The full Navier-Stokes code follows a very similar structure to the Poisson code from the previous articles, and only takes a few deviations from Step 11 of the tutorial. As such, I’ll give a high-level summary of the code that only calls out the areas where those differences pop up, rather than going through it line-by-line.</p>
 <h4 id="simulation-constants-and-settings">
-  <a href="#simulation-constants-and-settings">Simulation Constants and Settings</a>
+<a href="#simulation-constants-and-settings">Simulation Constants and Settings</a>
 </h4>
 <p>There are now two time-step constants <code>nt</code> and <code>nit</code>, where the Poisson solver only had one. The first corresponds to actual time, and the second is the number of iterations to use for solving the Poisson equation during each time step (we also could have used the tolerance-based approach from the previous articles, but a constant number of iterations is used here for simplicity and to follow the Python tutorial more closely). This means that for every real time step, the program will run 50 Poisson iterations by default.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="first">
+<div data-code-path="code/nsStep11.chpl" data-code-section="first" data-code-type="main" data-start-line="6">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 6
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 6
 </span><span class="lnt"> 7
 </span><span class="lnt"> 8
 </span><span class="lnt"> 9
@@ -138,7 +109,7 @@
 </span><span class="lnt">14
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">xLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">xLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">yLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">nx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">ny</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span><span class="p">,</span><span class="w">
@@ -150,91 +121,53 @@
 </div>
 </div>
 </div>
-
 <p>There is also a new <code>downSampleFactor</code> constant (not included in the Python tutorial) that tells the plotting code which fraction of array elements to use in the final plot. The default of <code>2</code> means that 1/2 of the indices along each axis are used to generate the figure (i.e., 1/4 of the indices are included in the plots). For realistically large data sizes, this value should be increased to avoid generating very large plots and data files.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="middle">
+<div data-code-path="code/nsStep11.chpl" data-code-section="middle" data-code-type="main" data-start-line="20">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">20
+<pre class="chroma" tabindex="0"><code><span class="lnt">20
 </span><span class="lnt">21
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">createPlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">createPlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">downsampleFactor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span></span></span></code></pre></td></tr></table>
 </div>
 </div>
 </div>
-
 <h4 id="domain-distribution">
-  <a href="#domain-distribution">Domain Distribution</a>
+<a href="#domain-distribution">Domain Distribution</a>
 </h4>
 <p>Instead of defining the <code>space</code> domain over the <code>Locales</code> array directly, as we did in the distributed Poisson solver, we use a 2D version of <code>Locales</code> that has a shape of <code>(Locales.size, 1)</code>. This indicates to the distribution that we only want to distribute blocks along the first dimension. For a small number of locales, this will give us better performance because each locale only has to communicate with two neighbors instead of four.</p>
 <details>
-    <summary>What about for larger numbers of locales?</summary>
-
-    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
-        For problem sizes and locale counts that are larger than what we&rsquo;ll discuss in this article, using the default 2D distribution makes more sense because it avoids high surface-area-to-volume ratios on each locale&rsquo;s block (i.e., with many locales, the blocks would be very long and skinny rectangles). In that case, each locale would spend a sub-optimally large portion of its time communicating with neighbors instead of running stencil computations, which would result in reduced overall performance.
+<summary>What about for larger numbers of locales?</summary>
+<div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        For problem sizes and locale counts that are larger than what we’ll discuss in this article, using the default 2D distribution makes more sense because it avoids high surface-area-to-volume ratios on each locale’s block (i.e., with many locales, the blocks would be very long and skinny rectangles). In that case, each locale would spend a sub-optimally large portion of its time communicating with neighbors instead of running stencil computations, which would result in reduced overall performance.
     </div>
 </details>
 
-</br>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="middle">
+<div data-code-path="code/nsStep11.chpl" data-code-section="middle" data-code-type="main" data-start-line="24">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">24
+<pre class="chroma" tabindex="0"><code><span class="lnt">24
 </span><span class="lnt">25
 </span><span class="lnt">26
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">tl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reshape</span><span class="p">(</span><span class="nx">Locales</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">Locales</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">0</span><span class="p">}),</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stencilDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">},</span><span class="w"> </span><span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="nx">targetLocales</span><span class="o">=</span><span class="nx">tl</span><span class="p">),</span><span class="w">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">tl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reshape</span><span class="p">(</span><span class="nx">Locales</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">Locales</span><span class="p">.</span><a href="../../../docs/language/spec/arrays.html#ChapelArray.size"><span class="nx">size</span></a><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">0</span><span class="p">}),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><a href="../../../docs/modules/dists/StencilDist.html#StencilDist.stencilDist"><span class="nx">stencilDist</span></a><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">},</span><span class="w"> </span><span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="nx">targetLocales</span><span class="o">=</span><span class="nx">tl</span><span class="p">),</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">spaceInner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">space</span><span class="p">.</span><span class="nx">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span></span></span></code></pre></td></tr></table>
 </div>
 </div>
 </div>
-
 <h4 id="arrays--boundary-conditions">
-  <a href="#arrays--boundary-conditions">Arrays &amp; Boundary Conditions</a>
+<a href="#arrays--boundary-conditions">Arrays &amp; Boundary Conditions</a>
 </h4>
 <p>We now have three distributed arrays: <code>p</code>, <code>u</code>, and <code>v</code> defined over <code>space</code>, representing pressure, x-directed momentum, and y-directed momentum respectively.</p>
-<p>The boundary conditions are modified such that there is a rightward flow on the top of the domain (like in the tutorial), and also a leftward flow on the bottom of the domain (instead of the Dirichlet condition). This deviation from the tutorial isn&rsquo;t particularly important, but results in an interesting final solution.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="middle">
+<p>The boundary conditions are modified such that there is a rightward flow on the top of the domain (like in the tutorial), and also a leftward flow on the bottom of the domain (instead of the Dirichlet condition). This deviation from the tutorial isn’t particularly important, but results in an interesting final solution.</p>
+<div data-code-path="code/nsStep11.chpl" data-code-section="middle" data-code-type="main" data-start-line="29">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">29
+<pre class="chroma" tabindex="0"><code><span class="lnt">29
 </span><span class="lnt">30
 </span><span class="lnt">31
 </span><span class="lnt">32
@@ -242,7 +175,7 @@
 </span><span class="lnt">34
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// define distributed arrays
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// define distributed arrays
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">space</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// apply boundary conditions
@@ -251,26 +184,14 @@
 </div>
 </div>
 </div>
-
 <h4 id="halo-updates">
-  <a href="#halo-updates">Halo Updates</a>
+<a href="#halo-updates">Halo Updates</a>
 </h4>
-<p>As with the distributed Poisson solver, calls to <code>updateFluff</code> are included before each array is used in a stencil computation. This ensures that the &ldquo;halo&rdquo; regions in the arrays have the latest data from their neighboring locales:</p>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="last">
+<p>As with the distributed Poisson solver, calls to <code>updateFluff</code> are included before each array is used in a stencil computation. This ensures that the “halo” regions in the arrays have the latest data from their neighboring locales:</p>
+<div data-code-path="code/nsStep11.chpl" data-code-section="last" data-code-type="main" data-start-line="59">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">59
+<pre class="chroma" tabindex="0"><code><span class="lnt">59
 </span><span class="lnt">60
 </span><span class="lnt">61
 </span><span class="lnt">62
@@ -294,7 +215,7 @@
 </span><span class="lnt">80
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">nt</span><span class="w"> </span><span class="p">{</span><span class="w">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">nt</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">u</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">un</span><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">v</span><span class="w"> </span><span class="o">&lt;=&gt;</span><span class="w"> </span><span class="nx">vn</span><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
@@ -319,26 +240,19 @@
 </div>
 </div>
 </div>
-
 <h4 id="the-full-code">
-  <a href="#the-full-code">The Full Code</a>
+<a href="#the-full-code">The Full Code</a>
 </h4>
-<p>The remainder of the code includes some familiar infrastructure and some new stencil computations which are pretty mathematically intensive: <code>computeB</code>, <code>computeU</code>, and <code>computeV</code>. This article won&rsquo;t get into the details of the math; however, the original Python tutorial is an excellent resource for understanding what those computations are doing.</p>
+<p>The remainder of the code includes some familiar infrastructure and some new stencil computations which are pretty mathematically intensive: <code>computeB</code>, <code>computeU</code>, and <code>computeV</code>. This article won’t get into the details of the math; however, the original Python tutorial is an excellent resource for understanding what those computations are doing.</p>
 <p>The full Chapel code can be viewed/downloaded here:</p>
-
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/nsStep11.chpl download="nsStep11.chpl">nsStep11.chpl</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/nsStep11.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="nsStep11.chpl" href="code/nsStep11.chpl">nsStep11.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+<pre class="chroma" tabindex="0"><code><span class="lnt">  1
 </span><span class="lnt">  2
 </span><span class="lnt">  3
 </span><span class="lnt">  4
@@ -472,9 +386,9 @@
 </span><span class="lnt">132
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">FlowPlot</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">StencilDist</span><span class="p">;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">Time</span><span class="p">;</span><span class="w">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">FlowPlot</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/dists/StencilDist.html"><span class="nx">StencilDist</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/standard/Time.html"><span class="nx">Time</span></a><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// set up simulation constants
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">xLen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w">
@@ -495,8 +409,8 @@
 </span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="nx">downsampleFactor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// define distributed 2D domains
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">tl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reshape</span><span class="p">(</span><span class="nx">Locales</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">Locales</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">0</span><span class="p">}),</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stencilDist</span><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">},</span><span class="w"> </span><span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="nx">targetLocales</span><span class="o">=</span><span class="nx">tl</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">tl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reshape</span><span class="p">(</span><span class="nx">Locales</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">Locales</span><span class="p">.</span><a href="../../../docs/language/spec/arrays.html#ChapelArray.size"><span class="nx">size</span></a><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">0</span><span class="p">}),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><a href="../../../docs/modules/dists/StencilDist.html#StencilDist.stencilDist"><span class="nx">stencilDist</span></a><span class="p">.</span><span class="nx">createDomain</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">ny</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">nx</span><span class="p">},</span><span class="w"> </span><span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="nx">targetLocales</span><span class="o">=</span><span class="nx">tl</span><span class="p">),</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">spaceInner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">space</span><span class="p">.</span><span class="nx">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -508,17 +422,17 @@
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">u</span><span class="p">[</span><span class="nx">ny</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mf">1.0</span><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// run simulation
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">createPlots</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">plot</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">xLen</span><span class="p">,</span><span class="w"> </span><span class="nx">yLen</span><span class="p">),</span><span class="w"> </span><span class="nx">title</span><span class="o">=</span><span class="s">&#34;Initial&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">downsampleFactor</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">stopwatch</span><span class="p">();</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">t</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">createPlots</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">plot</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">xLen</span><span class="p">,</span><span class="w"> </span><span class="nx">yLen</span><span class="p">),</span><span class="w"> </span><span class="nx">title</span><span class="o">=</span><span class="s">"Initial"</span><span class="p">,</span><span class="w"> </span><span class="nx">downsampleFactor</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><a href="../../../docs/modules/standard/Time.html#Time.stopwatch"><span class="nx">stopwatch</span></a><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">t</span><span class="p">.</span><a href="../../../docs/modules/standard/Time.html#Time.stopwatch.start"><span class="nx">start</span></a><span class="p">();</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">solveCavityFlow</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">&#34;Ran simulation in &#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">.</span><span class="nx">elapsed</span><span class="p">(),</span><span class="w"> </span><span class="s">&#34; seconds&#34;</span><span class="p">);</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">createPlots</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">plot</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">xLen</span><span class="p">,</span><span class="w"> </span><span class="nx">yLen</span><span class="p">),</span><span class="w"> </span><span class="nx">title</span><span class="o">=</span><span class="s">&#34;Solution&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">downsampleFactor</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><a href="../../../docs/modules/standard/IO.html#IO.writeln"><span class="nx">writeln</span></a><span class="p">(</span><span class="s">"Ran simulation in "</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">.</span><a href="../../../docs/modules/standard/Time.html#Time.stopwatch.elapsed"><span class="nx">elapsed</span></a><span class="p">(),</span><span class="w"> </span><span class="s">" seconds"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">createPlots</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">plot</span><span class="p">(</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">xLen</span><span class="p">,</span><span class="w"> </span><span class="nx">yLen</span><span class="p">),</span><span class="w"> </span><span class="nx">title</span><span class="o">=</span><span class="s">"Solution"</span><span class="p">,</span><span class="w"> </span><span class="nx">downsampleFactor</span><span class="p">);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// print result
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;mean pressure: %.4r\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">"mean pressure: %.4r\n"</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">solveCavityFlow</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -607,24 +521,18 @@
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
-
 <p>The following scripts are used for generating plots (enabled with the <code>--createPlots=true</code> command line argument). Note that your Python environment must have Numpy and Matplotlib installed for plotting to work.</p>
 <p>
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/FlowPlot.chpl download="FlowPlot.chpl">FlowPlot.chpl</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/FlowPlot.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="FlowPlot.chpl" href="code/FlowPlot.chpl">FlowPlot.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -653,53 +561,46 @@
 </span><span class="lnt">27
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">,</span><span class="w"> </span><span class="nx">Subprocess</span><span class="p">;</span><span class="w">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/standard/IO.html"><span class="nx">IO</span></a><span class="p">,</span><span class="w"> </span><a href="../../../docs/modules/standard/Subprocess.html"><span class="nx">Subprocess</span></a><span class="p">;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">p</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">u</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">v</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">d</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">lens</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="kt">real</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">title</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">title</span><span class="p">:</span><span class="w"> </span><a href="../../../docs/language/spec/strings.html#String.string"><span class="kt">string</span></a><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">downsampleFactor</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">sampleDom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="nx">d</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">downsampleFactor</span><span class="p">,</span><span class="w"> </span><span class="nx">d</span><span class="p">.</span><span class="nx">dim</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">downsampleFactor</span><span class="p">};</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileNames</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">n</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">[</span><span class="s">&#39;p&#39;</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;u&#39;</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;v&#39;</span><span class="p">]]</span><span class="w"> </span><span class="s">&#34;%s_%s.dat&#34;</span><span class="p">.</span><span class="nx">format</span><span class="p">(</span><span class="nx">title</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileNames</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">n</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="p">[</span><span class="s">'p'</span><span class="p">,</span><span class="w"> </span><span class="s">'u'</span><span class="p">,</span><span class="w"> </span><span class="s">'v'</span><span class="p">]]</span><span class="w"> </span><span class="s">"%s_%s.dat"</span><span class="p">.</span><span class="nx">format</span><span class="p">(</span><span class="nx">title</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// create data files
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">arr</span><span class="p">,</span><span class="w"> </span><span class="nx">fileName</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">((</span><span class="nx">p</span><span class="p">,</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">),</span><span class="w"> </span><span class="nx">fileNames</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">openWriter</span><span class="p">(</span><span class="nx">fileName</span><span class="p">,</span><span class="w"> </span><span class="nx">locking</span><span class="o">=</span><span class="kc">false</span><span class="p">).</span><span class="nx">write</span><span class="p">(</span><span class="nx">arr</span><span class="p">[</span><span class="nx">sampleDom</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><a href="../../../docs/modules/standard/IO.html#IO.openWriter"><span class="nx">openWriter</span></a><span class="p">(</span><span class="nx">fileName</span><span class="p">,</span><span class="w"> </span><span class="nx">locking</span><span class="o">=</span><span class="kc">false</span><span class="p">).</span><span class="nx">write</span><span class="p">(</span><span class="nx">arr</span><span class="p">[</span><span class="nx">sampleDom</span><span class="p">]);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// call the python plotting script
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="nx">Subprocess</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="s">&#34;python3&#34;</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="s">&#34;flowPlot.py&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><a href="../../../docs/modules/standard/Subprocess.html"><span class="nx">Subprocess</span></a><span class="p">.</span><a href="../../../docs/modules/standard/Subprocess.html#Subprocess.spawn"><span class="nx">spawn</span></a><span class="p">([</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="s">"python3"</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="s">"flowPlot.py"</span><span class="p">,</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">title</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">lens</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="kt">string</span><span class="p">,</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">lens</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="kt">string</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">lens</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><a href="../../../docs/language/spec/strings.html#String.string"><span class="kt">string</span></a><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">lens</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><a href="../../../docs/language/spec/strings.html#String.string"><span class="kt">string</span></a><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">]);</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
-
-
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/flowPlot.py download="flowPlot.py">flowPlot.py</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/flowPlot.py" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="flowPlot.py" href="code/flowPlot.py">flowPlot.py</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -733,16 +634,16 @@
 </span><span class="lnt">32
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+<pre class="chroma" tabindex="0"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
 </span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 </span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 </span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="n">title</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">_p.dat&#34;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">_u.dat&#34;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">_v.dat&#34;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">_p.dat"</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">' '</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">_u.dat"</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">' '</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">_v.dat"</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">' '</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="n">x_len</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
 </span></span><span class="line"><span class="cl"><span class="n">y_len</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
@@ -753,59 +654,51 @@
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>  <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="n">cf</span> <span class="o">=</span> <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">contourf</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">cf</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Pressure&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">cf</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'Pressure'</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&#34;Quiver Flow Plot&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Quiver Flow Plot"</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">streamplot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&#34;Pressure Gradient&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'y'</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Pressure Gradient"</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">title</span> <span class="o">+</span> <span class="s1">&#39;.png&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">title</span> <span class="o">+</span> <span class="s1">'.png'</span><span class="p">)</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
 </p>
 <h3 id="compiling-and-running">
-  <a href="#compiling-and-running">Compiling and Running</a>
+<a href="#compiling-and-running">Compiling and Running</a>
 </h3>
 <p>With the above files downloaded into the same directory, the following commands will compile the program and execute it on four locales:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">chpl nsStep11.chpl --fast
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">chpl nsStep11.chpl --fast
 </span></span></span><span class="line"><span class="cl"><span class="go">./nsStep11 -nl 4 --createPlots=true
 </span></span></span></code></pre></div><p>A figure named <code>Solution.png</code> should appear in the same directory:</p>
-<figure><img src="../../posts/bns4/cavity-flow-solution.png" width="1000"><figcaption>
-      <h4>Cavity Flow Solution</h4>
-    </figcaption>
+<figure><img src="../../posts/bns4/cavity-flow-solution.png" width="1000"/><figcaption>
+<h4>Cavity Flow Solution</h4>
+</figcaption>
 </figure>
-
 <p>The opposing boundary conditions on the top and bottom of the domain create an hourglass-shaped flow through the cavity. Modifying the boundary conditions and other simulation parameters can result in very different looking solutions.</p>
-<p>The program also prints the mean value of <code>p</code>, and the running time for the <code>solveCavityFlow</code> procedure. Note that if you are emulating multiple locales on a single computer, peak performance should not be expected. To see performance advantages from distribution, the code should be run with a large problem size across multiple nodes of a cluster or supercomputer. Also note that Chapel 2.2 includes some <span class="sidenote"><label class="sidenote-label" for="sidenote-0">performance optimizations</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-0"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span> As of 2.2, the Chapel compiler and library work together to analyze parallel loops that access stencil-distributed arrays. If the accesses are known to be local ahead of time (i.e.,&nbsp;they are within that locale's region of the array, or its halo buffers), then a fast path is used that does not check for locality before accessing memory. There were also improvements to the stencil distribution itself to reduce communication overhead, as well as improvements to Chapel's array slicing expressions that reduced overhead in this code's boundary-condition computation. See the <a href=../../posts/announcing-chapel-2.2/#stencil-optimizations>2.2 Release Announcement</a> for more information. <span class="sidenote-delimiter">]</span></span></span> related to the Stencil Distribution, so using version 2.2 or later is recommended for running this code.</p>
+<p>The program also prints the mean value of <code>p</code>, and the running time for the <code>solveCavityFlow</code> procedure. Note that if you are emulating multiple locales on a single computer, peak performance should not be expected. To see performance advantages from distribution, the code should be run with a large problem size across multiple nodes of a cluster or supercomputer. Also note that Chapel 2.2 includes some <span class="sidenote"><label class="sidenote-label" for="sidenote-0">performance optimizations</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>As of 2.2, the Chapel compiler and library work together to analyze parallel loops that access stencil-distributed arrays. If the accesses are known to be local ahead of time (i.e., they are within that locale’s region of the array, or its halo buffers), then a fast path is used that does not check for locality before accessing memory. There were also improvements to the stencil distribution itself to reduce communication overhead, as well as improvements to Chapel’s array slicing expressions that reduced overhead in this code’s boundary-condition computation. See the <a href="../../posts/announcing-chapel-2.2/#stencil-optimizations">2.2 Release Announcement</a> for more information.<span class="sidenote-delimiter">]</span></span></span> related to the Stencil Distribution, so using version 2.2 or later is recommended for running this code.</p>
 <h3 id="comparison-with-cmpiopenmp">
-  <a href="#comparison-with-cmpiopenmp">Comparison with C++/MPI/OpenMP</a>
+<a href="#comparison-with-cmpiopenmp">Comparison with C++/MPI/OpenMP</a>
 </h3>
-<p>The C++/MPI/OpenMP <span class="sidenote"><label class="sidenote-label" for="sidenote-1">counterparts</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-1"></input><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>
-Caveat: I am not an expert with C++/OpenMP/MPI, so there are certainly places where the performance, and perhaps readability, of the C++ code could be improved; however, the purpose of this exercise is to show how a straightforward Chapel implementation compares to a straightforward C++/OpenMP/MPI implementation without pulling out all the stops for either technology.
-<span class="sidenote-delimiter">]</span></span></span>
+<p>The C++/MPI/OpenMP <span class="sidenote"><label class="sidenote-label" for="sidenote-1">counterparts</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>Caveat: I am not an expert with C++/OpenMP/MPI, so there are certainly places where the performance, and perhaps readability, of the C++ code could be improved; however, the purpose of this exercise is to show how a straightforward Chapel implementation compares to a straightforward C++/OpenMP/MPI implementation without pulling out all the stops for either technology.<span class="sidenote-delimiter">]</span></span></span>
 to the Chapel code can be viewed and downloaded here:</p>
 <p>
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/nsStep11.cpp download="nsStep11.cpp">nsStep11.cpp</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/nsStep11.cpp" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="nsStep11.cpp" href="code/nsStep11.cpp">nsStep11.cpp</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+<pre class="chroma" tabindex="0"><code><span class="lnt">  1
 </span><span class="lnt">  2
 </span><span class="lnt">  3
 </span><span class="lnt">  4
@@ -1103,7 +996,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span><span class="lnt">296
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&#34;nsStep11.h&#34;</span><span class="cp">
+<pre class="chroma" tabindex="0"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">"nsStep11.h"</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>
 </span></span><span class="line"><span class="cl"><span class="cm">/*
 </span></span></span><span class="line"><span class="cl"><span class="cm">    Array distribution scheme:
@@ -1137,7 +1030,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></span><span class="line"><span class="cl"><span class="cm">
 </span></span></span><span class="line"><span class="cl"><span class="cm">    Key:
 </span></span></span><span class="line"><span class="cl"><span class="cm">    ------------------------
-</span></span></span><span class="line"><span class="cl"><span class="cm">    * ==== : halo buffer (holds neighbor&#39;s values after &#39;update_halos&#39; is called)
+</span></span></span><span class="line"><span class="cl"><span class="cm">    * ==== : halo buffer (holds neighbor's values after 'update_halos' is called)
 </span></span></span><span class="line"><span class="cl"><span class="cm">    * xxxx : unused halo buffer
 </span></span></span><span class="line"><span class="cl"><span class="cm">*/</span>
 </span></span><span class="line"><span class="cl">
@@ -1150,28 +1043,28 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// define default values of constants
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">unordered_map</span><span class="o">&lt;</span><span class="n">string</span><span class="p">,</span> <span class="n">variant</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="n">default_args</span> <span class="o">=</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">&#34;xLen&#34;</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">},</span>     <span class="p">{</span><span class="s">&#34;yLen&#34;</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">},</span>
-</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">&#34;nx&#34;</span><span class="p">,</span> <span class="mi">41</span><span class="p">},</span>        <span class="p">{</span><span class="s">&#34;ny&#34;</span><span class="p">,</span> <span class="mi">41</span><span class="p">},</span>
-</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">&#34;nt&#34;</span><span class="p">,</span> <span class="mi">500</span><span class="p">},</span>       <span class="p">{</span><span class="s">&#34;nit&#34;</span><span class="p">,</span> <span class="mi">50</span><span class="p">},</span>
-</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">&#34;dt&#34;</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">},</span>     <span class="p">{</span><span class="s">&#34;rho&#34;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">},</span>
-</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">&#34;nu&#34;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">},</span>       <span class="p">{</span><span class="s">&#34;downsampleFactor&#34;</span><span class="p">,</span> <span class="mi">2</span><span class="p">},</span>
-</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">&#34;createPlots&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">}};</span>
+</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">"xLen"</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">},</span>     <span class="p">{</span><span class="s">"yLen"</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">"nx"</span><span class="p">,</span> <span class="mi">41</span><span class="p">},</span>        <span class="p">{</span><span class="s">"ny"</span><span class="p">,</span> <span class="mi">41</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">"nt"</span><span class="p">,</span> <span class="mi">500</span><span class="p">},</span>       <span class="p">{</span><span class="s">"nit"</span><span class="p">,</span> <span class="mi">50</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">"dt"</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">},</span>     <span class="p">{</span><span class="s">"rho"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">"nu"</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">},</span>       <span class="p">{</span><span class="s">"downsampleFactor"</span><span class="p">,</span> <span class="mi">2</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="s">"createPlots"</span><span class="p">,</span> <span class="mi">0</span><span class="p">}};</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// overwrite defaults with command line arguments if present
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">parse_args_with_defaults</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="n">default_args</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">double</span> <span class="n">x_len</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;xLen&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">               <span class="n">y_len</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;yLen&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">               <span class="n">dt</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;dt&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">               <span class="n">rho</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;rho&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">               <span class="n">nu</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;nu&#34;</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">double</span> <span class="n">x_len</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"xLen"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">               <span class="n">y_len</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"yLen"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">               <span class="n">dt</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"dt"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">               <span class="n">rho</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"rho"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">               <span class="n">nu</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"nu"</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">int</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;nx&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">            <span class="n">ny</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;ny&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">            <span class="n">nt</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;nt&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">            <span class="n">nit</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;nit&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">            <span class="n">downsample_factor</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;downsampleFactor&#34;</span><span class="p">)),</span>
-</span></span><span class="line"><span class="cl">            <span class="n">create_plots</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">&#34;createPlots&#34;</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">int</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"nx"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">ny</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"ny"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">nt</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"nt"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">nit</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"nit"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">downsample_factor</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"downsampleFactor"</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">create_plots</span> <span class="o">=</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">default_args</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="s">"createPlots"</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">double</span> <span class="n">dx</span> <span class="o">=</span> <span class="n">x_len</span> <span class="o">/</span> <span class="p">(</span><span class="n">nx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">y_len</span> <span class="o">/</span> <span class="p">(</span><span class="n">ny</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
@@ -1187,7 +1080,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">      <span class="p">{(</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">?</span> <span class="mi">2</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">my_space</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">((</span><span class="n">rank</span> <span class="o">==</span> <span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="mi">1</span><span class="p">)},</span>
 </span></span><span class="line"><span class="cl">      <span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="n">my_space</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">}};</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="c1">// initialize this rank&#39;s portion of distributed arrays
+</span></span><span class="line"><span class="cl">  <span class="c1">// initialize this rank's portion of distributed arrays
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="n">p</span><span class="p">(</span><span class="n">my_space</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">my_space</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">  <span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="n">u</span><span class="p">(</span><span class="n">my_space</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">my_space</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">  <span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="n">v</span><span class="p">(</span><span class="n">my_space</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">my_space</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">));</span>
@@ -1208,7 +1101,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// run simulation
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="n">create_plots</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">plot</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="s">&#34;Initial&#34;</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">x_len</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">plot</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="s">"Initial"</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">x_len</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">         <span class="n">y_len</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">auto</span> <span class="n">t</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Timer</span><span class="p">();</span>
@@ -1218,10 +1111,10 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="kt">double</span> <span class="n">elapsed</span> <span class="o">=</span> <span class="n">t</span><span class="o">-&gt;</span><span class="n">elapsed</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;Ran simulation in &#34;</span> <span class="o">&lt;&lt;</span> <span class="n">elapsed</span> <span class="o">&lt;&lt;</span> <span class="s">&#34; seconds</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Ran simulation in "</span> <span class="o">&lt;&lt;</span> <span class="n">elapsed</span> <span class="o">&lt;&lt;</span> <span class="s">" seconds</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">create_plots</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">plot</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="s">&#34;Solution&#34;</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">x_len</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">plot</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="s">"Solution"</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">x_len</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">         <span class="n">y_len</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
@@ -1241,7 +1134,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">             <span class="n">MPI_COMM_WORLD</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;mean pressure: %.4f</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">"mean pressure: %.4f</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">           <span class="n">global_pressure_mean</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">global_pressure_mean</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
@@ -1373,8 +1266,8 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1">// copy the edges of each sub-array into the neighboring rank&#39;s halos
-</span></span></span><span class="line"><span class="cl"><span class="c1">// (don&#39;t update rank 0&#39;s north halo or rank n&#39;s south halo)
+</span></span><span class="line"><span class="cl"><span class="c1">// copy the edges of each sub-array into the neighboring rank's halos
+</span></span></span><span class="line"><span class="cl"><span class="c1">// (don't update rank 0's north halo or rank n's south halo)
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">void</span> <span class="nf">update_halos</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">my_rank</span><span class="p">,</span> <span class="kt">int</span> <span class="n">world_size</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">                  <span class="n">MPI_Status</span> <span class="o">&amp;</span><span class="n">status</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">int</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">size</span><span class="p">();</span>
@@ -1402,23 +1295,16 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
-
-
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/nsStep11.h download="nsStep11.h">nsStep11.h</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/nsStep11.h" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="nsStep11.h" href="code/nsStep11.h">nsStep11.h</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -1463,7 +1349,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span><span class="lnt">43
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp">
+<pre class="chroma" tabindex="0"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;array&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;cmath&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
@@ -1471,7 +1357,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;variant&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>
-</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&#34;utils.h&#34;</span><span class="cp">
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">"utils.h"</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;mpi.h&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;omp.h&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>
@@ -1509,24 +1395,19 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
 </p>
 <p>And the other files needed to build and run the C++ code are here:</p>
 <p>
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/utils.cpp download="utils.cpp">utils.cpp</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/utils.cpp" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="utils.cpp" href="code/utils.cpp">utils.cpp</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -1618,13 +1499,13 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span><span class="lnt">90
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&#34;utils.h&#34;</span><span class="cp">
+<pre class="chroma" tabindex="0"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">"utils.h"</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>
 </span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">print_downsampled</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="kt">char</span> <span class="n">name</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">                       <span class="n">string</span> <span class="k">const</span> <span class="o">&amp;</span><span class="n">title</span><span class="p">,</span> <span class="kt">int</span> <span class="n">my_rank</span><span class="p">,</span> <span class="kt">int</span> <span class="n">world_size</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">                       <span class="kt">int</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nx</span><span class="p">,</span> <span class="kt">int</span> <span class="n">ny</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">string</span> <span class="n">fileName</span> <span class="o">=</span> <span class="n">title</span> <span class="o">+</span> <span class="s">&#34;_&#34;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s">&#34;.dat&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">string</span> <span class="n">fileName</span> <span class="o">=</span> <span class="n">title</span> <span class="o">+</span> <span class="s">"_"</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s">".dat"</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// write down-sampled chunk of array to file one rank at a time
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">p</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="n">world_size</span><span class="p">;</span> <span class="n">p</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
@@ -1643,11 +1524,11 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">          <span class="kt">bool</span> <span class="n">first</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">          <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">size</span><span class="p">();</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">j</span> <span class="o">%</span> <span class="n">downsample_factor</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">              <span class="k">if</span> <span class="p">(</span><span class="n">first</span><span class="p">)</span> <span class="p">{</span> <span class="n">first</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span> <span class="p">}</span> <span class="k">else</span> <span class="p">{</span> <span class="n">dataFile</span> <span class="o">&lt;&lt;</span> <span class="s">&#34; &#34;</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">              <span class="k">if</span> <span class="p">(</span><span class="n">first</span><span class="p">)</span> <span class="p">{</span> <span class="n">first</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span> <span class="p">}</span> <span class="k">else</span> <span class="p">{</span> <span class="n">dataFile</span> <span class="o">&lt;&lt;</span> <span class="s">" "</span><span class="p">;</span> <span class="p">}</span>
 </span></span><span class="line"><span class="cl">              <span class="n">dataFile</span> <span class="o">&lt;&lt;</span> <span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl">            <span class="p">}</span>
 </span></span><span class="line"><span class="cl">          <span class="p">}</span>
-</span></span><span class="line"><span class="cl">          <span class="n">dataFile</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">          <span class="n">dataFile</span> <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">        <span class="p">}</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
 </span></span><span class="line"><span class="cl">      <span class="n">dataFile</span><span class="p">.</span><span class="n">close</span><span class="p">();</span>
@@ -1660,14 +1541,14 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">          <span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="o">&amp;</span><span class="n">v</span><span class="p">,</span> <span class="kt">int</span> <span class="n">rank</span><span class="p">,</span> <span class="kt">int</span> <span class="n">size</span><span class="p">,</span> <span class="n">string</span> <span class="k">const</span> <span class="o">&amp;</span><span class="n">title</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">          <span class="kt">int</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nx</span><span class="p">,</span> <span class="kt">int</span> <span class="n">ny</span><span class="p">,</span> <span class="kt">double</span> <span class="n">x_len</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y_len</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">print_downsampled</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="sc">&#39;p&#39;</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">print_downsampled</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="sc">&#39;u&#39;</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">print_downsampled</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="sc">&#39;v&#39;</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">print_downsampled</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="sc">'p'</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">print_downsampled</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="sc">'u'</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">print_downsampled</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="sc">'v'</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="n">MPI_Barrier</span><span class="p">(</span><span class="n">MPI_COMM_WORLD</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="n">stringstream</span> <span class="n">plotCmd</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">plotCmd</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;python3 ./flowPlot.py &#34;</span> <span class="o">&lt;&lt;</span> <span class="n">title</span> <span class="o">&lt;&lt;</span> <span class="s">&#34; &#34;</span> <span class="o">&lt;&lt;</span> <span class="n">x_len</span> <span class="o">&lt;&lt;</span> <span class="s">&#34; &#34;</span> <span class="o">&lt;&lt;</span> <span class="n">y_len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">plotCmd</span> <span class="o">&lt;&lt;</span> <span class="s">"python3 ./flowPlot.py "</span> <span class="o">&lt;&lt;</span> <span class="n">title</span> <span class="o">&lt;&lt;</span> <span class="s">" "</span> <span class="o">&lt;&lt;</span> <span class="n">x_len</span> <span class="o">&lt;&lt;</span> <span class="s">" "</span> <span class="o">&lt;&lt;</span> <span class="n">y_len</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="n">string</span> <span class="n">plotCmdString</span> <span class="o">=</span> <span class="n">plotCmd</span><span class="p">.</span><span class="n">str</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">plotCmdCString</span> <span class="o">=</span> <span class="n">plotCmdString</span><span class="p">.</span><span class="n">c_str</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">system</span><span class="p">(</span><span class="n">plotCmdCString</span><span class="p">);</span>
@@ -1678,8 +1559,8 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">    <span class="n">unordered_map</span><span class="o">&lt;</span><span class="n">string</span><span class="p">,</span> <span class="n">variant</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="kt">double</span><span class="o">&gt;&gt;</span> <span class="o">&amp;</span><span class="n">defaults</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">argc</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="n">string</span> <span class="n">arg</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">arg</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="sc">&#39;-&#39;</span> <span class="o">&amp;&amp;</span> <span class="n">arg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="sc">&#39;-&#39;</span> <span class="o">&amp;&amp;</span> <span class="n">arg</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="sc">&#39;=&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">string</span><span class="o">::</span><span class="n">npos</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="n">size_t</span> <span class="n">eq_pos</span> <span class="o">=</span> <span class="n">arg</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="sc">&#39;=&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">arg</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="sc">'-'</span> <span class="o">&amp;&amp;</span> <span class="n">arg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="sc">'-'</span> <span class="o">&amp;&amp;</span> <span class="n">arg</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="sc">'='</span><span class="p">)</span> <span class="o">!=</span> <span class="n">string</span><span class="o">::</span><span class="n">npos</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">size_t</span> <span class="n">eq_pos</span> <span class="o">=</span> <span class="n">arg</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="sc">'='</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="n">string</span> <span class="n">argName</span> <span class="o">=</span> <span class="n">arg</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">eq_pos</span> <span class="o">-</span> <span class="mi">2</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">      <span class="k">auto</span> <span class="n">search</span> <span class="o">=</span> <span class="n">defaults</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">argName</span><span class="p">);</span>
@@ -1688,22 +1569,22 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">          <span class="k">try</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">            <span class="n">search</span><span class="o">-&gt;</span><span class="n">second</span> <span class="o">=</span> <span class="n">stoi</span><span class="p">(</span><span class="n">arg</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">eq_pos</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">arg</span><span class="p">.</span><span class="n">size</span><span class="p">()));</span>
 </span></span><span class="line"><span class="cl">          <span class="p">}</span> <span class="k">catch</span> <span class="p">(...)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">            <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;Warning: invalid value for: &#39;&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">argName</span>
-</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">&#34;&#39;; keeping default value (&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">search</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">&#34;)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Warning: invalid value for: '"</span> <span class="o">&lt;&lt;</span> <span class="n">argName</span>
+</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">"'; keeping default value ("</span> <span class="o">&lt;&lt;</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">search</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">")</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">          <span class="p">}</span>
 </span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">          <span class="k">try</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">            <span class="n">search</span><span class="o">-&gt;</span><span class="n">second</span> <span class="o">=</span> <span class="n">stod</span><span class="p">(</span><span class="n">arg</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">eq_pos</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">arg</span><span class="p">.</span><span class="n">size</span><span class="p">()));</span>
 </span></span><span class="line"><span class="cl">          <span class="p">}</span> <span class="k">catch</span> <span class="p">(...)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">            <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;Warning: invalid value for: &#39;&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">argName</span>
-</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">&#34;&#39;; keeping default value (&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">search</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">&#34;)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Warning: invalid value for: '"</span> <span class="o">&lt;&lt;</span> <span class="n">argName</span>
+</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">"'; keeping default value ("</span> <span class="o">&lt;&lt;</span> <span class="n">get</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">search</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                 <span class="o">&lt;&lt;</span> <span class="s">")</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">          <span class="p">}</span>
 </span></span><span class="line"><span class="cl">        <span class="p">}</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;Warning: argument: &#39;&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">argName</span>
-</span></span><span class="line"><span class="cl">             <span class="o">&lt;&lt;</span> <span class="s">&#34;&#39; doesn&#39;t have a default value; ignoring</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Warning: argument: '"</span> <span class="o">&lt;&lt;</span> <span class="n">argName</span>
+</span></span><span class="line"><span class="cl">             <span class="o">&lt;&lt;</span> <span class="s">"' doesn't have a default value; ignoring</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -1711,23 +1592,16 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
-
-
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/utils.h download="utils.h">utils.h</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/utils.h" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="utils.h" href="code/utils.h">utils.h</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -1772,7 +1646,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span><span class="lnt">43
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;chrono&gt;</span><span class="cp">
+<pre class="chroma" tabindex="0"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;chrono&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;fstream&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iomanip&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
@@ -1818,23 +1692,16 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
-
-
-
-
-
-<div class="file" data-code-type="main">
-    <details>
-        <summary class="file-header">
-            <a href=code/CMakeLists.txt download="CMakeLists.txt">CMakeLists.txt</a>
-            
-        </summary>
-        
-        <div class="highlight"><div class="chroma">
+<div class="file" data-code-path="code/CMakeLists.txt" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="CMakeLists.txt" href="code/CMakeLists.txt">CMakeLists.txt</a>
+</summary>
+<div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -1856,7 +1723,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span><span class="lnt">20
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-cmake" data-lang="cmake"><span class="line"><span class="cl"><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span> <span class="s">3.1...3.24</span><span class="p">)</span><span class="err">
+<pre class="chroma" tabindex="0"><code class="language-cmake" data-lang="cmake"><span class="line"><span class="cl"><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span> <span class="s">3.1...3.24</span><span class="p">)</span><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="nb">project</span><span class="p">(</span>
 </span></span><span class="line"><span class="cl">  <span class="s">nsStep11</span>
 </span></span><span class="line"><span class="cl">  <span class="s">VERSION</span> <span class="s">1.0</span>
@@ -1879,49 +1746,26 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div>
-    </details>
+</details>
 </div>
 </p>
 <p>As with our <a href="../../posts/bns2/#performance-comparison-with-copenmp">comparison</a> between the non-distributed Poisson solver and its corresponding C++ code, this code is noticeably more verbose than the Chapel version. It weighs in at 280 source lines of code, whereas the Chapel version has only 120 source lines (plotting utilities included). Importantly, the Chapel version also allows for easy modification of the 2D distribution, while major updates would be required to make the arrays distributed across both dimensions in the C++ code.</p>
 <p>A particularly striking example of the difference in succinctness is the section used for printing the mean value of the pressure array after the simulation.  I include this as a sanity check and to validate the correctness of both codes against the original Python version. The following line of Chapel code:</p>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="">
+<div data-code-path="code/nsStep11.chpl" data-code-section="" data-code-type="main" data-start-line="47">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">47
+<pre class="chroma" tabindex="0"><code><span class="lnt">47
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">&#34;mean pressure: %.4r\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span></span></span></code></pre></td></tr></table>
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writef</span><span class="p">(</span><span class="s">"mean pressure: %.4r\n"</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">size</span><span class="p">);</span></span></span></code></pre></td></tr></table>
 </div>
 </div>
 </div>
-
 <p>corresponds to this block of C++ code:</p>
-
-
-
-
-
-
-
-
-
-
-
-<div data-code-type="main" data-code-section="">
+<div data-code-path="code/nsStep11.cpp" data-code-section="" data-code-type="main" data-start-line="124">
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">124
+<pre class="chroma" tabindex="0"><code><span class="lnt">124
 </span><span class="lnt">125
 </span><span class="lnt">126
 </span><span class="lnt">127
@@ -1941,7 +1785,7 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span><span class="lnt">141
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl">  <span class="kt">double</span> <span class="n">pressure_sum</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+<pre class="chroma" tabindex="0"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl">  <span class="kt">double</span> <span class="n">pressure_sum</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="cp">#pragma omp parallel for reduction(+ : pressure_sum)
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">my_space_inner</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">my_space_inner</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">];</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="n">my_space_inner</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">my_space_inner</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">];</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
@@ -1956,28 +1800,26 @@ to the Chapel code can be viewed and downloaded here:</p>
 </span></span><span class="line"><span class="cl">             <span class="n">MPI_COMM_WORLD</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;mean pressure: %.4f</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">"mean pressure: %.4f</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">           <span class="n">global_pressure_mean</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">global_pressure_mean</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span></span></span></code></pre></td></tr></table>
 </div>
 </div>
 </div>
-
 <p>Chapel is benefiting from several things here:</p>
 <ul>
-<li>the <code>+ reduce</code> operator makes use of <code>p</code>&rsquo;s distribution to execute an efficient distributed and parallel sum-reduction behind the scenes</li>
+<li>the <code>+ reduce</code> operator makes use of <code>p</code>’s distribution to execute an efficient distributed and parallel sum-reduction behind the scenes</li>
 <li>the array is a single cohesive object (rather than a collection of small arrays allocated by each MPI process), so we can do operations like <code>+ reduce</code> on the full array</li>
-<li>Chapel&rsquo;s global execution model (where the program starts on locale 0) removes the need for checks like <code>if (rank == 0)</code></li>
+<li>Chapel’s global execution model (where the program starts on locale 0) removes the need for checks like <code>if (rank == 0)</code></li>
 </ul>
 <h3 id="performance-experiment-setup-and-results">
-  <a href="#performance-experiment-setup-and-results">Performance Experiment Setup and Results</a>
+<a href="#performance-experiment-setup-and-results">Performance Experiment Setup and Results</a>
 </h3>
-<p>Code clarity aside, let&rsquo;s see how Chapel stacks up against C++ in terms of performance. The following experiments were run on a Cray XC system with the default number of iterations (<code>500</code> and <code>50</code>) and a variety of problem sizes. To keep the simulation numerically stable, the ratio of physical length per finite-difference point was held constant at 20 points per unit length.</p>
+<p>Code clarity aside, let’s see how Chapel stacks up against C++ in terms of performance. The following experiments were run on a Cray XC system with the default number of iterations (<code>500</code> and <code>50</code>) and a variety of problem sizes. To keep the simulation numerically stable, the ratio of physical length per finite-difference point was held constant at 20 points per unit length.</p>
 <details>
-    <summary>system/software specs and environment&hellip;</summary>
-
-    <div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
-        <p><strong>Cray XC Supercomputer</strong>:</p>
+<summary>system/software specs and environment…</summary>
+<div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+<p><strong>Cray XC Supercomputer</strong>:</p>
 <ul>
 <li>48 core Intel Xeon 8160 CPU (96 threads)</li>
 <li>192 GB memory per node</li>
@@ -2012,85 +1854,62 @@ CHPL_AUX_FILESYS: none
 OMP_PROC_BIND=true
 </code></pre>
 <p><strong>GCC</strong>: version 12.1</p>
-
-    </div>
+</div>
 </details>
-
-<p>First, looking at strong-scaling, we test the running time of both programs with a range of node counts on two grid sizes: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4096</mn><mo>×</mo><mn>4096</mn></mrow><annotation encoding="application/x-tex">4096 \times 4096</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">4096</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4096</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn></mrow><annotation encoding="application/x-tex">8192 \times 8192</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">8192</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">8192</span></span></span></span>. Times in this plot show the average of three runs:</p>
-<figure><img src="../../posts/bns4/strong-scaling.png">
+<p>First, looking at strong-scaling, we test the running time of both programs with a range of node counts on two grid sizes: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4096</mn><mo>×</mo><mn>4096</mn></mrow><annotation encoding="application/x-tex">4096 \times 4096</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">4096</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4096</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn></mrow><annotation encoding="application/x-tex">8192 \times 8192</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">8192</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">8192</span></span></span></span>. Times in this plot show the average of three runs:</p>
+<figure><img src="../../posts/bns4/strong-scaling.png"/>
 </figure>
-
-<p>Strong-scaling plots like this one essentially show how much faster you can get a simulation of a particular size to run by throwing more compute resources at it. For both languages, similar speedup characteristics are achieved. For the larger problem size, Chapel comes out <span class="sidenote"><label class="sidenote-label" for="sidenote-2">ahead</label><input class="sidenote-checkbox" type="checkbox" id="sidenote-2"></input><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span> The difference in overall performance could be attributed to the difference in memory allocation strategy for the arrays across the two programs. Chapel's distributed multidimensional arrays lay out each locale's block of data in a contiguous region in memory (on that locale), whereas the strategy used to create 2D arrays in the C++ code (nested vectors) can allocate each of the inner vectors in its own region on the heap, not necessarily contiguous with the others. This can lead to poorer cache performance (i.e.,&nbsp;more misses) when accessing the  arrays. <span class="sidenote-delimiter">]</span></span></span> in terms of overall performance, while C++ is slightly ahead for most node counts with the smaller problem size.</p>
+<p>Strong-scaling plots like this one essentially show how much faster you can get a simulation of a particular size to run by throwing more compute resources at it. For both languages, similar speedup characteristics are achieved. For the larger problem size, Chapel comes out <span class="sidenote"><label class="sidenote-label" for="sidenote-2">ahead</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>The difference in overall performance could be attributed to the difference in memory allocation strategy for the arrays across the two programs. Chapel’s distributed multidimensional arrays lay out each locale’s block of data in a contiguous region in memory (on that locale), whereas the strategy used to create 2D arrays in the C++ code (nested vectors) can allocate each of the inner vectors in its own region on the heap, not necessarily contiguous with the others. This can lead to poorer cache performance (i.e., more misses) when accessing the  arrays.<span class="sidenote-delimiter">]</span></span></span> in terms of overall performance, while C++ is slightly ahead for most node counts with the smaller problem size.</p>
 <p>Next, keeping the total number of finite-difference points per compute node constant, we have the following weak-scaling results:</p>
-<figure><img src="../../posts/bns4/weak-scaling.png">
+<figure><img src="../../posts/bns4/weak-scaling.png"/>
 </figure>
-
-<p>Two problem sizes are shown: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>1024</mn><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1024^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">102</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> elements per node and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2048</mn><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">2048^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">204</span><span class="mord"><span class="mord">8</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> elements per node. The weak-scaling analysis gives an indication of how efficiently one can take a small simulation — perhaps one that would run easily on a single compute node — and scale it up to take advantage of more compute resources. For both programming models, the smaller problem size scales quite linearly up to 16 nodes where C++ is ahead in terms of overall performance. For the larger problem size, the scaling is less consistent and performance is generally neck and neck between the two models, except at 16 nodes where Chapel comes out ahead.</p>
+<p>Two problem sizes are shown: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>1024</mn><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1024^2</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">102</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> elements per node and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2048</mn><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">2048^2</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">204</span><span class="mord"><span class="mord">8</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span> elements per node. The weak-scaling analysis gives an indication of how efficiently one can take a small simulation — perhaps one that would run easily on a single compute node — and scale it up to take advantage of more compute resources. For both programming models, the smaller problem size scales quite linearly up to 16 nodes where C++ is ahead in terms of overall performance. For the larger problem size, the scaling is less consistent and performance is generally neck and neck between the two models, except at 16 nodes where Chapel comes out ahead.</p>
 <h3 id="conclusion">
-  <a href="#conclusion">Conclusion</a>
+<a href="#conclusion">Conclusion</a>
 </h3>
-<p>Chapel&rsquo;s powerful distributed programming features allowed us to write a concise distributed and parallel 2D Navier-Stokes cavity flow solver that runs efficiently on a supercomputer. The program was developed and tested using a small problem size on a laptop, and then scaled up to run across many nodes without making code changes. Additionally, the vast majority of the code was written without needing to consider any of the technical details of distribution or parallelization apart from the use of the stencil distribution and its update calls. Through the above performance comparison, we saw that Chapel was able to match the performance of an industry-standard software stack for doing distributed scientific simulations. Not only that, but the Chapel code was about half the length, and arguably much more readable.</p>
-<p>The Chapel Team would like to express its sincere gratitude towards the <a href="https://lorenabarba.com/"target="_blank" rel="noopener">Barba Group</a> for creating and maintaining the CFD Python tutorials.</p>
-
+<p>Chapel’s powerful distributed programming features allowed us to write a concise distributed and parallel 2D Navier-Stokes cavity flow solver that runs efficiently on a supercomputer. The program was developed and tested using a small problem size on a laptop, and then scaled up to run across many nodes without making code changes. Additionally, the vast majority of the code was written without needing to consider any of the technical details of distribution or parallelization apart from the use of the stencil distribution and its update calls. Through the above performance comparison, we saw that Chapel was able to match the performance of an industry-standard software stack for doing distributed scientific simulations. Not only that, but the Chapel code was about half the length, and arguably much more readable.</p>
+<p>The Chapel Team would like to express its sincere gratitude towards the <a href="https://lorenabarba.com/">Barba Group</a> for creating and maintaining the CFD Python tutorials.</p>
 </div>
-
-        </main>
+</main>
 <div class="container">
-    <div class="share-view">
-        <h3>Share this article:</h3>
-        <div class="share-buttons">
-        
-        
-        
-        <a style="--button-color: #6cb0f9; --button-color-light: white;" class="button share-button" href="https://bsky.app/intent/compose?text=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Cavity-Flow&#43;Solver%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&#43;https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" target="_blank" rel="noopener noreferrer">
-    <img width="30" height="30" src="../../img/bluesky-logo.jpg" alt="Share on BlueSky">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Navier-Stokes+in+Chapel+%E2%80%94+Distributed+Cavity-Flow+Solver%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
 </a>
-
-        <a style="--button-color: #3a559f; --button-color-light: white;" class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Cavity-Flow&#43;Solver%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" target="_blank" rel="noopener noreferrer">
-    <img width="30" height="30" src="../../img/facebook-logo.png" alt="Share on Facebook">
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Navier-Stokes+in+Chapel+%E2%80%94+Distributed+Cavity-Flow+Solver%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
 </a>
-
-        <a style="--button-color: #2867b2; --button-color-light: white;" class="button share-button" href="https://linkedin.com/share?text=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Cavity-Flow&#43;Solver%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" target="_blank" rel="noopener noreferrer">
-    <img width="30" height="30" src="../../img/linkedin-logo.png" alt="Share on LinkedIn">
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Navier-Stokes+in+Chapel+%E2%80%94+Distributed+Cavity-Flow+Solver%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
 </a>
-
-        <a style="--button-color: #ff4500; --button-color-light: white;" class="button share-button" href="https://new.reddit.com/submit?title=Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Cavity-Flow&#43;Solver&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" target="_blank" rel="noopener noreferrer">
-    <img width="30" height="30" src="../../img/reddit-logo.svg" alt="Share on Reddit">
+<a class="button share-button" href="https://new.reddit.com/submit?title=Navier-Stokes+in+Chapel+%E2%80%94+Distributed+Cavity-Flow+Solver&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
 </a>
-
-        <a style="--button-color: #000000; --button-color-light: #7a7a7a;" class="button share-button" href="http://x.com/share?text=Check&#43;out&#43;this&#43;post&#43;entitled&#43;%22Navier-Stokes&#43;in&#43;Chapel&#43;%E2%80%94&#43;Distributed&#43;Cavity-Flow&#43;Solver%22&#43;on&#43;the&#43;Chapel&#43;Programming&#43;Language&#43;blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" target="_blank" rel="noopener noreferrer">
-    <img width="30" height="30" src="../../img/x-logo.svg" alt="Share on X">
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Navier-Stokes+in+Chapel+%E2%80%94+Distributed+Cavity-Flow+Solver%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fbns4%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
 </a>
-
-        </div>
-    </div>
 </div>
-
-    
-    
-    <nav class="container series-navigation">
-        
-        <div class="series-button-wrapper prev">
-            <a class="button" href=../../posts/bns3/>
-                <svg class="feather">
-    <use xlink:href="../../feather-sprite.svg#chevrons-left"/>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/bns3/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
 </svg>
-
-                <span>
+<span>
                     Previous in series
                     <span class="series-button-name">
                         
-Navier-Stokes in Chapel — Distributed Poisson Solver
+Distributed Poisson Solver
 
 
                     </span>
-                </span>
-            </a>
-        </div>
-        
-        
-    </nav>
-
-
-    </body>
+</span>
+</a>
+</div>
+</nav>
+</body>
 </html>

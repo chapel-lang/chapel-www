@@ -87,7 +87,7 @@ To add new announcments to the list of announcements, add a file to the `data/an
 - a `title` field with the title of the announcement
 - a `description` field with the announcement body
 - a `date` field with the date of the announcement, in the format YYYY-MM-DD
-- a `url` field with a link for the "Continue Reading" button
+- a `url` field with a link for the "Click for More" button
 - an `authors` field, which should be a list of authors. Each author entry needs at least a `name` entry, and can optionally have a `url` entry.
 
 ## Updating the Attribute Pages

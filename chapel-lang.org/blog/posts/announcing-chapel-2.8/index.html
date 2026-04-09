@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="Highlights from the March 2026 release of Chapel 2.8" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Announcing Chapel 2.8!</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>Announcing Chapel 2.8!</h2>
+<div class="post-subscript">
+<p>Posted on March 12, 2026.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/tools/">Tools</a>
+<a class="button" href="../../tags/debugging/">Debugging</a>
+<a class="button" href="../../tags/optimizations/">Optimizations</a>
+<a class="button" href="../../tags/vectorization/">Vectorization</a>
+<a class="button" href="../../tags/mason/">Mason</a>
+<a class="button" href="../../tags/dyno/">Dyno</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/daniel-fedorin">Daniel Fedorin</a>, <a href="../../authors/jade-abraham">Jade Abraham</a>, <a href="../../authors/ben-harshbarger">Ben Harshbarger</a>, <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/release-announcements/">Release Announcements</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents sticky">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#chapel-language-server-and-linter">Chapel Language Server and Linter</a>
+<ul>
+<li><a href="#editing-resolution-and-inlays">Editing, Resolution, and Inlays</a></li>
+<li><a href="#new-linting-checks">New Linting Checks</a></li>
+<li><a href="#cmake-integration">CMake Integration</a></li>
+</ul>
+</li>
+<li><a href="#debugging">Debugging</a>
+<ul>
+<li><a href="#new-pretty-printers">New pretty-printers</a></li>
+<li><a href="#expression-evaluation">Expression Evaluation</a></li>
+</ul>
+</li>
+<li><a href="#loop-invariant-code-motion-for-arrays">Loop-Invariant Code Motion for Arrays</a></li>
+<li><a href="#new-flag---system-launcher-flags">New flag: <code>--system-launcher-flags</code></a></li>
+<li><a href="#mason-package-manager">Mason Package Manager</a></li>
+<li><a href="#dyno-compiler-code-generation">Dyno Compiler Code Generation</a></li>
+<li><a href="#for-more-information">For More Information</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<p>The Chapel developer community is pleased to announce the release of
+Chapel 2.8!  As with other recent versions, a big focus for this
+release was improvements to Chapel’s tools ecosystem.  As always,
+you can <a href="https://chapel-lang.org/download/">download and install</a>
+this new version in a <span class="sidenote"><label class="sidenote-label" for="sidenote-0">variety of formats</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Please note that some formats may not yet be
+available at time of publication…<span class="sidenote-delimiter">]</span></span></span>, including Spack,
+Homebrew, various Linux package managers, Docker, and source
+tarballs.</p>
+<p>This article summarizes several of Chapel 2.8’s highlights,
+including:</p>
+<ul>
+<li>
+<p>Improvements to the <a href="#chapel-language-server-and-linter">Chapel Language Server and
+Linter</a></p>
+</li>
+<li>
+<p>Advances in running Chapel programs in <a href="#debugging">debuggers</a></p>
+</li>
+<li>
+<p>Vectorization benefits due to improved <a href="#loop-invariant-code-motion-for-arrays">Loop-Invariant Code
+Motion</a> for arrays</p>
+</li>
+<li>
+<p>A new <a href="#new-flag---system-launcher-flags">flag for Slurm
+launchers</a> supporting the
+specification of lower-level flags</p>
+</li>
+<li>
+<p>Improvements to the <a href="#mason-package-manager">Mason package
+manager</a> for Chapel</p>
+</li>
+<li>
+<p>A nice “Hello, world!"-style milestone for <a href="#dyno-compiler-code-generation">Dyno-based code
+generation</a></p>
+</li>
+</ul>
+<p>Other notable highlights of Chapel 2.8 that aren’t covered by this
+article include:</p>
+<ul>
+<li>
+<p>Support for <a href="https://chapel-lang.org/docs/2.8/platforms/riscv.html#using-chapel-on-risc-v">running Chapel on RISC-V
+processors</a>
+using lightweight Qthreads tasking</p>
+</li>
+<li>
+<p>Support for <a href="https://chapel-lang.org/docs/2.8/technotes/gpu.html#setup">AMD
+GPUs</a>
+running versions 6.3 or 7 of ROCm</p>
+</li>
+<li>
+<p>New documentation for <a href="https://chapel-lang.org/docs/2.8/platforms/cray.html#troubleshooting">troubleshooting issues when
+launching</a>
+on HPE Cray EX</p>
+</li>
+<li>
+<p>Support for LLVM 21 as the Chapel compiler back-end</p>
+</li>
+</ul>
+<p>For a far more complete list of improvements in Chapel 2.8, see its
+entries in
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.8/CHANGES.md">CHANGES.md</a>.
+And a big thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/2.8/CONTRIBUTORS.md">everyone who
+contributed</a>
+to Chapel 2.8!</p>
+<h3 id="chapel-language-server-and-linter">
+<a href="#chapel-language-server-and-linter">Chapel Language Server and Linter</a>
+</h3>
+<p><a href="../../posts/announcing-chapel-2.0/#rich-tooling-support">Since our 2.0 release</a>, Chapel has
+provided two key tools that enable users to write code more
+productively: the <a href="https://chapel-lang.org/docs/2.8/tools/chpl-language-server/chpl-language-server.html">Chapel Language Server
+(CLS)</a>
+and the <a href="https://chapel-lang.org/docs/2.8/tools/chplcheck/chplcheck.html"><code>chplcheck</code>
+linter</a>.
+This 2.8 release includes several improvements to both of these
+tools.</p>
+<h4 id="editing-resolution-and-inlays">
+<a href="#editing-resolution-and-inlays">Editing, Resolution, and Inlays</a>
+</h4>
+<p>When we first wrote about CLS, we covered <a href="../../posts/chapel-lsp/#experimental-features">language server features
+that relied on resolution</a>, dubbing them
+experimental. At that time, the Dyno resolver was in a much more
+primitive state.  In the <a href="../../posts/announcing-chapel-2.3/#dyno-compiler-improvements">2.3 release</a>, Dyno
+acquired the ability to resolve domains and promoted expressions,
+while the <a href="../../posts/announcing-chapel-2.4/#dyno-support-for-chapel-features">2.4 release</a>
+enabled it to resolve arrays. Since then, the Dyno resolver has
+continued to make great strides, and today is capable of resolving a
+substantial (though not complete) portion of the language. As a
+result, the experimental support for resolution-driven features in
+CLS has been steadily growing more robust.</p>
+<p>In the 2.8 release, we’ve spent some time tracking down bugs that
+specifically affected CLS in established codebases such as
+<a href="https://chapel-lang.org/docs/2.8/tools/mason/mason.html">Mason</a>. The
+result should be a relatively stable experience when using these
+resolution-driven features.</p>
+<p>The following screenshot shows inferred types and other information
+(using a lighter background and blue font) while editing part of
+the Mason codebase. Notably, the <code>execopts.these()</code> call at the end
+of the block demonstrates a resolved iterator.  Other hints in
+this file show off successfully resolved calls to other modules in
+the Mason source code, as well as correct understanding of bundled
+package types such as <code>Toml</code>.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/mason-cls-28.png"/>
+</figure>
+<p>We’ve also improved the behavior of information displayed in this
+manner (“inlays”, in language server terminology). Specifically,
+since CLS presently computes this information upon saving a file,
+we’ve adjusted the inlays to be invalidated (if necessary) when
+editing a file, until the file is saved.  This avoids pain from
+stale inlays intermingling with source code as it is being modified.</p>
+<h4 id="new-linting-checks">
+<a href="#new-linting-checks">New Linting Checks</a>
+</h4>
+<p>Building on a number of improvements to our compiler’s tracking of
+source locations in this release, we’ve also introduced a number of
+new rules to the <code>chplcheck</code> linter. These include:</p>
+<ul>
+<li>
+<p><code>BoolComparison</code>, which flags patterns such as <code>e == true</code> that
+ought to be written as <code>e</code> instead</p>
+</li>
+<li>
+<p><code>UnattachedCurly</code>, which flags code where the curly brace doesn’t
+immediately follow the condition of a control flow statement</p>
+</li>
+<li>
+<p><code>ThenKeywordAndBlock</code>, for patterns like <code>if e then { ... }</code>,
+where the <code>then</code> is redundant</p>
+</li>
+</ul>
+<p>The following animated GIF demonstrates these three checks being
+flagged, as well as <code>chplcheck</code>’s built-in functionality to
+automatically fix them.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/new-rules.gif"/>
+</figure>
+<h4 id="cmake-integration">
+<a href="#cmake-integration">CMake Integration</a>
+</h4>
+<p>New in this release, Chapel’s CMake integration can use the
+<a href="https://chapel-lang.org/docs/2.8/tools/chpl-language-server/chpl-language-server.html#configuring-chapel-projects"><code>chpl-shim</code></a>
+tool (previously covered in <a href="../../posts/chapel-lsp/#using-cls-in-your-application">our article on editor integration</a>) to generate
+a <code>.cls-commands.json</code> file for a Chapel project. This significantly
+improves the experience of using CLS with CMake-based Chapel
+projects, since it allows the editor to reason natively about the
+project’s source structure.  This new integration also enables other
+patterns, such as source generation: generated files in the <code>build</code>
+directory can now be properly found and integrated with other files
+in the project.</p>
+<p>Enabling this integration boils down to using the new
+<code>CMAKE_EXPORT_CHPL_COMMANDS</code> environment variable:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">mkdir build
+</span></span></span><span class="line"><span class="cl"><span class="go">cmake -B build -DCMAKE_EXPORT_CHPL_COMMANDS=ON
+</span></span></span><span class="line"><span class="cl"><span class="go">cmake --build build
+</span></span></span></code></pre></div><p>After executing these commands, the <code>build</code> directory will contain a
+<code>.cls-commands.json</code> file. A common pattern is then to symbolically
+link this file to the project root:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">ln -s build/.cls-commands.json .cls-commands.json
+</span></span></span></code></pre></div><p>From there, CLS should be usable as normal. Subsequent builds
+will update the<br/><code>.cls-commands.json</code> file, if necessary.</p>
+<h3 id="debugging">
+<a href="#debugging">Debugging</a>
+</h3>
+<p>For this release, we continued improving the debugging experience
+for Chapel users.  Chapel 2.8 adds new pretty-printers for common
+Chapel data structures, like <code>list</code>, <code>set</code>, <code>map</code>, and distributed
+arrays.  In addition, 2.8 expands the set of expressions that can be
+evaluated within the debugger</p>
+<h4 id="new-pretty-printers">
+<a href="#new-pretty-printers">New pretty-printers</a>
+</h4>
+<p>As an example of the new pretty-printing capabilities, consider the
+following program, noting that it contains a simple bug since it
+tries to read a non-existent key from a map:</p>
+<div class="file" data-code-path="code/mapDebug.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="mapDebug.chpl" href="code/mapDebug.chpl">mapDebug.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">Map</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">getIt</span><span class="p">(</span><span class="nx">m</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="s">"it"</span><span class="p">];</span><span class="w">  </span><span class="c1">// this is an error since 'it' wasn't stored in map 'm'
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">val</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">m</span><span class="p">:</span><span class="w"> </span><span class="nx">map</span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">m</span><span class="p">[</span><span class="s">"this"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">22</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">m</span><span class="p">[</span><span class="s">"or"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">33</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">m</span><span class="p">[</span><span class="s">"that"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">44</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">getIt</span><span class="p">(</span><span class="nx">m</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">'m["it"] is '</span><span class="p">,</span><span class="w"> </span><span class="nx">val</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>If we run this program, the bug will cause it to halt due to the
+error not being caught and handled:.</p>
+<div class="file" data-code-path="code/mapDebug.good" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="mapDebug.good" href="code/mapDebug.good">mapDebug.good</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="nx">warning</span><span class="p">:</span><span class="w"> </span><span class="s">'--debug'</span><span class="w"> </span><span class="nx">now</span><span class="w"> </span><span class="nx">implies</span><span class="w"> </span><span class="s">'--debug-safe-optimizations-only'</span><span class="p">.</span><span class="w"> </span><span class="nx">If</span><span class="w"> </span><span class="nx">you</span><span class="w"> </span><span class="k">only</span><span class="w"> </span><span class="nx">want</span><span class="w"> </span><span class="nx">debug</span><span class="w"> </span><span class="nx">symbols</span><span class="p">,</span><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="s">'-g'</span><span class="w"> </span><span class="nx">or</span><span class="w"> </span><span class="s">'--debug-symbols'</span><span class="p">.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">uncaught</span><span class="w"> </span><span class="nx">KeyNotFoundError</span><span class="p">:</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="s">'it'</span><span class="w"> </span><span class="nx">not</span><span class="w"> </span><span class="nx">found</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">mapDebug</span><span class="p">.</span><span class="nx">chpl</span><span class="p">:</span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="nx">thrown</span><span class="w"> </span><span class="nx">here</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">mapDebug</span><span class="p">.</span><span class="nx">chpl</span><span class="p">:</span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="nx">uncaught</span><span class="w"> </span><span class="nx">here</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">Stacktrace</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">getIt</span><span class="p">()</span><span class="w"> </span><span class="nx">at</span><span class="w"> </span><span class="nx">mapDebug</span><span class="p">.</span><span class="nx">chpl</span><span class="p">:</span><span class="mi">4</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="nx">at</span><span class="w"> </span><span class="nx">mapDebug</span><span class="p">.</span><span class="nx">chpl</span><span class="p">:</span><span class="mi">13</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>Re-running in a debugger permits us jump to the stack frame where
+the error occurs and inspect the state of the program. With the new
+pretty-printers, we can easily see the contents of the map <code>m</code> and
+understand why the error is occurring.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/debugMap.png"/>
+</figure>
+<p>These new pretty-printers are useful by themselves, but they are
+built on top of powerful new debugging capabilities that we’ll
+describe next:</p>
+<h4 id="expression-evaluation">
+<a href="#expression-evaluation">Expression Evaluation</a>
+</h4>
+<p>In this release, we dramatically improved the ability of the
+debugger to reason about Chapel expressions.  As an example,
+consider the following program:</p>
+<div class="file" data-code-path="code/distance.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="distance.chpl" href="code/distance.chpl">distance.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">List</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">use</span><span class="w"> </span><span class="nx">Random</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">rs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">randomStream</span><span class="p">(</span><span class="kt">real</span><span class="p">,</span><span class="w"> </span><span class="mi">123456</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">record</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">point.distanceTo</span><span class="p">(</span><span class="nx">other</span><span class="p">:</span><span class="w"> </span><span class="nx">point</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">sqrt</span><span class="p">((</span><span class="nx">other</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">other</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">points</span><span class="p">:</span><span class="w"> </span><span class="nx">list</span><span class="p">(</span><span class="nx">point</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">points</span><span class="p">.</span><span class="nx">pushBack</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="nx">point</span><span class="p">(</span><span class="nx">rs</span><span class="p">.</span><span class="nx">next</span><span class="p">(</span><span class="o">-</span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                              </span><span class="nx">rs</span><span class="p">.</span><span class="nx">next</span><span class="p">(</span><span class="o">-</span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">)));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"points: "</span><span class="p">,</span><span class="w"> </span><span class="nx">points</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">points</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">points</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">points</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">distanceTo</span><span class="p">(</span><span class="nx">points</span><span class="p">[</span><span class="nx">j</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writef</span><span class="p">(</span><span class="s">"distance between %? and %? is %n\n"</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nx">points</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span><span class="w"> </span><span class="nx">points</span><span class="p">[</span><span class="nx">j</span><span class="p">],</span><span class="w"> </span><span class="nx">d</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>We can run this program in the debugger and set a breakpoint on the
+<code>.distanceTo()</code> method:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/breakDistanceTo.png"/>
+</figure>
+<p>Once we hit the breakpoint, we can step into the method and inspect
+both <code>this</code> and <code>other</code>:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/inspectVars.png"/>
+</figure>
+<p>In addition, we can perform arbitrary arithmetic with those values:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/math.png"/>
+</figure>
+<p>We can even invoke the <code>.distanceTo()</code> method directly from the
+debugger. This is not yet perfect and has some limitations, but most
+of the time those limitations can be worked around to obtain the
+needed information, as demonstrated below:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/callMethod.png"/>
+</figure>
+<p>This is a huge improvement over previous releases, in which none of
+the above was possible.</p>
+<p>These new features help make the Chapel debugging experience much
+more like debugging conventional languages like C or C++.  The net
+result improves the ability to run Chapel programs in a debugger and
+has enabled us to track down and fix bugs in Chapel code far more
+quickly.  We are excited to hear feedback from users about how they
+are applying these new features in their own debugging workflows.</p>
+<h3 id="loop-invariant-code-motion-for-arrays">
+<a href="#loop-invariant-code-motion-for-arrays">Loop-Invariant Code Motion for Arrays</a>
+</h3>
+<p>Like most compiled languages, Chapel relies on Loop-Invariant Code
+Motion (LICM) as an optimization to avoid executing code redundantly
+within loop bodies.  In this release, we improved Chapel’s LICM to
+enable vectorization and improve performance.</p>
+<details>
+<summary><strong>(“Hold up… What’s Loop-Invariant Code Motion?</strong>”)</summary>
+<div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+<p>As a trivial example of Loop-Invariant Code Motion, the following
+computation of <code>halfPi</code> does not need to be re-evaluated in each of
+the loop’s <code>n</code> iterations, since its value is independent of <code>i</code>:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">halfPi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pi</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="nx">halfPi</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>As a result, compilers can use LICM to rewrite this loop as follows,
+hoisting the computation out of the loop to avoid the redundant
+effort:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="kd">const</span><span class="w"> </span><span class="nx">halfPi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pi</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="nx">n</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="nx">halfPi</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div>
+</div>
+</details>
+<p>When compiling Chapel programs, LICM is performed in <span class="sidenote"><label class="sidenote-label" for="sidenote-1">both</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -16.5rem"><span class="sidenote-delimiter">[note:</span>The reason for “both” is that it’s a no-brainer
+to leverage the back-end compiler to benefit from decades of C-level
+optimizations.  The rationale for also having the Chapel compiler
+perform LICM is that there are cases in which it has access to
+high-level semantic information that is significantly obfuscated, or
+even lost, when lowering to the C-level code that’s handed off to
+the back-end.  Hoisting such expressions in the Chapel compiler can
+therefore unlock new optimization opportunities enabled by the
+language’s high-level features.<span class="sidenote-delimiter">]</span></span></span> the Chapel compiler
+and the standard LLVM or C compiler that makes up its back-end.  An
+important case for the Chapel compiler to handle relates to the
+metadata used for array accesses.  When it’s known that an array
+will not be resized within a loop, we can hoist reads of its
+metadata fields, as well as repetitive computations on their values,
+out of the loop to save work in each iteration.  This is
+particularly important for Chapel given that its multidimensional,
+sparse, and/or distributed arrays can involve a significant amount
+of metadata that back-end compilers aren’t accustomed to (given
+their focus on more traditional C-style buffers, pointers, and
+offsets).  By <span class="sidenote"><label class="sidenote-label" for="sidenote-2">understanding the semantics of these arrays</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>This is an
+illustration of a <a href="../../posts/10myths-part1/#enabling-optimization-through-improved-abstractions">point made</a> in the first article of our recent <a href="../../series/10-myths-about-scalable-parallel-programming-languages-redux/"><em>10 Myths About Scalable
+Parallel Programming Languages (Redux)</em></a>
+series.<span class="sidenote-delimiter">]</span></span></span>, the Chapel compiler is well-suited to hoist
+such computations.</p>
+<p>In Chapel 2.8, we extended Chapel’s existing LICM pass to hoist
+metadata computations for arrays that are declared <code>const</code>, knowing
+that they can’t change their size, shape, or indices.  This work was
+motivated in part by Thitrin Sastarasadhit’s <a href="../../series/transformers-from-scratch-in-chapel-and-c++/">transformers
+study</a>
+that was published on this blog a few months ago.  Specifically,
+these improvements enable vectorization for key loop kernels that
+had previously been thwarted by such array metadata accesses.</p>
+<p>The following execution time plot, taken from Chapel’s <a href="https://chapel-lang.org/perf/">nightly
+performance tracking suite</a>, shows
+the impact of this optimization on a kernel motivated by Thitrin’s
+code:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/LICM-kernel.png"/>
+</figure>
+<p>Specifically, the loop idiom improved by ~7.5% once our LICM
+improvement was merged on February 17th, making its performance
+comparable to lower-level ways of writing the kernel that also
+enabled vectorization.  We saw similar improvements to other
+longstanding, array-oriented computations such as the following port
+of <a href="https://github.com/jdevinney/bale/#readme">Bale</a> toposort:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.8/LICM-toposort.png"/>
+</figure>
+<h3 id="new-flag---system-launcher-flags">
+<a href="#new-flag---system-launcher-flags">New flag: <code>--system-launcher-flags</code></a>
+</h3>
+<p>Chapel 2.8 adds a new execution-time flag,
+<code>--system-launcher-flags</code>, to Chapel programs built to use
+Slurm-based
+<a href="https://chapel-lang.org/docs/2.8/usingchapel/launcher.html">launchers</a>.
+This flag can be used to pass additional options to the underlying
+Slurm commands, like <code>srun</code>, that get the Chapel program running.
+This is particularly valuable when users need to specify Slurm
+options that aren’t supported directly by Chapel.  Generally,
+Chapel’s standard <a href="https://chapel-lang.org/docs/2.8/usingchapel/launcher.html#common-slurm-settings">launcher flags and environment
+variables</a>
+should be used when applicable, with this new flag serving as a
+fallback.</p>
+<p>As a motivating example, a user performing benchmarking studies who
+wants to override the default number of reserved specialized cores
+using Slurm’s <code>--core-spec</code> or <code>-S</code> flag would be at a loss using
+standard Chapel options, since they do not support that override.
+Prior to Chapel 2.8, such users would either need to rely on a Slurm
+environment variable to make the request, or else to abandon
+Chapel’s launcher and write their own Slurm script or command to
+launch the program (which can be tricky to get right).</p>
+<p>However, as of Chapel 2.8, users can run their program with
+<code>--system-launcher-flags "-S 0"</code> to have Chapel pass <code>-S 0</code> to the
+underlying <code>srun</code> command that’s invoked on their behalf.  This
+saves effort and reduces the potential for errors, while also making
+the command-line more explicit.  We anticipate that future Chapel
+releases will extend this capability to support non-Slurm launchers,
+as desired by the user community.</p>
+<h3 id="mason-package-manager">
+<a href="#mason-package-manager">Mason Package Manager</a>
+</h3>
+<p>Chapel’s package manager,
+<a href="https://chapel-lang.org/docs/2.8/tools/mason/mason.html">Mason</a>,
+has seen a lot of new features added in recent releases. For version
+2.8, we made a concerted effort to track down and fix many edge
+cases and bugs, and as a result, we are happy to report that Mason
+is now much more robust and reliable. This isn’t the most exciting
+work, but it is important for the long-term health of the tool and
+project.</p>
+<p>One exciting new feature for Mason is the improved <code>mason doc</code>
+command. This effort involved several improvements to the underlying
+<a href="https://chapel-lang.org/docs/2.8/tools/chpldoc/chpldoc.html"><code>chpldoc</code></a>
+tool, which is used to generate documentation for Chapel
+modules. The <code>mason doc</code> command now specializes the documentation
+for the project by default, while also giving users the tools to
+better customize the results.</p>
+<p>We are really excited to see Chapel users and developers starting to
+create and contribute more packages to Mason. We hope to see the
+Mason registry grow and become a vibrant ecosystem of Chapel
+packages that users can easily discover and use in their own
+projects.</p>
+<h3 id="dyno-compiler-code-generation">
+<a href="#dyno-compiler-code-generation">Dyno Compiler Code Generation</a>
+</h3>
+<p>As you may have seen in <a href="../../posts/announcing-chapel-2.7/#improvements-to-the-dyno-compiler-front-end">previous</a> <a href="../../posts/announcing-chapel-2.6/#improvements-to-the-dyno-compiler-front-end">release</a> <a href="../../posts/announcing-chapel-2.5/#improvements-to-the-dyno-compiler-front-end">announcements</a>, <em>Dyno</em> is the name of our project that is modernizing and
+improving the Chapel compiler. Dyno improves error messages, allows
+incremental type resolution, and simplifies the development of
+language tooling.  Our team has been hard at work implementing many
+features of Chapel’s type system in Dyno. Among other things, this
+enables tools like CLS to provide more accurate and helpful
+information to users, <a href="#chapel-language-server-and-linter">as described
+above</a>.</p>
+<p>The other current focus within Dyno is taking the information that
+it has computed about a program and translating it into a form that
+the production compiler can understand, essentially skipping over
+its historical type resolution and analysis phases. This capability
+is enabled using the <code>--dyno</code> command-line flag.  Current support is
+limited to a subset of Chapel’s language features, but is growing
+all the time.</p>
+<p>A key milestone for Dyno in Chapel 2.8 is the ability to generate
+executable code for “Hello, world”-style programs. This is a
+significant milestone for Dyno, as it demonstrates the ability to
+compile many language features that the standard library relies
+upon.  It’s also a big step toward Dyno’s goal of replacing the
+front-end of the production compiler.</p>
+<p>As an example, consider the following program, which makes use of
+the <code>fileWriter</code> type and its <code>.writeln()</code> method in various ways:</p>
+<div class="file" data-code-path="code/converter.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="converter.chpl" href="code/converter.chpl">converter.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">file</span><span class="p">(</span><span class="nx">chpl_cstdout</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">writer</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">w</span><span class="p">.</span><span class="nx">writeln</span><span class="p">(</span><span class="s">"Hello, world!"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">w</span><span class="p">.</span><span class="nx">writeln</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">" "</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="s">" three"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">record</span><span class="w"> </span><span class="nc">R</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// invokes Chapel's serialization framework
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">R</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">w</span><span class="p">.</span><span class="nx">writeln</span><span class="p">(</span><span class="nx">r</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>As of Chapel 2.8, this program can be <span class="sidenote"><label class="sidenote-label" for="sidenote-3">compiled</label><input class="sidenote-checkbox" id="sidenote-3" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>The <code>--no-checks</code> flag is used here to disable
+runtime checks that utilize language features not yet supported by
+Dyno’s code generation.<span class="sidenote-delimiter">]</span></span></span> with <code>--dyno --no-checks</code> to have Dyno produce an executable that prints the
+following output:</p>
+<div class="file" data-code-path="code/converter.good" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="converter.good" href="code/converter.good">converter.good</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-text" data-lang="text"><span class="line"><span class="cl">Hello, world!
+</span></span><span class="line"><span class="cl">1 2.0 three
+</span></span><span class="line"><span class="cl">(x = 5)
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>While a program like this may appear to be somewhat straightforward,
+behind the scenes it relies on many language features for its
+implementation. Here are just a few of the Chapel features that are
+being used by the <code>IO</code> module in this example:</p>
+<ul>
+<li>generic variadic arguments</li>
+<li>external interoperability</li>
+<li>owned and shared classes</li>
+<li>records, classes, and tuples</li>
+<li>nested records (as used by the serialization framework)</li>
+<li>reflection</li>
+<li>locales</li>
+</ul>
+<p>Compiling such a program helps to provide a solid basis for
+supporting more standard libraries and language features that build
+upon these basic building blocks.</p>
+<h3 id="for-more-information">
+<a href="#for-more-information">For More Information</a>
+</h3>
+<p>If you have questions about Chapel 2.8 or any of its new features,
+please reach out on Chapel’s <a href="https://join.slack.com/t/chapelnetwork/shared_invite/zt-3p459bjlh-0TQRloaBPqkZUe_dWz~C~Q">Slack
+workspace</a>,
+<a href="https://discord.gg/xu2xg45yqH">Discord channel</a>, <a href="https://chapel.discourse.group/">Discourse
+group</a>, or one of our other
+<a href="https://chapel-lang.org/forums/">community forums</a>.  We’re always
+interested in hearing more about how we can make the Chapel
+language, libraries, implementation, and tools more useful to you.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.8%21%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.8%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Announcing+Chapel+2.8%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.8%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.8%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.8%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=Announcing+Chapel+2.8%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.8%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.8%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.8%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/announcing-chapel-2.7/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Announcing Chapel 2.7!
+
+
+                    </span>
+</span>
+</a>
+</div>
+</nav>
+</body>
+</html>

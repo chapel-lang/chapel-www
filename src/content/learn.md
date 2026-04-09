@@ -20,16 +20,16 @@ keywords = ["FAQ","How do I","questions","what if"]
   description="""See the [**online documentation**](../docs/) including the [**language specification**](../docs/language/spec/)."""
 
 [[talks]]
+  title=""""I don't have much time and would like to watch a short introduction to Chapel.""""
+  description="""This pair of talks from [**PNW PLSE 2024**](https://www.youtube.com/watch?v=ydsM51T7Pts) and [**2023**](https://www.youtube.com/watch?v=uZQlheDo28Y) are short and sweet."""
+
+[[talks]]
   title=""""I'd like to watch an introductory Chapel talk.""""
-  description="""Watch this [**Chapel overview talk**](https://www.youtube.com/watch?v=UxXqo8lYsI4) or browse its presentation [slides](../presentations/ChapelForLinuxCon-presented.pdf)."""
+  description="""Watch this [**Chapel overview talk**](https://youtu.be/9rL7H8V9qxk?feature=shared&t=420) or browse its presentation [slides](../presentations/ChapelForKAUST-presented.pdf)."""
 
 [[talks]]
   title=""""I'd like to watch more of a tutorial introduction to Chapel.""""
-  description="""Check out our [**tutorials page**](../resources/#tutorials) for links to videos and slides."""
-
-[[talks]]
-  title=""""I don't have much time and would like to watch a shorter introduction to Chapel.""""
-  description="""This pair of talks from [**PNW PLSE 2023**](https://www.youtube.com/watch?v=uZQlheDo28Y) and [**2024**](https://www.youtube.com/watch?v=ydsM51T7Pts) are short and sweet."""
+  description="""Check out our [**tutorials page**](../tutorials/) for links to videos and slides."""
 
 [[talks]]
   title=""""I'd like to see other Chapel technical talks.""""
@@ -58,7 +58,7 @@ keywords = ["FAQ","How do I","questions","what if"]
 
 [[coding]]
   title=""""I'd like to install Chapel.""""
-  description="""See the [**downloading Chapel**](../download) instructions.  """
+  description="""See the [**downloading Chapel**](../download/) instructions.  """
 
 [[coding]]
   title=""""I'd like to try Chapel without installing it.""""
@@ -71,7 +71,7 @@ keywords = ["FAQ","How do I","questions","what if"]
 [[recommended]]
   name="Introductory Tutorial"
   description="Learn about the basics of Chapel, including how to compile and run Chapel programs. This tutorial works through a heat diffusion simulation."
-  url="resources/#tutorials"
+  url="/tutorials/"
 
 [[recommended]]
   name="Parallel Programming in Chapel"

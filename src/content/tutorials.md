@@ -1,5 +1,6 @@
 +++
 title = "Tutorials"
+description = "Chapel tutorial materials such as slides and videos"
 keywords = ["TODO"]
 +++
 

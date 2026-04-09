@@ -14,13 +14,22 @@ preview: clean $(ACTIVATE)
 # have hugo populate 'public/' with the files it'll build
 	hugo build
 # link to all other website content to avoid broken links to it (e.g., blog)
-	-ln -s $(WEBSITE_DIR)/* $(PUBLIC_DIR)/ >& /dev/null
+	$(MAKE) linkstuff
 # have hugo serve result (will also re-build)
 	hugo serve
 
 www web html: clean $(ACTIVATE)
 	hugo
-	cp -r $(PUBLIC_DIR)/* $(CHPL_WWW)/chapel-lang.org/
+	$(MAKE) linkstuff
+#	cp -r $(PUBLIC_DIR)/* $(CHPL_WWW)/chapel-lang.org/
+	rsync -avh --no-times --no-links --checksum public/* $(CHPL_WWW)/chapel-lang.org/ --delete
+
+linkstuff:
+	-ln -s $(WEBSITE_DIR)/* $(PUBLIC_DIR)/ >& /dev/null
+	-ln -s $(WEBSITE_DIR)/presentations/* $(PUBLIC_DIR)/presentations/ >& /dev/null
+	-ln -s $(WEBSITE_DIR)/papers/* $(PUBLIC_DIR)/papers/ >& /dev/null
+	-ln -s $(WEBSITE_DIR)/tutorials/* $(PUBLIC_DIR)/tutorials/ >& /dev/null
+	-ln -s $(WEBSITE_DIR)/chapelcon/* $(PUBLIC_DIR)/chapelcon/ >& /dev/null
 
 news: $(ACTIVATE)
 	$(SETUP) && python3 ./util/process_rss.py

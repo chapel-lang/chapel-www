@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="The sixth archival post from the 2012 IEEE TCSC blog series, with a current reflection on it" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>10 Myths About Scalable Parallel Programming Languages (Redux),  Part 6: Performance of Higher-Level Languages</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>10 Myths About Scalable Parallel Programming Languages (Redux)<br/>  Part 6: Performance of Higher-Level Languages</h2>
+<div class="post-subscript">
+<p>Posted on September 17, 2025.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/editorial/">Editorial</a>
+<a class="button" href="../../tags/archival-posts-/-reprints/">Archival Posts / Reprints</a>
+<a class="button" href="../../tags/language-comparison/">Language Comparison</a>
+<a class="button" href="../../tags/performance/">Performance</a>
+<a class="button" href="../../tags/benchmarks/">Benchmarks</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/10-myths-about-scalable-parallel-programming-languages-redux/">10 Myths About Scalable Parallel Programming Languages (Redux)</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#background">Background</a></li>
+<li><a href="#the-original-article-reprinted">The Original Article, Reprinted</a>
+<ul>
+<li><a href="#myth-6-high-level-languages-cant-compete-with-mpi">Myth #6: High-Level Languages Can’t Compete with MPI.</a></li>
+<li><a href="#myth-7-if-a-parallel-language-does-not-have-good-performance-today-it-never-will">Myth #7: If a parallel language does not have good performance today, it never will.</a></li>
+<li><a href="#counterpoint-7-the-performance-potential-of-a-novel-language-should-be-evaluated-by-studying-ways-in-which-its-features-enable-andor-limit-its-ability-to-achieve-good-performance-and-projecting-its-implementation-strategy-forward-in-time-not-by-simply-measuring-the-performance-that-it-happens-to-produce-at-a-given-point-in-time">Counterpoint #7: The performance potential of a novel language should be evaluated by studying ways in which its features enable and/or limit its ability to achieve good performance and projecting its implementation strategy forward in time; not by simply measuring the performance that it happens to produce at a given point in time.</a></li>
+<li><a href="#counterpoint-6-well-designed-high-level-languages-can-outperform-mpi-while-also-supporting-better-performance-portability-programmability-and-productivity">Counterpoint #6: Well-designed high-level languages can outperform MPI while also supporting better performance portability, programmability, and productivity.</a></li>
+<li><a href="#bibliography">Bibliography</a></li>
+</ul>
+</li>
+<li><a href="#reflections-on-the-original-article">Reflections on the Original Article</a>
+<ul>
+<li><a href="#comparing-chapel-with-mpi">Comparing Chapel with MPI</a></li>
+<li><a href="#introduction-to-hpcc-ra-in-chapel">Introduction to HPCC RA in Chapel</a></li>
+<li><a href="#explaining-chapels-performance-advantage">Explaining Chapel’s Performance Advantage</a></li>
+<li><a href="#productivity-comparisons">Productivity Comparisons</a></li>
+<li><a href="#comparing-chapel-with-exstack-and-conveyors">Comparing Chapel with Exstack and Conveyors</a></li>
+<li><a href="#other-more-recent-comparisons">Other, More Recent Comparisons</a></li>
+</ul>
+</li>
+<li><a href="#wrapping-up">Wrapping Up</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<h3 id="background">
+<a href="#background">Background</a>
+</h3>
+<p>In 2012, I wrote a series of eight blog posts entitled “Myths About
+Scalable Parallel Programming Languages” for the IEEE Technical
+Community on Scalable Computing (TCSC).  In it, I described
+discouraging attitudes that our team encountered when talking about
+developing Chapel and then gave my personal rebuttals to them.  That
+series has generally been unavailable for many years, so for its 13th
+anniversary, we’re reprinting the original series here on the Chapel
+blog, along with new commentary about how well or poorly the ideas
+have held up over time.  For a more detailed introduction to both the
+original series and these reprints, please see <a href="../../posts/10myths-part1/">the first article</a> in this series.</p>
+<p>This month, we’re reprinting the series’ sixth article, originally
+published on September 17, 2012.  As a bonus, this is the first in the
+series to contain not one, but <em>two</em> myths!  Comments in the sidebar
+and in <a href="#reflections-on-the-original-article">the sections that follow the reprint</a> contain my current thoughts
+and reflections on it.</p>
+<hr/>
+<h3 id="the-original-article-reprinted">
+<a href="#the-original-article-reprinted">The Original Article, Reprinted</a>
+</h3>
+<p class="big">Myths About Scalable Parallel Programming Languages:<br/>
+Part 6: Performance of Higher-Level Languages</p>
+<p>This is the sixth in a series of blog articles that I’m writing with
+the goal of describing and responding to some of the misconceptions
+about scalable parallel programming languages that our team encounters
+when describing our work designing and implementing Chapel
+(<a href="https://chapel-lang.org">https://chapel-lang.org</a>).</p>
+<p>For more background on Chapel or this series of articles, please refer
+to <a href="../../posts/10myths-part1/#the-original-article-reprinted">part 1</a>; subsequent myths are covered in
+parts <a href="../../posts/10myths-part2/#the-original-article-reprinted">2</a>, <a href="../../posts/10myths-part3/#the-original-article-reprinted">3</a>, <a href="../../posts/10myths-part4/#the-original-article-reprinted">4</a>, and <a href="../../posts/10myths-part5/#the-original-article-reprinted">5</a>.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+A danger that we face by holding up MPI as the performance standard to
+beat is falling into the trap of believing that it can’t be beaten.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="myth-6-high-level-languages-cant-compete-with-mpi">
+<a href="#myth-6-high-level-languages-cant-compete-with-mpi">Myth #6: High-Level Languages Can’t Compete with MPI.</a>
+</h4>
+<p>In contemporary HPC conversations, MPI is often held up as the gold
+standard for performance, similar to how the 4-minute mile or Mach-2
+served as idealized standards to beat in the 1950’s.  And there’s good
+reason for this attitude: since the vast majority of the largest, most
+scalable HPC applications <span class="sidenote"><label class="sidenote-label" for="sidenote-0">are written in MPI today</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>And today as well, 13 years
+later.<span class="sidenote-delimiter">]</span></span></span>, it stands to reason that if you can’t beat MPI,
+then you’d better have some other compelling reason to justify your
+programming model’s existence, such as improved programmability,
+generality, or other capabilities.</p>
+<p>Yet, a danger that we face as a community by holding up MPI as <em>the</em>
+performance standard to beat is falling into the trap of believing
+that it <em>can’t</em> be beaten, at least not by a higher-level language.
+Because the fact is that it can.</p>
+<p>Here’s an example that’s now <span class="sidenote"><label class="sidenote-label" for="sidenote-1">a bit more than a decade old</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -7.5rem"><span class="sidenote-delimiter">[note:</span>We’ll see newer examples, and ones
+written in Chapel, in the commentary section below.<span class="sidenote-delimiter">]</span></span></span>
+[<a href="#bibliography">1</a>], showing implementations of the
+NAS MG benchmark (class C) written in ZPL and <span class="sidenote"><label class="sidenote-label" for="sidenote-2">Co-Array Fortran (CAF)</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Since the original publication, I’ve been
+trained to refer to these more properly as Fortran 2008’s
+coarrays.<span class="sidenote-delimiter">]</span></span></span> outperforming and out-scaling the reference
+version written in Fortran+MPI on a Cray T3E.</p>
+<figure><img src="../../posts/10myths-part6/NasMgClassC.jpg"/>
+</figure>
+<p>Anyone familiar with Partitioned Global Address Space (PGAS) languages
+like CAF and ZPL can probably guess why these languages outperformed
+MPI in this experiment: On the Cray T3E, the most efficient means of
+communicating between processors was not the two-sided message passing
+exemplified by MPI’s send and receive calls; instead, better
+performance could be obtained by using one-sided put/get calls that
+permit one compute node to directly write to/read from another node’s
+memory without involving the CPU.  Because CAF and ZPL were both
+implemented in terms of these one-sided puts and gets, they could
+perform and scale better than MPI.  Other PGAS languages have
+demonstrated similar results for a variety of computations in the
+intervening years.</p>
+<p>In addition to outperforming the reference MPI code, the ZPL version
+was also significantly more succinct and elegant, due to the
+language’s support for global-view data parallelism, which benefits
+multigrid computations like NAS MG.  <a href="../../posts/10myths-part5/#multiresolution-languages-and-heroic-compilation">Last month’s article</a> contained an illustrative code
+excerpt from the ZPL version of the NAS MG benchmark; the following
+graph shows an overall code size comparison between all of the
+languages considered in this study:</p>
+<figure><img src="../../posts/10myths-part6/NasMgLineCounts.jpg"/>
+</figure>
+<p>The takeaway is that high-level global-view languages like ZPL, HPF,
+and Single-Assignment C (SAC) [<a href="#bibliography">2</a>] tend
+to be much more succinct than programming models like MPI and CAF
+(note that the HPF version did not appear on the graph above because
+its memory requirements for NAS MG class C exceeded the T3E’s
+capacity; SAC was simply not supported on the T3E at the time of this
+experiment).  Browsing the sources, most users would conclude that the
+higher-level languages are not only shorter, but also tend to be more
+readable and modifiable.  The primary difference between MPI/CAF and
+the high-level languages is that the former rely on the Single-Program
+Multiple-Data (SPMD) programming model, which necessitates a certain
+amount of code for bookkeeping and communication management between
+the program images.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+Higher-level languages permit the user to focus on what needs to be
+communicated, and approximately when, yet without wrestling with the
+mechanical details of how.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<p>In addition to being more succinct than the MPI reference version, the
+ZPL version was also more flexible: it permitted an arbitrary problem
+size and number of processors to be specified at execution-time, and
+for the data to be decomposed in any subset of the three logical
+dimensions of the problem space.  In contrast, the MPI reference
+version only supports a 3D data decomposition and requires the problem
+size and number of processors to be fixed at compile time and limited
+to powers of two.  These restrictions are not imposed by MPI itself; a
+more general version could be written, but doing so would require
+additional programmer effort and would almost certainly result in a
+larger, more complex code.</p>
+<p>This example demonstrates that higher-level languages like ZPL <em>can</em>
+outperform MPI.  But we must also be clear that the experiment above
+evaluates specific instances of a given benchmark running in a
+specific experimental setting.  The results could easily differ if we
+were to modify the benchmarks or to use different target architectures
+or implementations of MPI and ZPL.</p>
+<p>Let’s start by considering changes to the MPI version of the
+benchmark.  An MPI enthusiast could point out that the Fortran+MPI
+implementation would likely have been more competitive with ZPL on
+architectures like the Cray T3E if it had used MPI-2’s one-sided
+communication routines (or, even better, the new remote memory access
+capabilities available in MPI-3).  And they would be right.  However,
+note that once a user starts to rely on one set of MPI routines for a
+given platform and a second set for another, many of the portability
+benefits of MPI as an end-user programming model begin to unravel.
+This is not intended as a slight against MPI—keep in mind that MPI was
+not originally intended to serve as an end-user programming model to
+the degree that it has in practice; rather, higher-level libraries and
+languages were meant to be layered on top of it.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+High-level languages are not only able to compete with MPI in terms of
+performance, but can also offer a better overall solution for the
+end-user.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<p>This, then, is one of the benefits of using higher-level languages
+like ZPL and Chapel: Such languages permit the typical user to focus
+on <em>what</em> needs to be communicated, and approximately <em>when</em>, yet
+without wrestling with the mechanical details of <em>how</em>.  In practice,
+the ZPL compiler mapped communication regions down to <span class="sidenote"><label class="sidenote-label" for="sidenote-3">a pair of function calls</label><input class="sidenote-checkbox" id="sidenote-3" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Though I consider this approach
+to communication to have been a huge success in ZPL, Chapel does not
+take the same approach.  The reason is that ZPL had a very constrained
+model of control flow, in which the whole program could be considered
+a sequential series of data-parallel steps.  As a result, the code
+generated by the compiler was a very symmetric SPMD-based
+implementation in which all copies of the program had a good sense of
+what all the other copies would be doing at any given time.  This
+permitted sends and receives to be matched to one another, as in
+hand-coded MPI, for example.<br/><br/>By contrast, Chapel has such a general, asynchronous model of
+execution that there’s no guarantee that the threads of the distinct
+copies of the SPMD implementation will be doing anything related to
+one another at any given time.  As a result, all communication in
+Chapel has to be truly one-sided and un-anticipatable by the other
+program instances.  This makes ZPL’s coordinated approach
+inapplicable.<span class="sidenote-delimiter">]</span></span></span> on each of the sending and receiving
+sides, demarcating where the data transfer could/should take place.
+These calls were referred to as the <em>Ironman interface</em> [<a href="#bibliography">3</a>] and were designed to be mapped to whatever
+mechanisms best suited the target architecture.  On the Cray T3E, they
+were mapped down to the SHMEM calls implementing one-sided puts and
+gets, while on a Linux cluster, they were mapped down to non-blocking
+MPI sends and receives.  As the following graph illustrates, this
+resulted in performance that was much more comparable with the
+hand-coded Fortran+MPI since now both programming models were using
+the same technology, and one that serves as a good fit for the target
+architecture:</p>
+<figure><img src="../../posts/10myths-part6/NasMgClassCLinux.jpg"/>
+</figure>
+<p>The result in ZPL was an approach that benefited everyone:
+Programmers could reason about locality and optimize for it in a
+single source program without binding their code too tightly to any
+given architecture or means of communication; the compiler could
+optimize the placement of the communication using fairly
+straightforward dependence analysis [<a href="#bibliography">4</a>]; and the runtime could map the communication
+calls down to a mechanism that suited the target architecture.  This
+is why I would argue that high-level languages are not only able to
+compete with MPI in terms of performance, but can also offer a better
+overall solution for the end-user.</p>
+<p>But to be clear, achieving this is not trivial.  The ZPL effort was a
+significant one, and yet the result was insufficiently flexible and
+general to ever achieve widespread adoption.  Within the Chapel
+project, we are striving to repeat ZPL’s successes, yet in a much more
+general language setting.  Chapel’s greater generality has led to
+challenges of its own, to the extent that <span class="sidenote"><label class="sidenote-label" for="sidenote-4">we have not yet been able to</label><input class="sidenote-checkbox" id="sidenote-4" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>But we have now!  Again, see the
+commentary section below.<span class="sidenote-delimiter">]</span></span></span> deliver results as compelling
+as the NAS MG experiment above (though it must be noted that our focus
+to date has been far more on the dynamic and user-defined aspects of
+the language than on regular, hierarchical stencil codes like NAS MG).
+Knowing the level of effort required to achieve results like ZPL’s is
+also why Chapel was designed with the multiresolution philosophy of
+providing “manual overrides.”  For example, while Chapel supports
+high-level data parallel operations as in ZPL, programmers are also
+able to do explicit SPMD programming and even <span class="sidenote"><label class="sidenote-label" for="sidenote-5">message passing</label><input class="sidenote-checkbox" id="sidenote-5" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Though I’m not certain, I’m fairly confident I was
+speaking hypothetically at the time—like, “nothing specifically
+prevents a user from doing message passing in Chapel if they so
+desire.”  However, one of our early and enterprising users developed a
+basic <a href="https://chapel-lang.org/docs/modules/packages/MPI.html">MPI package for Chapel</a>
+a few years after this was written that is still available today.
+Notably, it was contributed just a little over a year after an April
+Fool’s <a href="https://www.linkedin.com/posts/brad-chamberlain-3ab358105_hpc-activity-7312992537013587969-TTqj/">social media
+post</a>
+had joked about just such a thing.<span class="sidenote-delimiter">]</span></span></span> within Chapel.</p>
+<p>This acknowledgment of the level of effort required to compete with MPI’s performance brings us to our next myth, a short one:</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+Developing a new language tends to require a significant effort in
+terms of implementation and optimization, proportional to how
+aggressive its feature set is.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="myth-7-if-a-parallel-language-does-not-have-good-performance-today-it-never-will">
+<a href="#myth-7-if-a-parallel-language-does-not-have-good-performance-today-it-never-will">Myth #7: If a parallel language does not have good performance today, it never will.</a>
+</h4>
+<p>Many prospective users of a new language will tend to evaluate it by
+downloading it, reading and executing some benchmark codes, and making
+a judgment based on the resulting performance.  Although this approach
+can serve <span class="sidenote"><label class="sidenote-label" for="sidenote-6">as a very concrete and satisfying activity</label><input class="sidenote-checkbox" id="sidenote-6" type="checkbox"/><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>More than that, I think
+it’s a very natural reaction to think “I’ve got a problem I want to
+solve now, so how well does this emerging language work at present?  I
+can’t really afford to wait for it to improve.”<span class="sidenote-delimiter">]</span></span></span>, I
+believe it is inherently short-sighted.  The performance that a new
+language obtains is not necessarily indicative of its ultimate
+performance—you only need to look as far back as Java to see this
+lesson in practice.</p>
+<p>Developing a new language tends to require a significant effort in
+terms of implementation and optimization, and the level of effort
+required tends to be proportional to how aggressive its feature set
+is.  Many of the failed HPC languages from recent decades have turned
+in demonstrations of reasonable performance and scalability—like CAF
+and ZPL in the NAS MG experiment above.  Yet, most have also failed to
+be broadly adopted, typically due to being overly restrictive, either
+in terms of generality (ZPL falls into this category) or portable
+performance (this is arguably why CAF <span class="sidenote"><label class="sidenote-label" for="sidenote-7">hasn’t yet been more broadly adopted</label><input class="sidenote-checkbox" id="sidenote-7" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Though I’m not very involved
+in the Fortran community, I believe that adoption of coarrays has
+increased since this was originally published; or maybe I’ve just
+become more aware of some of their use cases.<span class="sidenote-delimiter">]</span></span></span>).  For
+this reason, it seems to me that any successful parallel language will
+likely need to be more general and feature-rich than its predecessors
+were, and will therefore probably require a greater investment in time
+and level of effort before achieving broad success.</p>
+<p>So what is to be done?  Just keep putting resources into prospective
+languages like Chapel that purport to be a step in the right
+direction?  Well, yes, but certainly not blindly.  My point is that we
+should not evaluate languages based on what their implementations
+happen to achieve today, but by reasoning about what they will, or
+will not, be able to achieve over time.  This tends to be a far less
+straightforward form of evaluation because it requires thinking more
+deeply about the compilation and implementation process, but it’s far
+from impossible.  In addition to “Would I benefit from using a mature
+version of this language?” users should also ask themselves “Are there
+features in this language that will inherently prevent it from
+achieving performance that is competitive with Fortran/C or MPI/SHMEM
+or even ZPL/CAF?”  If so, then the language team should be alerted to
+the problem before wasting more time and money on the effort; but if
+not, then perhaps the new language does have a chance of success,
+given sufficient time, effort, and patience.</p>
+<p>This brings us to this month’s conclusions:</p>
+<h4 id="counterpoint-7-the-performance-potential-of-a-novel-language-should-be-evaluated-by-studying-ways-in-which-its-features-enable-andor-limit-its-ability-to-achieve-good-performance-and-projecting-its-implementation-strategy-forward-in-time-not-by-simply-measuring-the-performance-that-it-happens-to-produce-at-a-given-point-in-time">
+<a href="#counterpoint-7-the-performance-potential-of-a-novel-language-should-be-evaluated-by-studying-ways-in-which-its-features-enable-andor-limit-its-ability-to-achieve-good-performance-and-projecting-its-implementation-strategy-forward-in-time-not-by-simply-measuring-the-performance-that-it-happens-to-produce-at-a-given-point-in-time">Counterpoint #7: The performance potential of a novel language should be evaluated by studying ways in which its features enable and/or limit its ability to achieve good performance and projecting its implementation strategy forward in time; not by simply measuring the performance that it happens to produce at a given point in time.</a>
+</h4>
+<p>and:</p>
+<h4 id="counterpoint-6-well-designed-high-level-languages-can-outperform-mpi-while-also-supporting-better-performance-portability-programmability-and-productivity">
+<a href="#counterpoint-6-well-designed-high-level-languages-can-outperform-mpi-while-also-supporting-better-performance-portability-programmability-and-productivity">Counterpoint #6: Well-designed high-level languages can outperform MPI while also supporting better performance portability, programmability, and productivity.</a>
+</h4>
+<p>Tune in next time for more myths about scalable parallel programming
+languages.</p>
+<h4 id="bibliography">
+<a href="#bibliography">Bibliography</a>
+</h4>
+<p>[1] B. Chamberlain, S. Deitz, L. Snyder, <a href="https://research.cs.washington.edu/zpl/papers/data/Chamberlain00.pdf">A Comparative Study of the
+NAS MG Benchmark across Parallel Languages and
+Architectures</a>,
+Proceedings of the ACM Conference on Supercomputing, 2000.</p>
+<p>[2] S. Scholz, <a href="https://www.sac-home.org/_media/publications:pdf:sac-overview-norwich-94.pdf">Single Assignment C — Functional Programming Using Imperative Style</a>, Proceedings of IFL `94, Norwich, UK, 1994.</p>
+<p>[3] B. Chamberlain, S.-E. Choi, L. Snyder, <a href="https://research.cs.washington.edu/zpl/papers/data/Chamberlain97.pdf">A Compiler Abstraction for Machine Independent Parallel Communication Generation</a>, Proceedings of the Workshop on Languages and Compilers for Parallel Computing, 1997.</p>
+<p>[4] S.-E. Choi, <u>Machine Independent Communication Optimization</u>, PhD thesis, University of Washington, March 1999.</p>
+<hr/>
+<h3 id="reflections-on-the-original-article">
+<a href="#reflections-on-the-original-article">Reflections on the Original Article</a>
+</h3>
+<p>For me, this article remains very relevant 13 years later, in part due
+to attitudes about MPI still being a gold standard for performance,
+but particularly regarding the sense that if a language doesn’t
+perform well today, it never will.  It’s these sorts of attitudes that
+keep us stuck in the mode of adding new technologies into our mash-up
+of HPC programming models each time we introduce a new level or flavor
+of hardware parallelism (C++ + MPI + OpenMP + CUDA anyone?).
+Meanwhile the rest of the world advances to new languages that make
+leaps and bounds in terms of productivity and safety, like Go, Swift,
+Julia, or Rust.</p>
+<p>Where the “Reflections” sections in previous installments of this
+series have typically commented on a few different aspects of the
+original article, in this one I’m going to focus on more of a single
+topic: summarizing some comparisons of Chapel’s performance and
+productivity—relative to MPI and other HPC programming models—that
+have been done since the original article was published.</p>
+<h4 id="comparing-chapel-with-mpi">
+<a href="#comparing-chapel-with-mpi">Comparing Chapel with MPI</a>
+</h4>
+<p>If it’s not already self-evident, the reason the original version of
+this article focused on comparisons between ZPL and MPI was simply
+because Chapel had not yet reached the point where it was able to
+compete with MPI for key benchmarks—even ones as straightforward as
+STREAM Triad.  So ZPL was the best we had available for making our
+arguments at the time.</p>
+<p>However, in the years that followed its publication, we began closing
+the gap.  And then we went further, resulting in benchmark results
+like the following one from a presentation entitled <em>Chapel’s
+Language-based Approach to Performance Portability</em>, presented at SIAM
+CSE19:</p>
+<figure class="fullwide"><img src="../../posts/10myths-part6/RA-Perf-2019.jpg"/>
+</figure>
+<p>This graph focuses on the HPC Challenge Random Access benchmark (HPCC
+RA), which asks the user to make random updates to random elements of
+a distributed table (1D array) as quickly as possible, measured in
+Giga-Updates Per Second (GUPS).  The performance results shown were
+gathered on 512 nodes of a Cray XC, for a total of 18k cores.  And, as
+can be seen, it’s a case where Chapel outscales and outperforms MPI.</p>
+<h4 id="introduction-to-hpcc-ra-in-chapel">
+<a href="#introduction-to-hpcc-ra-in-chapel">Introduction to HPCC RA in Chapel</a>
+</h4>
+<p>To understand why Chapel beats MPI, let’s look at the main
+computational loop, which is written in Chapel as:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">Updates</span><span class="p">,</span><span class="w"> </span><span class="nx">randomValues</span><span class="p">())</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">T</span><span class="p">[</span><span class="nx">r</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="nx">indexMask</span><span class="p">].</span><span class="nx">xor</span><span class="p">(</span><span class="nx">r</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Some of the key variables used by this loop are as follows:</p>
+<ul>
+<li>
+<p><code>Updates</code> — a <em>domain</em>, or index set, representing the number of
+updates that need to be made: <code>{0..&lt;numUpdates}</code>.  More importantly,
+it is a <em>distributed</em> domain, which means that parallel loops over it
+will result in distributed multicore execution.</p>
+</li>
+<li>
+<p><code>randomValues()</code> — a user-defined parallel iterator that generates
+random numbers using the algorithm specified by the RA benchmark.</p>
+</li>
+<li>
+<p><code>T</code> — a distributed array of <code>atomic</code> integers representing the
+table whose elements will be updated.  The use of atomic values
+avoids the potential for races if two tasks try to update the same
+element <span class="sidenote"><label class="sidenote-label" for="sidenote-8">simultaneously</label><input class="sidenote-checkbox" id="sidenote-8" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>HPCC RA actually
+permits a certain number of such races, but this Chapel version is
+race-free.<span class="sidenote-delimiter">]</span></span></span></p>
+</li>
+</ul>
+<p>Given those variables, this loop says “In parallel (<code>forall</code>) iterate
+in a lock-step manner (<code>zip</code>) over (i) the set of <code>Updates</code> that need
+to be made and (ii) the <code>randomValues()</code>, dropping the update number on
+the floor (<code>_</code>) and calling the random value <code>r</code>.  For each iteration,
+update the element of <code>T</code> corresponding to <code>r</code> using an atomic <code>xor</code>
+operation.”  Because <code>Updates</code> is a distributed domain and
+<code>randomValues()</code> is a parallel iterator, this results in all of the
+cores on all of the compute nodes making random updates to the table
+in parallel.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+By describing the computation using high-level parallel abstractions,
+the compiler and runtime are able to optimize the program in ways that
+make good use of the target hardware.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="explaining-chapels-performance-advantage">
+<a href="#explaining-chapels-performance-advantage">Explaining Chapel’s Performance Advantage</a>
+</h4>
+<p>Chapel’s performance advantage over MPI for this benchmark stems from
+two main factors:</p>
+<ol>
+<li>
+<p>On the Cray XC (and HPE Cray EX), Chapel implements the atomic
+updates performed by this benchmark using the network hardware’s
+native support for atomic operations.  At scale, this provides a speed
+advantage over doing the traditional buffering, sends, and receives
+that are used in <span class="sidenote"><label class="sidenote-label" for="sidenote-9">the MPI version of the code</label><input class="sidenote-checkbox" id="sidenote-9" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>I
+should note that in addition to the overheads of message-passing, the
+scalability of the MPI reference version is also hurt by a condition
+set by the HPCC RA benchmark that limits how many updates can be
+batched together at a time.  This is the reason for the flattening of
+MPI’s curve: as the number of locales approaches that batching limit,
+it reduces the amortization benefits of message passing.  In contrast,
+the Chapel version does all of its updates in a fine-grained manner,
+so isn’t affected by the batching limits.<span class="sidenote-delimiter">]</span></span></span></p>
+</li>
+<li>
+<p>The <code>forall</code> indicates to the compiler that the iterations of the
+loop are order-independent.  This permits it to implement the atomic
+updates in an asynchronous manner such that each task will fire off
+updates as fast it can, only waiting for them to complete once it’s
+out of work and about to exit the loop.  The impact of this second
+optimization is responsible for the performance jump between the two
+Chapel lines in the graph above, where the lower one measures
+performance with the optimization turned off, such that each task
+waits for its atomic operation to complete before going on to the
+next one.</p>
+</li>
+</ol>
+<p>These two factors illustrate some of the key benefits that parallel
+languages can provide in terms of performance optimizations: By
+describing the computation using high-level parallel abstractions
+(“Use all the distributed compute resources to perform these updates
+in parallel”), the compiler and runtime are able to generate and
+optimize the program in ways that make good use of the target
+hardware—in this case by leveraging important hardware features
+like network atomics and asynchronous operations.</p>
+<p>Contrast this with parallel programming models like MPI, in which the
+user doesn’t just specify <em>what</em> the computation should do, but also
+<em>how</em> it should be implemented on the distributed system—in the case
+of HPCC RA, by using explicit buffering and message passing.
+Specifying those details constrains the implementation, preventing the
+use of fine-grained asynchronous operations like the ones used by
+Chapel.  Moreover, since MPI is a library, any optimizations must be
+implemented by the user rather than benefiting from the help of a
+compiler.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+Imposing an SPMD programming model on the user results in additional
+bookkeeping and detail management that is not present in a global-view
+language like Chapel.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h4 id="productivity-comparisons">
+<a href="#productivity-comparisons">Productivity Comparisons</a>
+</h4>
+<p>Another benefit that this example illustrates is the productivity that
+can come from language-based parallelism.  This can be seen by
+inspecting the MPI code that is equivalent to the Chapel loop above
+(squint or zoom way in):</p>
+<figure class="fullwide"><img src="../../posts/10myths-part6/RA-MPI.jpg"/>
+</figure>
+<p>In this code, the red lines are the MPI calls that implement the
+communication and inter-node coordination, while the blue lines are
+comments.  Why is there so much code?  In part, it’s because C is an
+older and lower-level language than Chapel, so doesn’t have
+abstractions like iterators, zippered iteration, or type inference.
+In part, it’s because imposing an SPMD programming model on the
+user results in additional bookkeeping and detail management
+that isn’t present in a global-view programming language like Chapel
+that supports distributed domains and arrays.  And in part it’s
+because all of the communication and buffer management must be done
+explicitly by the programmer.</p>
+<p>Note that the comment at the start of the code, which deciphers what
+the rest of it does:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* Perform updates to main table. The scalar equivalent is:
+</span></span></span><span class="line"><span class="cl"><span class="cm"> *
+</span></span></span><span class="line"><span class="cl"><span class="cm"> *     for (i=0; i&lt;NUPDATE; i++) {
+</span></span></span><span class="line"><span class="cl"><span class="cm"> *       Ran = (Ran &lt;&lt; 1) ^ (((s64Int) Ran &lt; 0) ? POLY : 0);
+</span></span></span><span class="line"><span class="cl"><span class="cm"> *       Table[Ran &amp; (TABSIZE-1)] ^= Ran;
+</span></span></span><span class="line"><span class="cl"><span class="cm"> *     }
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span></code></pre></div><p>is similar in size and clarity to the original, equivalent Chapel loop
+that we started with:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">Updates</span><span class="p">,</span><span class="w"> </span><span class="nx">randomValues</span><span class="p">())</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">T</span><span class="p">[</span><span class="nx">r</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="nx">indexMask</span><span class="p">].</span><span class="nx">xor</span><span class="p">(</span><span class="nx">r</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>In short, we have concise, reasonably clear code that outperforms and
+outscales the much longer and more detailed MPI equivalent by virtue
+of enabling compiler optimizations.  A good counter-example to Myth
+#6.</p>
+<h4 id="comparing-chapel-with-exstack-and-conveyors">
+<a href="#comparing-chapel-with-exstack-and-conveyors">Comparing Chapel with Exstack and Conveyors</a>
+</h4>
+<p>Since conducting this 2019 study of RA, our team has not done many
+additional comparisons with MPI, in large part because that was the
+year we turned our attention to supporting flagship Chapel
+applications like <a href="../../posts/7qs-laurendeau/">CHAMPS</a> and
+<a href="../../posts/7qs-reus/">Arkouda</a>.  (And for some reason, users with
+a working Chapel application don’t seem to want to write a second
+version of it in MPI for purposes of comparison!)</p>
+<p>That said, we did do a similar comparison with the SHMEM-based Exstack
+and Conveyors libraries, which is worth a mention here despite not
+being MPI-based because it features:</p>
+<ul>
+<li>
+<p>a more recent vehicle for comparisons: <a href="https://github.com/jdevinney/bale/#readme">Bale
+Indexgather</a></p>
+</li>
+<li>
+<p>a newer system and network: HPE Cray EX running Slingshot-11</p>
+</li>
+<li>
+<p>a larger system scale: 4096 compute nodes (over half a million cores)</p>
+</li>
+<li>
+<p>a use of aggregators, which were instrumental to <a href="../../posts/announcing-chapel-2.0/#arkouda-interactive-data-analysis-at-scale">Arkouda’s
+distributed sort performance</a></p>
+</li>
+</ul>
+<p>Like HPCC RA, this example demonstrates another case where
+straightforward Chapel code outperforms and outscales a lower-level,
+more explicit approach.  Since this article is running long, I won’t
+go through it blow by blow, but will summarize with this cartoon of
+the “gather” operation that Indexgather computes:</p>
+<figure><img src="../../posts/10myths-part6/Bale-IG.jpg"/>
+</figure>
+<p>this loop of Chapel code that implements it:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="p">(</span><span class="nx">d</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="k">zip</span><span class="p">(</span><span class="nx">Dst</span><span class="p">,</span><span class="w"> </span><span class="nx">Inds</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Src</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span></code></pre></div><p>these listings of the equivalent code in Exstack and Conveyors:</p>
+<figure class="fullwide"><img src="../../posts/10myths-part6/Bale-IG-SHMEM.jpg"/>
+</figure>
+<p>and this performance graph showing the resulting performance and
+scalability:</p>
+<figure class="fullwide"><img src="../../posts/10myths-part6/Bale-IG-Perf.jpg"/>
+</figure>
+<p>Like the HPCC RA case, this is an example where the Chapel compiler is
+able to apply transformations in order to optimize the communications
+required by the computation.  In this case, it’s Chapel’s
+<code>--auto-aggregation</code> optimization, which coarsens what would otherwise
+be fine-grained puts and gets to amortize their overheads.  The
+SHMEM-based technologies do this as well, but not as scalably.</p>
+<h4 id="other-more-recent-comparisons">
+<a href="#other-more-recent-comparisons">Other, More Recent Comparisons</a>
+</h4>
+<p>Back on MPI comparisons, the following recent studies are other notable
+cases where Chapel performs competitively with, or better than, MPI:</p>
+<ul>
+<li>
+<p>This <a href="../../posts/bns4/#comparison-with-cmpiopenmp">comparison between Chapel and MPI</a> in the context of a cavity flow
+solver, written by Jeremiah Corrado as part of his <a href="../../series/navier-stokes-in-chapel/"><em>Navier-Stokes in
+Chapel</em></a> blog series.  This
+study is somewhat different than the ones above in that it focuses on
+regular, structured communications rather than optimizing irregular
+fine-grained remote operations.</p>
+</li>
+<li>
+<p>A recent multi-language comparison of distributed radix sorting
+performed by Michael Ferguson et al. that’s summarized in <a href="https://github.com/mppf/distributed-lsb#readme">this GitHub
+repository</a>.  This
+November, a more detailed write-up of the study that includes
+OpenSHMEM, Conveyors, and Lamellar, in addition to Chapel and MPI,
+will be published as part of the <a href="https://sourceryinstitute.github.io/PAW/">PAW-ATM
+workshop</a> at
+<a href="https://sc25.supercomputing.org/">SC25</a>, under the title <em>Comparing
+Distributed-Memory Programming Frameworks with Radix Sort</em>.</p>
+</li>
+</ul>
+<p> <br/></p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+HPC is, by nature, an impatient branch within the impatient field of
+computer science.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<h3 id="wrapping-up">
+<a href="#wrapping-up">Wrapping Up</a>
+</h3>
+<p>Wrapping up, I want to note that while this article demonstrates that
+concise ZPL and Chapel programs <em>can</em> outperform MPI due to the
+optimization opportunities that their high-level abstractions permit,
+readers should not conclude that Chapel will necessarily always
+outperform MPI.  The cases highlighted in this article are notable in
+that they received particular attention due to their importance as
+fundamental Chapel idioms (HPCC RA and Navier-Stokes-style stencil
+operations) or to user applications (Bale Indexgather and distributed
+sorting).  Chapel has many other opportunities for optimization ahead
+that have not received a similar amount of attention to date.</p>
+<p>HPC is, by nature, an impatient branch within the impatient field of
+computer science.  But note that in the 13 years since this article
+was written, Chapel has grown from the point of not being able to
+compete with MPI for something as simple as STREAM Triad, to being
+able to compete with it, and then beat it in cases like HPCC RA.  It
+has gone on to scale to over a thousand GPUs and a million processor
+cores in the context of production-grade user applications.  A
+<span class="sidenote"><label class="sidenote-label" for="sidenote-10">little bit of patience</label><input class="sidenote-checkbox" id="sidenote-10" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>While in Milano for
+IPDPS this summer, I learned that its Duomo took nearly six centuries
+to complete.  Oh for even a tiny fraction of that kind of patience
+from the HPC community!<span class="sidenote-delimiter">]</span></span></span> can go a long way.</p>
+<p>Is Chapel perfect?  No, unfortunately not (yet), and we’ll come back
+to that topic in the final article in this series.  But first, in next
+month’s penultimate installment, we’ll look at the myth that
+successful languages are necessarily small / minimal.  See you then!</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+6%3A+Performance+of+Higher-Level+Languages%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part6%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+6%3A+Performance+of+Higher-Level+Languages%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part6%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+6%3A+Performance+of+Higher-Level+Languages%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part6%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=10+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+6%3A+Performance+of+Higher-Level+Languages&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part6%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+6%3A+Performance+of+Higher-Level+Languages%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part6%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/10myths-part5/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+  Part 5: Productivity and Magic Compilers
+
+
+                    </span>
+</span>
+</a>
+</div>
+<div class="series-button-wrapper next">
+<a class="button" href="../../posts/10myths-part7/">
+<span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+  Part 7: Minimalist Language Designs
+
+
+                    </span>
+</span>
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-right"></use>
+</svg>
+</a>
+</div>
+</nav>
+</body>
+</html>

@@ -1,5 +1,6 @@
 +++
 title = "Blazing Fast Speed with Chapel"
+description = "Examples of fast computations enabled by Chapel"
 keywords = ["TODO"]
 
 [[singleNodeResult]]

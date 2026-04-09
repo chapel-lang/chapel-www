@@ -1,0 +1,341 @@
+.. default-domain:: chpl
+
+.. module:: UnitTest
+   :synopsis: Support for automated testing in Chapel.
+
+UnitTest
+========
+**Usage**
+
+.. code-block:: chapel
+
+   use UnitTest;
+
+
+or
+
+.. code-block:: chapel
+
+   import UnitTest;
+
+
+Support for automated testing in Chapel.
+
+The UnitTest module is intended to be used with the `mason test
+<https://chapel-lang.org/docs/tools/mason/mason.html>`_ command, which
+automates execution of any test function.
+
+A unit test function is defined as any function with the following signature:
+
+.. code-block:: chapel
+
+  proc funcName(test: borrowed Test) throws {}
+
+These functions must accept an argument of type ``borrowed Test``, and have a
+``throws``.
+
+A program containing tests must execute the ``UnitTest``
+:proc:`~UnitTest.main()` function to run the tests.
+
+
+Assert Functions
+----------------
+
+Here are the assert functions available in the UnitTest module:
+
+- :proc:`~Test.assertTrue`
+- :proc:`~Test.assertFalse`
+- :proc:`~Test.assertEqual`
+- :proc:`~Test.assertNotEqual`
+- :proc:`~Test.assertGreaterThan`
+- :proc:`~Test.assertLessThan`
+- :proc:`~Test.assertRegexMatch`
+
+Test Metadata Functions
+-----------------------
+
+UnitTest module also provides multiple methods for specifying test Metadata:
+
+- :proc:`~Test.skip`
+- :proc:`~Test.skipIf`
+- :proc:`~Test.addNumLocales`
+- :proc:`~Test.maxLocales`
+- :proc:`~Test.minLocales`
+- :proc:`~Test.dependsOn`
+
+
+Examples
+--------
+
+All examples are run using the `mason test` command, which acts as a test
+runner for the UnitTest module. See :ref:`testing-with-mason` for more info.
+
+.. note::
+
+   These examples can also be run standalone, but that output is not shown here.
+
+Basic Usage
+^^^^^^^^^^^
+
+Here is a minimal example demonstrating how to use the UnitTest module:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/BasicUsage.chpl
+    :language: chapel
+    :start-after: START_EXAMPLE
+    :end-before: STOP_EXAMPLE
+
+Output:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/BasicUsage.good
+    :language: bash
+
+Skipping Tests
+^^^^^^^^^^^^^^^
+
+You can skip tests unconditionally with :proc:`~Test.skip` and
+conditionally with :proc:`~Test.skipIf`:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/Skip.chpl
+    :language: chapel
+    :start-after: START_EXAMPLE
+    :end-before: STOP_EXAMPLE
+
+Output:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/Skip.good
+    :language: bash
+
+Specifying locales
+^^^^^^^^^^^^^^^^^^
+
+You can control the number of locales a test should use with these methods:
+
+:proc:`~Test.addNumLocales`
+:proc:`~Test.maxLocales`
+:proc:`~Test.minLocales`
+
+Here is an example demonstrating how to use :proc:`~Test.addNumLocales`
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/LocalesSquare.chpl
+    :language: chapel
+    :start-after: START_EXAMPLE
+    :end-before: STOP_EXAMPLE
+
+Output:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/LocalesSquare.good
+    :language: bash
+
+
+You can also specify multiple locales on which your code can run.
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/Locales.chpl
+    :language: chapel
+    :start-after: START_EXAMPLE_1
+    :end-before: STOP_EXAMPLE_1
+
+You can specify the range of locales using :proc:`~Test.maxLocales` and
+:proc:`~Test.minLocales`
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/Locales.chpl
+    :language: chapel
+    :start-after: START_EXAMPLE_2
+    :end-before: STOP_EXAMPLE_2
+
+Specifying Dependencies
+^^^^^^^^^^^^^^^^^^^^^^^
+
+You can specify the order in which tests should run using :proc:`~Test.dependsOn`:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/Dependencies.chpl
+    :language: chapel
+    :start-after: START_EXAMPLE
+    :end-before: STOP_EXAMPLE
+
+Output:
+
+.. literalinclude:: ../../../../test/library/packages/UnitTest/doc-examples/Dependencies.good
+    :language: bash
+
+
+Filtering Tests
+~~~~~~~~~~~~~~~
+
+When running tests, you can run a subset of the tests in a given file by using specifying a filter. This is done by specifying ``--filter`` followed by a regular expression matching the names of the tests to run.
+
+.. note::
+
+   If you are using a build of Chapel without regex support
+   (i.e. ``CHPL_RE2=none``), you can compile your test case with ``-snoRegex``
+   to disable regex support in the test runner. ``--filter`` will then
+   perform simple substring matching instead of regex matching.
+
+
+.. class:: Test
+
+   .. method:: proc skip(reason: string = "") throws
+
+      Unconditionally skip a test.
+      
+      :arg reason: the reason for skipping
+      :throws TestSkipped: Always
+      
+      
+
+   .. method:: proc skipIf(condition: bool, reason: string = "") throws
+
+      
+      Skip a test if the condition is true.
+      
+      :arg condition: the boolean condition
+      
+      :arg reason: the reason for skipping
+      :throws TestSkipped: If the `condition` is true.
+      
+
+   .. method:: proc assertTrue(test: bool) throws
+
+      
+      Assert that ``test`` is `true`.
+      
+      :arg test: the boolean condition
+      :throws AssertionError: If the assertion is `false`.
+      
+
+   .. method:: proc assertFalse(test: bool) throws
+
+      
+      Assert that ``test`` is `false`.
+      
+      :arg test: the boolean condition
+      :throws AssertionError: If the assertion is `true`.
+      
+
+   .. method:: proc assertEqual(first, second) throws
+
+      
+      Assert that ``first == second``.
+      
+      :arg first: The first object to compare.
+      :arg second: The second object to compare.
+      :throws AssertionError: If both the arguments are not equal.
+      
+
+   .. method:: proc assertRegexMatch(x: ?t, pattern: t) throws
+
+      
+      Assert that x matches the regular expression pattern.
+      
+      .. warning::
+      
+        This method requires Chapel to be built with `CHPL_RE2=bundled`.
+      
+      :arg x: The first string or bytes to match.
+      :arg pattern: The regular expression pattern.
+      :throws AssertionError: If x doesn't match the regex
+      
+
+   .. method:: proc assertRegexMatch(x: ?t, re: regex(t)) throws
+
+      
+      Assert that x matches the pre-compiled regular expression object.
+      
+      .. warning::
+      
+        This method requires Chapel to be built with `CHPL_RE2=bundled`.
+      
+      :arg x: The first string or bytes to match.
+      :arg pattern: The pre-compiled regular expression object.
+      :throws AssertionError: If x doesn't match the regex
+      
+
+   .. method:: proc assertNotEqual(first, second) throws
+
+      
+      Assert that ``first != second``.
+      
+      :arg first: The first object to compare.
+      :arg second: The second object to compare.
+      :throws AssertionError: If both the arguments are equal.
+      
+
+   .. method:: proc assertGreaterThan(first, second) throws
+
+      
+      Assert that ``first > second``.
+      
+      :arg first: The first object to compare.
+      :arg second: The second object to compare.
+      :throws AssertionError: If the first argument is not greater than second argument.
+      
+
+   .. method:: proc assertLessThan(first, second) throws
+
+      
+      Assert that ``first < second``.
+      
+      :arg first: The first object to compare.
+      :arg second: The second object to compare.
+      :throws AssertionError: If the first argument is not less than the second argument.
+      
+
+   .. method:: proc maxLocales(value: int) throws
+
+      
+      Specify maximum number of locales this test can run on.
+      
+      :arg value: Maximum number of locales with which the test can be run.
+      
+      :throws UnexpectedLocales: If `value` is less than 1 or `minNumLocales`
+      
+
+   .. method:: proc minLocales(value: int) throws
+
+      
+      Specify minimum number of locales required to run the test.
+      
+      :arg value: Minimum number of locales with which the test can be run.
+      
+      :throws UnexpectedLocales: If `value` is more than `maxNumLocales`
+      
+
+   .. method:: proc addNumLocales(locales: int ...?n) throws
+
+      
+      Indicate how many locales to run the test on.
+      
+      If a test can run on multiple different locale counts, they can be
+      specified using multiple arguments. Only one of the locale counts
+      specified will be run in testing.
+      
+      .. note::
+      
+        To run a single test with multiple locale counts, create multiple tests
+        where each test requires a specific locale count.
+      
+      :arg locales: locale counts
+      
+      :throws UnexpectedLocales: If `locales` are already added.
+      
+      
+
+   .. method:: proc dependsOn(tests: argType ...?n) throws
+
+      Adds the tests which must run before this test.
+      
+      :arg tests: First class functions
+      :throws DependencyFound: If called for the first time in a function.
+      
+      
+
+.. function:: proc main() throws
+
+   Runs the tests
+   
+   Call this as
+   
+   .. code-block:: chapel
+   
+     UnitTest.main();
+   
+

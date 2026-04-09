@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="Highlights from the September 2025 release of Chapel 2.6" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Announcing Chapel 2.6!</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>Announcing Chapel 2.6!</h2>
+<div class="post-subscript">
+<p>Posted on September 18, 2025.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/interoperability/">Interoperability</a>
+<a class="button" href="../../tags/libraries/">Libraries</a>
+<a class="button" href="../../tags/debugging/">Debugging</a>
+<a class="button" href="../../tags/tools/">Tools</a>
+<a class="button" href="../../tags/dyno/">Dyno</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/david-longnecker">David Longnecker</a>, <a href="../../authors/jade-abraham">Jade Abraham</a>, <a href="../../authors/lydia-duncan">Lydia Duncan</a>, <a href="../../authors/daniel-fedorin">Daniel Fedorin</a>, <a href="../../authors/ben-harshbarger">Ben Harshbarger</a>, <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/release-announcements/">Release Announcements</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents sticky">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#dynamic-loading-support">Dynamic Loading Support</a></li>
+<li><a href="#debugging-enhancements">Debugging Enhancements</a>
+<ul>
+<li><a href="#prototype-parallel-debugger">Prototype Parallel Debugger</a></li>
+</ul>
+</li>
+<li><a href="#unit-testing-improvements-for-mason-and-vscode">Unit testing Improvements for Mason and VSCode</a></li>
+<li><a href="#documentation-improvements">Documentation Improvements</a></li>
+<li><a href="#improvements-to-the-dyno-compiler-front-end">Improvements to the Dyno Compiler Front-End</a>
+<ul>
+<li><a href="#more-language-features">More Language Features</a></li>
+<li><a href="#generating-executable-code">Generating Executable Code</a></li>
+</ul>
+</li>
+<li><a href="#for-more-information">For More Information</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<p>The Chapel community is pleased to announce the release of Chapel
+2.6!  As usual, you can <a href="https://chapel-lang.org/download/">download and
+install</a> this new version in a
+<span class="sidenote"><label class="sidenote-label" for="sidenote-0">variety of formats</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Note that some formats
+may not be immediately available on the day of the
+release…<span class="sidenote-delimiter">]</span></span></span>, including Spack, Docker, Homebrew,
+various Linux package managers, and good-old source tarballs.</p>
+<p>In this article, we’ll introduce some of the highlights of Chapel
+2.6, including:</p>
+<ul>
+<li>
+<p>Chapel’s new module for <a href="#dynamic-loading-support">dynamically loading
+libraries</a> and calling into them</p>
+</li>
+<li>
+<p>Improvements when <a href="#debugging-enhancements">debugging Chapel programs</a></p>
+</li>
+<li>
+<p>Improved <a href="#unit-testing-improvements-for-mason-and-vscode">unit
+testing</a> with
+Mason and VSCode</p>
+</li>
+<li>
+<p>Numerous <a href="#documentation-improvements">documentation and
+<code>chpldoc</code></a> improvements</p>
+</li>
+<li>
+<p>Improvements to the capabilities of the <a href="#improvements-to-the-dyno-compiler-front-end">Dyno compiler
+front-end</a></p>
+</li>
+</ul>
+<p>In addition to the above features, each of which is covered in more
+detail below, other highlights of Chapel 2.6 include:</p>
+<ul>
+<li>
+<p>Improved support for using <a href="https://chapel-lang.org/docs/2.6/usingchapel/debugging/sanitizers.html">address
+sanitizers</a>
+with Chapel programs</p>
+</li>
+<li>
+<p>Ongoing capability improvements to Chapel’s tools, such as
+<a href="https://chapel-lang.org/docs/2.6/usingchapel/editor-support.html#vscode">VSCode</a>,
+the <a href="https://chapel-lang.org/docs/2.6/tools/chplcheck/chplcheck.html"><code>chplcheck</code></a> linter,
+<a href="https://chapel-lang.org/docs/2.6/tools/chpl-language-server/chpl-language-server.html"><code>chpl-language-server</code></a>, and <a href="https://chapel-lang.org/docs/2.6/tools/chapel-py/chapel-py.html"><code>chapel-py</code></a></p>
+</li>
+<li>
+<p>Flexibility improvements to the
+<a href="https://chapel-lang.org/download/#homebrew">Homebrew</a> and <a href="https://chapel-lang.org/download/#linux">Linux
+package</a> releases of
+Chapel, including support for:</p>
+<ul>
+<li>Chapel’s cpu-as-device GPU emulation mode</li>
+<li>support for multi-locale executions with Homebrew installs</li>
+<li>support for both the LLVM and C-based back-ends in Linux
+packages</li>
+</ul>
+<p>In addition, where past Linux packages supported a binary download
+per Chapel configuration, the 2.6 release bundles all
+configurations for a given OS/platform into a single binary.</p>
+</li>
+</ul>
+<p>For a much more complete list of changes in Chapel 2.6, see the
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.6/CHANGES.md">CHANGES.md</a>
+file.  And as always, thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/2.6/CONTRIBUTORS.md">everyone who
+contributed</a>
+to version 2.6!</p>
+<h3 id="dynamic-loading-support">
+<a href="#dynamic-loading-support">Dynamic Loading Support</a>
+</h3>
+<p>This release of Chapel offers improved support for calling
+procedures from dynamically loaded libraries.  This feature was
+introduced in a prototypical form for the 2.5 release, but in 2.6 it
+is now supported by all compiler back-ends and has improved
+stability.</p>
+<p>To use this feature, you must first have a shared library that you
+wish to dynamically load.  As a simple example, we’ll create and
+call into a toy library defined as follows:</p>
+<div class="file" data-code-path="code/MyAdd.c" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="MyAdd.c" href="code/MyAdd.c">MyAdd.c</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">myAdd</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>The compiler invocation to create a dynamic library from the C code
+above should look something like the following, where details may
+vary depending on your C compiler and platform:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> clang -shared -fPIC -o libMyAdd.so MyAdd.c
+</span></span></code></pre></div><p>Once your library is compiled, you can write a program to load it
+and call <code>myAdd()</code> with just a few lines of Chapel code:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.6.chpl" data-code-section="middle" data-code-type="main" data-start-line="1"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/packages/DynamicLoading.html"><span class="nx">DynamicLoading</span></a><span class="p">,</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html"><span class="nx">CTypes</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">lib</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><a href="../../../docs/modules/packages/DynamicLoading.html#DynamicLoading.binary"><span class="nx">binary</span></a><span class="p">.</span><a href="../../../docs/modules/packages/DynamicLoading.html#DynamicLoading.binary.load"><span class="nx">load</span></a><span class="p">(</span><span class="s">'./libMyAdd.so'</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">add</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">lib</span><span class="p">.</span><span class="nx">retrieve</span><span class="p">(</span><span class="s">'myAdd'</span><span class="p">,</span><span class="w"> </span><span class="nx">proc</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_int"><span class="nx">c_int</span></a><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_int"><span class="nx">c_int</span></a><span class="p">):</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_int"><span class="nx">c_int</span></a><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">writeln</span><span class="p">(</span><span class="nx">n</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that although <code>bin.retrieve()</code> was only called on <code>Locales[0]</code>,
+the retrieved procedure stored in <code>add</code> can be invoked on any
+locale:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.6.chpl" data-code-section="middle" data-code-type="main" data-start-line="9"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">on</span><span class="w"> </span><span class="nx">Locales</span><span class="p">.</span><a href="../../../docs/language/spec/arrays.html#ChapelArray.last"><span class="nx">last</span></a><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">:</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_int"><span class="nx">c_int</span></a><span class="p">,</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">:</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_int"><span class="nx">c_int</span></a><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">n</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>In order to use dynamic loading in Chapel at present, the
+<code>useProcedurePointers</code> <code>config param</code> must be set to <code>true</code> during
+Chapel compilation (this requirement will be relaxed in future
+releases).  As a result, to compile this example and run it on four
+locales, you could use:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go"> $ chpl -suseProcedurePointers=true UseMyAdd.chpl
+</span></span></span><span class="line"><span class="cl"><span class="go"> $ ./UseMyAdd -nl 4
+</span></span></span><span class="line"><span class="cl"><span class="go"> 4
+</span></span></span><span class="line"><span class="cl"><span class="go"> 6
+</span></span></span></code></pre></div><p>In addition to supporting traditional shared libraries like this
+sample C library, this feature also provides initial support for
+loading and calling into dynamic Chapel libraries whose exported
+procedures are pure and C-like—for example, ones that don’t rely on
+Chapel’s runtime or modules.  In future releases, we plan to expand
+loading of dynamic libraries to support arbitrary Chapel procedures.</p>
+<h3 id="debugging-enhancements">
+<a href="#debugging-enhancements">Debugging Enhancements</a>
+</h3>
+<p>Debugging Chapel programs gets even better in version 2.6, with
+better debug information and new pretty-printers.  Historically,
+debugging Chapel programs has meant interacting with the generated C
+code.  This meant that when inspecting Chapel variables, you would
+see the internal C representation of those data structures.  In this
+release, we added pretty-printers for LLDB when using Chapel’s C
+back-end that make it possible to view Chapel data structures using
+formats that are much more intuitive and user-oriented.  This
+improvement can be seen in the following sample debugging session
+involving arrays.</p>
+<p>In this example, we’ll debug the following simple Chapel program:</p>
+<div class="file" data-code-path="code/example.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="example.chpl" href="code/example.chpl">example.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/standard/Debugger.html"><span class="nx">Debugger</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">myArr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><a href="../../../docs/modules/standard/IO.html#IO.writeln"><span class="nx">writeln</span></a><span class="p">(</span><span class="nx">myArr</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><a href="../../../docs/modules/standard/Debugger.html#Debugger.breakpoint"><span class="nx">breakpoint</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>We have used the
+<a href="https://chapel-lang.org/docs/modules/standard/Debugger.html"><code>Debugger</code></a>
+module’s <code>breakpoint</code> statement to automatically stop execution at
+the place of interest in our program when running within a debugger.
+To compile this program and run it within LLDB, we use <span class="sidenote"><label class="sidenote-label" for="sidenote-1">the following commands</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Note that we are working on a
+more ergonomic way to disable optimizations and code transformations
+when debugging, to avoid the list of flags shown here.  This is
+being discussed in issue
+<a href="https://github.com/chapel-lang/chapel/issues/27615">#27615</a><span class="sidenote-delimiter">]</span></span></span>
+in a configuration that uses Chapel’s C back-end
+(e.g., <code>CHPL_TARGET_COMPILER=clang</code>):</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl -g --no-copy-propagation --no-scalar-replacement --no-denormalize --no-munge-user-idents example.chpl
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./example --lldb
+</span></span></code></pre></div><p>Upon running the program, we hit the <code>breakpoint</code> statement and can
+print out the contents of <code>myArr</code>.  Traditionally, that output would
+have looked like this:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.6/debug-old.png"/>
+</figure>
+<p>What we see is a bunch of internal C pointers that are used to
+implement Chapel arrays.  This isn’t very helpful to the typical
+user, since it looks nothing like the logical array they’d expect.</p>
+<p>Now let’s look at the exact same debugging session using the new
+pretty-printers added in Chapel 2.6:</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.6/debug.png"/>
+</figure>
+<p>Now we see the contents of the array printed in a much more familiar
+and useful way, and the implementation details we don’t care about
+<span class="sidenote"><label class="sidenote-label" for="sidenote-2">are hidden</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>If these details are important
+to you, you can still see them by printing the raw data structure
+using <code>v -R</code>.<span class="sidenote-delimiter">]</span></span></span>. This is just one example of the new
+pretty-printers, which cover a wide variety of built-in Chapel
+types, including strings, tuples, ranges, and domains. These new
+pretty-printers are available by default as long as you are using
+LLDB with Python support enabled.</p>
+<p>We also made some great improvements to the debug information that
+the Chapel compiler generates. The best example of this is with
+<code>enum</code>s. The debugger now has enough information to print out the
+names of the enum symbols instead of the underlying integer
+values. This makes it much easier to understand what is going on in
+your program. These improvements also lay the groundwork for
+additional improvements in the future.</p>
+<h4 id="prototype-parallel-debugger">
+<a href="#prototype-parallel-debugger">Prototype Parallel Debugger</a>
+</h4>
+<p>The Chapel 2.6 release also includes a new tool,
+<code>chpl-parallel-dbg</code>. This tool enables vastly improved debugging of
+multilocale Chapel programs, which has been a longstanding
+challenge. It works by launching a debugger on each locale of a
+Chapel program, and then connecting them all together with a single
+interface.</p>
+<p>In the following example, we’ll demonstrate the use of
+<code>chpl-parallel-dbg</code> on this multilocale Chapel program:</p>
+<div class="file" data-code-path="code/multiloc/example.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="multiloc/example.chpl" href="code/multiloc/example.chpl">multiloc/example.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/dists/BlockDist.html"><span class="nx">BlockDist</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><a href="../../../docs/modules/dists/BlockDist.html#BlockDist.blockDist"><span class="nx">blockDist</span></a><span class="p">.</span><a href="../../../docs/modules/dists/BlockDist.html#BlockDist.blockDist.createArray"><span class="nx">createArray</span></a><span class="p">(</span><span class="mi">0</span><span class="o">..#</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">arr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">arr</span><span class="p">.</span><span class="k">domain</span><span class="p">;</span><span class="w">  </span><span class="c1">// assign each element of 'arr' its corresponding index
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">myVar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">loc</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><a href="../../../docs/modules/standard/IO.html#IO.writeln"><span class="nx">writeln</span></a><span class="p">(</span><span class="s">"Hello from locale "</span><span class="p">,</span><span class="w"> </span><span class="nx">myVar</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">mySlice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">arr</span><span class="p">[</span><span class="nx">arr</span><span class="p">.</span><a href="../../../docs/language/spec/arrays.html#ChapelArray.localSubdomain"><span class="nx">localSubdomain</span></a><span class="p">()];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><a href="../../../docs/modules/standard/IO.html#IO.writeln"><span class="nx">writeln</span></a><span class="p">(</span><span class="s">"My slice is: "</span><span class="p">,</span><span class="w"> </span><span class="nx">mySlice</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">import</span><span class="w"> </span><a href="../../../docs/modules/standard/Debugger.html"><span class="nx">Debugger</span></a><span class="p">;</span><span class="w"> </span><a href="../../../docs/modules/standard/Debugger.html"><span class="nx">Debugger</span></a><span class="p">.</span><a href="../../../docs/modules/standard/Debugger.html#Debugger.breakpoint"><span class="nx">breakpoint</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>This session shows the program running on two locales, where we
+switch between them using a custom <code>on</code> command that mirrors the
+Chapel syntax.  To get each locale running, we use a <code>c</code> (continue)
+command, and then are notified once we hit one of the breakpoints.
+Note that the <code>up</code> command is performed automatically for us by the
+tooling to ensure that we’re in the user-level Chapel code.</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.6/parallel-dbg.png"/>
+</figure>
+<p>This new tool is still a work in progress, but it’s already a huge
+step forward for debugging multilocale Chapel programs.  To learn
+more about it or to try it yourself, see <a href="https://chapel-lang.org/docs/2.6/usingchapel/debugging/multilocale.html#chpl-parallel-dbg">its
+documentation</a>.
+We are excited to continue improving this tool in future releases.</p>
+<h3 id="unit-testing-improvements-for-mason-and-vscode">
+<a href="#unit-testing-improvements-for-mason-and-vscode">Unit testing Improvements for Mason and VSCode</a>
+</h3>
+<p>This release also includes many significant improvements to
+<a href="https://chapel-lang.org/docs/2.6/tools/mason/mason.html"><code>mason</code></a>,
+Chapel’s package manager, primarily focused on improving the
+developer experience when testing.  We fixed many bugs with mason
+itself and added some new testing features.  For example, suppose we
+have a simple program defining some unit tests:</p>
+<div class="file" data-code-path="code/myTest.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="myTest.chpl" href="code/myTest.chpl">myTest.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/packages/UnitTest.html"><span class="nx">UnitTest</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">myTest1</span><span class="p">(</span><span class="nx">test</span><span class="p">:</span><span class="w"> </span><span class="k">borrowed</span><span class="w"> </span><span class="nx">Test</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// test code here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">myTest2</span><span class="p">(</span><span class="nx">test</span><span class="p">:</span><span class="w"> </span><span class="k">borrowed</span><span class="w"> </span><span class="nx">Test</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// test code here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><a href="../../../docs/modules/packages/UnitTest.html"><span class="w"></span></a><a href="../../../docs/modules/packages/UnitTest.html"><span class="nx">UnitTest</span></a><span class="p">.</span><a href="../../../docs/modules/packages/UnitTest.html#UnitTest.main"><span class="nx">main</span></a><span class="p">();</span><span class="w">                                                              
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>This can be run, standalone, using:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl myTest.chpl
+</span></span><span class="line"><span class="cl"><span class="gp">$</span> ./myTest
+</span></span></code></pre></div><p>However, using <code>mason</code> we can just run:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go"> $ mason test myTest.chpl
+</span></span></span></code></pre></div><p>and it will handle compilation and execution, while also generating
+a nice report for us:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-text" data-lang="text"><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">----------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">Ran 2 tests in 18.6117 seconds
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">OK (passed = 2 )
+</span></span></code></pre></div><p>Chapel 2.6 also adds the ability to selectively run tests by name.
+For example, this command:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go"> $ mason test myTest.chpl --filter myTest1
+</span></span></span></code></pre></div><p>will only run the <code>myTest1</code> test.  This is particularly useful when
+you are working on a specific test and don’t want to run the entire
+suite.</p>
+<p>We also integrated testing into VSCode, so that you can run (and in
+the future, debug) tests directly from the editor!</p>
+<figure class="fullwide"><img src="../../posts/announcing-chapel-2.6/vscode-test.png"/>
+</figure>
+<p>This creates a much smoother workflow for developing and testing
+Chapel code from the comfort of a GUI.</p>
+<h3 id="documentation-improvements">
+<a href="#documentation-improvements">Documentation Improvements</a>
+</h3>
+<p>Each Chapel release typically includes a handful of documentation
+improvements, usually motivated by the features being added or
+improved during that release cycle.  This release cycle saw a larger
+than normal set of documentation improvements, due to <em>documentation
+week</em>.  This was a dedicated week focused on improving documentation
+and documentation-adjacent aspects of the project.  We frequently
+find it healthy to dedicate a week shortly after each release to
+focus on some housekeeping task.  Instead of juggling these
+important, ongoing efforts with other priorities, it allows us to
+make rapid progress in a short period of time, and also feels like
+a nice break from normal work.  Past dedicated weeks have focused
+specifically on cleaning up nightly testing or resolving user
+issues, and for this release it made sense to focus on
+documentation.</p>
+<p>During documentation week, we resolved and closed 23 outstanding
+issues.  We fixed bugs with our <code>chpldoc</code> documentation tool and
+added the ability to search our online documentation for compiler
+flags (like <a href="https://chapel-lang.org/docs/2.6/search.html?q=--fast&amp;check_keywords=yes&amp;area=default">this
+search</a>
+for <code>--fast</code>).  As part of refactoring our <a href="https://chapel-lang.org/docs/2.6/usingchapel/multilocale.html">multilocale
+documentation</a>,
+we added or extended pages on using the <a href="https://chapel-lang.org/docs/2.6/platforms/networks/efa.html">Elastic Fabric Adapter
+(EFA)</a>
+network interface for
+<a href="https://chapel-lang.org/docs/2.6/platforms/aws.html#readme-aws">AWS</a>,
+<a href="https://chapel-lang.org/docs/2.6/platforms/networks/ethernet.html">Ethernet
+clusters</a>,
+and <a href="https://chapel-lang.org/docs/2.6/platforms/comm-layers/gasnet.html#readme-gasnet-smp">GASNet’s SMP
+conduit</a>
+for running multiple locales on shared memory.  Additionally, this
+release saw the introduction of documentation on <a href="https://chapel-lang.org/docs/2.6/usingchapel/debugging/sanitizers.html">sanitizer
+tools</a>,
+and general improvements to our <a href="https://chapel-lang.org/docs/2.6/usingchapel/debugging.html">debugging
+documentation</a>.</p>
+<p>We also made extensive progress in updating code examples in
+documentation to support nightly testing.  Our enthusiasm for this
+effort carried over into subsequent weeks, such that for version
+2.6, we ultimately added testing for examples in 45 libraries and 9
+technotes!  As a result, we were able to identify and fix many
+examples that had gotten out-of-date due to improvements to the
+language.</p>
+<p>As a result of all these efforts, Chapel’s online documentation is
+now more searchable, more accurate, and more robust to future
+changes; and <code>chpldoc</code> itself is better than ever!</p>
+<h3 id="improvements-to-the-dyno-compiler-front-end">
+<a href="#improvements-to-the-dyno-compiler-front-end">Improvements to the Dyno Compiler Front-End</a>
+</h3>
+<p>As you may have seen in <a href="../../posts/announcing-chapel-2.5/#improvements-to-the-dyno-compiler-front-end">previous</a> <a href="../../posts/announcing-chapel-2.4/#dyno-support-for-chapel-features">release</a>
+<a href="../../posts/announcing-chapel-2.3/#dyno-compiler-improvements">announcements</a>, <em>Dyno</em> is
+the name of our effort to modernize and improve the Chapel compiler.
+Dyno improves error messages, allows incremental type resolution,
+and enables the <a href="../../posts/chapel-py/">development of language tooling</a>.  Among the major wins for this ongoing effort is
+the <a href="https://chapel-lang.org/docs/2.6/tools/chpl-language-server/chpl-language-server.html">Chapel Language Server
+(CLS)</a>,
+which was previously featured in a <a href="../../posts/chapel-lsp/">blog post about editor
+integration</a>, not to mention Chapel’s
+linter, VSCode support, and <code>chpldoc</code>.</p>
+<p>Our team has been hard at work implementing many features of
+Chapel’s type system in Dyno, which—among other things—will
+enable tools like CLS to provide more accurate and helpful
+information to users.  In the 2.6 release, we have continued to
+improve Dyno’s support for Chapel’s language features, and we’ve
+also expanded the compiler’s ability to leverage the Dyno front-end
+to generate executable code.</p>
+<h4 id="more-language-features">
+<a href="#more-language-features">More Language Features</a>
+</h4>
+<p>This release includes new support for resolving additional language
+features with Dyno, where some notable examples include:</p>
+<ul>
+<li>various aspects of <code>enum</code>s, including casting and iteration</li>
+<li>promotion, particularly with methods and compiler-generated operations</li>
+<li>type queries, particularly for tuples and variadic formal arguments</li>
+</ul>
+<p>The following screenshot shows an editing session in which
+Dyno-inferred type information is rendered in-line when editing the
+following code example.</p>
+<div class="file" data-code-path="code/enum-aspects.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="enum-aspects.chpl" href="code/enum-aspects.chpl">enum-aspects.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">enum</span><span class="w"> </span><span class="nx">myColors</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">red</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">green</span><span class="p">,</span><span class="w"> </span><span class="nx">blue</span><span class="p">,</span><span class="w"> </span><span class="nx">yellow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">green</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nx">cyan</span><span class="p">,</span><span class="w"> </span><span class="nx">magenta</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">type</span><span class="w"> </span><span class="nx">myColorAlias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">myColors</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// param string -&gt; param enum
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">param</span><span class="w"> </span><span class="nx">color1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"green"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nx">myColors</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// access enum value via alias
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">param</span><span class="w"> </span><span class="nx">color2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">myColorAlias</span><span class="p">.</span><span class="nx">blue</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// compute value for 'cyan', which follows 'yellow', which depends on 'green'
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">param</span><span class="w"> </span><span class="nx">index1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">myColors</span><span class="p">.</span><span class="nx">cyan</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// iterate over 'enum' range at compile time
+</span></span></span><span class="line"><span class="cl"><span class="c1">// first, take the first 5 with '..#5':
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">//     red, green, blue, yellow, cyan, magenta
+</span></span></span><span class="line"><span class="cl"><span class="c1">//     ~~~  ~~~~~  ~~~~  ~~~~~~  ~~~~
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Then, starting at the end, step backwards by 2:
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">//     red, green, blue, yellow, cyan, magenta
+</span></span></span><span class="line"><span class="cl"><span class="c1">//     3           2             1
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">for</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">myColors</span><span class="p">.</span><span class="nx">red</span><span class="o">..#</span><span class="mi">5</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">compilerWarning</span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><a href="../../../docs/language/spec/strings.html#String.string"><span class="kt">string</span></a><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<figure class="fullwide"><img alt="Dyno displaying inferred type information for `enum` casts, access, and iteration" src="../../posts/announcing-chapel-2.6/dyno-enum-aspects.png"/>
+</figure>
+<p>There’s a lot going on here!  As can be seen in the inferred type
+of <code>color1</code>, Dyno now supports casting <code>param</code> (compile-time
+constant) strings to <code>enum</code> values.  The inferred type of <code>color2</code>
+demonstrates accessing an <code>enum</code> constant (<code>blue</code> in this case) via
+a type alias (<code>myColorAlias</code>).  Finally, <code>index1</code> stores the numeric
+value computed for <code>cyan</code>, which Dyno now correctly infers to be
+<code>13</code>.</p>
+<p>The most involved example is the <code>for param</code> loop.  Chapel’s
+semantics allow for compile-time iteration over certain ranges,
+which effectively completely unrolls the loop.  Dyno, like the
+production compiler, now supports iteration over ranges of <code>enum</code>s
+(in addition to ranges of integers).  Moreover, Dyno properly
+handles complex patterns of iteration, such as those that use the
+count operator (<code>#</code>) and the stride specification <code>by -2</code>.  The
+compiler warnings generated within the loop body show the values
+that <code>c</code> takes on during the unrolling of the loop.</p>
+<p>In this next example, you can see the improvements to Dyno’s support
+for
+<a href="https://chapel-lang.org/docs/2.6/users-guide/datapar/promotion.html">promotion</a>.</p>
+<div class="file" data-code-path="code/promotion.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="promotion.chpl" href="code/promotion.chpl">promotion.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">enum</span><span class="w"> </span><span class="nx">myColors</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">red</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">green</span><span class="p">,</span><span class="w"> </span><span class="nx">blue</span><span class="p">,</span><span class="w"> </span><span class="nx">yellow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">green</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nx">cyan</span><span class="p">,</span><span class="w"> </span><span class="nx">magenta</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">myColors.someMethod</span><span class="p">()</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><a href="../../../docs/language/spec/strings.html#String.string"><span class="kt">string</span></a><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="nx">myColors</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">B</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">A</span><span class="p">.</span><span class="nx">someMethod</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">var</span><span class="w"> </span><span class="nx">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<figure class="fullwide"><img alt="Dyno displaying inferred type information for various promoted calls" src="../../posts/announcing-chapel-2.6/dyno-promotion.png"/>
+</figure>
+<p>Here, we re-use the <code>myColor</code> enumeration type.  We define a new
+method on this <code>enum</code>, called <code>someMethod</code>, then invoke this method
+on an array of colors, <code>A</code>.  Since this method produces a tuple of a
+string and an integer, applying it element-wise to the array <code>A</code>
+results in an array of tuples, which is the type that Dyno infers
+for <code>B</code>.  Chapel’s compiler auto-generates casts from <code>enum</code>s to
+their specified <code>int</code> values where possible; in the example, we also
+apply this cast element-wise to <code>A</code>, resulting in an array of
+integers, which is the type that Dyno infers for <code>C</code>.</p>
+<h4 id="generating-executable-code">
+<a href="#generating-executable-code">Generating Executable Code</a>
+</h4>
+<p>This release also saw improvements to our support for using
+Dyno to generate executable code, which is a major step toward
+Dyno’s goal of replacing the front-end of the production
+compiler. This is an ongoing process that involves taking the
+information that Dyno has computed about the program and generating
+AST for the production compiler, essentially skipping over its
+historical type resolution and analysis phases. This capability is
+enabled using the <code>--dyno</code> command-line flag.</p>
+<p>Initial support is limited to a subset of Chapel’s language
+features, but is growing all the time.  Here is an example program
+and helper module that Dyno can now compile, demonstrating uses of
+classes, records, and strings:</p>
+<div class="file" data-code-path="code/converter-aggregates.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="converter-aggregates.chpl" href="code/converter-aggregates.chpl">converter-aggregates.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">// stopgap helper module until 'writeln' is available with --dyno. See below.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">use</span><span class="w"> </span><span class="nx">Print</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">record</span><span class="w"> </span><span class="nc">R</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">print</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">print</span><span class="p">(</span><span class="s">"x = "</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">println</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">class</span><span class="w"> </span><span class="nc">C</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">print</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">print</span><span class="p">(</span><span class="s">"x = "</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">print</span><span class="p">(</span><span class="s">", y = "</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">println</span><span class="p">(</span><span class="nx">y</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">R</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">r</span><span class="p">.</span><span class="nx">print</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">unmanaged</span><span class="w"> </span><span class="nx">C</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mf">42.0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">c</span><span class="p">.</span><span class="nx">print</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<div class="file" data-code-path="code/Print.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="Print.chpl" href="code/Print.chpl">Print.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span><span class="lnt">80
+</span><span class="lnt">81
+</span><span class="lnt">82
+</span><span class="lnt">83
+</span><span class="lnt">84
+</span><span class="lnt">85
+</span><span class="lnt">86
+</span><span class="lnt">87
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><a href="../../../docs/modules/standard/Types.html"><span class="nx">Types</span></a><span class="p">,</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html"><span class="nx">CTypes</span></a><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="o">#</span><span class="nx">include</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">stdint</span><span class="p">.</span><span class="nx">h</span><span class="o">&gt;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="o">#</span><span class="nx">include</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">inttypes</span><span class="p">.</span><span class="nx">h</span><span class="o">&gt;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="o">#</span><span class="nx">include</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">stdio</span><span class="p">.</span><span class="nx">h</span><span class="o">&gt;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="o">#</span><span class="nx">include</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">stdbool</span><span class="p">.</span><span class="nx">h</span><span class="o">&gt;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyChar</span><span class="p">(</span><span class="nx">int8_t</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyInt64</span><span class="p">(</span><span class="nx">int64_t</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyUint64</span><span class="p">(</span><span class="nx">uint64_t</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyReal64</span><span class="p">(</span><span class="nx">double</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyBool</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printStr</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">char</span><span class="o">*</span><span class="w"> </span><span class="nx">str</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyInt64</span><span class="p">(</span><span class="nx">int64_t</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printf</span><span class="p">(</span><span class="s">"%"</span><span class="w"> </span><span class="nx">PRId64</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyUint64</span><span class="p">(</span><span class="nx">uint64_t</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printf</span><span class="p">(</span><span class="s">"%"</span><span class="w"> </span><span class="nx">PRIu64</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyReal64</span><span class="p">(</span><span class="nx">double</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printf</span><span class="p">(</span><span class="s">"%lf"</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyChar</span><span class="p">(</span><span class="nx">int8_t</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printf</span><span class="p">(</span><span class="s">"%c"</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printMyBool</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">printf</span><span class="p">(</span><span class="s">"true"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">printf</span><span class="p">(</span><span class="s">"false"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nx">printStr</span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">char</span><span class="o">*</span><span class="w"> </span><span class="nx">str</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printf</span><span class="p">(</span><span class="s">"%s"</span><span class="p">,</span><span class="w"> </span><span class="nx">str</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">printMyChar</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">printMyInt64</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">64</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">printMyUint64</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">uint</span><span class="p">(</span><span class="mi">64</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">printMyReal64</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">64</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">printMyBool</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">extern</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">printStr</span><span class="p">(</span><span class="nx">str</span><span class="p">:</span><span class="w"> </span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_ptrConst"><span class="nx">c_ptrConst</span></a><span class="p">(</span><a href="../../../docs/modules/standard/CTypes.html#CTypes.c_char"><span class="nx">c_char</span></a><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">doPrintSpace</span><span class="p">()</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">printMyChar</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">doPrintNewline</span><span class="p">()</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">printMyChar</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">print</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="p">?</span><span class="nx">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printMyBool</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><a href="../../../docs/modules/standard/Types.html#Types.isIntType"><span class="nx">isIntType</span></a><span class="p">(</span><span class="nx">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printMyInt64</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><a href="../../../docs/modules/standard/Types.html#Types.isUintType"><span class="nx">isUintType</span></a><span class="p">(</span><span class="nx">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printMyUint64</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><a href="../../../docs/modules/standard/Types.html#Types.isRealType"><span class="nx">isRealType</span></a><span class="p">(</span><span class="nx">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printMyReal64</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><a href="../../../docs/language/spec/strings.html#String.string"><span class="kt">string</span></a><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printStr</span><span class="p">(</span><span class="nx">x</span><span class="p">.</span><span class="nx">c_str</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><a href="../../../docs/modules/standard/Types.html#Types.isTupleType"><span class="nx">isTupleType</span></a><span class="p">(</span><span class="nx">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">3</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">4</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">5</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">6</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">7</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">9</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">doPrintSpace</span><span class="p">();</span><span class="w"> </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">[</span><span class="mi">8</span><span class="p">]);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><a href="../../../docs/modules/standard/Types.html#Types.isEnumType"><span class="nx">isEnumType</span></a><span class="p">(</span><span class="nx">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">temp</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">chpl__enumToOrder</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">printMyInt64</span><span class="p">(</span><span class="nx">temp</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// TODO: 'halt()'
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">proc</span><span class="w"> </span><span class="nf">println</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">print</span><span class="p">(</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">doPrintNewline</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<p>Stay tuned as we continue to add support for more features to Dyno!</p>
+<h3 id="for-more-information">
+<a href="#for-more-information">For More Information</a>
+</h3>
+<p>If you have questions about Chapel 2.6 or any of its new features,
+please reach out on Chapel’s <a href="https://discord.gg/xu2xg45yqH">Discord
+channel</a>, <a href="https://chapel.discourse.group/">Discourse
+group</a>, or one of our other
+<a href="https://chapel-lang.org/community/">community forums</a>.  In
+addition, we’re always interested in hearing about how we can make
+the Chapel language, libraries, implementation, and tools more
+useful to you.</p>
+<span class="change-table"></span>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">Date</th>
+<th style="text-align: left">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left">Sept 26, 2025</td>
+<td style="text-align: left">Fixed dynamic library calls to use <code>c_int</code> rather than <code>int</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.6%21%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.6%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Announcing+Chapel+2.6%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.6%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.6%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.6%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=Announcing+Chapel+2.6%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.6%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.6%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.6%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/announcing-chapel-2.5/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Announcing Chapel 2.5!
+
+
+                    </span>
+</span>
+</a>
+</div>
+<div class="series-button-wrapper next">
+<a class="button" href="../../posts/announcing-chapel-2.7/">
+<span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+Announcing Chapel 2.7!
+
+
+                    </span>
+</span>
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-right"></use>
+</svg>
+</a>
+</div>
+</nav>
+</body>
+</html>

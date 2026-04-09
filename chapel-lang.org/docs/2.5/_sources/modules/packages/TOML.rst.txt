@@ -1,0 +1,101 @@
+.. default-domain:: chpl
+
+.. module:: TOML
+   :synopsis: Support for parsing and writing TOML files.
+
+TOML
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use TOML;
+
+
+or
+
+.. code-block:: chapel
+
+   import TOML;
+
+**Submodules**
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   TOML/*
+
+Support for parsing and writing TOML files.
+
+Chapel's Library for `Tom's Obvious, Minimal Language (TOML)
+<https://github.com/toml-lang/toml>`_.
+
+  .. note::
+
+    The planned features and known limitations of this module can be found in
+    `Improve Toml issue <https://github.com/chapel-lang/chapel/issues/7104>`_.
+
+
+
+.. function:: proc parseToml(input: file): shared Toml
+
+   Receives a TOML file as a parameter and outputs a Toml object.
+   
+   
+   .. code-block:: chapel
+   
+        use TOML;
+   
+        const tomlFile = open("example.toml", ioMode.r);
+        const toml = parseToml(tomlFile);
+   
+   To read tables of a TOML file, use the same syntax as accessing associative arrays. For example,
+   to access to the following TOML file's project name,
+   
+   .. code-block:: yaml
+   
+        [root]
+        author = "Sam Partee"
+        name = "example"
+        version = "1.0.0"
+   
+   Use the following code in Chapel.
+   
+   .. code-block:: chapel
+   
+        use TOML;
+   
+        const tomlFile = open("example.toml", ioMode.r);
+        const toml = parseToml(tomlFile);
+        const projectName = ["root"]["name"] // returns a TOML object
+        writeln(projectName.toString());     // to turn TOML object into string representation
+   
+   
+   .. note::
+   
+     As of Chapel 1.26.0, TOML objects will print their values in the following manner:
+     If the object contains a `root` table, it will be printed first.
+     Keys within the root table will be printed in sorted order.
+     All other tables will be printed in a sorted order after `root`, if it exists.
+     All table keys will be printed in a sorted order. Prior to this change, the `root`
+     table would print first, followed by keys and other tables in what may have been
+     a non-deterministic manner.
+   
+
+.. function:: proc parseToml(input: fileReader): shared Toml
+
+   Receives a channel to a TOML file as a parameter and outputs a Toml object.
+
+.. function:: proc parseToml(input: string): shared Toml
+
+   Receives a string of TOML format as a parameter and outputs a Toml object 
+
+.. class:: TomlError : Error
+
+   .. attribute:: var msg: string
+
+   .. method:: proc init(msg: string)
+
+   .. method:: override proc message()
+

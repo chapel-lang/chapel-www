@@ -1,9 +1,7 @@
 +++
 title = "Examples"
-keywords = ["TODO"]
+description = "Example uses of Chapel"
 +++
-
-# Examples {#examples}
 
 {{<publication-list "featuredExamples" "Featured Examples">}}
   {{<artifact-listing "chapelOnGpu">}}

@@ -1,0 +1,929 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optimizing Performance of Chapel Programs &mdash; Chapel Documentation 2.6</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ae39cb24"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tools" href="../tools/index.html" />
+    <link rel="prev" title="Protocol Buffers Support - Generated Chapel Code" href="protoGenCodeGuide.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.6
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.6";
+$pagename = "technotes/optimization";
+include "..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../platforms/index.html">Platform-Specific Notes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="index.html#base-language-features">Base Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#initializers-and-generic-programming">Initializers and Generic Programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-language-features">Parallel Language Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#interoperability">Interoperability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#io">IO</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#compiler-features">Compiler Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#tool-details">Tool Details</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#performance-optimization">Performance Optimization</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Optimizing Performance of Chapel Programs</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#a-few-words-about-process">A Few Words About Process</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration-matters">Configuration Matters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#settings-to-adjust-to-improve-performance">Settings to Adjust to Improve Performance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fundamental-issues">Fundamental Issues</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#current-issues">Current Issues</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tools-for-understanding-performance">Tools for Understanding Performance</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Technical Notes</a></li>
+      <li class="breadcrumb-item active">Optimizing Performance of Chapel Programs</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/technotes/optimization.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="optimizing-performance-of-chapel-programs">
+<span id="readme-optimization"></span><h1>Optimizing Performance of Chapel Programs<a class="headerlink" href="#optimizing-performance-of-chapel-programs" title="Link to this heading"></a></h1>
+<p>One of the benefits of the Chapel programming language is that it makes
+it easy to get started writing parallel and distributed programs.
+Features including distributed arrays, implicit communication, and global
+view make it easier to go from a serial program, to a parallel program,
+to a distributed-memory parallel program. However, these same features
+can also create performance problems. It takes additional work to go from
+a distributed-memory parallel program to one that performs well. This
+document provides a guide of sorts along the way. It will highlight the
+issues that one needs to be aware of when optimizing the performance of a
+Chapel program and talk about how the performance issues can be resolved.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This document is focused on how Chapel users can improve the
+performance of their applications. There are many potential areas for
+improvement in the compiler, runtime, and standard library that can
+also improve the performance of Chapel programs. In fact, some
+optimizations to the Chapel programming system have made benchmarks
+run many times faster without needing any change to the application
+source code at all! These are important techniques as well, but they
+are out of scope for this document.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This document is a draft and a work in progress. Updates to it based
+on experience with optimization are welcome!</p>
+</div>
+<section id="a-few-words-about-process">
+<h2>A Few Words About Process<a class="headerlink" href="#a-few-words-about-process" title="Link to this heading"></a></h2>
+<p>Before we dive into optimization techniques, let’s briefly discuss some
+good programming practices when working with Chapel. Optimization efforts
+will involve changing the code, and optimizations that cause the program
+to stop working correctly aren’t any use at all. It needs to be easy to
+check that everything is working.</p>
+<section id="revision-control">
+<h3>Revision Control<a class="headerlink" href="#revision-control" title="Link to this heading"></a></h3>
+<p>It’s important to use revision control tools (e.g. <code class="docutils literal notranslate"><span class="pre">git</span></code>). Revision
+control helps with optimization specifically:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>You can go back to an earlier version if your changes break the
+program or make it slower</p></li>
+<li><p>You can record your progress towards improving performance</p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="testing">
+<h3>Testing<a class="headerlink" href="#testing" title="Link to this heading"></a></h3>
+<p>It’s important to have tests that are easy to run in order to check that
+your program is working correctly.</p>
+<p>We have used the following steps when testing a new change to a parallel
+and distributed Chapel application:</p>
+<blockquote>
+<div><ul>
+<li><p>Compile with checks enabled (i.e. without <code class="docutils literal notranslate"><span class="pre">--fast</span></code>)</p>
+<ul>
+<li><p>Test with 1 locale and <code class="docutils literal notranslate"><span class="pre">--dataParTasksPerLocale=1</span></code>
+(<code class="docutils literal notranslate"><span class="pre">dataParTasksPerLocale</span></code> is described in <a class="reference internal" href="../language/spec/data-parallelism.html#data-parallel-knobs"><span class="std std-ref">Configuration Constants for Default Data Parallelism</span></a>)</p></li>
+<li><p>Gradually increase <code class="docutils literal notranslate"><span class="pre">--dataParTasksPerLocale</span></code> until you are
+satisfied it is working. At a minimum, try leaving this argument off
+to run with number of tasks == number of cores.</p></li>
+<li><p>Test while simulating multiple locales on your development system
+(see the next section)</p>
+<p>Gradually increase the number of locales and the number of tasks
+until you are satisfied it is working.</p>
+</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+<p>You can compile with <code class="docutils literal notranslate"><span class="pre">--fast</span></code> and measure performance before or after
+this process. If you are targeting distributed memory, it’s ideal to test
+performance on a multi-node system. Occasionally, it’s useful to simulate
+multiple locales on a laptop (described below). Be aware that the
+performance of such a simulation won’t necessarily match a real
+multi-node system.</p>
+</section>
+<section id="simulating-multiple-locales-on-a-laptop">
+<span id="optimization-oversubscribed"></span><h3>Simulating Multiple Locales on a Laptop<a class="headerlink" href="#simulating-multiple-locales-on-a-laptop" title="Link to this heading"></a></h3>
+<p>It’s possible to run multiple processes on your laptop or workstation
+that simulate the communication that happens on a big multi-node
+system. This is also called running <strong>locally oversubscribed</strong>.</p>
+<p>In this setting, the program will generally run much slower than it would
+when running in a multi-node system. As a result, you might need to run
+with a smaller problem size to test in this way. Nonetheless, it is
+possible to identify and optimize communication. Communication occurs in
+Chapel programs when using <code class="docutils literal notranslate"><span class="pre">on</span></code> statements and also when reading or
+writing data (such as array elements) that are stored on a remote locale.</p>
+<p>In communication-bound applications, optimizing the communication can
+make the locally oversubscribed program run faster.  Another important
+technique is, when working locally oversubscribed, try to reduce the
+communication counts (communication counts are discussed below).  The
+communication counts will match (or come close to matching) between
+running locally oversubscribed and running on a multi-node system with
+the same number of locales.  Significant reductions in communication
+counts will generally lead to improvements in the scalability of your
+application on multiple nodes.</p>
+<p>To run locally oversubscribed, build Chapel with GASNet with the UDP
+conduit. Note that GASNet with the UDP conduit is not a high-performing
+configuration; in this setting that is OK because the communication
+overhead of UDP will approximate the communication overhead on a real
+multi-node system. You can use these commands to build with the UDP
+conduit:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_COMM</span><span class="o">=</span>gasnet
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_COMM_SUBSTRATE</span><span class="o">=</span>udp
+make
+</pre></div>
+</div>
+</div></blockquote>
+<p>Then, run with these settings:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_OVERSUBSCRIBED</span><span class="o">=</span>yes
+<span class="nb">export</span><span class="w"> </span><span class="nv">GASNET_SPAWNFN</span><span class="o">=</span>L
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_MASTERIP</span><span class="o">=</span><span class="m">127</span>.0.0.1
+</pre></div>
+</div>
+</div></blockquote>
+<p>You might also wish to run with a lower number of threads per simulated
+locale in order to reduce interference between the processes. For
+example, if you are working on a system with 32 cores, you might run
+with <code class="docutils literal notranslate"><span class="pre">CHPL_RT_NUM_THREADS_PER_LOCALE=8</span> <span class="pre">./application</span> <span class="pre">-nl</span> <span class="pre">4</span></code>. That
+uses 8 threads per locale, with 4 locales, so a total of 32 threads.</p>
+<p>See also <a class="reference internal" href="../usingchapel/executing.html#num-threads-per-locale"><span class="std std-ref">Controlling the Number of Threads</span></a>,
+<a class="reference internal" href="../usingchapel/executing.html#oversubscribed-execution"><span class="std std-ref">Oversubscription</span></a>, <a class="reference internal" href="../platforms/comm-layers/gasnet.html#readme-gasnet-emulating-multilocale"><span class="std std-ref">Emulating Distributed Execution with the UDP Conduit</span></a>,
+and <a class="reference internal" href="../platforms/networks/ethernet.html#using-udp"><span class="std std-ref">Using the Portable UDP Conduit</span></a>.</p>
+</section>
+<section id="measuring-performance">
+<h3>Measuring Performance<a class="headerlink" href="#measuring-performance" title="Link to this heading"></a></h3>
+<dl>
+<dt>Reproducible Performance Tests</dt><dd><p>It’s important to have performance tests that are easy to run that you
+can use to measure your program’s performance. These performance test
+cases need to be easy to repeat. Usually, that means setting aside some
+problem configuration and input data to use as the main performance
+test case. In some cases, you will need a battery of performance
+tests instead of a single test case.</p>
+</dd>
+<dt>Timing Regions</dt><dd><p>A common practice is to use <a class="reference internal" href="../modules/standard/Time.html#Time.stopwatch" title="Time.stopwatch"><code class="xref chpl chpl-record docutils literal notranslate"><span class="pre">stopwatch</span></code></a> to time
+different regions of your program.  This coarse-grained timing
+information indicates where your program is spending the most time. The
+longest-running regions are the places where optimization will give the
+most improvement to the program’s performance. You can print out the
+performance of each region after it is timed. It’s a good idea to use a
+<code class="docutils literal notranslate"><span class="pre">config</span> <span class="pre">const</span></code> to make the timing only print when you are studying
+performance.</p>
+</dd>
+<dt>Counting Communication Events</dt><dd><p>If you need to do most of your work by running locally oversubscribed
+(see <a class="reference internal" href="#optimization-oversubscribed"><span class="std std-ref">Simulating Multiple Locales on a Laptop</span></a>) then it’s particularly
+useful to measure performance by counting the number of communication
+events. Counting communication events can also be useful as a secondary
+performance metric for multi-node runs. Reducing the number of
+communication events is a useful strategy for optimizing communication.</p>
+<p>You can use the <a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> module and
+<code class="docutils literal notranslate"><span class="pre">startCommDiagnostics()</span></code> followed by <code class="docutils literal notranslate"><span class="pre">getCommDiagnostics()</span></code> to
+count communication events. It’s common to print out the communication
+counts with <code class="docutils literal notranslate"><span class="pre">writeln(getCommDiagnostics())</span></code>.</p>
+<p>When measuring communication counts, it’s important to be aware of
+these best practices:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Compile with <code class="docutils literal notranslate"><span class="pre">--fast</span></code> to avoid communication events related to
+error checking</p></li>
+<li><p>Communication count information will be easier to understand if you
+compile with <code class="docutils literal notranslate"><span class="pre">--no-cache-remote</span></code> because the cache for remote
+data, which is enabled by default, will cause the counts to include
+more categories.</p></li>
+<li><p>Counting communication events can slow down execution time
+significantly. As a result, it’s a good practice to control
+communication diagnostics with a <code class="docutils literal notranslate"><span class="pre">config</span> <span class="pre">const</span></code> and to measure
+timing only when communication counting is off.</p></li>
+</ul>
+</div></blockquote>
+<p>Communication counts provide a way to compare communication performance
+independent of where you are running. For example, you might measure
+and seek to reduce the communication counts when running oversubscribed
+on a laptop or workstation. Significant reductions in communication
+counts from such an effort should also help with multi-node performance
+when you are able to run on a big system.</p>
+</dd>
+</dl>
+</section>
+<section id="overall-flow">
+<h3>Overall Flow<a class="headerlink" href="#overall-flow" title="Link to this heading"></a></h3>
+<p>The general flow of performance optimization will be:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>use techniques like timing the different phases of your computation to
+try to understand which parts are the slow or not getting faster as you
+add more locales or cores</p></li>
+<li><p>come up with a theory as to what could be improved by thinking about
+what is happening when your program is running and/or by looking at
+timing or communication count information</p></li>
+<li><p>make an adjustment (the adjustment only needs to be good enough to
+measure its impact on performance at this step)</p></li>
+<li><p>measure its impact on performance</p></li>
+<li><p>if it is good, clean up the adjustment, perform correctness testing,
+and commit/PR it to your program’s revision control; if not, try
+something else</p></li>
+<li><p>repeat</p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<section id="configuration-matters">
+<h2>Configuration Matters<a class="headerlink" href="#configuration-matters" title="Link to this heading"></a></h2>
+<p>The first thing to check is that you are using Chapel in its
+highest-performing configuration for your system.</p>
+<blockquote>
+<div><ul>
+<li><p>use <code class="docutils literal notranslate"><span class="pre">--fast</span></code> when compiling Chapel programs for performance to tell
+the compiler to optimize instead of adding correctness checks</p></li>
+<li><p>use the default configuration rather than the quickstart configuration</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can show the current configuration with <code class="docutils literal notranslate"><span class="pre">printchplenv</span></code> or
+<code class="docutils literal notranslate"><span class="pre">chpl</span> <span class="pre">--print-chpl-settings</span></code></p>
+</div>
+<ul class="simple">
+<li><p>In particular, <code class="docutils literal notranslate"><span class="pre">CHPL_TASKS=qthreads</span></code> is generally faster than
+<code class="docutils literal notranslate"><span class="pre">CHPL_TASKS=fifo</span></code>, and <code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_MEM=jemalloc</span></code> is generally
+faster than <code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_MEM=cstdlib</span></code> (see also
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-tasks"><span class="std std-ref">CHPL_TASKS</span></a> and
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-target-mem"><span class="std std-ref">CHPL_TARGET_MEM</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_COMPILER=llvm</span></code> might or might not be faster than
+using the C backend with something like
+<code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_COMPILER=gnu</span></code>; however the performance of the LLVM
+backend is more reliable (see also
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-compiler"><span class="std std-ref">CHPL_*_COMPILER</span></a>)</p>
+<ul>
+<li><p>if you are using <code class="docutils literal notranslate"><span class="pre">CHPL_LLVM=system</span></code>, it’s a good idea to match the
+version of LLVM bundled in the Chapel release if possible as this
+has recieved the most attention and testing (see also
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-llvm"><span class="std std-ref">CHPL_LLVM</span></a>)</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>For multi-locale programs, use a high-performance networking configuration</p>
+<ul class="simple">
+<li><p>The following configurations support portability and correctness
+testing but <strong>are NOT designed for high performance</strong>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> <code class="docutils literal notranslate"><span class="pre">CHPL_COMM_SUBSTRATE=udp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> <code class="docutils literal notranslate"><span class="pre">CHPL_COMM_SUBSTRATE=mpi</span></code></p></li>
+</ul>
+</li>
+<li><p>High-performance networking configuration will depend on your
+system:</p>
+<ul>
+<li><p>For HPE Cray EX, use <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=ofi</span></code> (see also <a class="reference internal" href="../platforms/cray.html#readme-cray"><span class="std std-ref">Using Chapel on HPE Cray Systems</span></a>)</p></li>
+<li><p>For InfiniBand systems, use <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code>
+<code class="docutils literal notranslate"><span class="pre">CHPL_COMM_SUBSTRATE=ibv</span></code> (see also <a class="reference internal" href="../platforms/networks/infiniband.html#readme-infiniband"><span class="std std-ref">Using Chapel with InfiniBand</span></a>)</p></li>
+<li><p>For Omni-Path systems, use <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CHPL_COMM_SUBSTRATE=ofi</span></code> (see also <a class="reference internal" href="../platforms/networks/omnipath.html#readme-omnipath"><span class="std std-ref">Using Chapel with Omni-Path</span></a>)</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>If you are not using multiple locales, set <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=none</span></code> or
+compile your application with <code class="docutils literal notranslate"><span class="pre">--local</span></code> for the best performance
+(see <a class="reference internal" href="#optimization-wide-pointers"><span class="std std-ref">Wide Pointer Overhead</span></a>).</p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="settings-to-adjust-to-improve-performance">
+<h2>Settings to Adjust to Improve Performance<a class="headerlink" href="#settings-to-adjust-to-improve-performance" title="Link to this heading"></a></h2>
+<p>This section contains some easy things to try in order to improve
+performance.</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">--fast</span></code></dt><dd><p>If you haven’t been using <code class="docutils literal notranslate"><span class="pre">--fast</span></code> yet please do! It should be used
+when measuring performance. Since it disables bounds checking, make
+sure that your development flow includes correctness tests that aren’t
+compiled with <code class="docutils literal notranslate"><span class="pre">--fast</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--no-ieee-float</span></code> / <code class="docutils literal notranslate"><span class="pre">--ieee-float</span></code></dt><dd><p>By default, only floating point optimizations that are relatively
+benign are enabled. Depending on your application, you might use
+<code class="docutils literal notranslate"><span class="pre">--no-ieee-float</span></code> to enable optimizations that might impact the
+numerical accuracy. Or, if your program relies on floating point
+operations happening in the order written for numerical accuracy, you
+should use <code class="docutils literal notranslate"><span class="pre">--ieee-float</span></code>.</p>
+</dd>
+<dt>colocales</dt><dd><p>In some settings, running with multiple colocales per node can improve
+performance. For example, to run on 8 nodes with 2 processes per node,
+you could use <code class="docutils literal notranslate"><span class="pre">-nl</span> <span class="pre">8x2</span></code>. That will result in 16 locales; where each
+node has 2 locales. Using colocales can help with memory bandwidth on
+NUMA systems and also can better use the networking resources on a node
+to help to make communication more efficient.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--auto-aggregation</span></code></dt><dd><p>This compiler flag enables an optimization that automatically uses
+<a class="reference internal" href="../modules/packages/CopyAggregation.html#module-CopyAggregation" title="CopyAggregation: Provides support for aggregated copies/assignments for trivial types."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CopyAggregation</span></code></a> to improve multilocale performance. It is
+not on by default because it can slow down some applications. In
+particular, this optimization can be beneficial if your application has
+small forall loops that do a lot of random remote accesses, but if the
+forall loops do mostly local accesses, it can hurt performance. See also
+<a class="reference internal" href="#optimization-fine-comm"><span class="std std-ref">Fine-Grained Communication</span></a> which discusses the problem that
+aggregators solve.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--no-cache-remote</span></code> / <code class="docutils literal notranslate"><span class="pre">--cache-remote</span></code></dt><dd><p>The cache for remote data is a runtime component that helps to reduce
+fine-grained communication. It is enabled by default, but in some
+cases, an application will run faster with it disabled. It is also
+usually a good idea to disable it when investigating the sources
+of communication as the communication logs are simpler when it is
+disabled.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">CHPL_TARGET_CPU</span></code></dt><dd><p>Using <code class="docutils literal notranslate"><span class="pre">native</span></code> or the CPU family that you are targeting, rather than
+<code class="docutils literal notranslate"><span class="pre">none</span></code> or <code class="docutils literal notranslate"><span class="pre">unknown</span></code>, can allow using newer instruction sets (e.g.
+AVX512) and improve performance.</p>
+</dd>
+</dl>
+<p>Network-specific communication settings</p>
+<blockquote>
+<div><p>Please see the documentation for the network that you are using for
+more details on what can be adjusted. Some specific variables you might
+consider:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><a class="reference internal" href="../platforms/comm-layers/libfabric.html#readme-libfabric-chpl-rt-comm-ofi-dedicated-amh-cores"><span class="std std-ref">CHPL_RT_COMM_OFI_DEDICATED_AMH_CORES</span></a>
+when using <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=ofi</span></code> can be used to dedicate a core to
+service requests that arrive over the network</p></li>
+<li><p><a class="reference internal" href="../platforms/networks/infiniband.html#readme-infiniband-chpl-rt-comm-gasnet-dedicated-progress-core"><span class="std std-ref">CHPL_RT_COMM_GASNET_DEDICATED_PROGRESS_CORE</span></a>
+when using <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=gasnet</span></code> with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM_SUBSTRATE=ibv</span></code>
+offers a similar capability for InfiniBand</p></li>
+</ul>
+</div></blockquote>
+</div></blockquote>
+</section>
+<section id="fundamental-issues">
+<h2>Fundamental Issues<a class="headerlink" href="#fundamental-issues" title="Link to this heading"></a></h2>
+<p>This section covers issues that are fundamental to the Chapel programming
+model. As a result, people optimizing Chapel programs should be aware of
+them.</p>
+<section id="accidental-communication">
+<span id="optimization-accidental-comm"></span><h3>Accidental Communication<a class="headerlink" href="#accidental-communication" title="Link to this heading"></a></h3>
+<p>The Chapel programming model supports implicit communication in order to
+make it easier to write distributed-memory programs. While those first
+distributed-memory programs are easier to write, they might include
+accidental communication. The accidental communication can be a big
+barrier to scalability because it’s frequently accessing the same memory
+on one node repeatedly.</p>
+<p>Addressing accidental communication consists of two parts. First, the
+accidental communication needs to be identified. Second, the code needs
+to be modified to avoid the accidental communication.</p>
+<p>Here are a few strategies to identify accidental communication:</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">local</span></code> blocks (see also <a class="reference internal" href="local.html#readme-local"><span class="std std-ref">The ‘local’ keyword</span></a>). <code class="docutils literal notranslate"><span class="pre">local</span></code> blocks
+are an unstable feature that instructs the compiler that there
+should be no communication within the code in that block, including
+in functions called from within the local block. When the program is
+compiled with <code class="docutils literal notranslate"><span class="pre">--fast</span> <span class="pre">--local-checks</span></code> (or with the default of full
+checking), the compiler will emit code to halt if code running in a
+<code class="docutils literal notranslate"><span class="pre">local</span></code> block needs to communicate. If you have compiled with
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-unwind"><span class="std std-ref">CHPL_UNWIND != none</span></a>, you can
+even see the stack trace for the code which caused communication you
+did not expect.</p>
+<p><code class="docutils literal notranslate"><span class="pre">local</span></code> blocks have a secondary advantage of allowing the compiler
+to optimize: it optimizes assuming that all code in <code class="docutils literal notranslate"><span class="pre">local</span></code> blocks does
+not communicate if you compile with <code class="docutils literal notranslate"><span class="pre">--fast</span></code>.</p>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">local</span></code> blocks can slow down compilation significantly if
+not used sparingly. If compilation time is important, consider using
+them as a debugging tool and then removing to improve compilation speed.</p>
+</li>
+<li><p>Use <a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> on-the-fly reporting.  The
+<a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> module provides mechanisms for
+on-the-fly reporting with <code class="docutils literal notranslate"><span class="pre">startVerboseComm()</span></code>.  This on-the-fly
+reporting can even include stack traces if you compile with
+<code class="docutils literal notranslate"><span class="pre">-scommDiagsStacktrace=true</span></code> and have built Chapel with
+<a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-unwind"><span class="std std-ref">CHPL_UNWIND != none</span></a>. The
+on-the-fly reporting provides a relatively easy way to see what
+communication events are common in your program. It can be a lot of
+output though.  This strategy works reasonably well for finding
+accidental communication that is a performance problem because, if
+accidental communication is happening in a key performance-critical
+inner loop, verbose comms reporting will report on that accidental
+communication many times.  With some light scripting to process the
+verbose comms reporting, you can identify which parts of the code
+have the most communication.</p></li>
+</ol>
+</div></blockquote>
+<p>Here are some strategies you can use to adjust your code to avoid
+accidental communication:</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p>If the value being accidentally communicated can be stored in a
+variable outside of the distributed loop or if it can be stored in a
+module-scope variable, storing it in a <code class="docutils literal notranslate"><span class="pre">const</span></code> variable can enable
+a key compiler optimization called <em>remote value forwarding</em>. This
+optimization allows the compiler to move the value of the variable
+along with the message sent to a remote locale to set up work.
+However, it only works if the compiler can prove that the value will
+not change. <code class="docutils literal notranslate"><span class="pre">const</span></code> helps because it indicates to the compiler
+that the value won’t change. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="nx">blockDist</span><span class="p">.</span><span class="nx">createArray</span><span class="p">(</span><span class="o">..</span><span class="p">.);</span>
+  <span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="mi">22</span><span class="p">;</span>
+  <span class="k">forall</span> <span class="nx">elt</span> <span class="kd">in</span> <span class="nx">A</span> <span class="p">{</span>
+    <span class="nx">elt</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>  <span class="c1">// uh-oh, x might be read remotely on each iteration!</span>
+  <span class="p">}</span>
+  <span class="kd">const</span> <span class="nx">y</span> <span class="o">=</span> <span class="mi">22</span><span class="p">;</span>
+  <span class="k">forall</span> <span class="nx">elt</span> <span class="kd">in</span> <span class="nx">A</span> <span class="p">{</span>
+    <span class="nx">elt</span> <span class="o">=</span> <span class="nx">y</span><span class="p">;</span>  <span class="c1">// expect the value of &#39;y&#39; to be sent along with tasks</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Actually, in this specific example, <code class="docutils literal notranslate"><span class="pre">x</span></code> will be copied to each
+task implementing the first <code class="docutils literal notranslate"><span class="pre">forall</span></code> loop due to
+<a class="reference internal" href="../language/spec/data-parallelism.html#forall-intents"><span class="std std-ref">Forall Intents</span></a>. The unnecessary communication described
+could occur if <code class="docutils literal notranslate"><span class="pre">x</span></code> were a record.</p>
+</div>
+</li>
+<li><p>If the accidental communication is within a distributed <code class="docutils literal notranslate"><span class="pre">forall</span></code>
+loop, you can change it from being once per iteration to once per
+task by using the <code class="docutils literal notranslate"><span class="pre">in</span></code> intent. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="nx">blockDist</span><span class="p">.</span><span class="nx">createArray</span><span class="p">(</span><span class="o">..</span><span class="p">.);</span>
+<span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="mi">22</span><span class="p">;</span>
+<span class="k">forall</span> <span class="nx">elt</span> <span class="kd">in</span> <span class="nx">A</span> <span class="p">{</span>
+  <span class="nx">elt</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>  <span class="c1">// uh-oh, x might be read remotely on each iteration!</span>
+<span class="p">}</span>
+<span class="k">forall</span> <span class="nx">elt</span> <span class="kd">in</span> <span class="nx">A</span> <span class="k">with</span> <span class="p">(</span><span class="kd">in</span> <span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">elt</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>  <span class="c1">// ah, now x is only read once per task, at least</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p>If the code is using a structure like <code class="docutils literal notranslate"><span class="pre">coforall</span> <span class="pre">loc</span> <span class="pre">in</span> <span class="pre">Locales</span></code>,
+you can create a temporary local variable to store a local copy of
+the variable. For example:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">x</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">];</span>
+<span class="k">coforall</span> <span class="nx">loc</span> <span class="kd">in</span> <span class="nx">Locales</span> <span class="p">{</span>
+  <span class="k">on</span> <span class="nx">loc</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">myX</span> <span class="o">=</span> <span class="nx">x</span><span class="p">;</span>
+    <span class="nx">f</span><span class="p">(</span><span class="nx">myX</span><span class="p">);</span> <span class="c1">// do something with myX</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</div></blockquote>
+</section>
+<section id="wide-pointer-overhead">
+<span id="optimization-wide-pointers"></span><h3>Wide Pointer Overhead<a class="headerlink" href="#wide-pointer-overhead" title="Link to this heading"></a></h3>
+<p>The Chapel compiler will emit code working with pointers in many cases
+(for array elements, references, class instances, …). When the Chapel
+compiler is compiling for multiple locales and it is unable to prove that
+a pointer is local, it will emit a wide pointer. The wide pointer encodes
+an address along with a locale where the value is stored. In cases where
+the code is working with local memory but the compiler can’t prove that,
+there will be additional overhead due to the code working with a wide
+pointer.</p>
+<p>It is relatively easy to detect if this is a performance problem for a
+Chapel program because it has a pretty clear symptom that you can see by
+compiling two different ways and running on 1 locale. Measure the
+performance of your program compiled with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM=none</span></code> and/or
+<code class="docutils literal notranslate"><span class="pre">--local</span></code>. Compare that performance with the performance of your
+program with <code class="docutils literal notranslate"><span class="pre">CHPL_COMM</span></code> other than <code class="docutils literal notranslate"><span class="pre">none</span></code> and/or with
+<code class="docutils literal notranslate"><span class="pre">--no-local</span></code>. You are seeing wide pointer overhead if the <code class="docutils literal notranslate"><span class="pre">--local</span></code>
+version is significantly faster than the <code class="docutils literal notranslate"><span class="pre">--no-local</span></code> version.</p>
+<p>What can be done about it?</p>
+<blockquote>
+<div><ul>
+<li><p>use <code class="docutils literal notranslate"><span class="pre">local</span></code> blocks to tell the compiler that code within a block
+will not communicate. That allows it to remove wide pointers for that
+code. See also <a class="reference internal" href="#optimization-accidental-comm"><span class="std std-ref">Accidental Communication</span></a>.</p></li>
+<li><p>use <code class="docutils literal notranslate"><span class="pre">localSubdomain</span></code> to compute the local index set as a local domain</p></li>
+<li><p>use <code class="docutils literal notranslate"><span class="pre">localSlice</span></code> to compute a non-distributed array slice that refers
+to the local portion</p></li>
+<li><p>compile with <code class="docutils literal notranslate"><span class="pre">--report-auto-local-access</span></code> to see which local array
+accesses are optimized by the compiler. Use <code class="docutils literal notranslate"><span class="pre">localAccess</span></code> for
+accesses that aren’t optimized.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A bit more about the Automatic Local Access (ALA) optimization</p>
+<p>The Chapel compiler can optimize distributed array accesses inside
+<code class="docutils literal notranslate"><span class="pre">forall</span></code> loops if it can determine that they can be always local.
+Here are some cases that it can optimize:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">A</span><span class="p">,</span> <span class="nx">B</span><span class="p">:</span> <span class="p">[</span><span class="nx">D</span><span class="p">]</span> <span class="kt">int</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">OtherDomain</span> <span class="o">=</span> <span class="o">..</span><span class="p">.</span>
+
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">A</span><span class="p">.</span><span class="k">domain</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">B</span><span class="p">.</span><span class="k">domain</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">D</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">D</span><span class="p">.</span><span class="nx">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">OtherDomain</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span> <span class="c1">// with some execution time checks</span>
+</pre></div>
+</div>
+<p>This optimization can also be effective when Stencil operations
+when Stencil-distributed arrays are used:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span><span class="k">use</span> <span class="nx">StencilDist</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">A</span> <span class="o">=</span> <span class="nx">stencilDist</span><span class="p">.</span><span class="nx">createArray</span><span class="p">({</span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">n</span><span class="p">},</span> <span class="nx">fluff</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="kt">int</span><span class="p">);</span>
+
+<span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">A</span><span class="p">.</span><span class="k">domain</span> <span class="p">{</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">..</span><span class="p">.</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>The following compiler flags can be used to investigate and modify
+ALA behavior</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--report-auto-local-access</span></code>: Generates a report showing
+which accesses are optimized and which are not, with some
+explanation as to what caused the final decision for the
+optimization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--no-auto-local-access</span></code>: Disables the optimization. We are not
+aware of a case where ALA hurts performance. There could be a
+slight improvement in compilation time by disabling the
+optimization, but we haven’t observed it to have a significant
+impact.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--no-dynamic-auto-local-access</span></code>: Disables the dynamic portion
+of the optimization. In some cases, the compiler can introduce
+loop clones, where the executed clone will be chosen at
+execution time depending on some dynamic checks. This behavior
+can be turned off with this flag, where the optimization will
+be effective only when it can be proven statically</p></li>
+</ul>
+</div></blockquote>
+</div>
+</li>
+</ul>
+</div></blockquote>
+</section>
+<section id="fine-grained-communication">
+<span id="optimization-fine-comm"></span><h3>Fine-Grained Communication<a class="headerlink" href="#fine-grained-communication" title="Link to this heading"></a></h3>
+<p>It’s easy to write Chapel programs that use fine-grained communication.
+Such programs will work with many small messages and the performance will
+be sensitive to the latency of a message in the network. To make such
+programs perform and scale better, try to get the communication to use
+larger messages so that the network is operating more in a
+bandwidth-bound way rather than a latency-bound way.</p>
+<p>Let’s look at an example of permuting an array. Suppose that we have
+three distributed arrays all over the distributed domain <code class="docutils literal notranslate"><span class="pre">D</span></code>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">In</span></code> stores input values</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Idx</span></code> stores a permutation; each index in <code class="docutils literal notranslate"><span class="pre">D</span></code> occurs exactly once
+in <code class="docutils literal notranslate"><span class="pre">Idx</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Out</span></code> stores the result of permuting <code class="docutils literal notranslate"><span class="pre">In</span></code> according to <code class="docutils literal notranslate"><span class="pre">Idx</span></code></p></li>
+</ul>
+</div></blockquote>
+<p>In particular, we will set <code class="docutils literal notranslate"><span class="pre">Out[Idx[i]]</span> <span class="pre">=</span> <span class="pre">In[i];</span></code> for each <code class="docutils literal notranslate"><span class="pre">i</span></code> in <code class="docutils literal notranslate"><span class="pre">D</span></code>.</p>
+<p>If we write that in the simplest way, we get this code:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span>    <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">D</span> <span class="p">{</span>
+      <span class="nx">Out</span><span class="p">[</span><span class="nx">Idx</span><span class="p">[</span><span class="nx">i</span><span class="p">]]</span> <span class="o">=</span> <span class="nx">In</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>However that code will do fine-grained PUT operations on the network;
+<code class="docutils literal notranslate"><span class="pre">Out[Idx[i]]</span></code> will refer to the array element to store into, and since
+that array element is typically stored on a different locale, the
+compiler will generate a PUT operation for <code class="docutils literal notranslate"><span class="pre">Out[Idx[i]]</span> <span class="pre">=</span> <span class="pre">In[i]</span></code>.</p>
+<p>We can optimize this by using the <a class="reference internal" href="../modules/packages/CopyAggregation.html#module-CopyAggregation" title="CopyAggregation: Provides support for aggregated copies/assignments for trivial types."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CopyAggregation</span></code></a> module.
+Here is the optimized version:</p>
+<div class="highlight-chapel notranslate"><div class="highlight"><pre><span></span>    <span class="k">forall</span> <span class="nx">i</span> <span class="kd">in</span> <span class="nx">D</span> <span class="k">with</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">agg</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">DstAggregator</span><span class="p">(</span><span class="kt">int</span><span class="p">))</span> <span class="p">{</span>
+      <span class="nx">agg</span><span class="p">.</span><span class="nx">copy</span><span class="p">(</span><span class="nx">Out</span><span class="p">[</span><span class="nx">Idx</span><span class="p">[</span><span class="nx">i</span><span class="p">]],</span> <span class="nx">In</span><span class="p">[</span><span class="nx">i</span><span class="p">]);</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>In this case, the optimization required two changes to the program:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Create a copy aggregator per-task. Here, we use the <code class="docutils literal notranslate"><span class="pre">forall</span></code> intent
+<code class="docutils literal notranslate"><span class="pre">with</span></code> clause to create a <code class="docutils literal notranslate"><span class="pre">DstAggregator</span></code> per task. The
+<code class="docutils literal notranslate"><span class="pre">DstAggregator</span></code> will optimize the PUT operations by combining PUT
+operations destined for the same locale.</p></li>
+<li><p>Use the copy aggregator instead of plain old assignment. The call
+<code class="docutils literal notranslate"><span class="pre">agg.copy(X,</span> <span class="pre">Y)</span></code> is functionally similar to <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">=</span> <span class="pre">Y</span></code>.</p></li>
+</ol>
+</div></blockquote>
+<p>How much does optimizing this example improve performance? With a quick
+test on 16 nodes, we can see (through use of the
+<a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> module) that the number of PUTs is
+approximately 1000 times less with the optimized version. By timing the
+relevant loop, we can see that the performance is approximately 30 times
+better. In this simple case, with the <code class="docutils literal notranslate"><span class="pre">--auto-aggregation</span></code> flag, the
+compiler can even make these adjustments automatically.</p>
+<p>Also note that the <a class="reference internal" href="../modules/packages/CopyAggregation.html#module-CopyAggregation" title="CopyAggregation: Provides support for aggregated copies/assignments for trivial types."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CopyAggregation</span></code></a> module used here is most
+applicable when working with random access. If you are copying contiguous
+regions of arrays, using an optimized slice assignment can perform well
+as well to perform bulk communication. See <a class="reference internal" href="#optimization-slices"><span class="std std-ref">Creating Too Many Distributed Objects / Unoptimized Slice Assignments</span></a> for
+some important caveats.</p>
+</section>
+<section id="load-imbalance">
+<h3>Load Imbalance<a class="headerlink" href="#load-imbalance" title="Link to this heading"></a></h3>
+<p>The term <em>load imbalance</em> describes a situation where a parallel program
+won’t run as fast as it could because the parallel work is not evenly
+divided up among the hardware elements doing the work. As a contrived
+example of load imbalance, suppose you have 4 locales, and locale 0 does
+4 times as much work as the other locales. Locales 1, 2, and 3 will spend
+most of their time waiting for locale 0, which is not ideal.</p>
+<p>Load imbalance can be a particularly problematic issue when working with
+a parallel computation that has different phases. For Chapel programs,
+these phases are probably represented by different parallel loops or with
+barriers. If one task in a parallel region (such as a <code class="docutils literal notranslate"><span class="pre">forall</span></code> or
+<code class="docutils literal notranslate"><span class="pre">coforall</span></code> loop) takes a significantly longer time than the other
+tasks, the time the loop takes will be this long time, since the program
+cannot proceed with the code after the loop until all of the tasks have
+completed.</p>
+<p>How can load imbalance be identified?</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Within a parallel region, different tasks are taking very different
+amounts of time</p></li>
+<li><p>When profiling, the program spends a lot of time waiting for tasks to
+complete or waiting for barriers</p></li>
+</ul>
+</div></blockquote>
+<p>How can load imbalance be addressed?</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>There are often ways to improve the algorthim to address load
+imbalance. For example, graph partitioners are an important technology
+that can help one balance the storage of a data structure and the
+computation that goes with it. More generally, you might be able to
+rearrange the data and the computation to be performed so that when
+working with the new arrangement there is better load balance.</p></li>
+<li><p>In some cases, <a class="reference internal" href="../modules/standard/DynamicIters.html#module-DynamicIters" title="DynamicIters: Support for dynamic distribution of a 'forall' loop's iterations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">DynamicIters</span></code></a> might help. You can use it to
+write parallel loops that dynamically load balance.</p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<section id="current-issues">
+<h2>Current Issues<a class="headerlink" href="#current-issues" title="Link to this heading"></a></h2>
+<p>This section contains issues that, ideally, the Chapel compiler and
+runtime would address. However, as they may come up in practice, it’s
+important to be aware of them and their workarounds.</p>
+<section id="distributed-array-field-access-can-result-in-unnecessary-communication">
+<h3>Distributed Array Field Access Can Result in Unnecessary Communication<a class="headerlink" href="#distributed-array-field-access-can-result-in-unnecessary-communication" title="Link to this heading"></a></h3>
+<p>Issue: <a class="reference external" href="https://github.com/chapel-lang/chapel/issues/10160">https://github.com/chapel-lang/chapel/issues/10160</a></p>
+<p>When a class contains a field that is a distributed array, a distributed
+<code class="docutils literal notranslate"><span class="pre">forall</span></code> loop using a class instance will generate communication in
+order to read the field’s value (repeatedly) even though the field’s
+value should be a privatized distributed array.</p>
+<p>This issue can be avoided by creating a <code class="docutils literal notranslate"><span class="pre">ref</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> that
+refers to the distributed array. This <code class="docutils literal notranslate"><span class="pre">ref</span></code> or <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">ref</span></code> can be
+created outside of the <code class="docutils literal notranslate"><span class="pre">forall</span></code> loop and reused within it to avoid the
+problem.</p>
+</section>
+<section id="creating-too-many-distributed-objects-unoptimized-slice-assignments">
+<span id="optimization-slices"></span><h3>Creating Too Many Distributed Objects / Unoptimized Slice Assignments<a class="headerlink" href="#creating-too-many-distributed-objects-unoptimized-slice-assignments" title="Link to this heading"></a></h3>
+<p>Issue: <a class="reference external" href="https://github.com/chapel-lang/chapel/issues/16133">https://github.com/chapel-lang/chapel/issues/16133</a></p>
+<p>In principle, distributed array creation does some work on each locale. As a
+result, it’s not going to go faster when adding more locales. That can
+cause performance or scaling issues if a program tries to create too many
+distributed arrays.</p>
+<p>One aspect of the current implementation is that array slices of
+distributed arrays are also distributed objects and work is required on
+each locale to create one. That means that creating a slice, as in
+<code class="docutils literal notranslate"><span class="pre">MyDistributedArray[1..10]</span></code> can actually be quite slow.</p>
+<p>One common scenario is that data needs to be copied between regions of
+arrays. For example
+<code class="docutils literal notranslate"><span class="pre">MyDistributedArray[1..10]</span> <span class="pre">=</span> <span class="pre">MyOtherArray[11..20];</span></code>.
+The compiler can optimize this kind of
+assignment in many cases today with Array View Elision (AVE). However, in
+order to optimize it in this way, both sides of the <code class="docutils literal notranslate"><span class="pre">=</span></code> need to be
+slice expressions. Note that in some cases, one might create a local
+array to store the contents of a remote slice; that can be done with AVE
+by redundantly slicing the local array, e.g.:
+<code class="docutils literal notranslate"><span class="pre">var</span> <span class="pre">Loc:[1..10]</span> <span class="pre">int;</span> <span class="pre">Loc[1..10]</span> <span class="pre">=</span> <span class="pre">MyDistributedArray[1..10];`</span></code></p>
+</section>
+<section id="unoptimized-distributions">
+<h3>Unoptimized Distributions<a class="headerlink" href="#unoptimized-distributions" title="Link to this heading"></a></h3>
+<p>Issue: <a class="reference external" href="https://github.com/chapel-lang/chapel/issues/27334">https://github.com/chapel-lang/chapel/issues/27334</a></p>
+<p>The Chapel programming language is designed to support many distributions
+for domains and arrays. That includes distributions created by users.
+However, the present situation is that performance of Chapel programs
+depends on optimizations in the implementations of these domain/array
+distributions. These optimizations are present and reasonably well tuned
+for the <a class="reference internal" href="../modules/dists/BlockDist.html#module-BlockDist" title="BlockDist: Support for block-distributing arrays and domains to target locales."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">BlockDist</span></code></a> distribution. Other distributions might not
+be optimized and have scaling issues.</p>
+</section>
+<section id="performance-problems-with-multidimensional-zippered-iteration">
+<h3>Performance Problems with Multidimensional Zippered Iteration<a class="headerlink" href="#performance-problems-with-multidimensional-zippered-iteration" title="Link to this heading"></a></h3>
+<p>Issue: <a class="reference external" href="https://github.com/chapel-lang/chapel/issues/13147">https://github.com/chapel-lang/chapel/issues/13147</a></p>
+<p>Zippered iteration for multidimensional arrays/domains is much slower
+than zippered iteration for 1D arrays/domains. Since promoted calls, such
+as <code class="docutils literal notranslate"><span class="pre">MyArray</span> <span class="pre">+</span> <span class="pre">MyOtherArray</span></code> are implemented with zippered iteration,
+this problem also applies to that case.</p>
+<p>Potential ways to avoid this problem:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>use loops over a multidimensional domain that avoid zippering</p></li>
+<li><p>express the computation with nested loops per dimension</p></li>
+<li><p>use 1D arrays and explicitly compute 1D indices from 2D conceptual indices</p></li>
+<li><p>create a 1D copy of the array (with <code class="docutils literal notranslate"><span class="pre">reshape</span></code> – note that in the
+future, we expect to have a way to <code class="docutils literal notranslate"><span class="pre">reshape</span></code> without copying)</p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="cooperative-scheduling-and-remote-tasks">
+<h3>Cooperative Scheduling and Remote Tasks<a class="headerlink" href="#cooperative-scheduling-and-remote-tasks" title="Link to this heading"></a></h3>
+<p>Issue: <a class="reference external" href="https://github.com/chapel-lang/chapel/issues/27332">https://github.com/chapel-lang/chapel/issues/27332</a></p>
+<p>Chapel’s tasking model currently uses cooperative scheduling. That means
+that, once a task starts running on a core, it will be the only thing
+running on that core until the task either yields execution or ends.</p>
+<p>Occasionally, this can lead to problems when combined with <code class="docutils literal notranslate"><span class="pre">on</span></code>
+statements. The <code class="docutils literal notranslate"><span class="pre">on</span></code> statements generally create a task on a remote
+locale. Those remote tasks will never get a chance to run if all of the
+cores are busy with existing tasks. This problem is rare, but it can
+cause performance issues if it comes up. The solution is to
+periodically call <a class="reference internal" href="../language/spec/task-parallelism-and-synchronization.html#yield-task-execution"><span class="std std-ref">currentTask.yieldExecution()</span></a>
+from any polling loops. This is already done in
+<code class="docutils literal notranslate"><span class="pre">waitFor()</span></code> methods on atomics (see also
+<a class="reference internal" href="../language/spec/task-parallelism-and-synchronization.html#functions-on-atomic-variables"><span class="std std-ref">Atomic Variables</span></a>).</p>
+</section>
+</section>
+<section id="tools-for-understanding-performance">
+<h2>Tools for Understanding Performance<a class="headerlink" href="#tools-for-understanding-performance" title="Link to this heading"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This section is under construction. Contributions are welcome!</p>
+</div>
+<section id="tools-for-understanding-communication">
+<h3>Tools for Understanding Communication<a class="headerlink" href="#tools-for-understanding-communication" title="Link to this heading"></a></h3>
+<p>Several tools are available to help optimize communication in order to
+improve the distributed-memory scalability of your program.</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">local</span></code> blocks</dt><dd><p><code class="docutils literal notranslate"><span class="pre">local</span></code> blocks are an unstable feature that instructs the compiler
+to assume that there will be no communication in the body of the
+<code class="docutils literal notranslate"><span class="pre">local</span></code> block. Moreover, if compiling with <code class="docutils literal notranslate"><span class="pre">--checks</span></code> (generally
+the case without <code class="docutils literal notranslate"><span class="pre">--fast</span></code>) the program will halt if code in a
+<code class="docutils literal notranslate"><span class="pre">local</span></code> block requires communication. As a result, <code class="docutils literal notranslate"><span class="pre">local</span></code> blocks
+are useful both as an optimization tool and a way of discovering
+unintended communication.</p>
+</dd>
+<dt><a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> on-the-fly reporting</dt><dd><p>The <a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> module provides mechanisms for
+on-the-fly reporting with <code class="docutils literal notranslate"><span class="pre">startVerboseComm()</span></code>.  This on-the-fly
+reporting can even include stack traces if you compile with
+<code class="docutils literal notranslate"><span class="pre">-scommDiagsStacktrace=true</span></code> and have built Chapel with
+<code class="docutils literal notranslate"><span class="pre">CHPL_UNWIND</span> <span class="pre">!=</span> <span class="pre">none</span></code> (see <a class="reference internal" href="../usingchapel/chplenv.html#readme-chplenv-chpl-unwind"><span class="std std-ref">CHPL_UNWIND</span></a>).
+The on-the-fly reporting provides a relatively easy way to see what
+communication events are common in your program. It can be a lot of output,
+though.</p>
+</dd>
+<dt><a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> comm counting</dt><dd><p><a class="reference internal" href="../modules/standard/CommDiagnostics.html#module-CommDiagnostics" title="CommDiagnostics: Supports counting and reporting network communication operations."><code class="xref chpl chpl-mod docutils literal notranslate"><span class="pre">CommDiagnostics</span></code></a> also provides a way to count communication
+events. Note that the communication count information will be easier to
+understand if you compile with <code class="docutils literal notranslate"><span class="pre">--no-cache-remote</span></code> since that will
+reduce the number of categories of events. Comm counts
+information provide a way to compare communication performance
+independent of where you are running. For example, you might measure
+and seek to reduce the communication counts when running oversubscribed
+on a laptop or workstation. Reductions in communication counts from
+such an effort should also help with multi-node performance when you
+are able to run on a big system.</p>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="protoGenCodeGuide.html" class="btn btn-neutral float-left" title="Protocol Buffers Support - Generated Chapel Code" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../tools/index.html" class="btn btn-neutral float-right" title="Tools" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hewlett Packard Enterprise Development LP.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>

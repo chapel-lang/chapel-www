@@ -15,6 +15,7 @@ $(function () {
   demo()
   contactFormAjax()
   quoteAnimation()
+  openAutoDetails()
 })
 
 // Ajax contact
@@ -427,4 +428,18 @@ function quoteAnimation() {
   const hiddenQuotes = document.querySelectorAll('.hide-quote');
   console.log(hiddenQuotes);
   hiddenQuotes.forEach((quote) => observer.observe(quote));
+}
+function openAutoDetails() {
+  function openTarget() {
+    var hash = window.location.hash.substring(1);
+    if (hash) {
+      var summary = document.getElementById(hash);
+      if (summary?.tagName?.toLowerCase() === 'summary') {
+        var details = summary.closest('details');
+        details?.setAttribute('open', true);
+      }
+    }
+  }
+  window.addEventListener('hashchange', openTarget);
+  openTarget();
 }

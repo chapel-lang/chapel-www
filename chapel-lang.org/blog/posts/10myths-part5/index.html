@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="The fifth archival post from the 2012 IEEE TCSC blog series, with a current reflection on it" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>10 Myths About Scalable Parallel Programming Languages (Redux),  Part 5: Productivity and Magic Compilers</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>10 Myths About Scalable Parallel Programming Languages (Redux)<br/>  Part 5: Productivity and Magic Compilers</h2>
+<div class="post-subscript">
+<p>Posted on August 20, 2025.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/editorial/">Editorial</a>
+<a class="button" href="../../tags/archival-posts-/-reprints/">Archival Posts / Reprints</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/10-myths-about-scalable-parallel-programming-languages-redux/">10 Myths About Scalable Parallel Programming Languages (Redux)</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#background">Background</a></li>
+<li><a href="#the-original-article-reprinted">The Original Article, Reprinted</a>
+<ul>
+<li><a href="#myth-5-productive-languages-require-magic-compilers">Myth #5: Productive Languages Require Magic Compilers.</a></li>
+<li><a href="#counterpoint-5-well-designed-languages-should-not-require-heroic-compilation-to-be-productive-rather-they-should-provide-productivity-through-an-appropriate-layering-of-abstractions-while-also-providing-opportunities-for-future-compiler-optimizations-to-make-that-which-is-merely-elegant-today-efficient-tomorrow">Counterpoint #5: Well-designed languages should not require heroic compilation to be productive; rather, they should provide productivity through an appropriate layering of abstractions, while also providing opportunities for future compiler optimizations to make that which is merely elegant today efficient tomorrow.</a></li>
+<li><a href="#bibliography">Bibliography</a></li>
+</ul>
+</li>
+<li><a href="#reflections-on-the-original-article">Reflections on the Original Article</a>
+<ul>
+<li><a href="#chapels-not-so-magic-forall">Chapel’s (not so) Magic <code>forall</code></a></li>
+<li><a href="#the-stencil-example-in-chapel">The Stencil Example in Chapel</a></li>
+</ul>
+</li>
+<li><a href="#wrapping-up">Wrapping Up</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<h3 id="background">
+<a href="#background">Background</a>
+</h3>
+<p>In 2012, I wrote a series of eight blog posts entitled “Myths About
+Scalable Parallel Programming Languages” for the IEEE Technical
+Community on Scalable Computing (TCSC).  In it, I described
+discouraging attitudes that our team encountered when talking about
+developing Chapel and then gave my personal rebuttals to them.  That
+series has generally been unavailable for many years, so for its 13th
+anniversary, we’re reprinting the original series here on the Chapel
+blog, along with new commentary about how well or poorly the ideas
+have held up over time.  For a more detailed introduction to both the
+original series and these reprints, please see <a href="../../posts/10myths-part1/">the first article</a> in this series.</p>
+<p>This month, we’re reprinting the fifth article in the original
+series, originally published on<br/>August 20, 2012.  Comments in the
+sidebar and in <a href="#reflections-on-the-original-article">the sections that follow the reprint</a> contain current thoughts
+and reflections on it.</p>
+<hr/>
+<h3 id="the-original-article-reprinted">
+<a href="#the-original-article-reprinted">The Original Article, Reprinted</a>
+</h3>
+<p class="big">Myths About Scalable Parallel Programming Languages:<br/>
+Part 5: Productivity and Magic Compilers</p>
+<p>This is the fifth in a series of blog articles that I’m writing with
+the goal of recounting and responding to some of the misconceptions
+about scalable parallel programming languages that our team encounters
+when describing our work designing and implementing Chapel
+(<a href="https://chapel-lang.org">https://chapel-lang.org</a>).</p>
+<p>For more background on Chapel or this series of articles, please refer
+to <a href="../../posts/10myths-part1/#the-original-article-reprinted">part 1</a>; subsequent myths are covered in
+parts <a href="../../posts/10myths-part2/#the-original-article-reprinted">2</a>, <a href="../../posts/10myths-part3/#the-original-article-reprinted">3</a>, and <a href="../../posts/10myths-part4/#the-original-article-reprinted">4</a>.</p>
+<h4 id="myth-5-productive-languages-require-magic-compilers">
+<a href="#myth-5-productive-languages-require-magic-compilers">Myth #5: Productive Languages Require Magic Compilers.</a>
+</h4>
+<p>This article was originally planned as myth #6, using a slightly
+different description.  However, comments along these lines came up a
+few times <span class="sidenote"><label class="sidenote-label" for="sidenote-0">at a workshop last week</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Checking the
+archives, it looks like this was a DOE exascale workshop named
+<em>Productive Programming Models for Exascale</em>, held in
+Portland.<span class="sidenote-delimiter">]</span></span></span>, so I thought I’d tackle the topic while it’s
+fresh in my mind.</p>
+<p>To start out, I believe that the term “magic compiler” is fairly cheap
+and tacky; a term that’s best avoided in technical conversations.
+Most people in the scientific community don’t actually believe in
+magic, so suggesting that when it comes to compilers you do—or that
+your adversary does—seems pointlessly insulting (which, I suppose, is
+arguably the point).  If you’re on the defending side of such a
+conversation and want to stoop to a similar level, you can always
+point out that many primitive cultures have described that which they
+cannot understand as “magic”, and leave it at that.  However, if you
+want to elevate the level of discourse, an arguably better term to use
+in such contexts is <em>heroic compilation</em>—essentially suggesting that
+the compiler must go above and beyond the reasonable call of duty to
+make a program work well, or perhaps even work at all.</p>
+<p>The scalable computing community is probably overly sensitive about
+magic compilers/heroic compilation due, in large part, to the failure
+of High Performance Fortran (HPF—see <a href="../../posts/10myths-part2/#the-original-article-reprinted">myth #2</a>).  HPF was a
+particularly challenging language to compile and optimize for
+distributed memory machines due to the compiler’s role in identifying
+and implementing all communication.  And Chapel arguably has
+<span class="sidenote"><label class="sidenote-label" for="sidenote-1">similar challenges ahead of it</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>All these years
+later, I’d say that many of these challenges have been met, and that
+we’ve demonstrated how Chapel’s design effectively supports the
+ability to reason about and optimize communication far better than HPF
+did (see <a href="https://link.springer.com/chapter/10.1007/978-3-030-99372-6_1">this
+paper</a>
+for some examples).  That said, there are always additional
+optimizations to implement, to make the compiler better and save user
+effort.<span class="sidenote-delimiter">]</span></span></span>.  However, I would argue that Chapel’s design
+is far less dependent on heroic compilation than HPF’s was.</p>
+<h6 id="high-level-concepts-vs-low-level-control">
+<a href="#high-level-concepts-vs-low-level-control">High-level Concepts vs. Low-level Control</a>
+</h6>
+<p>Before last week’s workshop, my original phrasing for this myth was
+going to be “High-level languages unnecessarily tie a programmer’s
+hands.”  Like the heroic compilation issue above, this also referred
+to HPF.  Specifically, when HPF’s compiler and abstractions failed the
+programmer, there was little recourse available other than abandoning
+the language.  Such situations can leave users feeling as though their
+hands are tied; the high-level language’s abstractions can be helpful
+when they work, but they can also end up being overly restrictive when
+they don’t.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+When Chapel's high-level features fail you—whether due to performance
+issues or lack of sufficient control for your computation—you can drop
+down to the lower-level features as a sort of manual override.
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<p>I believe that good language design can go a long way toward
+addressing both concerns in a productive language—reducing reliance on
+heroic compilation while also providing the ability to escape the
+higher-level abstractions provided by a language.  In Chapel, our
+design follows something we refer to as our <em>multiresolution
+philosophy</em> [<a href="#bibliography">1</a>].  The idea is that
+rather than supporting only high- or low-level features, Chapel
+provides a spectrum of features, some higher-level and more abstract;
+others lower-level and more explicit or control-oriented.  Moreover,
+Chapel is architected in a layered manner such that higher-level
+features are implemented in terms of the lower-level ones.  In this
+way, when the high-level features fail you—whether due to performance
+issues or lack of sufficient control for your computation—you can
+drop down to the lower-level features as a sort of manual override.</p>
+<p>As an example, Chapel supports <em>global arrays</em>, which support
+high-level operations like <code>forall</code> loops and promoted operators.
+These are examples of Chapel’s data-parallel features, which are
+provided to help with programmability and ease-of-use.  All of these
+data-parallel features are implemented within the language itself,
+using lower-level Chapel features like task-parallelism, locality
+control, and base language features such as classes, tuples, and
+iterators.  This approach has a few important implications: First,
+because both high- and low-level features are implemented using the
+same core concepts, it means that they are directly compatible with
+one another, permitting users to switch between high- and low-level
+features <span class="sidenote"><label class="sidenote-label" for="sidenote-2">as required</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -18.5rem"><span class="sidenote-delimiter">[note:</span>The
+<a href="https://arkouda-www.github.io/">Arkouda</a> framework for interactive
+HPC-scale computing in Python is a Chapel application that
+demonstrates this characteristic.  Most of its operations are able to
+use high-level, whole-array operations and <code>forall</code> loops; but more
+complex and time-critical operations—like its custom radix sort
+routine—make use of lower-level SPMD-style parallelism and
+asynchronous tasking.  More broadly, different Chapel applications have
+contained distinct mixes of higher- and lower-level features depending
+on their needs.<span class="sidenote-delimiter">]</span></span></span>.  Second, it provides users with the
+ability to create their own high-level abstractions in the event that
+the language designers <span class="sidenote"><label class="sidenote-label" for="sidenote-3">didn’t anticipate their precise needs</label><input class="sidenote-checkbox" id="sidenote-3" type="checkbox"/><span class="sidenote-content sidenote-left" style="margin-top: -16.5rem"><span class="sidenote-delimiter">[note:</span>Arkouda serves as an example
+of this principle as well.  Its initial sort routine induced far too
+much fine-grained communication, hurting its overall performance.  To
+remedy this, a data aggregator abstraction was written using ~100
+lines of Chapel to amortize communication overheads and improve
+performance and scalability.  That abstraction has since been promoted
+to Chapel’s
+<a href="https://chapel-lang.org/docs/modules/packages/CopyAggregation.html">CopyAggregation</a>
+package module for others to use.<br/><br/>A second example can be seen in the work done by Akihiro Hayashi et
+al. at Georgia Tech to <a href="https://chapel-lang.org/CHIUW/2021/Hayashi.pdf">target GPUs using Chapel
+programs</a> before the
+Chapel compiler’s <a href="../../series/gpu-programming-in-chapel/">native GPU support</a> was completed.  They were able
+to achieve this by defining custom iterators and array types with no
+modifications to the language or compiler.<span class="sidenote-delimiter">]</span></span></span>.  In Chapel,
+this gives the user the ability to define new ways of laying out array
+elements in memory or distributing them across
+locales [<a href="#bibliography">2, 3</a>]; it also permits users
+to define their own custom parallel iterators that determine how many
+tasks to use when implementing forall loops, as well as how iterations
+should be divided between those tasks [<a href="#bibliography">4</a>].</p>
+<h6 id="multiresolution-languages-and-heroic-compilation">
+<a href="#multiresolution-languages-and-heroic-compilation">Multiresolution Languages and Heroic Compilation</a>
+</h6>
+<p>Returning to this month’s myth, Chapel’s multiresolution philosophy is
+also why I would argue that it relies less on heroic compilation than
+HPF.  In HPF, when the compiler failed programmers, they would likely
+need to abandon the language.  In Chapel, when the compiler fails you,
+you can always abandon the high-level abstractions you were using and
+write the code <span class="sidenote"><label class="sidenote-label" for="sidenote-4">using Chapel’s lower levels</label><input class="sidenote-checkbox" id="sidenote-4" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -12.5rem"><span class="sidenote-delimiter">[note:</span>Note that these lower-level details can often be wrapped in new
+high-level abstractions so that their uses remain clean and readable.
+Both the Arkouda aggregators and Georgia Tech GPU work mentioned above
+were examples of this.<span class="sidenote-delimiter">]</span></span></span>; in the limit, this can even
+include returning to SPMD-style programming and message passing, if
+that’s what’s required.  Of course if all you ever want is SPMD
+execution and message passing, Chapel has <span class="sidenote"><label class="sidenote-label" for="sidenote-5">little to offer over MPI</label><input class="sidenote-checkbox" id="sidenote-5" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>This statement doesn’t hold up for me
+today, if it ever did.  The <a href="../../posts/7qs-laurendeau/">CHAMPS</a>
+framework for unstructured computational fluid dynamics is an example
+of an SPMD MPI-style Chapel application whose authors felt they got
+great benefit by expressing inter-node transfers using array copies
+rather than message passing calls.  I also think that many programmers
+like the CHAMPS team and <a href="../../posts/7qs-dias/">Professor Nelson Luís Dias</a> consider Chapel’s base language features to be a
+significant improvement over C++—i.e., that having “a more programmable base
+language” is nothing to sniff at.<span class="sidenote-delimiter">]</span></span></span> other than a more
+programmable base language.  That said, by also providing higher-level
+alternatives, Chapel supports the 90/10 rule: if 90% of your execution
+time is spent in 10% of your code, your overall time to solution might
+benefit greatly by writing <span class="sidenote"><label class="sidenote-label" for="sidenote-6">the other 90% of your code</label><input class="sidenote-checkbox" id="sidenote-6" type="checkbox"/><span class="sidenote-content sidenote-left"><span class="sidenote-delimiter">[note:</span>Happily, in practice, most Chapel
+applications to date have been able to write the 10%
+performance-critical sections in Chapel as well.  So while this
+argument provides peace-of-mind, few applications have had to rely on
+it.<span class="sidenote-delimiter">]</span></span></span> in a productive, high-level language rather than a
+low-level unproductive one.</p>
+<blockquote class="pull-quote">
+<div class="quote-wrapper">
+<div class="quote-container"><span class="open-quote">“</span></div>
+<div class="quote-content">
+<p>
+
+If we never create languages that support distributed memory
+parallelism, our chances of developing optimizations for scalable
+parallel computations remains quite low, implying that end-users will
+have to continue shouldering the burden.
+
+</p>
+</div>
+<div class="quote-container"><span class="close-quote">”</span></div>
+</div>
+</blockquote>
+<p>Meanwhile, time will pass, compilers will get better, and by designing
+languages with novel optimization opportunities, we create the
+possibility that in the future, users will have new cases in which
+work may be taken from their shoulders.  Today’s heroic—or
+magic—optimizations can become tomorrow’s standard ones.  Conversely,
+if we never strive to design languages that provide more productive
+features, we box ourselves into the set of things that today’s
+languages and compilers can do well, <span class="sidenote"><label class="sidenote-label" for="sidenote-7">with no room to grow</label><input class="sidenote-checkbox" id="sidenote-7" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>To be concrete, if we never create languages
+that support distributed memory parallelism, our chances of developing
+optimizations for scalable parallel computations remains quite low,
+implying that end-users will have to continue shouldering the burden
+of implementing such optimizations.<span class="sidenote-delimiter">]</span></span></span>.</p>
+<p>As a closing example, consider a 27-point stencil on a 3D grid, such
+as the ones used in multigrid computations like the NAS MG benchmark
+[<a href="#bibliography">5</a>].  As illustrated within the MPI
+reference version of NAS MG, such stencils can be manually optimized
+in order to re-use numerical sub-computations across adjacent
+applications of the stencil rather than re-computing redundant
+floating point operations.  However, these optimizations also
+typically impact the clarity of the code, making the expression of the
+27-point stencil far less clear than it could be.  Here, for example,
+is the calculation of the projection stencil in NAS MG, which uses
+pairs of temporary vectors (<code>x1</code> and <code>y1</code>) and scalars (<code>x2</code>, and
+<code>y2</code>) to cache and reuse sums of floating point grid points:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-fortran" data-lang="fortran"><span class="line"><span class="cl"><span class="w">     </span><span class="k">do</span><span class="w">  </span><span class="n">j3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="n">m3j</span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="n">i3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="n">j3</span><span class="o">-</span><span class="n">d3</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="k">do</span><span class="w">  </span><span class="n">j2</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">m2j</span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">           </span><span class="n">i2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="n">j2</span><span class="o">-</span><span class="n">d2</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="k">do</span><span class="w"> </span><span class="n">j1</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">m1j</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">i1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="n">j1</span><span class="o">-</span><span class="n">d1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">x1</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="w">  </span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                     </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="p">,</span><span class="w">  </span><span class="n">i3</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="p">,</span><span class="w">  </span><span class="n">i3</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="n">y1</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                     </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="k">enddo</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="k">do</span><span class="w">  </span><span class="n">j1</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">m1j</span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="n">i1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="n">j1</span><span class="o">-</span><span class="n">d1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="n">y2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i3</span><span class="w">  </span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="p">,</span><span class="w">  </span><span class="n">i3</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="w">  </span><span class="n">i2</span><span class="p">,</span><span class="w">  </span><span class="n">i3</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">             </span><span class="n">s</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span><span class="n">j2</span><span class="p">,</span><span class="n">j3</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5D0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="p">,</span><span class="n">i2</span><span class="p">,</span><span class="n">i3</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                         </span><span class="o">+</span><span class="w"> </span><span class="mf">0.25D0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="p">,</span><span class="n">i3</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">(</span><span class="n">i1</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i2</span><span class="p">,</span><span class="n">i3</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">x2</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                         </span><span class="o">+</span><span class="w"> </span><span class="mf">0.125D0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">x1</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">x1</span><span class="p">(</span><span class="n">i1</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y2</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                         </span><span class="o">+</span><span class="w"> </span><span class="mf">0.0625D0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">y1</span><span class="p">(</span><span class="n">i1</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y1</span><span class="p">(</span><span class="n">i1</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">enddo</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="k">enddo</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">enddo</span><span class="w">
+</span></span></span></code></pre></div><p>In our previous work in ZPL, we demonstrated that a user could write
+stencils like these using relatively clear, concise code.  For
+example, the ZPL equivalent of the projection stencil above appears as
+follows:</p>
+<pre tabindex="0"><code class="language-zpl" data-lang="zpl">  S := 0.5000 * R +
+       + 0.2500 * (R@^dir100[lvl] + R@^dir010[lvl] + R@^dir001[lvl] +
+                   R@^dirN00[lvl] + R@^dir0N0[lvl] + R@^dir00N[lvl])
+       + 0.1250 * (R@^dir110[lvl] + R@^dir101[lvl] + R@^dir011[lvl] +
+                   R@^dir1N0[lvl] + R@^dir10N[lvl] + R@^dir01N[lvl] +
+                   R@^dirN10[lvl] + R@^dirN01[lvl] + R@^dir0N1[lvl] +
+                   R@^dirNN0[lvl] + R@^dirN0N[lvl] + R@^dir0NN[lvl])
+       + 0.0625 * (R@^dir111[lvl] + R@^dir11N[lvl] + R@^dir1N1[lvl] +
+                   R@^dir1NN[lvl] + R@^dirN11[lvl] + R@^dirN1N[lvl] +
+                   R@^dirNN1[lvl] + R@^dirNNN[lvl]);
+</code></pre><p>Moreover, for such computations, the ZPL compiler could optimize the
+stencil using techniques similar to the hand-optimized cases [<a href="#bibliography">6,
+7</a>].  The result was the best of both
+worlds: a clear expression of the computation for the programmer and
+other readers of the code; yet with performance competitive with a
+manually optimized version.</p>
+<p>In spite of these successes, ZPL ultimately suffered a similar fate as
+HPF, in this case, arguably for the same reason: when its high-level
+abstractions worked for you, things were great; but when you needed to
+express something at a lower level or to optimize things manually,
+<span class="sidenote"><label class="sidenote-label" for="sidenote-8">your options were limited</label><input class="sidenote-checkbox" id="sidenote-8" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -16.5rem"><span class="sidenote-delimiter">[note:</span>It was exactly these
+experiences in ZPL that motivated Chapel’s multiresolution philosophy
+and design.  While Chapel’s domains and arrays are based on ZPL’s,
+their design and integration into the lower-level aspects of the
+language are a reflection of hard-learned lessons in
+ZPL.<span class="sidenote-delimiter">]</span></span></span>.</p>
+<p>Like ZPL, Chapel permits stencil operations to be expressed very
+elegantly—more elegantly, in fact, as Chapel <span class="sidenote"><label class="sidenote-label" for="sidenote-9">does not require <small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>k</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(k)</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.02778em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span><span class="mclose">)</span></span></span></span></small> expressions</label><input class="sidenote-checkbox" id="sidenote-9" type="checkbox"/><span class="sidenote-content sidenote-right" style="margin-top: -2.5rem"><span class="sidenote-delimiter">[note:</span>We’ll see
+how the stencil above can be written succinctly in Chapel
+below.<span class="sidenote-delimiter">]</span></span></span> to write a <small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span></span></span></span></small>-point stencil as
+ZPL did.  And, ultimately, the Chapel compiler should be able to
+implement stencil optimizations at least as well as ZPL did—certain
+Chapel features were even designed to help with the analysis required
+for the stencil optimization in ZPL.  However, to-date, the Chapel
+team <span class="sidenote"><label class="sidenote-label" for="sidenote-10">has not implemented this optimization</label><input class="sidenote-checkbox" id="sidenote-10" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>This remains true today.  While stencil computations like these
+have received a lot of support within Chapel via its <a href="https://chapel-lang.org/docs/modules/dists/StencilDist.html">Stencil
+Distribution</a>
+and related optimizations, this specific optimization has not been
+implemented and remains on my wishlist.<span class="sidenote-delimiter">]</span></span></span>, and therefore
+performance in Chapel today is much worse than in ZPL or a manually
+implemented version.</p>
+<p>This is where Chapel’s multiresolution philosophy comes in: users for
+whom the stencil computation is not a bottleneck can use the
+high-level expression today; users with more stringent performance
+requirements for their stencils today can rewrite the stencil manually
+using lower levels of Chapel rather than abandoning the language as in
+HPF or ZPL.  Meanwhile, once Chapel’s compiler support improves and
+the ZPL optimization is implemented, future programmers will benefit.
+This then is the approach that we espouse for parallel programming
+language design: Provide high-level features for elegance and clarity
+whenever possible, along with the ability to drop to lower levels of
+the language when required; and be sure to provide ample opportunities
+for future compiler optimizations to aid the user (ideally without
+requiring any special heroics or magic).</p>
+<p>This leads to our conclusion:</p>
+<h4 id="counterpoint-5-well-designed-languages-should-not-require-heroic-compilation-to-be-productive-rather-they-should-provide-productivity-through-an-appropriate-layering-of-abstractions-while-also-providing-opportunities-for-future-compiler-optimizations-to-make-that-which-is-merely-elegant-today-efficient-tomorrow">
+<a href="#counterpoint-5-well-designed-languages-should-not-require-heroic-compilation-to-be-productive-rather-they-should-provide-productivity-through-an-appropriate-layering-of-abstractions-while-also-providing-opportunities-for-future-compiler-optimizations-to-make-that-which-is-merely-elegant-today-efficient-tomorrow">Counterpoint #5: Well-designed languages should not require heroic compilation to be productive; rather, they should provide productivity through an appropriate layering of abstractions, while also providing opportunities for future compiler optimizations to make that which is merely elegant today efficient tomorrow.</a>
+</h4>
+<p>Tune in next time for more myths about scalable parallel programming languages.</p>
+<h4 id="bibliography">
+<a href="#bibliography">Bibliography</a>
+</h4>
+<p>[1] B. Chamberlain, <a href="https://chapel-lang.org/papers/DARPA-RFI-Chapel-web.pdf">Multiresolution Languages for Portable yet
+Efficient Parallel
+Programming</a>,
+unpublished position paper, October 2007.</p>
+<p>[2] B. Chamberlain, S. Deitz, D. Iten, S-E, Choi, <a href="https://chapel-lang.org/publications/hotpar10-final.pdf">User-Defined
+Distributions and Layouts in Chapel: Philosophy and
+Framework</a>,
+2nd USENIX Workshop on Hot Topics in Parallelism, June 2010.</p>
+<p>[3] B. Chamberlain, S-E Choi, D. Iten, V. Litvinov, <a href="https://chapel-lang.org/publications/cug11-final.pdf">Authoring
+User-Defined Domain Maps in
+Chapel</a>, CUG
+2011, May 2011.</p>
+<p>[4] B. Chamberlain, S-E Choi, S. Deitz, A. Navarro, <a href="http://pgas11.rice.edu/papers/ChamberlainEtAl-Chapel-Iterators-PGAS11.pdf">User-Defined
+Parallel Zippered Iterators in
+Chapel</a>,
+PGAS 2011: Fifth Conference on Partitioned Global Address Space
+Programming Models, October 2011.</p>
+<p>[5] D. Bailey, T. Harris, W. Saphir, R. van der Wijngaart, A. Woo,
+M. Yarrow, <a href="https://www.nas.nasa.gov/assets/nas/pdf/techreports/1995/nas-95-020.pdf">The NAS Parallel Benchmarks
+2.0</a>,
+Tech Report NAS 95 020, December 1995.</p>
+<p>[6] S. Deitz, B. Chamberlain, L. Snyder, <a href="https://research.cs.washington.edu/zpl/papers/data/Deitz01.pdf">Eliminating Redundancies in
+Sum-of-Product Array
+Computations</a>,
+In Proceedings of the ACM Conference on Principles and Practice of
+Parallel Programming, 2003.</p>
+<p>[7] B. Chamberlain, S. Deitz, L. Snyder, <a href="https://research.cs.washington.edu/zpl/papers/data/Chamberlain00.pdf">A Comparative Study of the
+NAS MG Benchmark Across Parallel Languages and
+Architectures</a>,
+In Proceedings of the ACM Conference on Supercomputing, 2000.</p>
+<hr/>
+<h3 id="reflections-on-the-original-article">
+<a href="#reflections-on-the-original-article">Reflections on the Original Article</a>
+</h3>
+<p>For me, this article stands up quite well despite the passing of
+thirteen years.  I think there is still a general bias or fear that
+productive, high-level parallel languages require magic or heroic
+compilers.  I also think that the benchmark results and user
+applications that Chapel has supported in the intervening years
+validate Chapel’s design and multiresolution approach in a way that we
+couldn’t at the time of the original publication.</p>
+<p>In this section, I’ll expound on these points a bit more in the
+context of Chapel’s <code>forall</code> loops, and then show the stencil code
+from the original article written in Chapel.</p>
+<h4 id="chapels-not-so-magic-forall">
+<a href="#chapels-not-so-magic-forall">Chapel’s (not so) Magic <code>forall</code></a>
+</h4>
+<h5 id="background-1">
+<a href="#background-1">Background</a>
+</h5>
+<p>In Chapel’s early years, one of the language concepts that tended to
+be considered most “magical” was its <code>forall</code> loop.  Let’s look
+briefly at why this was (and may still be for some today), as well as
+the reality of the feature, which is completely non-magical.</p>
+<p>For those unfamiliar with Chapel, in addition to its serial <code>for</code>
+loop, it supports a task-parallel <code>coforall</code> loop in which each
+iteration is executed by a distinct task (feel free to think
+“thread”).  The implementation of both of these is fairly
+straightforward to reason about: The <code>for</code> loop is implemented more or
+less as in most languages, while the <code>coforall</code> effectively spawns a
+task for each iteration through the loop, having it execute the loop
+body for its specific iteration.  The original task does not proceed
+until each of these tasks it creates has completed.</p>
+<p>Like the <code>coforall</code> loop, <code>forall</code> is also a parallel loop, but one
+that sits somewhere between the extremes of the <code>coforall</code>’s “1 task
+per iteration” and the <code>for</code> loop’s “1 task total.”  The <code>forall</code> loop
+is typically used when the number of loop iterations is so
+large—and/or the amount of work in the loop body so small—that
+spawning a task per iteration would be overkill.  For example, in the
+following loop:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">forall</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">1</span><span class="nx">_000_000</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">i</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>we probably don’t want to spawn a million tasks, as a <code>coforall</code> loop
+would, if we only have 16 processor cores—particularly given how
+simple the loop body is.  We’d effectively spend all our time spawning
+and destroying tasks rather than doing the computation itself.</p>
+<p>In practice, <code>forall</code> loops typically create a number of tasks
+proportional to the hardware resources on which they’re running,
+dividing the loop iterations amongst themselves, either statically or
+dynamically.  The reason for the wiggle-words here—“typically” and
+“either”—is that Chapel defines <code>forall</code> loops as invoking the
+parallel iterator of the loop’s <em>iterand expression</em>.</p>
+<p>For the loop above, the iterand is the range value <code>1..1_000_000</code>, so
+the compiler will invoke its default parallel iterator.  The default
+parallel iterator for a range is defined to create a number of tasks
+equal to the number of idle processor cores on the current locale
+(think “compute node”), chunk up the iterations between them as evenly
+as possible, and have each task execute its subset.  The range
+iterator is written as Chapel code itself, using <code>coforall</code> loops
+to create the tasks and serial loops to perform each task’s work.</p>
+<h5 id="relation-to-this-months-reprint">
+<a href="#relation-to-this-months-reprint">Relation to this month’s Reprint</a>
+</h5>
+<p>I’m telling you all of this because it illustrates several points in a
+bit more detail than the original article was able to: First, that
+Chapel’s most <span class="sidenote"><label class="sidenote-label" for="sidenote-11">conceptually abstract</label><input class="sidenote-checkbox" id="sidenote-11" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>In the
+sense that it effectively says “Execute this loop using an appropriate
+amount of parallelism.”<span class="sidenote-delimiter">]</span></span></span> loop, <code>forall</code>, is actually
+quite concrete, effectively serving as a sugar for “invoke this
+expression’s parallel iterator.”  The <code>forall</code> loop also serves as a
+demonstration of Chapel’s multiresolution philosophy since the
+parallel iterators that <code>forall</code>s invoke are themselves implemented in
+terms of lower-level, explicit constructs like task-parallel
+<code>coforall</code> loops.  This is also why Chapel’s data-parallel features
+that use <code>forall</code> or are implemented in terms of it can be mixed
+arbitrarily with lower-level task-parallel features like <code>coforall</code>—at
+the end of the day it all boils down to the same set of features.
+Finally, users can create and invoke their own parallel iterators like
+the one on ranges for their data structures or as standalone routines,
+as mentioned in the original article.</p>
+<p>Another reason that <code>forall</code> loops may feel magical is that they can
+be so different when applied to one data structure versus the next.
+While the range’s parallel iterator is fairly straightforward, a
+<code>forall</code> loop over a distributed array will typically result in
+multiple tasks being executed on each locale that owns a piece of the
+array.  Meanwhile, other <a href="https://chapel-lang.org/docs/modules/packages/DistributedBag.html">data
+structures</a>
+and <a href="https://chapel-lang.org/docs/modules/standard/DynamicIters.html">iterator
+routines</a>
+might dynamically distribute work across tasks and/or locales.  This
+variability across data structures is productive and powerful, in that
+each data structure will presumably do something reasonable; but it
+can also be subtle given that the parallel iterator and loop can be so
+far from one another in the code base—in many cases, the programmer
+may never look at the iterator’s implementation or documentation, or
+even need to.</p>
+<p>This last point relates to a final reason that <code>forall</code> may be
+considered magical, which is that it took us a number of years to
+figure out how to define and implement it, particularly for cases
+involving <em>promotion</em> or <em>zippered iteration</em>, where multiple data
+structures or iterators may get traversed simultaneously.  As a
+result, the documentation for <code>forall</code> loops was late to be created
+relative to the rest of the language and may still not be as
+well-integrated into the documentation as it ought to be.  Users who
+are curious to learn more about the relationship between <code>forall</code>
+loops, parallel iterators, and particularly parallel zippered
+iteration are encouraged to read Chapel’s <a href="https://chapel-lang.org/docs/primers/parIters.html">parallel iterators
+primer</a> or our
+PGAS 2011 paper, <a href="http://pgas11.rice.edu/papers/ChamberlainEtAl-Chapel-Iterators-PGAS11.pdf"><em>User-Defined Parallel Zippered Iterators in
+Chapel</em></a>
+(published less than a year before this original article), or <a href="https://chapel-lang.org/presentations/ChapelForPGAS2011.pdf">its
+slides</a>.</p>
+<h4 id="the-stencil-example-in-chapel">
+<a href="#the-stencil-example-in-chapel">The Stencil Example in Chapel</a>
+</h4>
+<p>Though this article focuses on a stencil example, it rather
+maddeningly doesn’t show the code in Chapel.  Checking the date of the
+article, I believe that this is because at the time it was written, we
+were in the midst of making some significant user-requested changes to
+the syntax for Chapel’s domains and arrays, such that I didn’t want to
+publish some code only to have it become outdated a few months later.</p>
+<p>Making up for that now that the syntax is stable, here’s one way of
+writing the stencil compactly in Chapel:</p>
+<div data-code-path="code/stencil-3D.chpl" data-code-section="" data-code-type="main" data-start-line="7">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">// Create the 3x3x3 array of weights using a closed-form expression
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">weightInds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="o">..</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="o">..</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="o">..</span><span class="mi">1</span><span class="p">},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="nx">i</span><span class="p">,</span><span class="nx">j</span><span class="p">,</span><span class="nx">k</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">weightInds</span><span class="p">]</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="o">**</span><span class="p">((</span><span class="nx">i</span><span class="o">!=</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">j</span><span class="o">!=</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">k</span><span class="o">!=</span><span class="mi">0</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// Assign each element of S the weighted sum of its neighboring corresponding
+</span></span></span><span class="line"><span class="cl"><span class="c1">// elements in R
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">forall</span><span class="w"> </span><span class="nx">xyz</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">S</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">S</span><span class="p">[</span><span class="nx">xyz</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="nx">off</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">weightInds</span><span class="p">]</span><span class="w"> </span><span class="nx">weight</span><span class="p">[</span><span class="nx">off</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">R</span><span class="p">[</span><span class="nx">xyz</span><span class="o">+</span><span class="nx">off</span><span class="p">];</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>This approach demonstrates the principle mentioned in the original
+article about how Chapel supports the ability to write stencils
+without requiring a number of expressions proportional to the number
+of points in the stencil, as in the Fortran and ZPL codes above.</p>
+<p>Of course, Chapel stencils can also be written using loop nests and
+explicit indexing as in those languages, but this tends to become
+taxing as the stencil’s size grows.  For example, the Fast Multipole
+Method described <a href="../../posts/10myths-part4/#the-original-article-reprinted">last month</a> involves 216-point stencils
+(<small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>6</mn><mo>×</mo><mn>6</mn><mo>×</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">6\times6\times6</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">6</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">6</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">6</span></span></span></span></small>), which are both tedious and
+error-prone when written out explicitly.</p>
+<p>Note that this stencil idiom in Chapel also happens to be
+rank-neutral, permitting it to be run on <code>S</code>, <code>R</code>, and <code>weight</code> arrays
+that are 1D, 2D, 3D, or nD.  In this example, I used explicit 3D
+declarations of the <code>weight</code> array for clarity; but with additional
+changes, these can be made rank-neutral as well.</p>
+<details>
+<summary><strong>Click to see the rank-neutral version of <code>weight</code>…</strong></summary>
+<div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+<p>Here’s code to declare the weight indices and values in a rank-neutral
+way:</p>
+<div data-code-path="code/weights-nD.chpl" data-code-section="" data-code-type="main" data-start-line="1">
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="c1">// the number of dimensions; compile with -srank=n to override
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">rank</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// a rank-neutral declaration of the weight indices and values
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">const</span><span class="w"> </span><span class="nx">weightInds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">genNdimDom</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">..</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="o">=</span><span class="nx">rank</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">idx</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">weightInds</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                 </span><span class="mf">0.5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="w"> </span><span class="p">[</span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">idx</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="o">!=</span><span class="mi">0</span><span class="p">)));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// a helper procedure to create an n-dimensional domain where each
+</span></span></span><span class="line"><span class="cl"><span class="c1">// dimension's indices are defined by 'rng'
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">genNdimDom</span><span class="p">(</span><span class="nx">rng</span><span class="p">,</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">n</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">tup</span><span class="p">:</span><span class="w"> </span><span class="nx">n</span><span class="o">*</span><span class="nx">rng</span><span class="p">.</span><span class="kd">type</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">n</span><span class="w"> </span><span class="k">do</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">tup</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rng</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">Dom</span><span class="p">:</span><span class="w"> </span><span class="k">domain</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tup</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">Dom</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>This code works for ranks <small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\geq2</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.7719em;vertical-align:-0.136em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span></small>.  To support 1D
+stencils, a bit more care would be required because the <code>idx</code> variable
+would be an integer rather than a tuple, so would not support
+the iteration used to initialize the <code>weight</code> array.</p>
+</div>
+</details>
+<p>As alluded to in the original article, Chapel was designed to support
+the aforementioned ZPL optimization on closed-form expressions of
+stencils like the one above.  The idea would be to declare the
+<code>weight</code> and <code>weightInds</code> constants above as <code>param</code>s and then teach
+the compiler to recognize patterns like this as being convolutions.
+Our hypothesis is that this would simplify the compiler’s ability to
+assemble and reason about the weight arrays compared to the approach
+taken in ZPL.  We’ve also discussed the idea of introducing an
+explicit convolution operator or expression to the language in order
+to make such stencils even more straightforward to express and
+analyze, but this too remains future work.</p>
+<h3 id="wrapping-up">
+<a href="#wrapping-up">Wrapping Up</a>
+</h3>
+<p>That concludes this month’s myth about how well-designed, productive
+languages need not rely on magic or heroic compilers to get things
+done.  I believe that Chapel’s approach of designing the language in a
+layered, multiresolution way has paid off well for the project and
+Chapel community, giving users the ability to exert more control when
+necessary while providing Chapel developers with opportunities to
+introduce new abstractions and optimizations as motivated by such
+cases.</p>
+<p>Next month, we’ll revisit the sixth article in this series, which
+addresses the myth that high-level languages necessarily result in a
+performance hit.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+5%3A+Productivity+and+Magic+Compilers%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part5%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+5%3A+Productivity+and+Magic+Compilers%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part5%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+5%3A+Productivity+and+Magic+Compilers%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part5%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=10+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+5%3A+Productivity+and+Magic+Compilers&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part5%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%2210+Myths+About+Scalable+Parallel+Programming+Languages+%28Redux%29%2C++Part+5%3A+Productivity+and+Magic+Compilers%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2F10myths-part5%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/10myths-part4/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+  Part 4: Syntax Matters
+
+
+                    </span>
+</span>
+</a>
+</div>
+<div class="series-button-wrapper next">
+<a class="button" href="../../posts/10myths-part6/">
+<span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+  Part 6: Performance of Higher-Level Languages
+
+
+                    </span>
+</span>
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-right"></use>
+</svg>
+</a>
+</div>
+</nav>
+</body>
+</html>

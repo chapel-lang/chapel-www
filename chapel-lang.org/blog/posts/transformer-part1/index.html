@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="An implementation of a transformer using Chapel, comparing to C++ and PyTorch" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Transformers From Scratch in Chapel and C++, Part 1</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>Transformers From Scratch in Chapel and C++, Part 1</h2>
+<div class="post-subscript">
+<p>Posted on November 20, 2025.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/user-experiences/">User Experiences</a>
+<a class="button" href="../../tags/language-comparison/">Language Comparison</a>
+<a class="button" href="../../tags/ai/ml/">AI/ML</a>
+<a class="button" href="../../tags/vectorization/">Vectorization</a>
+<a class="button" href="../../tags/performance/">Performance</a>
+<a class="button" href="../../tags/benchmarks/">Benchmarks</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/thitrin-sastarasadhit">Thitrin Sastarasadhit</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/transformers-from-scratch-in-chapel-and-c++/">Transformers From Scratch in Chapel and C++</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents sticky">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#methodology">Methodology</a></li>
+<li><a href="#small-size-model-on-a-single-thread">Small-Size Model on a Single Thread</a>
+<ul>
+<li><a href="#forward-pass-results">Forward Pass Results</a></li>
+<li><a href="#backward-pass-results">Backward Pass Results</a></li>
+<li><a href="#overall-results">Overall Results</a></li>
+</ul>
+</li>
+<li><a href="#discussion-small-size-model-performance">Discussion: Small-Size Model Performance</a>
+<ul>
+<li><a href="#matrix-representation">Matrix Representation</a></li>
+<li><a href="#matrix-multiplication">Matrix Multiplication</a></li>
+<li><a href="#matrix-operations">Matrix Operations</a></li>
+<li><a href="#softmax">Softmax</a></li>
+<li><a href="#dropout">DropOut</a></li>
+<li><a href="#multihead-attention">Multihead Attention</a></li>
+<li><a href="#relu">ReLU</a></li>
+<li><a href="#other-layers">Other Layers</a></li>
+</ul>
+</li>
+<li><a href="#conclusion">Conclusion</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<h3 id="introduction">
+<a href="#introduction">Introduction</a>
+</h3>
+<p>As I finished the third year of my bachelor’s degree at Chulalongkorn University, I got an internship opportunity at the University of Tokyo under the supervision of Professor Kenjiro Taura. There, I learned about Chapel and completed this project comparing the achieved performance of Chapel against C++ by implementing a transformer model from scratch. As Chapel is a programming language designed for High Performance Computing, and at the same time the transformer model—which is driving current AI—heavily relies on computational power, I saw this as a great project to work on.</p>
+<p>In this blog series, I present my implementation of the Transformer model from scratch in both C++ and Chapel, along with performance comparisons of the two versions on single-threaded and multi-threaded CPUs. I also discuss various performance challenges I encountered and the optimizations I applied in both C++ and Chapel</p>
+<p>This blog is divided into two parts: the first part, presented here, discusses the experimental methodology and the first test, using a small-size model on a single thread; while the second part focuses on the second test, a full-size model on single and multiple threads, along with a discussion on productivity.</p>
+<p><em>This project was also featured at <a href="https://chapel-lang.org/chapelcon25/">ChapelCon ’25</a>, which you can watch on <a href="https://www.youtube.com/watch?v=vhyXmYwARL4">YouTube</a>, though that version was less detailed and updated compared to this blog.</em></p>
+<hr/>
+<h3 id="methodology">
+<a href="#methodology">Methodology</a>
+</h3>
+<p>This project compared four implementation versions on both single-threaded and multi-threaded setups. The four versions were C++, Chapel, and two versions of Python using PyTorch that differed in the implementation of the transformer layer. The C++ and Chapel versions were implemented from scratch, while the Python version was taken from <a href="https://github.com/ES7/Transformer-from-Scratch">this GitHub repository</a>. This version was then split into two: one was the original, and in the other, the transformer layer was replaced with <code>torch.nn.tranformer</code> from PyTorch. The implementations of all versions can be obtained from <a href="https://github.com/markthitrin/Transformer.git">this GitHub link</a>. Both the C++ and Chapel implementations were tested with generated test cases from the PyTorch versions, ensuring numerical correctness of each layer. Additionally, the Chapel and C++ implementations were very similar; all variables could be mapped from one to the other.</p>
+<p>The main focus of this project is to compare the achievable performance in training a transformer model using C++ and Chapel. However, having two additional Python implementations that use PyTorch as their backbone, representing existing well-known frameworks, allowed the results to be contextualized with these as references.</p>
+<p>All versions were tested on two tests. The first test, discussed in this post, was conducted on Machine A using a small-size model configuration on a single thread only. The second test, discussed in the next post in this series, was conducted on Machine B using a full-size model configuration on both single and multiple threads.</p>
+<details>
+<summary><strong>Click here to view the details of the test machines and configurations</strong></summary>
+<div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+<h4 id="environment">
+<a href="#environment">Environment</a>
+</h4>
+<p><u>Machine A</u></p>
+<ul>
+<li><strong>CPU:</strong> AMD Ryzen 7 4800H with Radeon Graphics</li>
+<li><strong>RAM:</strong> 6.67 GB</li>
+<li><strong>Clang:</strong> Ubuntu clang version 19.1.1 (1ubuntu1)<br/>
+Target: x86_64-pc-linux-gnu<br/>
+Thread model: posix</li>
+<li><strong>Chapel:</strong> chpl version 2.4.0<br/>
+built with LLVM version 19.1.1<br/>
+available LLVM targets: xtensa, m68k, xcore, x86-64, x86, wasm64, wasm32, ve, systemz, sparcel, sparcv9, sparc, riscv64, riscv32, ppc64le, ppc64, ppc32le, ppc32, nvptx64, nvptx, msp430, mips64el, mips64, mipsel, mips, loongarch64, loongarch32, lanai, hexagon, bpfeb, bpfel, bpf, avr, thumbeb, thumb, armeb, arm, amdgcn, r600, aarch64_32, aarch64_be, aarch64, arm64_32, arm64</li>
+<li><strong>Python:</strong> Python 3.11.13<br/>
+PyTorch: 2.3.0<br/>
+Numpy: 2.3.0</li>
+</ul>
+<p><u>Machine B</u></p>
+<ul>
+<li><strong>CPU:</strong> Intel(R) Xeon Phi(TM) CPU 7250 @ 1.40GHz</li>
+<li><strong>RAM:</strong> 204.45 GB</li>
+<li><strong>Clang:</strong> clang version 19.1.3<br/>
+Target: x86_64-unknown-linux-gnu<br/>
+Thread model: posix</li>
+<li><strong>Chapel:</strong> chpl version 2.4.0<br/>
+built with LLVM version 19.1.3<br/>
+available LLVM targets: amdgcn, r600, nvptx64, nvptx, aarch64_32, aarch64_be, aarch64, arm64_32, arm64, x86-64, x86</li>
+<li><strong>Python:</strong> Python 3.11.13<br/>
+PyTorch: 2.5.1<br/>
+Numpy: 2.0.1</li>
+</ul>
+<h4 id="configuration">
+<a href="#configuration">Configuration</a>
+</h4>
+<p><u>Compiler flags</u></p>
+<ul>
+<li><strong>Chapel:</strong> <code>chpl ./file.chpl --fast --no-ieee-float</code></li>
+<li><strong>C++:</strong> <code>clang++ ./file.cpp -O3 --std=c++20 -fopenmp -funroll-loops -ftree-vectorize -mavx2 -msse -ffast-math -march=native -fveclib=libmvec</code></li>
+<li><strong>Python:</strong> <code>python ./file.py</code></li>
+</ul>
+<p><u>Model</u></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">Parameter</th>
+<th style="text-align: left">Small Size</th>
+<th style="text-align: left">Full Size</th>
+<th style="text-align: left">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left">dModel</td>
+<td style="text-align: left">32</td>
+<td style="text-align: left">512</td>
+<td style="text-align: left"><em>Dimension of embedding layer of the encoder and decoder</em></td>
+</tr>
+<tr>
+<td style="text-align: left">sequenceLength</td>
+<td style="text-align: left">128</td>
+<td style="text-align: left">256</td>
+<td style="text-align: left"><em>Maximum length of input seqeuence</em></td>
+</tr>
+<tr>
+<td style="text-align: left">dFF</td>
+<td style="text-align: left">256</td>
+<td style="text-align: left">2048</td>
+<td style="text-align: left"><em>Dimension of the feed-forward layer inside the encoder and decoder</em></td>
+</tr>
+<tr>
+<td style="text-align: left">N</td>
+<td style="text-align: left">6</td>
+<td style="text-align: left">6</td>
+<td style="text-align: left"><em>Number of transformer encoder, decoder layers (stacked)</em></td>
+</tr>
+<tr>
+<td style="text-align: left">head</td>
+<td style="text-align: left">8</td>
+<td style="text-align: left">8</td>
+<td style="text-align: left"><em>Number of attention heads in multi-head attention layer</em></td>
+</tr>
+<tr>
+<td style="text-align: left">srcVocab</td>
+<td style="text-align: left">15700</td>
+<td style="text-align: left">15700</td>
+<td style="text-align: left"><em>Size of source vocabulary (number of unique tokens)</em></td>
+</tr>
+<tr>
+<td style="text-align: left">tgtVocab</td>
+<td style="text-align: left">22470</td>
+<td style="text-align: left">22470</td>
+<td style="text-align: left"><em>Size of target vocabulary</em></td>
+</tr>
+</tbody>
+</table>
+<p>(<em>note that the model uses 32-bit floating point values</em>)</p>
+</div>
+</details>
+<p>Machine A (AMD Ryzen) facilitated easy inspection of the compiled code thanks to the <code>perf</code> command and having super-user access, allowing bottlenecks to be identified easily, while Machine B (Xeon Phi) did not. On the other hand, Machine A had a limited memory of 6.67 GB and was incapable of running the full-size model, whereas Machine B had 204.45 GB, allowing the full-size model to be run.</p>
+<p>In order to measure the time required by each layer, timers were inserted into all layers. The model was then run on the Italian-English machine translation task, with the dataset obtained from <code>opus_books</code> (<a href="https://huggingface.co/datasets/Helsinki-NLP/opus_books">Hugging Face link</a>). The model was executed for 500 and 40 iterations on Machines A and B, respectively. The timing results of each iteration for each layer were gathered and sorted; the fastest and slowest 10% of iterations were removed, and the mean and standard deviation were computed.</p>
+<h3 id="small-size-model-on-a-single-thread">
+<a href="#small-size-model-on-a-single-thread">Small-Size Model on a Single Thread</a>
+</h3>
+<p>In this experiment, I tested the small version of the model on Machine A. With this version, I was able to continuously inspect each part of the compiled program using the <code>perf</code> command and optimize the slow parts. The models were run for 500 iterations, and the mean and standard deviation were collected as described in the methodology section. The detailed results can be viewed in <a href="https://docs.google.com/spreadsheets/d/1aHkE9Ckl0-waxVwu-f4dIJ0peM6jIUQv3IU1-bFa0p0/edit?usp=sharing">this Google Spreadsheet</a>, and the single-threaded implementation is available at <a href="https://github.com/markthitrin/Transformer/tree/SingleThread">this GitHub link</a></p>
+<h4 id="forward-pass-results">
+<a href="#forward-pass-results">Forward Pass Results</a>
+</h4>
+<figure class="fullwide"><img alt="Figure 1. Time spent on each layer (in microseconds) during a single forward-pass training iteration for each model, tested on Machine A (single-threaded) using the small model configuration." src="../../posts/transformer-part1/each-forward.png"/><figcaption>
+<p><strong>Figure 1.</strong> Time spent on each layer (in microseconds) during a single forward-pass training iteration for each model, tested on Machine A (single-threaded) using the small model configuration.</p>
+</figcaption>
+</figure>
+<p>Since inserting timers into each layer of the transformer layer (<code>torch.nn.transformer</code>) in the PyTorch B model was difficult—because some layers, such as Softmax and ReLU, are function calls embedded between layers, preventing flexible placement of timer checkpoints—the detailed data for individual layers is missing. Therefore, only C++, Chapel, and PyTorch A’s individual layer elapsed times can be shown. This also applies to the other sections.</p>
+<p>According to Figure 1, most layers in Chapel performed as well as those in C++ and PyTorch A. Some layers even performed better, while only a few, such as Softmax and Dropout, performed worse. The poor performance of the Dropout layer is primarily due to the inefficiency of the random number generator (<code>randomstream.fill()</code>). I will discuss the performance issues of these layers in the next section.</p>
+<p>You might expect the Linear and Multi-Headed Attention layers to dominate the execution time. While this is true for a larger model, in this small version, the execution time of these layers did not contribute as much. Additionally, the PyTorch version might be expected to be significantly faster than the C++ and Chapel versions, as it is equipped with optimized linear algebra libraries. However, since this is a small-size model, the execution time of the Linear and Multi-Headed Attention layers did not dominate, and the matrix sizes were not very large. As a result, the performance of all versions was comparable.</p>
+<h4 id="backward-pass-results">
+<a href="#backward-pass-results">Backward Pass Results</a>
+</h4>
+<figure class="fullwide"><img alt="Figure 2. Time spent on each layer (in microseconds) during a single backward-pass training iteration for each model, tested on Machine A (single-threaded) using the small model configuration." src="../../posts/transformer-part1/each-backward.png"/><figcaption>
+<p><strong>Figure 2.</strong> Time spent on each layer (in microseconds) during a single backward-pass training iteration for each model, tested on Machine A (single-threaded) using the small model configuration.</p>
+</figcaption>
+</figure>
+<p>As for the backward pass, Figure 2 shows that, overall, C++ and Chapel performed better than both Python versions. it also shows that Chapel could achieve relatively the same performance as C++, resulting in the total backward-pass time of Chapel and C++ in this configuration to be almost the same.</p>
+<h4 id="overall-results">
+<a href="#overall-results">Overall Results</a>
+</h4>
+<figure class="fullwide"><img alt="Figure 3. Time spent on each layer (in microseconds) per training iteration (including forward, backward, and update) for each model, tested on Machine A (single-threaded) using the small model configuration." src="../../posts/transformer-part1/total.png"/><figcaption>
+<p><strong>Figure 3.</strong> Time spent on each layer (in microseconds) per training iteration (including forward, backward, and update) for each model, tested on Machine A (single-threaded) using the small model configuration.</p>
+</figcaption>
+</figure>
+<p>Figure 3 shows the total time required for each training iteration, including the forward pass, backward pass, loss computation, and optimization. It can be seen that the Chapel version was slower than the others, primarily because the Softmax and Dropout layers were slower in the forward pass, while the other layers performed comparably. Since this was the small version of the model, the advantage of using PyTorch’s optimized linear algebra modules did not significantly manifest here, causing the performance to be comparable with C++ and Chapel. This advantage, however, will become more apparent in the results of the full-size model experiment on Machine B.</p>
+<h3 id="discussion-small-size-model-performance">
+<a href="#discussion-small-size-model-performance">Discussion: Small-Size Model Performance</a>
+</h3>
+<p>Throughout the implementation process, I encountered and resolved many interesting performance issues and gained valuable insights. I will discuss them in this section.</p>
+<h4 id="matrix-representation">
+<a href="#matrix-representation">Matrix Representation</a>
+</h4>
+<p>This is the most critical building block of the model. In C++, I created a <code>Tensor</code> class to store the data and a <code>TensorView</code> class to capture a portion of the tensor when performing calculations.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="k">class</span> <span class="nc">Tensor</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Tensor</span><span class="p">(</span><span class="kt">int</span> <span class="n">row</span><span class="p">,</span> <span class="kt">int</span> <span class="n">column</span><span class="p">)</span> <span class="p">{</span><span class="n">data</span> <span class="o">=</span> <span class="k">new</span> <span class="kt">float</span><span class="p">[</span><span class="n">row</span> <span class="o">*</span> <span class="n">column</span><span class="p">];}</span>
+</span></span><span class="line"><span class="cl">    <span class="o">~</span><span class="n">Tensor</span><span class="p">()</span> <span class="p">{</span><span class="k">delete</span><span class="p">[]</span> <span class="n">data</span><span class="p">;}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">float</span><span class="o">*</span> <span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">class</span> <span class="nc">TensorView</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">TensorView</span><span class="p">(</span><span class="n">Tensor</span><span class="o">&amp;</span> <span class="n">t</span><span class="p">)</span> <span class="p">{</span><span class="n">data</span> <span class="o">=</span> <span class="n">t</span><span class="p">.</span><span class="n">data</span><span class="p">;}</span>
+</span></span><span class="line"><span class="cl">    <span class="o">~</span><span class="n">TensorView</span><span class="p">()</span> <span class="p">{</span><span class="cm">/*do nothing*/</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">float</span><span class="o">*</span> <span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></div><p>The Chapel version, however, uses an alternative approach. It uses built-in arrays to represent all matrices and tensors. Unlike C++, <code>ref</code> fields are not currently supported in a <code>class</code> or <code>record</code>, so a <code>TensorView</code>-like structure in Chapel cannot be constructed:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">TensorView</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">ref</span><span class="w"> </span><span class="nx">data</span><span class="p">;</span><span class="w">  </span><span class="c1">// error: References cannot be members of classes or records yet.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>I see this as a feature that would be beneficial to implement in the future.</p>
+<p>Another interesting design choice I made is to use a 1D array instead of a multidimensional array to represent each matrix and tensor. In an earlier draft, I initially used a multidimensional array with the <code>LinearAlgebra</code> module. However, I found its performance to be significantly worse than expected. Upon inspecting the compiler-generated code, I discovered that iterating over elements in a multidimensional array invoked <code>advance_chpl</code>, a function that retrieves the next item in an array, which introduced considerable overhead and prevented vectorization. This issue had already been reported in a GitHub issue titled “<a href="https://github.com/chapel-lang/chapel/issues/13147">Multidimensional zippered iteration (or promotion) kills performance</a>” and has been noted as a known performance concern on the <a href="https://chapel-lang.org/docs/2.6/technotes/optimization.html#performance-problems-with-multidimensional-zippered-iteration">Chapel website</a>.</p>
+<p>Although this could be mitigated by iterating over the array’s domain instead of its elements, I was still afraid that doing so might introduce unknown performance issues with multidimensional arrays in the future. For these reasons, I decided to use the 1D array design, which is one of the methods suggested in the “<a href="https://chapel-lang.org/docs/2.6/technotes/optimization.html#performance-problems-with-multidimensional-zippered-iteration">Optimizing Performance of Chapel Programs</a>” documentation.</p>
+<p>I also experimented with nested arrays, such as <code>var arr: [0..#N][0..#N] real(32)</code>. This approach yielded better performance than the 2D version, as the compiler treated it as a 1D array of 1D arrays. However, this made the array non-contiguous in memory, as each row is not guaranteed to be contiguous with the others, effectively equivalent to a <code>float**</code> in C++. As a result, it was still less efficient than using a pure 1D array.</p>
+<h4 id="matrix-multiplication">
+<a href="#matrix-multiplication">Matrix Multiplication</a>
+</h4>
+<p>The algorithm used for matrix multiplication is blocked matrix multiplication, in which the operation is divided into smaller blocks to exploit cache locality. A block size of 64<small><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>×</mo></mrow><annotation encoding="application/x-tex">\times</annotation></semantics></math></span><span aria-hidden="true" class="katex-html"><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord">×</span></span></span></span></small>64 was chosen, as it provided the best performance in my environment. Both the C++ and Chapel versions use the same algorithm and block size.</p>
+<p>After some tests, Chapel outperformed C++ for certain matrix sizes and underperformed for others, even though the compiler-generated code was nearly identical. This caused the performance of the linear layer, when tested on the full-size model, to be faster in Chapel than in C++. The cause of this variation remains unknown to me.</p>
+<h4 id="matrix-operations">
+<a href="#matrix-operations">Matrix Operations</a>
+</h4>
+<p>This section discusses general operations such as element-wise multiplication, addition, division, etc. As I wanted to have control over parallelism, there were several candidate designs, including overloading the array operators like <code>+</code>, <code>-</code>,  <code>*</code>, and <code>/</code> or creating new functions for these operations. As I experimented with performance, I found that the design and implementation of these operations had a greater impact on the model than I had expected. Therefore, I tested five versions of the sum-reduction function used in LayerNorm to calculate the mean. (However, the implementation of LayerNorm that used this function was later changed to be similar to the C++ version).</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="c1">// query the domain from the array argument
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">PlusReduce1</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">out</span><span class="w"> </span><span class="nx">output</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span><span class="nx">output</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// pass the domain explicitly
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">PlusReduce2</span><span class="p">(</span><span class="nx">D</span><span class="p">:</span><span class="w"> </span><span class="k">domain</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">out</span><span class="w"> </span><span class="nx">output</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">output</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// pass the starting and ending points explicitly
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">PlusReduce3</span><span class="p">(</span><span class="kd">in</span><span class="w"> </span><span class="nx">start</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">count</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">out</span><span class="w"> </span><span class="nx">output</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">start</span><span class="o">..#</span><span class="nx">count</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">output</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// use a + reduce expression
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">PlusReduce4</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[?</span><span class="nx">D</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">out</span><span class="w"> </span><span class="nx">output</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">reduce</span><span class="p">(</span><span class="nx">A</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// <span class="sidenote"><label class="sidenote-label" for="sidenote-0">operator overloading</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Note that while this overload is
+identical to Chapel’s built-in
++ operator on arrays, in my work
+I actually wanted more control
+over the parallelism, so the body
+was more complicated than shown here,
+simplified for the purposes of
+this discussion.<span class="sidenote-delimiter">]</span></span></span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">operator</span><span class="w"> </span><span class="nf">+=</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">sum</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">output</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">output</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">output</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>After benchmarking on small arrays, the first method was the slowest, followed by the second, while the third was the fastest. The other methods produced similar compiler-generated code and performed comparably to the first, with the fourth method creating a Chapel task when invoked, introducing additional overhead. Therefore, we will focus on comparing only the first three methods.</p>
+<p>After completing this project, I reported my findings on a GitHub issue titled “<a href="https://github.com/chapel-lang/chapel/issues/27958">Different implementations of the same function cause different performance</a>”, where the discussion clearly revealed the causes of the observed performance differences.</p>
+<p>In short, the primary performance bottleneck stems from the overhead of passing arguments. The first method creates an array view, introducing considerable overhead compared to the others, while the second method incurs overhead due to requiring a domain. The third method, in contrast, requires almost no overhead, making it the fastest. These costs are especially noticeable when operating on small arrays. Nevertheless, for large arrays, the overhead becomes negligible, resulting in similar performance. It is also worth noting that passing a range instead of a domain yields performance comparable to the third method, since the overhead of passing a range is minimal compared to that of a domain.</p>
+<p>Initially, I carelessly benchmarked only on a small array and mistakenly attributed the performance differences among the three methods to missed opportunities for vectorization. This occurred because the compiler generated different code for each function based on what it could determine at compile time. For example, the third method could detect fixed start and end points, allowing full unrolling for small arrays, while the first method could not, producing general code applicable to any size. C++ exhibited the same effect, as it reflects LLVM’s optimization choices. Nevertheless, this was not the primary cause of the observed performance differences.</p>
+<p>As I didn’t notice this until I finished the project, I chose the third design, passing the array with start and end points manually, as it gives the best performance result. I also want to point out that another reason I didn’t choose overloading the operator, even though it enables much cleaner code, is that it requires additional memory allocation or copying in expressions that have three or more operands such as <code>C = A + B</code>; it costs unnecessary additional execution time, both in Chapel and C++.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">operator</span><span class="w"> </span><span class="nf">+</span><span class="p">(</span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">B</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">C</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nx">A</span><span class="p">.</span><span class="k">domain</span><span class="p">]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span><span class="w"> </span><span class="c1">// allocation
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">A</span><span class="p">.</span><span class="k">domain</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">C</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">A</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">B</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">C</span><span class="p">;</span><span class="w"> </span><span class="c1">// copy
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h4 id="softmax">
+<a href="#softmax">Softmax</a>
+</h4>
+<p>This is a critical layer, as it is significantly slower in both versions compared to PyTorch, with Chapel being the slowest. I do not know the reason behind the slowness of the C++ version, as it is slower than both of the Python versions, but I understand why it performs better than the Chapel version. The Chapel version refuses to use <code>_ZGVdN8v_expf_avx2</code>, the vectorized exponential function in the GNU C Library, in exponential computation, while the C++ version uses the function (<code>clang</code> requires the <code>-fveclib=libmvec</code> flag to enable <code>_ZGVdN8v_expf_avx2</code>). I have tried many methods to enable it in Chapel, such as iterating with simple <code>for</code> or <code>foreach</code> loops, switching from <code>real(32)</code> to <code>real(64)</code>, using direct assignments like <code>B = exp(A)</code>, passing the same compilation flags used in <code>clang</code> via <code>--ccflag</code>, and many more, but none of these attempts succeeded.</p>
+<p>However, this issue has been resolved in modern Chapel (version 2.7), which introduces the new compiler flag <code>--vector-library</code>. Setting it to <code>LIBMVEC-X86</code> for the <code>llvm</code> target compiler (or <code>libmvec</code> for <code>clang</code>) produces the same effect as specifying <code>-fveclib</code> in clang.</p>
+<h4 id="dropout">
+<a href="#dropout">DropOut</a>
+</h4>
+<p>This is another layer that performed significantly worse in Chapel. The random number generator I used in the Chapel version is from the <code>Random</code> standard module. As for the C++ version, I tried to implement the same random algorithm, <code>pcg_setseq_64_xsh_rr_32</code>. I also used integer-based random generation with an integer threshold, which is 4–5 times faster than using floating-point numbers.</p>
+<p>It also appeared that using <code>rng.fill</code> is faster than using <code>rng.next</code> when iterating over an array. Since this function forces parallelism when available, <code>CHPL_RT_NUM_THREADS_PER_LOCALE=1</code> must be set accordingly when experimenting with a single thread.</p>
+<p>This layer in Chapel is significantly slower compared to those in other models, primarily due to the random number generator. Using the random function with bounds caused a significant performance drop. After removing the bounds, Chapel achieved performance comparable to the C++ version. I reported and discussed this issue on a GitHub issue titled “<a href="https://github.com/chapel-lang/chapel/issues/28036">Random with bounds is much slower than no bound</a>”. However, since I only noticed and reported it after completing the project, I did not resolve it.</p>
+<h4 id="multihead-attention">
+<a href="#multihead-attention">Multihead Attention</a>
+</h4>
+<p>This layer consumes the most resources and plays a major role in the model. In this layer, I designed the process to avoid explicitly transposing any matrix and instead utilized specialized matrix multiplication functions for transposed operations, such as <code>MatMulPlusATB</code>, which performs <code>C += dot(A.T,B)</code></p>
+<p>The performance issue I found in this layer was interesting. While the forward process of both versions performed as expected, the backward pass of the Chapel version initially performed very poorly. After some investigation, I discovered that in the final step, where the weight gradients of Q, K, and V are computed along with the gradient for the next layer, the matrix multiplication was performing poorly because the compiler refused to fully vectorize it. Instead, the loop was heavily unrolled without any vectorization.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span><span class="cm">/*...*/</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1">// These matrix multiplications are slow
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..#</span><span class="nx">batch</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulPlusAB</span><span class="p">(</span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">sequenceLength</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">QTGradient</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">inputQ</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">WQOpt</span><span class="p">.</span><span class="nx">gradient</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulPlusAB</span><span class="p">(</span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">sequenceLength</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">KTGradient</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">inputK</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">WKOpt</span><span class="p">.</span><span class="nx">gradient</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulPlusAB</span><span class="p">(</span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">sequenceLength</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">VTGradient</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">inputV</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">WVOpt</span><span class="p">.</span><span class="nx">gradient</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..#</span><span class="nx">batch</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulPlusATB</span><span class="p">(</span><span class="nx">sequenceLength</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">QTGradient</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">WQ</span><span class="p">,</span><span class="w"> </span><span class="nx">inputGradientQ</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulPlusATB</span><span class="p">(</span><span class="nx">sequenceLength</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">KTGradient</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">WK</span><span class="p">,</span><span class="w"> </span><span class="nx">inputGradientK</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">MatMulPlusATB</span><span class="p">(</span><span class="nx">sequenceLength</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">dModel</span><span class="p">,</span><span class="w"> </span><span class="nx">VTGradient</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">],</span><span class="w"> </span><span class="nx">WV</span><span class="p">,</span><span class="w"> </span><span class="nx">inputGradientV</span><span class="p">[(</span><span class="nx">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">block</span><span class="p">)</span><span class="o">..#</span><span class="nx">block</span><span class="p">]);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Surprisingly, this issue was resolved by altering some code in the Config file, which is a Chapel file that defines values known at compile time, such as model dimension, sequence length, matrix multiplication block size, etc. Since these values are known at compile time, the <code>param</code> keyword was initially used. However, when I changed from <code>param</code> to <code>var</code>, loosening the variable restriction, the issue in multi-head attention vanished.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">config</span><span class="w"> </span><span class="cm">/*param*/</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">dModel</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="cm">/*param*/</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">head</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">config</span><span class="w"> </span><span class="cm">/*param*/</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nx">sequenceLength</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// ... 
+</span></span></span></code></pre></div><p>After the project was done, I investigated this phenomenon further. It turned out that the cause is related to LLVM’s optimization choices. In short, I found that if LLVM notices that a loop runs for a small number of iterations (fewer than 50 on my machine), it chooses loop unrolling instead of vectorization, possibly because the setup cost of vectorization is not worth it. This threshold likely depends on the hardware and may vary across machines.</p>
+<p>My blocked matrix multiplication algorithm has its innermost loop run for <code>min(d3, BLOCK_SIZE)</code>. In this case, where the model size is small, the <code>dModel</code> value passed to <code>d3</code> is 32. If <code>dModel</code> is known at compile time (declared as a <code>param</code>), the compiler detects this and chooses loop-unrolling optimization for the innermost loop of the algorithm. On the other hand, when <code>dModel</code> is not known at compile time (declared as a <code>var</code>), the compiler chooses normal vectorized loops for that part. This can also happen in C++ as well, since it also depends on LLVM.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="c1">// AB matrix multiplication implementation
+</span></span></span><span class="line"><span class="cl"><span class="c1">// BLOCK_SIZE is 64
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">proc</span><span class="w"> </span><span class="nf">MatMulPlusAB</span><span class="p">(</span><span class="kd">in</span><span class="w"> </span><span class="nx">d1</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">d2</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">d3</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">A</span><span class="p">:[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">B</span><span class="p">:[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span><span class="w"> </span><span class="kd">ref</span><span class="w"> </span><span class="nx">C</span><span class="p">:[]</span><span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">))</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Reindex for sliced array
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">Ar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">A</span><span class="p">.</span><span class="nx">reindex</span><span class="p">(</span><span class="mi">0</span><span class="o">..#</span><span class="p">(</span><span class="nx">d1</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">d2</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">Br</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">B</span><span class="p">.</span><span class="nx">reindex</span><span class="p">(</span><span class="mi">0</span><span class="o">..#</span><span class="p">(</span><span class="nx">d2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">d3</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">ref</span><span class="w"> </span><span class="nx">Cr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">C</span><span class="p">.</span><span class="nx">reindex</span><span class="p">(</span><span class="mi">0</span><span class="o">..#</span><span class="p">(</span><span class="nx">d1</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">d3</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">ii</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">d1</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">jj</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">d3</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">kk</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..&lt;</span><span class="nx">d2</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">ii</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">d1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="kd">var</span><span class="w"> </span><span class="nx">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">while</span><span class="p">(</span><span class="nx">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">kk</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">d2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="kd">var</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="k">while</span><span class="p">(</span><span class="nx">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">BLOCK_SIZE</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">jj</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">d3</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// The most inner loop
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="w">                    </span><span class="nx">Cr</span><span class="p">[(</span><span class="nx">ii</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">d3</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">jj</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">j</span><span class="p">)]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">Ar</span><span class="p">[(</span><span class="nx">ii</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">d2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">kk</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">k</span><span class="p">)]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">Br</span><span class="p">[(</span><span class="nx">kk</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">k</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">d3</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">jj</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">j</span><span class="p">)];</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="nx">j</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nx">k</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>I didn’t notice this during the project development. Therefore, I solved the problem by changing the <code>param</code> to <code>var</code> in the Config file. Fortunately, this did not negatively affect the performance of the other layers.</p>
+<h4 id="relu">
+<a href="#relu">ReLU</a>
+</h4>
+<p>One issue found in this layer is in the backward process. At first, the backward pass of this layer was implemented in one line.</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">inputGradient</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">input</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">outputGradient</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mf">0.0</span><span class="p">:</span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The problem was that the compiler refused to use a vectorized <code>movemask</code> optimization and instead used a compare-and-jump approach. This was resolved by splitting the loop into two sections:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">D</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">outputGradient</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">input</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nx">outputGradient</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mf">0.0</span><span class="p">:</span><span class="kt">real</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nx">Copy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="nx">D</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="nx">outputGradient</span><span class="p">,</span><span class="nx">inputGradient</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>Having completed this project, I reported and discussed it on a GitHub issue titled “<a href="https://github.com/chapel-lang/chapel/issues/28040">Optimization missed on ternary operator when used with arrays</a>”.. In short, this represents a missed optimization opportunity for the ternary operator. The compiler could have detected the pattern and chosen a compare-and-jump implementation instead of a vectorized <code>movemask</code> or a compare-and-bitwise-AND operation, which not only fails to exploit parallelism but also introduces branch mispredictions. This is likely due to the overhead of Chapel arrays’ metadata, which interferes with the compiler’s pattern detection.</p>
+<p>For the forward pass, Chapel achieves better performance than C++ even though the compiled code is nearly identical. However, when tested on the full-size model, a significant performance gap was shown, with Chapel taking more time. Despite this, I tested the function in isolation outside the model and confirmed that both Chapel and C++ perform similarly, regardless of array size. Additionally, the compiler-generated code is very similar, and when I executed the function consecutively within the model, only the first execution after the previous layer incurred a significant performance cost, with Chapel taking noticeably longer. A similar effect is also observed in the backward pass of LayerNorm. At present, I do not fully understand the cause of this behavior.</p>
+<h4 id="other-layers">
+<a href="#other-layers">Other Layers</a>
+</h4>
+<p>The other layers seem fine and perform as well as, or better than, the PyTorch version. Moreover, the model optimization part, specifically the loss computation and Adam optimizer, appears to perform much better than in the PyTorch versions.</p>
+<h3 id="conclusion">
+<a href="#conclusion">Conclusion</a>
+</h3>
+<p>In this post, we explore the methodology of the experiment and the first test, running a small-size model on a single thread. The performance of the C++ and Chapel models is comparable to that of the two PyTorch models, with the C++ version being the fastest, as the benefits of PyTorch’s optimized linear algebra are not very apparent in this small-scale test. The Chapel version was slowest in this test, mainly due to the Dropout and Softmax layers. Several unexpected performance issues were also encountered, requiring tricky solutions during Chapel’s development.</p>
+<p>In the next post in this series, we will explore the second test, using a full-size model on single and multiple threads, along with a discussion on productivity.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+1%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part1%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+1%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part1%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+1%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part1%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+1&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part1%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Transformers+From+Scratch+in+Chapel+and+C%2B%2B%2C+Part+1%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Ftransformer-part1%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper next">
+<a class="button" href="../../posts/transformer-part2/">
+<span>
+                    Next in series
+                    <span class="series-button-name">
+                        
+Transformers From Scratch in Chapel and C++, Part 2
+
+
+                    </span>
+</span>
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-right"></use>
+</svg>
+</a>
+</div>
+</nav>
+</body>
+</html>

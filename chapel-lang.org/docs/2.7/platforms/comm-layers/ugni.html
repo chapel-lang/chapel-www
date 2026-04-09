@@ -1,0 +1,409 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Using Chapel with ugni &mdash; Chapel Documentation 2.7</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=70f659a1" />
+
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=dfec817d"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Using Chapel on IBM Systems" href="../ibm.html" />
+    <link rel="prev" title="Using Chapel with libfabric" href="libfabric.html" />
+   
+  
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+<a href="../../index.html" class="icon icon-home"> Chapel Documentation
+
+<!-- display version if button won't be rendered -->
+<?php if (false) { ?>
+<br>2.7
+<?php } ?>
+
+</a>
+
+<?php
+// Variables given by sphinx
+$chplTitle = "2.7";
+$pagename = "platforms/comm-layers/ugni";
+include "../..//versionButton.php";
+?>
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+  
+              <p class="caption" role="heading"><span class="caption-text">Compiling and Running Chapel</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/QUICKSTART.html">Quickstart Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usingchapel/index.html">Using Chapel</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Platform-Specific Notes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../index.html#major-platforms">Major Platforms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#networks">Networks</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#communication-layers">Communication Layers</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="gasnet.html">Using Chapel with GASNet</a></li>
+<li class="toctree-l3"><a class="reference internal" href="libfabric.html">Using Chapel with libfabric</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Using Chapel with ugni</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#using-the-ugni-communications-layer">Using the ugni Communications Layer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#network-atomics">Network Atomics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ugni-communication-layer-and-the-heap">ugni Communication Layer and the Heap</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ugni-communication-layer-registered-memory-regions">ugni Communication Layer Registered Memory Regions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ugni-hugepage-related-warnings">ugni Hugepage-related Warnings</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#older-platforms">Older Platforms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../technotes/index.html">Technical Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tools/index.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/index.html">Docs for Contributors</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Writing Chapel Programs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/reference.html">Quick Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Hello World Variants</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../primers/index.html">Primers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/spec/index.html">Language Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/standard.html">Standard Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/packages.html">Package Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/layoutdist.html">Standard Layouts and Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mason-packages/index.html">Mason Packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../users-guide/index.html">Chapel Users Guide (WIP)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Language History</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../language/evolution.html">Chapel Evolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../language/archivedSpecs.html">Documentation Archives</a></li>
+</ul>
+
+  <p class="caption" role="heading"><span class="caption-text">Indexes</span></p>
+  <ul>
+    <li class="toctree-11"><a class="reference internal" href="../../chpl-modindex.html">Chapel Module Index</a></li>
+    <li class="toctree-11"><a class="reference internal" href="../../genindex.html">Complete Docs Index</a></li>
+  </ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Chapel Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Platform-Specific Notes</a></li>
+      <li class="breadcrumb-item active">Using Chapel with ugni</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/platforms/comm-layers/ugni.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="using-chapel-with-ugni">
+<span id="readme-ugni"></span><h1>Using Chapel with ugni<a class="headerlink" href="#using-chapel-with-ugni" title="Link to this heading"></a></h1>
+<p>Chapel supports a Cray-specific <code class="docutils literal notranslate"><span class="pre">ugni</span></code> communication layer for targeting the
+Aries network on Cray-XC’s. The ugni communication layer interacts with the
+system’s network interface very closely through a lightweight interface called
+uGNI (user Generic Network Interface). On Cray XC systems the ugni
+communication layer is the default.</p>
+<section id="using-the-ugni-communications-layer">
+<h2>Using the ugni Communications Layer<a class="headerlink" href="#using-the-ugni-communications-layer" title="Link to this heading"></a></h2>
+<p>To use ugni communications:</p>
+<ol class="arabic">
+<li><p>Leave your <code class="docutils literal notranslate"><span class="pre">CHPL_COMM</span></code> environment variable unset or set it to
+<code class="docutils literal notranslate"><span class="pre">ugni</span></code>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_COMM</span><span class="o">=</span>ugni
+</pre></div>
+</div>
+<p>This specifies that you wish to use the Cray-specific communication
+layer.</p>
+</li>
+<li><p><em>(Optional)</em> Load an appropriate <code class="docutils literal notranslate"><span class="pre">craype-hugepages</span></code> module.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">load</span> <span class="n">craype</span><span class="o">-</span><span class="n">hugepages16M</span>
+</pre></div>
+</div>
+<p>The ugni communication layer can be used with or without so-called
+<em>hugepages</em>.  Performance for remote variable references is much
+better when hugepages are used.  The only downside of using hugepages
+is that the tasking layer may not be able to detect task stack
+overflows by means of guard pages, <a class="reference external" href="ugni-hugepages-tasking">see below</a> for
+more information.</p>
+<p>To use hugepages, you must have a <code class="docutils literal notranslate"><span class="pre">craype-hugepages</span></code> module loaded
+both when building your program and when running it.  There are
+several hugepage modules, with suffixes indicating the page size they
+support.  For example, <code class="docutils literal notranslate"><span class="pre">craype-hugepages16M</span></code> supports 16 MiB
+hugepages.  It does not matter which <code class="docutils literal notranslate"><span class="pre">craype-hugepages</span></code> module you
+have loaded when you build your program.  Any of them will do.  Which
+one you have loaded when you run a program does matter, however.  For
+general use, the Chapel group recommends the <code class="docutils literal notranslate"><span class="pre">craype-hugepages16M</span></code>
+module.  You can read on for more information about hugepage modules
+if you would like, but the recommended <code class="docutils literal notranslate"><span class="pre">craype-hugepages16M</span></code> module
+will probably give you satisfactory results.</p>
+<p>The Cray network interface chips (NICs) can only address memory that
+has been registered with them. In practical terms, the Aries(TM) NIC
+on Cray XC systems is not limited as to how much memory it can
+register.  However, it does have an on-board cache of 512 registered
+page table entries, and registering more than this can cause reduced
+performance if the program’s memory reference pattern causes refills
+in this cache.  We have seen up to a 15% reduction from typical
+nightly XC-16 performance in an ra-rmo run using hugepages small
+enough that every reference should have missed in this cache.
+Covering an entire 128 GiB XC compute node with only 512 hugepages
+will require at least the <code class="docutils literal notranslate"><span class="pre">craype-hugepages256M</span></code> module’s 256 MiB
+hugepages.</p>
+<p>Offsetting this, using larger hugepages may reduce performance because
+it can result in poorer NUMA affinity.  With the ugni communication
+layer, arrays larger than 2 hugepages are allocated separately from the
+heap, which improves NUMA affinity.  An obvious side effect of using
+larger hugepages is that an array has to be larger to qualify.  Thus,
+achieving the best performance for any given program may require
+striking a balance between using larger hugepages to reduce NIC page
+table cache refills and using smaller ones to improve NUMA locality.</p>
+<p id="ugni-hugepages-tasking">Note that when hugepages are used with the ugni comm layer, tasking
+layers cannot use guard pages for stack overflow detection.  Qthreads
+tasking cannot detect stack overflow except by means of guard pages,
+so if ugni communications is combined with qthreads tasking and a
+hugepage module is loaded, stack overflow detection is unavailable.</p>
+</li>
+</ol>
+</section>
+<section id="network-atomics">
+<h2>Network Atomics<a class="headerlink" href="#network-atomics" title="Link to this heading"></a></h2>
+<p>The Aries networks on Cray XC series systems support remote atomic
+memory operations (AMOs).  When the <code class="docutils literal notranslate"><span class="pre">CHPL_NETWORK_ATOMICS</span></code> environment
+variable is set to <code class="docutils literal notranslate"><span class="pre">ugni</span></code>, the following operations on remote atomics
+are done using the network:</p>
+<blockquote>
+<div><ul>
+<li><p>32- and 64-bit signed and unsigned integer types and real types:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">read()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">write()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">exchange()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compareAndSwap()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">add()</span></code>, <code class="docutils literal notranslate"><span class="pre">fetchAdd()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sub()</span></code>, <code class="docutils literal notranslate"><span class="pre">fetchSub()</span></code></p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>32- and 64-bit signed and unsigned integer types:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">or()</span></code>,  <code class="docutils literal notranslate"><span class="pre">fetchOr()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">and()</span></code>, <code class="docutils literal notranslate"><span class="pre">fetchAnd()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">xor()</span></code>, <code class="docutils literal notranslate"><span class="pre">fetchXor()</span></code></p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+<p>All of the operations shown above are done natively by the network
+hardware except 64-bit real add, which is disabled in hardware and thus
+done using <code class="docutils literal notranslate"><span class="pre">on</span></code> statements.</p>
+</section>
+<section id="ugni-communication-layer-and-the-heap">
+<span id="ugni-and-the-heap"></span><h2>ugni Communication Layer and the Heap<a class="headerlink" href="#ugni-communication-layer-and-the-heap" title="Link to this heading"></a></h2>
+<p>The “heap” is an area of memory used for dynamic allocation of
+everything from user data to internal management data structures.
+When running on Cray XC systems using the default configuration
+with the ugni comm layer and a <code class="docutils literal notranslate"><span class="pre">craype-hugepages</span></code> module loaded, the
+heap is used for all dynamic allocations except data space for arrays
+larger than 2 hugepages.  (See <a class="reference internal" href="#using-the-ugni-communications-layer">Using the ugni Communications Layer</a>,
+just above, for more about hugepages.)  It is normally extended
+dynamically, as needed.  But if desired, the heap can instead be created
+at a specified fixed size at the beginning of execution.  In some cases
+this will reduce certain internal comm layer overheads and marginally
+improve performance.</p>
+<p>The disadvantage of a fixed heap is that it usually produces worse NUMA
+affinity, it limits available heap memory to the specified fixed size,
+and it limits memory for arrays to whatever remains after the fixed-size
+heap is created.  If either of the latter are less than what a program
+needs, it will terminate prematurely with an “Out of memory” message.</p>
+<p>To specify a fixed heap, set the <code class="docutils literal notranslate"><span class="pre">CHPL_RT_MAX_HEAP_SIZE</span></code> environment
+variable to indicate its size.  For the value of this variable you can
+use any of the following formats, where <em>num</em> is a positive integer
+number:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Format</p></th>
+<th class="head"><p>Resulting Heap Size</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>num</p></td>
+<td><p>num bytes</p></td>
+</tr>
+<tr class="row-odd"><td><p>num[kK]</p></td>
+<td><p>num * 2**10 bytes</p></td>
+</tr>
+<tr class="row-even"><td><p>num[mM]</p></td>
+<td><p>num * 2**20 bytes</p></td>
+</tr>
+<tr class="row-odd"><td><p>num[gG]</p></td>
+<td><p>num * 2**30 bytes</p></td>
+</tr>
+<tr class="row-even"><td><p>num%</p></td>
+<td><p>percentage of compute node physical memory</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Any of the following would specify an approximately 1 GiB heap on a
+128-GiB compute node, for example:</p>
+<blockquote>
+<div><div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span><span class="m">1073741824</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span>1048576k
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span>1024m
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span>1g
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_MAX_HEAP_SIZE</span><span class="o">=</span><span class="m">1</span>%<span class="w"> </span><span class="c1"># 1.28 GiB, really</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Note that the resulting heap size may get rounded up to match the page
+alignment.  How much this will add, if any, depends on the hugepage size
+in any <code class="docutils literal notranslate"><span class="pre">craype-hugepages</span></code> module you have loaded at the time you
+execute the program.  It may also be reduced, if some resource
+limitation prevents making the heap as large as requested.</p>
+</section>
+<section id="ugni-communication-layer-registered-memory-regions">
+<h2>ugni Communication Layer Registered Memory Regions<a class="headerlink" href="#ugni-communication-layer-registered-memory-regions" title="Link to this heading"></a></h2>
+<p>The ugni communication layer maintains information about every memory
+region it registers with Aries NIC.  Roughly speaking there are a few
+memory regions for each tasking layer thread, plus one for each array
+larger than 2 hugepages allocated and registered separately from the
+heap.  By default the comm layer can handle up to 16k (2**14) total
+memory regions, which is plenty under normal circumstances.  In the
+event a program needs more than this, a message like the following will
+be printed:</p>
+<blockquote>
+<div><div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>warning:<span class="w"> </span>no<span class="w"> </span>more<span class="w"> </span>registered<span class="w"> </span>memory<span class="w"> </span>region<span class="w"> </span>table<span class="w"> </span>entries<span class="w"> </span><span class="o">(</span>max<span class="w"> </span>is<span class="w"> </span><span class="m">16384</span><span class="o">)</span>.
+<span class="w">         </span>Change<span class="w"> </span>using<span class="w"> </span>CHPL_RT_COMM_UGNI_MAX_MEM_REGIONS.
+</pre></div>
+</div>
+</div></blockquote>
+<p>To provide for more registered regions, set the
+<code class="docutils literal notranslate"><span class="pre">CHPL_RT_COMM_UGNI_MAX_MEM_REGIONS</span></code> environment variable to a number
+indicating how many you want to allow.  For example:</p>
+<blockquote>
+<div><div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_RT_COMM_UGNI_MAX_MEM_REGIONS</span><span class="o">=</span><span class="m">30000</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Note that there are certain comm layer overheads that are proportional to
+the number of registered memory regions, so allowing a very high number of
+them may lead to reduced performance.</p>
+</section>
+<section id="ugni-hugepage-related-warnings">
+<h2>ugni Hugepage-related Warnings<a class="headerlink" href="#ugni-hugepage-related-warnings" title="Link to this heading"></a></h2>
+<blockquote>
+<div><p>Communication performance with ugni is so much better when hugepages
+are used that if you do not use them, the runtime will print the
+following warning when a multilocale program starts:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">warning</span><span class="p">:</span> <span class="n">without</span> <span class="n">hugepages</span><span class="p">,</span> <span class="n">communication</span> <span class="n">performance</span> <span class="n">will</span> <span class="n">suffer</span>
+</pre></div>
+</div>
+<p>If you definitely do not want to use hugepages you can quiet this
+warning by giving the <code class="docutils literal notranslate"><span class="pre">--quiet</span></code> or <code class="docutils literal notranslate"><span class="pre">-q</span></code> option when you run the
+executable.  Otherwise, load a hugepage module as described above in
+<a class="reference internal" href="#using-the-ugni-communications-layer">Using the ugni Communications Layer</a> before running.</p>
+<p>When you are using hugepages and do not have a fixed heap (that is,
+the <code class="docutils literal notranslate"><span class="pre">CHPL_RT_MAX_HEAP_SIZE</span></code> environment variable is not set), the
+Chapel runtime expects certain hugepage-related environment variables
+to have been set by the Chapel launcher.  If you do not use a Chapel
+launcher you have to provide these settings yourself.  Not doing so
+will result in one or both of the following messages:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">warning</span><span class="p">:</span> <span class="n">dynamic</span> <span class="n">heap</span> <span class="n">on</span> <span class="n">hugepages</span> <span class="n">needs</span> <span class="n">HUGETLB_NO_RESERVE</span> <span class="nb">set</span> <span class="n">to</span> <span class="n">something</span>
+<span class="n">warning</span><span class="p">:</span> <span class="n">dynamic</span> <span class="n">heap</span> <span class="n">on</span> <span class="n">hugepages</span> <span class="n">needs</span> <span class="n">CHPL_JE_MALLOC_CONF</span> <span class="nb">set</span> <span class="n">properly</span>
+</pre></div>
+</div>
+<p>To quiet these warnings, use the following settings:</p>
+<blockquote>
+<div><div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">HUGETLB_NO_RESERVE</span><span class="o">=</span>yes
+<span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_JE_MALLOC_CONF</span><span class="o">=</span>purge:decay,lg_chunk:log2HPS
+</pre></div>
+</div>
+</div></blockquote>
+<p>where <em>log2HPS</em> is the base-2 log of the hugepage size.  For example,
+with 16 MiB hugepages you would use:</p>
+<blockquote>
+<div><div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CHPL_JE_MALLOC_CONF</span><span class="o">=</span>purge:decay,lg_chunk:24
+</pre></div>
+</div>
+</div></blockquote>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="libfabric.html" class="btn btn-neutral float-left" title="Using Chapel with libfabric" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../ibm.html" class="btn btn-neutral float-right" title="Using Chapel on IBM Systems" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Chapel a Series of LF Projects, LLC.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+
+
+
+</body>
+</html>
