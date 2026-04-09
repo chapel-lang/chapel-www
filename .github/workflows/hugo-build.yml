@@ -1,0 +1,32 @@
+name: hugo-build
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "src/"
+      - ".github/**"
+  pull_request:
+    paths:
+      # copied from push event paths
+      - "src/"
+      - ".github/**"
+
+
+jobs:
+  make-www:
+    runs-on: ubuntu-latest
+    steps:
+      - name: fetch latest hugo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download latest --repo gohugoio/hugo --pattern "hugo-0*_linux-amd64.deb" --output "${{ runner.temp }}/hugo.deb"
+      - name: install hugo
+        run: |
+          sudo dpkg -i ${{ runner.temp }}/hugo.deb
+      - name: checkout
+        uses: actions/checkout@v6
+      - name: run make www
+        run: |
+          make -C ./src www
