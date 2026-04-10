@@ -46,6 +46,11 @@ def main():
     # Remove duplicates from slug list, keeping order of first appearance
     slugs_to_check = list(dict.fromkeys(slugs_to_check))
 
+    if slugs_to_check:
+        num_to_check = len(slugs_to_check)
+        pluralize = "s" if num_to_check > 1 else ""
+        print(f"Checking usages of {num_to_check} unique added or removed slug{pluralize}...")
+
     for slug in slugs_to_check:
         # If the slug is not in the artifact list, we're all good
         # (it was removed)
