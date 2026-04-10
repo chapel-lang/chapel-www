@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 import sys
 import textwrap
 import tomllib
@@ -84,6 +85,12 @@ def validate_artifact_link(link: str, field: str) -> None:
                 found_str
             )
 
+def validate_slug_name(name: str) -> None:
+    if not isinstance(name, str):
+        raise ValueError("Non-string slug")
+    if not re.fullmatch(r"[-\w]+", name):
+        raise ValueError("Invalid slug name")
+
 def validate_artifact(artifact: dict) -> None:
     fields = set(artifact.keys())
     for field, value in artifact.items():
@@ -133,8 +140,7 @@ def lint_artifacts_list(data):
     for slug in data:
         print(f"Checking slug '{slug}'")
         try:
-            if not isinstance(slug, str):
-                raise ValueError(f"Non-string slug")
+            validate_slug_name(slug)
             validate_artifact(data[slug])
         except ValueError as e:
             error_msg = str(e)
