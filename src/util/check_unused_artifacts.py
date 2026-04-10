@@ -35,7 +35,7 @@ def main():
             found_slugs_on_line += re.findall(
                     r'{{<\s*' + re.escape(listing_macro_name) + r'\s*"([^"]+)"\s*>}}', line
             )
-            if match := re.match(r"\+\[(\w+)\]", line):
+            if match := re.match(r"\+\[([-\w]+)\]", line):
                 found_slugs_on_line += [match[1]]
 
             added_or_removed = "added" if line[0] == "+" else "removed"
