@@ -41,7 +41,7 @@ clobber: clean
 	rm -rf ./venv
 
 check-artifacts: $(ACTIVATE)
-	git diff main ./data/artifacts.toml > /tmp/artifacts-diff.tmp
+	git diff main > /tmp/artifacts-diff.tmp
 	# run check_unused_artifacts.py, making sure to cleanup tmp file after
 	# as well as preserve exit code
 	STATUS=0; \
