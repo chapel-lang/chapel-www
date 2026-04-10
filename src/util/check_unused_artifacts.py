@@ -40,7 +40,7 @@ def main():
 
             added_or_removed = "added" if line[0] == "+" else "removed"
             for slug in found_slugs_on_line:
-                print(f"Detected {added_or_removed} slug '{removed_slug}' in the diff.")
+                print(f"Detected {added_or_removed} slug '{slug}' in the diff.")
                 slugs_to_check += [slug]
 
     # Remove duplicates from slug list, keeping order of first appearance
