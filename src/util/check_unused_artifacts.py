@@ -28,10 +28,14 @@ def main():
 
     with open(args.diff_filename, "r") as diff:
         for line in diff:
-            if line.startswith("-") and listing_macro_name in line:
-                removed_slug = line.split("\"")[1]
-                print(f"Detected removed slug '{removed_slug}' in the diff.")
-                slugs_to_check.append(removed_slug)
+            if line.startswith("-"):
+                matches = re.findall(r'{{<\s*'
+                                     + re.escape(listing_macro_name)
+                                     + r'\s*"([^"]+)"\s*>}}', line)
+                for removed_slug in matches:
+                    removed_slug = line.split("\"")[1]
+                    print(f"Detected removed slug '{removed_slug}' in the diff.")
+                    slugs_to_check.append(removed_slug)
             if line.startswith("+"):
                 match = re.search(r"^\+\[(\w+)\]$", line)
                 if match:
