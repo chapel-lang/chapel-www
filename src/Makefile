@@ -45,7 +45,7 @@ check-artifacts: $(ACTIVATE)
 	# run check_unused_artifacts.py, making sure to cleanup tmp file after
 	# as well as preserve exit code
 	STATUS=1; \
-	python3 ./check_unused_artifacts.py ./data/artifacts.toml /tmp/artifacts-diff.tmp || STATUS=$$?; \
+	python3 ./util/check_unused_artifacts.py ./data/artifacts.toml /tmp/artifacts-diff.tmp || STATUS=$$?; \
 	rm /tmp/artifacts-diff.tmp; \
 	exit $$STATUS
 
