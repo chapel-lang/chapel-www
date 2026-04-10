@@ -28,20 +28,20 @@ def main():
 
     with open(args.diff_filename, "r") as diff:
         for line in diff:
-            if line.startswith("-"):
-                matches = re.findall(r'{{<\s*'
-                                     + re.escape(listing_macro_name)
-                                     + r'\s*"([^"]+)"\s*>}}', line)
-                for removed_slug in matches:
-                    removed_slug = line.split("\"")[1]
-                    print(f"Detected removed slug '{removed_slug}' in the diff.")
-                    slugs_to_check.append(removed_slug)
-            if line.startswith("+"):
-                match = re.search(r"^\+\[(\w+)\]$", line)
-                if match:
-                    added_slug = match.group(1)
-                    print(f"Detected added slug '{added_slug}' in the diff.")
-                    slugs_to_check.append(added_slug)
+            if line[0] not in ("+", "-"):
+                continue
+
+            found_slugs_on_line = []
+            found_slugs_on_line += re.findall(
+                    r'{{<\s*' + re.escape(listing_macro_name) + r'\s*"([^"]+)"\s*>}}', line
+            )
+            if match := re.match(r"\+\[(\w+)\]", line):
+                found_slugs_on_line += [match[1]]
+
+            added_or_removed = "added" if line[0] == "+" else "removed"
+            for slug in found_slugs_on_line:
+                print(f"Detected {added_or_removed} slug '{removed_slug}' in the diff.")
+                slugs_to_check += [slug]
 
     # Remove duplicates from slug list, keeping order of first appearance
     slugs_to_check = list(dict.fromkeys(slugs_to_check))
