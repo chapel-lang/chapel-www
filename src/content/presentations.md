@@ -20,15 +20,15 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "hpsfcon2026" "HPSFCon 2026 Chapel Talks">}}
-{{<artifact-listing "hpsfcon26-gpu">}}
-{{<artifact-listing "hpsfcon26-adoption">}}
-{{<artifact-listing "hpsfcon26-techdebt">}}
-{{<artifact-listing "hpsfcon26-panel">}}
-{{<artifact-listing "hpsfcon26-users">}}
-{{<artifact-listing "hpsfcon26-demo">}}
-{{<artifact-listing "hpsfcon26-compiler">}}
-{{<artifact-listing "hpsfcon26-tools">}}
-{{<artifact-listing "hpsfcon26-dyno">}}
+  {{<artifact-listing "hpsfcon26-gpu">}}
+  {{<artifact-listing "hpsfcon26-adoption">}}
+  {{<artifact-listing "hpsfcon26-techdebt">}}
+  {{<artifact-listing "hpsfcon26-panel">}}
+  {{<artifact-listing "hpsfcon26-users">}}
+  {{<artifact-listing "hpsfcon26-demo">}}
+  {{<artifact-listing "hpsfcon26-compiler">}}
+  {{<artifact-listing "hpsfcon26-tools">}}
+  {{<artifact-listing "hpsfcon26-dyno">}}
 {{</publication-list>}}
 
 {{<publication-list "featured" "Featured Chapel Presentations">}}
