@@ -1,6 +1,8 @@
 +++
 title = "Papers Archive (Reverse Chronological)"
 description = "Chapel papers and publications, listed reverse-chronologically"
+[params]
+    primary-artifact-type = "paper"
 +++
 
 
