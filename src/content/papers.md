@@ -5,28 +5,43 @@ description = "Papers and publications related to the Chapel language"
     primaryArtifactType = "paper"
 +++
 
-{{<publication-list "featured" "Featured Publications">}}
-  {{<artifact-listing "fgcs26">}}
+{{<publication-list "benchmark" "Benchmarking and Language Comparisons">}}
   {{<artifact-listing "paw-atm2025">}}
-  {{<artifact-listing "bachman-eco-ind">}}
-  {{<artifact-listing "hpec24-vf2-ps">}}
-  {{<artifact-listing "europar24">}}
   {{<artifact-listing "hcw2024">}}
-  {{<artifact-listing "ccpe23">}}
+  {{<artifact-listing "pmam22">}}
+  {{<artifact-listing "sec20">}}
+{{</publication-list>}}
+
+{{<publication-list "earth" "Earth Sciences">}}
+  {{<artifact-listing "bachman-eco-ind">}}
+  {{<artifact-listing "paw-atm23-bachman">}}
+  {{<artifact-listing "ems23">}}
+{{</publication-list>}}
+
+{{<publication-list "cfd" "Computational Fluid Dynamics">}}
   {{<artifact-listing "aiaa21">}}
 {{</publication-list>}}
 
-{{<publication-list "applicationPapers" "Applications of Chapel">}}
+{{<publication-list "analysis" "Data and Graph Analysis">}}
+  {{<artifact-listing "hpec24-vf2-ps">}}
   {{<artifact-listing "hpec24-deploy">}}
+{{</publication-list>}}
+
+{{<publication-list "search" "Search and Branch-and-Bound">}}
+  {{<artifact-listing "fgcs26">}}
+  {{<artifact-listing "europar24">}}
   {{<artifact-listing "iccs2024">}}
   {{<artifact-listing "pdco24">}}
-  {{<artifact-listing "ems23">}}
+  {{<artifact-listing "ccpe23">}}
   {{<artifact-listing "pdco22">}}
-  {{<artifact-listing "pmam22">}}
-  {{<artifact-listing "sec20">}}
   {{<artifact-listing "fgcs20">}}
   {{<artifact-listing "hpcs20">}}
   {{<artifact-listing "hpec19">}}
+{{</publication-list>}}
+
+{{<publication-list "quantum" "Quantum-related Work">}}
+  {{<artifact-listing "fgcs26">}}
+  {{<artifact-listing "paw-atm23-westerhout">}}
 {{</publication-list>}}
 
 {{<publication-list "overviews" "Chapel Overviews and History">}}
@@ -60,12 +75,6 @@ description = "Papers and publications related to the Chapel language"
   {{<artifact-listing "pgas11">}}
   {{<artifact-listing "cug11">}}
   {{<artifact-listing "hotpar10">}}
-{{</publication-list>}}
-
-{{<publication-list "exploration" "Chapel Explorations">}}
-  {{<artifact-listing "cug22">}}
-  {{<artifact-listing "taco18">}}
-  {{<artifact-listing "ics15">}}
 {{</publication-list>}}
 
  
