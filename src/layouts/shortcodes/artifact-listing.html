@@ -5,19 +5,41 @@
 
 {{ with index .Site.Data.artifacts $var }}
   <div class="publication" id="{{ $anchor_id }}">
-    {{ if isset . "url" }} <a href="{{ .url }}"> {{ end }}
+    {{ $artifact_data := . }}
     <b>{{ .title }}</b>
-    {{ if isset . "url" }} </a> {{ end }}
 
-    {{ if or (isset . "video") (isset . "slides") (isset . "extraLink")}}
-      [
-      {{ if isset . "video" }} <a href="{{ .video }}">Video</a> {{ end }}
-      {{ if and (isset . "video") (isset . "slides") }} | {{ end }}
-      {{ if isset . "slides" }} <a href="{{ .slides }}">Slides</a> {{ end }}
-      {{ if and (or (isset . "video") (isset . "slides")) (isset . "extraLink") }} | {{ end }}
-      {{ if isset . "extraLink" }} <a href="{{ .extraLink }}"> {{ .extraLinkText }} </a> {{ end }}
-      ]
+    {{/* Any artifact links present will be listed in this order by default. */}}
+    {{ $valid_link_types := slice "slides" "video" "paper" "code" "extraLink" }}
+
+    {{/* Override which artifact is listed first, if configured by page. */}}
+    {{ $primary_artifact_type := (index $.Page.Params "primaryArtifactType") }}
+    {{ if $primary_artifact_type }}
+      {{ if not (in $valid_link_types $primary_artifact_type) }}
+        {{ printf "Invalid primary artifact type '%s' set for artifact(s) displayed on page %s" $primary_artifact_type $.Page.Title }}
+      {{ end }}
+      {{ $valid_link_types = (slice $primary_artifact_type) | append ($valid_link_types | symdiff (slice $primary_artifact_type)) }}
     {{ end }}
+
+    {{/* Gather types of links available for this artifact. */}}
+    {{ $links_present := slice }}
+    {{ range $valid_link_types }}
+      {{ if isset $artifact_data . }}
+        {{ $links_present = $links_present | append . }}
+      {{ end }}
+    {{ end }}
+
+    [
+      {{ range $index, $link_type := $links_present }}
+        {{ if $index }} | {{ end }}
+        <a href="{{ index $artifact_data $link_type }}">
+        {{ if eq $link_type "extraLink" }}
+          {{ strings.FirstUpper $artifact_data.extraLinkText }}
+        {{ else }}
+          {{ strings.FirstUpper $link_type }}
+        {{ end }}
+        </a>
+      {{ end }}
+    ]
 
     <a href="#{{ $anchor_id }}">&#128279;</a>
 
