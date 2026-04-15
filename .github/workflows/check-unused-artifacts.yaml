@@ -1,0 +1,21 @@
+name: check-unused-artifacts
+
+on: pull_request
+
+jobs:
+  check-unused-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout commits on PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: check for unused artifacts
+        run: |
+          #!/usr/bin/env bash
+
+          # Just look at the merge commit created by the checkout action for
+          # the PR.
+          git diff -U0 $GITHUB_SHA^1 $GITHUB_SHA > diff.txt
+          python ./src/util/check_unused_artifacts.py ./src/data/artifacts.toml diff.txt
+
