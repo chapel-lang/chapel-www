@@ -1,5 +1,5 @@
 ACTIVATE=./venv/bin/activate
-SETUP=source $(ACTIVATE)
+SETUP=. $(ACTIVATE)
 
 ifndef CHPL_WWW
 CHPL_WWW=..
