@@ -29,17 +29,13 @@ non_link_opt_fields = {
     "linkListLabel",    # a label for what the list of links are
 }
 link_opt_fields = {
-    "url",              # a link that will be attached to the title of the resource when rendered
-    "slides",           # a link to a slide deck relevant to this resource. If this
-                        # resource is included, the word "Slides" will appear within brackets
-                        # following the name of the resource and will link to the provided URL. It
-                        # can be an absolute link leading to an external website or a relative path
-                        # to a file internal to the website
-    "video",            # a link to a video relevant to this resource. Like the
-                        # `slides` field, this will cause the word "Video" to appear
-                        # within brackets following the name of the resource
-    "extraLink",        # link to an external resource that is neither a slide deck
-                        # nor a video, or when you have multiple decks or videos.
+    "paper",            # a link to a paper relevant to this resource
+    "slides",           # a link to a slide deck relevant to this resource
+    "video",            # a link to a video relevant to this resource
+    "code",             # a link to code relevant to this resource
+    "extraLink",        # a link to an external resource that is none of the
+                        # above kinds of resource, or for overflow when there
+                        # are multiple of the same kind of resource.
                         # If present, extraLinkText must also be present.
     "linkList",         # a list of several links to be displayed. If present,
                         # linkListTexts and linkListLabel must also be present.
@@ -127,10 +123,11 @@ def validate_artifact(artifact: dict) -> None:
         raise ValueError("Must specify linkList, linkListTexts, and linkListLabel together")
     if "linkList" in fields and len(artifact["linkList"]) != len(artifact["linkListTexts"]):
         raise ValueError("Mismatch between linkList and linkListTexts lengths")
+    if not link_opt_fields & fields:
+        raise ValueError(f"Must specify at least one of the following link fields: {link_opt_fields}")
 
     required_fields_encountered = fields & required_fields
-    if len(required_fields_encountered) != len(required_fields):
-        missing_fields = set(required_fields) - required_fields_encountered
+    if missing_fields := set(required_fields) - required_fields_encountered:
         raise ValueError(f"Missing required fields: {missing_fields}")
 
 

@@ -1,6 +1,8 @@
 +++
 title = "Papers"
 description = "Papers and publications related to the Chapel language"
+[params]
+    primaryArtifactType = "paper"
 +++
 
 {{<publication-list "featured" "Featured Publications">}}
