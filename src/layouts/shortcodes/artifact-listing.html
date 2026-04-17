@@ -1,65 +1,63 @@
-{{$var := .Get 0}}
-{{$summary := .Get 1 }}
+{{- $var := .Get 0 -}}
+{{- $summary := .Get 1 -}}
 
-{{$anchor_id := printf "%s%s" "artifact-" $var }}
+{{- $anchor_id := printf "%s%s" "artifact-" $var -}}
 
-{{ with index .Site.Data.artifacts $var }}
-  <div class="publication" id="{{ $anchor_id }}">
-    {{ $artifact_data := . }}
-    <b>{{ .title }}</b>
+{{- with index .Site.Data.artifacts $var -}}
+  <div class="publication" id="{{- $anchor_id -}}">
+    {{- $artifact_data := . -}}
+    <b>{{- .title -}}</b>
 
-    {{/* Any artifact links present will be listed in this order by default. */}}
-    {{ $valid_link_types := slice "slides" "video" "paper" "code" "extraLink" }}
+    {{- /* Any artifact links present will be listed in this order by default. */ -}}
+    {{- $valid_link_types := slice "slides" "video" "paper" "code" "extraLink" -}}
 
-    {{/* Override which artifact is listed first, if configured by page. */}}
-    {{ $primary_artifact_type := (index $.Page.Params "primaryArtifactType") }}
-    {{ if $primary_artifact_type }}
-      {{ if not (in $valid_link_types $primary_artifact_type) }}
-        {{ printf "Invalid primary artifact type '%s' set for artifact(s) displayed on page %s" $primary_artifact_type $.Page.Title }}
-      {{ end }}
-      {{ $valid_link_types = (slice $primary_artifact_type) | append ($valid_link_types | symdiff (slice $primary_artifact_type)) }}
-    {{ end }}
+    {{- /* Override which artifact is listed first, if configured by page. */ -}}
+    {{- $primary_artifact_type := (index $.Page.Params "primaryArtifactType") -}}
+    {{- if $primary_artifact_type -}}
+      {{- if not (in $valid_link_types $primary_artifact_type) -}}
+        {{- printf "Invalid primary artifact type '%s' set for artifact(s) displayed on page %s" $primary_artifact_type $.Page.Title -}}
+      {{- end -}}
+      {{- $valid_link_types = (slice $primary_artifact_type) | append ($valid_link_types | symdiff (slice $primary_artifact_type)) -}}
+    {{- end -}}
 
-    {{/* Gather types of links available for this artifact. */}}
-    {{ $links_present := slice }}
-    {{ range $valid_link_types }}
-      {{ if isset $artifact_data . }}
-        {{ $links_present = $links_present | append . }}
-      {{ end }}
-    {{ end }}
-
+    {{- /* Gather types of links available for this artifact. */ -}}
+    {{- $links_present := slice -}}
+    {{- range $valid_link_types -}}
+      {{- if isset $artifact_data . -}}
+        {{- $links_present = $links_present | append . -}}
+      {{- end -}}
+    {{- end }}
     [
       {{ range $index, $link_type := $links_present }}
-        {{ if $index }} | {{ end }}
+        {{- if $index }} | {{ end -}}
         <a href="{{ index $artifact_data $link_type }}">
-        {{ if eq $link_type "extraLink" }}
-          {{ strings.FirstUpper $artifact_data.extraLinkText }}
-        {{ else }}
-          {{ strings.FirstUpper $link_type }}
-        {{ end }}
+        {{- if eq $link_type "extraLink" -}}
+          {{- strings.FirstUpper $artifact_data.extraLinkText -}}
+        {{- else -}}
+          {{- strings.FirstUpper $link_type -}}
+        {{- end -}}
         </a>
-      {{ end }}
+      {{- end }}
     ]
 
-    <a href="#{{ $anchor_id }}">&#128279;</a>
-
+    <a href="#{{- $anchor_id -}}">&#128279;</a>
     <br>
 
     {{ .authors }},
-    {{ if isset . "venue" }} <i>{{ .venue }}</i>, {{ end }}
-    {{ .date }}
+    {{- if isset . "venue" }} <i>{{ .venue }}</i>, {{ end -}}
+    {{- .date -}}
 
-    {{ if isset . "linkList" }}
+    {{- if isset . "linkList" -}}
       {{ if isset . "linkListLabel" }}
         <ul>
-          <li>{{ .linkListLabel | title }}:
+          <li>{{- .linkListLabel | title -}}:
       {{ end }}
             <ul>
-              {{ $listLen := len .linkList }}
-              {{ if (not (eq ($listLen) (len .linkListTexts))) }}
-                {{ errorf "Mismatched number of links and link names in entry '%s': %p" $var $.Position }}
-              {{ end }}
-              {{ $entry := . }}
+              {{- $listLen := len .linkList -}}
+              {{- if (not (eq ($listLen) (len .linkListTexts))) -}}
+                {{- errorf "Mismatched number of links and link names in entry '%s': %p" $var $.Position -}}
+              {{- end -}}
+              {{- $entry := . -}}
               {{ range $i := (len .linkList) }}
                 <li><a href="{{ index $entry.linkList $i }}">{{ index $entry.linkListTexts $i }}</a></li>
               {{ end }}
@@ -68,12 +66,12 @@
           </li>
         </ul>
       {{ end }}
-    {{ end }}
+    {{- end -}}
 
     <div class="publication-description">
-      <p>{{ .description}}</p>
+      <p>{{- .description -}}</p>
     </div>
   </div>
-{{ else }}
-  {{ errorf "No artifact found with slug '%s' when trying to generate listing, referenced at: %p" $var .Position }}
-{{ end }}
+{{- else -}}
+  {{- errorf "No artifact found with slug '%s' when trying to generate listing, referenced at: %p" $var .Position -}}
+{{- end -}}
