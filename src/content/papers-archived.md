@@ -500,7 +500,7 @@ us know.
 <!-- Nov 2011 -->
 
 <!-- Oct 2011 -->
-o
+
 {{<artifact-listing "pgas11">}}
 
 <!-- Sep 2011 -->
