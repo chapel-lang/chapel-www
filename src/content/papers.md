@@ -6,6 +6,7 @@ description = "Papers and publications related to the Chapel language"
 +++
 
 {{<publication-list "benchmark" "Benchmarking and Language Comparisons">}}
+  {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
   {{<artifact-listing "hcw2024">}}
   {{<artifact-listing "pmam22">}}

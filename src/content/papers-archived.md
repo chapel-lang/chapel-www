@@ -36,6 +36,8 @@ us know.
 
 <!-- Apr 2026 -->
 
+{{<artifact-listing "cug2026">}}
+
 <!-- Mar 2026 -->
 
 <!-- Feb 2026 -->
