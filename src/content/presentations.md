@@ -32,6 +32,8 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "featured" "Featured Chapel Presentations">}}
+  {{<artifact-listing "pnw-plse26-brad">}}
+  {{<artifact-listing "pnw-plse26-jade">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
   {{<artifact-listing "hips2025-keynote">}}

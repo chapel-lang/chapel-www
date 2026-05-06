@@ -15,6 +15,12 @@ please let us know.
 
 ### 2026
 
+<!-- May 2026 -->
+
+{{<artifact-listing "pnw-plse26-brad">}}
+{{<artifact-listing "pnw-plse26-jade">}}
+
+
 <!-- Apr 2026 -->
 
 {{<artifact-listing "cug2026">}}
@@ -337,6 +343,8 @@ please let us know.
 
 <!-- May 2018 -->
 
+{{<artifact-listing "pnw-plse18">}}
+
 <!-- Apr 2018 -->
 
 <!-- Mar 2018 -->
@@ -405,6 +413,8 @@ please let us know.
 <!-- Mar 2016 -->
 
 {{<artifact-listing "umd16">}}
+{{<artifact-listing "pnw-plse16">}}
+
 
 <!-- Feb 2016 -->
 
