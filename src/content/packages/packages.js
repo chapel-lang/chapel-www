@@ -13,6 +13,19 @@
     return Array.isArray(authors) ? authors : [authors];
   }
 
+  function timeAgo(isoString) {
+    const seconds = Math.floor((Date.now() - new Date(isoString)) / 1000);
+    const intervals = [
+      [31536000, "year"], [2592000, "month"], [86400, "day"],
+      [3600, "hour"],     [60, "minute"],
+    ];
+    for (const [secs, label] of intervals) {
+      const n = Math.floor(seconds / secs);
+      if (n >= 1) return `${n} ${label}${n > 1 ? "s" : ""} ago`;
+    }
+    return "just now";
+  }
+
   function renderPackages(registry) {
     const names = Object.keys(registry);
 
@@ -59,6 +72,8 @@
 
       const type = latest.type ? `<p><em class="bold">Type:</em> <span class="type-${latest.type}">${latest.type}</span></p>` : "";
 
+      const updated = latest.createdDate ? `<p><em class="bold">Last updated:</em> ${timeAgo(latest.createdDate)}</p>` : "";
+
       return `<li class="list-group-item" data-name="${name}" ${chplDataAttrs}>
         <h3>${name}</h3>
         ${latestVersion}
@@ -66,6 +81,7 @@
         ${authors}
         ${license}
         ${type}
+        ${updated}
         ${sourceLink}
       </li>`;
     });
