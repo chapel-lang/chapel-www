@@ -4,7 +4,11 @@
 
   function sourceUrl(url) {
     if (!url) return "";
-    return url.replace(/^git@github\.com:/, "https://github.com/").replace(/\.git$/, "");
+    if (url.startsWith("git@github.com:")) {
+      return "https://github.com/" + url.slice("git@github.com:".length).replace(/\.git$/, "");
+    }
+    if (url.startsWith("https://github.com/")) return url;
+    return "";
   }
 
   function authorList(authors) {
@@ -13,16 +17,17 @@
   }
 
   function timeAgo(isoString) {
-    const seconds = Math.floor((Date.now() - new Date(isoString)) / 1000);
+    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    const seconds = Math.min((new Date(isoString) - Date.now()) / 1000, 0);
     const intervals = [
       [31536000, "year"], [2592000, "month"], [86400, "day"],
       [3600, "hour"],     [60, "minute"],
     ];
-    for (const [secs, label] of intervals) {
-      const n = Math.floor(seconds / secs);
-      if (n >= 1) return `${n} ${label}${n > 1 ? "s" : ""} ago`;
+    for (const [secs, unit] of intervals) {
+      if (-seconds >= secs)
+        return rtf.format(Math.round(seconds / secs), unit);
     }
-    return "just now";
+    return rtf.format(Math.round(seconds), "second");
   }
 
   function renderPackages(registry) {
@@ -31,7 +36,7 @@
     const rows = names.map((name) => {
       const versions = registry[name];
       const latest = versions[0];
-      const latestVersion = `<p><em class="bold">Latest version:</em> ${latest.version}</p>`;
+      const latestVersion = `<p><strong>Latest version:</strong> ${latest.version}</p>`;
       let chplVersion = "";
       let versionMin = "";
       let versionMax = "";
@@ -39,21 +44,20 @@
       if (latest.chplVersion) {
         if (latest.chplVersion.includes("..")) {
           [versionMin, versionMax] = latest.chplVersion.split("..").map((v) => v.trim());
-          chplVersion = `<p><em class="bold">Chapel Version Compatibility:</em> ${versionMin} to ${versionMax}</p>`;
+          chplVersion = `<p><strong>Chapel Version Compatibility:</strong> ${versionMin} to ${versionMax}</p>`;
           chplDataAttrs = `data-chpl-min="${versionMin}" data-chpl-max="${versionMax}"`;
         } else {
           versionMin = latest.chplVersion.trim();
-          chplVersion = `<p><em class="bold">Chapel Version Compatibility:</em> ${latest.chplVersion} and later</p>`;
+          chplVersion = `<p><strong>Chapel Version Compatibility:</strong> ${latest.chplVersion} and later</p>`;
           chplDataAttrs = `data-chpl-min="${versionMin}"`;
         }
       }
-      const url = sourceUrl(latest.source);
       let authors = "";
       const authorArr = authorList(latest.authors);
       if (authorArr.length === 1) {
-        authors = `<p><em class="bold">Author:</em> ${authorArr[0]}</p>`;
+        authors = `<p><strong>Author:</strong> ${authorArr[0]}</p>`;
       } else if (authorArr.length > 1) {
-        authors = `<p><em class="bold">Authors:</em> ${authorArr.join(", ")}</p>`;
+        authors = `<p><strong>Authors:</strong> ${authorArr.join(", ")}</p>`;
       }
       var licenseText = null;
       if (latest.license && latest.license !== "None") {
@@ -65,13 +69,14 @@
       } else if (latest.copyrightYear) {
         licenseText = `Copyright ${latest.copyrightYear}`;
       }
-      const license = licenseText ? `<p><em class="bold">License:</em> ${licenseText}</p>` : "";
+      const license = licenseText ? `<p><strong>License:</strong> ${licenseText}</p>` : "";
 
+      const url = sourceUrl(latest.source);
       const sourceLink = url ? `<p><a href=${url} rel="noopener" target="_blank">Source</a></p>` : "";
 
-      const type = latest.type ? `<p><em class="bold">Type:</em> <span class="type-${latest.type}">${latest.type}</span></p>` : "";
+      const type = latest.type ? `<p><strong>Type:</strong> <span class="type-${latest.type}">${latest.type}</span></p>` : "";
 
-      const updated = latest.createdDate ? `<p><em class="bold">Last updated:</em> ${timeAgo(latest.createdDate)}</p>` : "";
+      const updated = latest.createdDate ? `<p><strong>Last updated:</strong> ${timeAgo(latest.createdDate)}</p>` : "";
 
       return `<li class="list-group-item" data-name="${name}" ${chplDataAttrs}>
         <h3>${name}</h3>
