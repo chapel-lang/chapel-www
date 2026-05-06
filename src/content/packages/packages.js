@@ -1,7 +1,6 @@
 (function () {
   const INDEX_URL =
-    "http://localhost:52095/index.json";
-    // "https://raw.githubusercontent.com/chapel-lang/mason-registry/master/index.json";
+    "https://raw.githubusercontent.com/chapel-lang/mason-registry/master/index.json";
 
   function sourceUrl(url) {
     if (!url) return "";
