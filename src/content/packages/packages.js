@@ -8,6 +8,11 @@
     return url.replace(/^git@github\.com:/, "https://github.com/").replace(/\.git$/, "");
   }
 
+  function authorList(authors) {
+    if (!authors) return [];
+    return Array.isArray(authors) ? authors : [authors];
+  }
+
   function renderPackages(registry) {
     const names = Object.keys(registry);
 
@@ -29,12 +34,11 @@
       }
       const url = sourceUrl(latest.source);
       let authors = "";
-      if (latest.authors) {
-        if (latest.authors.length === 1) {
-          authors = `<p><em class="bold">Author:</em> ${latest.authors[0]}</p>`;
-        } else {
-          authors = `<p><em class="bold">Authors:</em> ${latest.authors.join(", ")}</p>`;
-        }
+      const authorArr = authorList(latest.authors);
+      if (authorArr.length === 1) {
+        authors = `<p><em class="bold">Author:</em> ${authorArr[0]}</p>`;
+      } else if (authorArr.length > 1) {
+        authors = `<p><em class="bold">Authors:</em> ${authorArr.join(", ")}</p>`;
       }
       var licenseText = null;
       if (latest.license && latest.license !== "None") {
@@ -52,7 +56,7 @@
 
       const type = latest.type ? `<p><em class="bold">Type:</em> <span class="type-${latest.type}">${latest.type}</span></p>` : "";
 
-      return `<li>
+      return `<li class="list-group-item" data-name="${name}">
         <h3>${name}</h3>
         ${latestVersion}
         ${chplVersion}
@@ -63,29 +67,102 @@
       </li>`;
     });
 
-    return `<ul id="mason-packages-table">
+    return `<ul id="mason-packages-list" class="list-group">
       ${rows.join("\n")}
     </ul>`;
+  }
+
+  function buildSearchIndex(registry) {
+    const ms = new MiniSearch({
+      fields: ["name", "authors", "license", "chplVersion"],
+      storeFields: ["name"],
+      searchOptions: {
+        prefix: true,
+        fuzzy: 0.15,
+        boost: { name: 10 },
+      },
+    });
+    ms.addAll(
+      Object.keys(registry).map((name) => {
+        const latest = registry[name][0];
+        return {
+          id: name,
+          name,
+          authors: authorList(latest.authors).join(" "),
+          license: latest.license || "",
+          chplVersion: latest.chplVersion || "",
+        };
+      })
+    );
+    return ms;
+  }
+
+  function updateVisibilityClasses(items) {
+    let first = null, last = null;
+    items.forEach((li) => {
+      li.classList.remove("is-first-visible", "is-last-visible");
+      if (li.style.display !== "none") {
+        if (!first) first = li;
+        last = li;
+      }
+    });
+    if (first) first.classList.add("is-first-visible");
+    if (last) last.classList.add("is-last-visible");
+  }
+
+  function applySearch(query, idx, list) {
+    const items = list.querySelectorAll("li[data-name]");
+    if (!query.trim()) {
+      items.forEach((li) => (li.style.display = ""));
+      updateVisibilityClasses(items);
+      return;
+    }
+    let matches;
+    try {
+      matches = new Set(idx.search(query).map((r) => r.id));
+    } catch (_) {
+      matches = new Set();
+    }
+    items.forEach((li) => {
+      li.style.display = matches.has(li.dataset.name) ? "" : "none";
+    });
+    updateVisibilityClasses(items);
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     const root = document.getElementById("mason-packages-root");
     if (!root) return;
 
-    root.textContent = "Loading packages…";
+    const errorSpan = document.getElementById("mason-error");
+
+    errorSpan.textContent = "Loading packages…";
 
     fetch(INDEX_URL)
       .then(function (response) {
         if (!response.ok) {
-          throw new Error("Failed to fetch registry index: " + response.status);
+          throw new Error("Failed to fetch registry index");
         }
         return response.json();
       })
       .then(function (registry) {
-        root.innerHTML = renderPackages(registry);
+        errorSpan.textContent = "";
+        const idx = buildSearchIndex(registry);
+
+        const searchInput = document.getElementById("mason-packages-search");
+
+        const listWrapper = document.createElement("div");
+        listWrapper.innerHTML = renderPackages(registry);
+        root.appendChild(listWrapper);
+
+        const listEl = listWrapper.querySelector("#mason-packages-list");
+        updateVisibilityClasses(listEl.querySelectorAll("li[data-name]"));
+        searchInput.addEventListener("input", function () {
+          applySearch(this.value, idx, listEl);
+        });
       })
       .catch(function (err) {
-        root.textContent = "Could not load package list: " + err.message;
+        errorSpan.textContent = "Could not load package list.";
       });
   });
 })();
+
