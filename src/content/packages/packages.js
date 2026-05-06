@@ -23,13 +23,16 @@
       let chplVersion = "";
       let versionMin = "";
       let versionMax = "";
+      let chplDataAttrs = "";
       if (latest.chplVersion) {
         if (latest.chplVersion.includes("..")) {
           [versionMin, versionMax] = latest.chplVersion.split("..").map((v) => v.trim());
           chplVersion = `<p><em class="bold">Chapel Version Compatibility:</em> ${versionMin} to ${versionMax}</p>`;
+          chplDataAttrs = `data-chpl-min="${versionMin}" data-chpl-max="${versionMax}"`;
         } else {
-          versionMin = versionMax = latest.chplVersion.trim();
+          versionMin = latest.chplVersion.trim();
           chplVersion = `<p><em class="bold">Chapel Version Compatibility:</em> ${latest.chplVersion} and later</p>`;
+          chplDataAttrs = `data-chpl-min="${versionMin}"`;
         }
       }
       const url = sourceUrl(latest.source);
@@ -56,7 +59,7 @@
 
       const type = latest.type ? `<p><em class="bold">Type:</em> <span class="type-${latest.type}">${latest.type}</span></p>` : "";
 
-      return `<li class="list-group-item" data-name="${name}">
+      return `<li class="list-group-item" data-name="${name}" ${chplDataAttrs}>
         <h3>${name}</h3>
         ${latestVersion}
         ${chplVersion}
@@ -110,21 +113,33 @@
     if (last) last.classList.add("is-last-visible");
   }
 
-  function applySearch(query, idx, list) {
-    const items = list.querySelectorAll("li[data-name]");
-    if (!query.trim()) {
-      items.forEach((li) => (li.style.display = ""));
-      updateVisibilityClasses(items);
-      return;
+  function versionLt(a, bParsed) {
+    const aParsed = a.split(".").map(Number);
+    for (let i = 0; i < Math.max(aParsed.length, bParsed.length); i++) {
+      const ai = aParsed[i] || 0, bi = bParsed[i] || 0;
+      if (ai < bi) return true;
+      if (ai > bi) return false;
     }
-    let matches;
-    try {
-      matches = new Set(idx.search(query).map((r) => r.id));
-    } catch (_) {
-      matches = new Set();
+    return false;
+  }
+
+  const VERSION_2_0_0 = [2, 0, 0];
+
+  function applyFilters(query, vtwoOnly, idx, listEl) {
+    const items = listEl.querySelectorAll("li[data-name]");
+    let searchMatches = null;
+    if (query.trim()) {
+      try {
+        searchMatches = new Set(idx.search(query).map((r) => r.id));
+      } catch (_) {
+        searchMatches = new Set();
+      }
     }
     items.forEach((li) => {
-      li.style.display = matches.has(li.dataset.name) ? "" : "none";
+      const passSearch = !searchMatches || searchMatches.has(li.dataset.name);
+      const max = li.dataset.chplMax;
+      const passVtwo = !vtwoOnly || !max || !versionLt(max, VERSION_2_0_0);
+      li.style.display = passSearch && passVtwo ? "" : "none";
     });
     updateVisibilityClasses(items);
   }
@@ -156,13 +171,18 @@
 
         const listEl = listWrapper.querySelector("#mason-packages-list");
         updateVisibilityClasses(listEl.querySelectorAll("li[data-name]"));
-        searchInput.addEventListener("input", function () {
-          applySearch(this.value, idx, listEl);
-        });
+
+        const vtwoToggle = document.getElementById("mason-filter-vtwo");
+
+        function runFilters() {
+          applyFilters(searchInput.value, vtwoToggle.checked, idx, listEl);
+        }
+
+        searchInput.addEventListener("input", runFilters);
+        vtwoToggle.addEventListener("change", runFilters);
       })
       .catch(function (err) {
         errorSpan.textContent = "Could not load package list.";
       });
   });
 })();
-
