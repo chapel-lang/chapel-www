@@ -196,6 +196,7 @@
 
         searchInput.addEventListener("input", runFilters);
         vtwoToggle.addEventListener("change", runFilters);
+        runFilters();
       })
       .catch(function (err) {
         errorSpan.textContent = "Could not load package list.";
