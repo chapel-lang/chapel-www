@@ -1,13 +1,21 @@
 (function () {
   const INDEX_URL =
     "https://raw.githubusercontent.com/chapel-lang/mason-registry/master/index.json";
+  const KNOWN_HTTPS_GIT_HOSTS = ["https://github.com/", "https://gitlab.com/"];
 
   function sourceUrl(url) {
     if (!url) return "";
     if (url.startsWith("git@github.com:")) {
       return "https://github.com/" + url.slice("git@github.com:".length).replace(/\.git$/, "");
     }
-    if (url.startsWith("https://github.com/")) return url;
+
+    for (const host of KNOWN_HTTPS_GIT_HOSTS) {
+      const regex = new RegExp(`^${host}[^/]+/[^/]+(\\.git)?$`);
+      if (regex.test(url)) {
+        return url;
+      }
+    }
+
     return "";
   }
 
