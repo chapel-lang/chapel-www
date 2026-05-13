@@ -19,15 +19,22 @@
       <div class="blog">
         <!-- For the front page, we want to display some news items; for the archives page, all of them -->
         {{- $front_page_news_items := 7 }}
-        {{- $all_news_items := (len $posts) }}
+        {{- $overlapping_news_items := 2 }}
         {{- $count := 0 }}
-        {{ range first (cond .Params.unlimited_news_items $all_news_items $front_page_news_items) $posts }}
-          {{- $count = (add $count 1) }}
-          {{- $tag := "" }}
-          {{- if (eq $count $front_page_news_items) }}
-            {{ $tag = "tag=older" }}
+        {{- $frontpage := not .Params.unlimited_news_items }}
+        {{ range $posts }}
+          {{- $anchor := (print "news" $count) }}
+          {{- if $frontpage }}
+            {{- if (eq $count $front_page_news_items) }}
+              {{- break }}
+            {{- end }}
+          {{- else }}
+            {{- if (eq $count (sub $front_page_news_items $overlapping_news_items)) }}
+              {{- $anchor = "older" }}
+            {{- end }}
           {{- end }}
-          <div class="blog-post-row" id="{{ (cond (eq $count (sub $front_page_news_items 1)) "older" "") }}" >
+          {{- $count = (add $count 1) }}
+          <div class="blog-post-row" id="{{ $anchor }}" >
             <div class="blog-image">
               {{ if isset . "image" }}
                 <img src="{{ .image | relURL }}" class="img-responsive" alt="" >
