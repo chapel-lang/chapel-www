@@ -2,9 +2,13 @@
   <div class="container" id="whatsnew">
     <div class="col-md-12" id="news">
       <div class="heading text-center">
-        <h2>{{ .Site.Params.recent_posts.title | markdownify }}</h2>
+        {{- if not .Params.unlimited_news_items }}
+          <a href = "{{ relref . "news" }}">
+            <h2>{{ .Site.Params.recent_posts.title | markdownify }}</h2>
+          </a>
+        {{- end }}
       </div>
-     
+
       <!-- Merge the blog posts (.rss) and the manual announcements (.announcements)-->
       {{ $posts := hugo.Data.rss }}
       {{ range $fileName, $postData := hugo.Data.announcements }}
@@ -13,31 +17,49 @@
       {{ $posts := sort $posts "date" "desc"}}
 
       <div class="blog">
-        {{ range first 7 $posts }}
-          <div class="blog-post-row">
+        <!-- For the front page, we want to display some news items; for the archives page, all of them -->
+        {{- $front_page_news_items := 7 }}
+        {{- $overlapping_news_items := 1 }}
+        {{- $count := 0 }}
+        {{- $frontpage := not .Params.unlimited_news_items }}
+        {{- range $posts }}
+          {{- $anchor := "" | safeHTMLAttr }}
+          {{- if $frontpage }}
+            {{- if (eq $count $front_page_news_items) }}
+              {{- break }}
+            {{- end }}
+          {{- else }}
+            {{- if (eq $count (sub $front_page_news_items $overlapping_news_items)) }}
+              {{- $anchor = " id=\"the-fold\"" | safeHTMLAttr }}
+            {{- end }}
+          {{- end }}
+          {{- $count = (add $count 1) }}
+          <div class="blog-post-row"{{ $anchor }}>
             <div class="blog-image">
-              {{ if isset . "image" }}
+              {{- if isset . "image" }}
                 <img src="{{ .image | relURL }}" class="img-responsive" alt="" >
-              {{ else }}
-                <img src="{{ "img/chapel-logo-nowords.png" | relURL }}" class="img-responsive" alt="">
-              {{ end }}
+              {{- else }}
+                {{- $post_year := (.date | time).Year }}
+                {{- $old_logo := "img/chapel-logo-old-nowords.png" }}
+                {{- $new_logo := "img/apple-touch-icon.png" }}
+                <img src="{{ (cond ((lt $post_year 2026)) $old_logo $new_logo) | relURL }}" class="img-responsive" alt="" >
+              {{- end }}
             </div>
             <div class="blog-post-text">
               <h4><a href="{{ .url }}">{{ .title }}</a></h4>
               <p class="author-category">
-                {{ if isset . "authors" }}
-                  {{ $comma := false }}
-                  {{ i18n "authorBy" }} 
-                  <!-- This is all one line to get the comma to not have a space before it -->
-                  {{ range $author := .authors }}{{ if $comma }}, {{ end }}{{ if $author.url }}<a href="{{ $author.url }}">{{ end }}{{ $author.name }}{{ if $author.url }}</a>{{ end }}{{ $comma = true }}{{ end }}
-                {{ end }}
-                {{ if .date }}
-                  {{ $createdAt := (.date | time).Format site.Params.date_format }}
-                  {{ range $index, $month := slice "January" "February" "March" "April" "May" "June" "July" "August" "September" "October" "November" "December" }}
-                    {{ $createdAt = replace $createdAt $month (i18n $month) }}
-                  {{ end }}
-                  {{ i18n "publishedOn" }} {{ $createdAt }}
-                {{ end }}
+                {{if isset . "authors" }}
+                  {{- $comma := false }}
+                  {{- i18n "authorBy" }}
+                  {{- range $author := .authors }}{{ if $comma }}, {{ end }}{{ if $author.url }} <a href="{{ $author.url }}">{{ end }}{{ $author.name }}{{ if $author.url }}</a>{{ end }} {{ $comma = true }}{{ end }}
+                {{- else }}Posted {{ end }}
+                {{- if .date }}
+                  {{- $createdAt := (.date | time).Format site.Params.date_format }}
+                  {{- range $index, $month := slice "January" "February" "March" "April" "May" "June" "July" "August" "September" "October" "November" "December" }}
+                    {{- $createdAt = replace $createdAt $month (i18n $month) }}
+                  {{- end }}
+                  {{- i18n "publishedOn" }} {{ $createdAt }}
+                {{- end }}
               </p>
               <p class="intro">{{ .description }}</p>
               <p class="read-more">
@@ -45,7 +67,12 @@
               </p>
             </div>
           </div>
-        {{ end }}
+        {{- end }}
+          {{- if not .Params.unlimited_news_items }}
+          <center>
+            <h4><a href = "{{ relref . "news/#the-fold" }}">Click for more news...</a></h4>
+          </center>
+          {{- end }}
       </div>
     </div>
   </div>
