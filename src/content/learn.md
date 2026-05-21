@@ -62,7 +62,7 @@ keywords = ["FAQ","How do I","questions","what if"]
 
 [[coding]]
   title=""""I'd like to try Chapel without installing it.""""
-  description="""See [**this page**](../tryit.html) about using Chapel with GitHub Codespaces or Attempt This Online."""
+  description="""See [**this page**](../tryit/) about using Chapel with GitHub Codespaces or Attempt This Online."""
 
 [[coding]]
   title=""""I'd like some coding exercises to work through.""""
