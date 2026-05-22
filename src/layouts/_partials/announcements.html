@@ -8,9 +8,8 @@
           </a>
         {{- end }}
       </div>
-
-      <!-- Merge the blog posts (.rss) and the manual announcements (.announcements)-->
-      {{ $posts := hugo.Data.rss }}
+      <!-- Merge the blog posts (.blog.json) and the manual announcements (.announcements)-->
+      {{ $posts := resources.Get "json/blog.json" | transform.Unmarshal }}
       {{ range $fileName, $postData := hugo.Data.announcements }}
         {{ $posts = $posts | append $postData }}
       {{ end }}
@@ -23,6 +22,7 @@
         {{- $count := 0 }}
         {{- $frontpage := not .Params.unlimited_news_items }}
         {{- range $posts }}
+          {{- if (and .hidden_from_front_page_news $frontpage) }} {{- continue }} {{- end }}
           {{- $anchor := "" | safeHTMLAttr }}
           {{- if $frontpage }}
             {{- if (eq $count $front_page_news_items) }}
@@ -46,12 +46,12 @@
               {{- end }}
             </div>
             <div class="blog-post-text">
-              <h4><a href="{{ .url }}">{{ .title }}</a></h4>
+              <h4><a href="{{ if strings.HasPrefix .url "http" }}{{ .url }}{{ else }}{{ urls.JoinPath site.Home.RelPermalink .url }}{{ end }}">{{ .title }}</a></h4>
               <p class="author-category">
                 {{if isset . "authors" }}
                   {{- $comma := false }}
                   {{- i18n "authorBy" }}
-                  {{- range $author := .authors }}{{ if $comma }}, {{ end }}{{ if $author.url }} <a href="{{ $author.url }}">{{ end }}{{ $author.name }}{{ if $author.url }}</a>{{ end }} {{ $comma = true }}{{ end }}
+                  {{- range $author := .authors }}{{ if $comma }}, {{ end }}{{ if $author.url }} <a href="{{ urls.JoinPath site.Home.RelPermalink $author.url }}">{{ end }}{{ $author.name }}{{ if $author.url }}</a>{{ end }} {{ $comma = true }}{{ end }}
                 {{- else }}Posted {{ end }}
                 {{- if .date }}
                   {{- $createdAt := (.date | time).Format site.Params.date_format }}
@@ -63,7 +63,7 @@
               </p>
               <p class="intro">{{ .description }}</p>
               <p class="read-more">
-                <a href="{{ .url }}" class="btn btn-template-main">{{ i18n "continueReading" }}</a>
+                <a href="{{ if strings.HasPrefix .url "http" }}{{ .url }}{{ else }}{{ urls.JoinPath site.Home.RelPermalink .url }}{{ end }}" class="btn btn-template-main">{{ i18n "continueReading" }}</a>
               </p>
             </div>
           </div>
