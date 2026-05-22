@@ -22,10 +22,15 @@ Installing `hugo` on macOS:
 brew install hugo
 ```
 
-Generating the blog content information:
+Generating the blog content information: From a copy of the
+`chapel-www` repo, to:
+
 ```
-python3 util/process_rss.py
+make www
 ```
+
+This will update `assets/json/blog.json`, which will then get merged
+into the announcements (see below).
 
 To preview the website using a local server, run from the `src` directory:
 ```

@@ -31,8 +31,8 @@ linkstuff:
 	-ln -s $(WEBSITE_DIR)/tutorials/* $(PUBLIC_DIR)/tutorials/ >& /dev/null
 	-ln -s $(WEBSITE_DIR)/chapelcon/* $(PUBLIC_DIR)/chapelcon/ >& /dev/null
 
-news: $(ACTIVATE)
-	$(SETUP) && python3 ./util/process_rss.py
+news:
+	@echo "'make news' is no longer meaningful; just go straight to 'make www'"
 
 clean:
 	rm -rf $(PUBLIC_DIR)
