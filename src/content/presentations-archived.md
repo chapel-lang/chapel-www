@@ -17,6 +17,7 @@ please let us know.
 
 <!-- May 2026 -->
 
+{{<artifact-listing "nwcpp26">}}
 {{<artifact-listing "pnw-plse26-brad">}}
 {{<artifact-listing "pnw-plse26-jade">}}
 
@@ -232,6 +233,8 @@ please let us know.
 
 <!-- Jan 2022 -->
 
+{{<artifact-listing "nwcpp22">}}
+
 
 ### 2021
 
@@ -351,6 +354,8 @@ please let us know.
 
 <!-- Feb 2018 -->
 
+{{<artifact-listing "nwcpp18">}}
+
 <!-- Jan 2018 -->
 
 
@@ -393,6 +398,8 @@ please let us know.
 <!-- Nov 2016 -->
 
 <!-- Oct 2016 -->
+
+{{<artifact-listing "nwcpp16">}}
 
 <!-- Sep 2016 -->
 
@@ -471,6 +478,8 @@ please let us know.
 <!-- May 2014 -->
 
 <!-- Apr 2014 -->
+
+{{<artifact-listing "nwcpp14">}}
 
 <!-- Mar 2014 -->
 
