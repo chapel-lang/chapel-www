@@ -4,7 +4,7 @@ description = "Slides and videos from Chapel-related presentations"
 +++
 
 {{<publication-list "featured" "Featured Chapel Presentations with Video">}}
-  {{<artifact-listing "pnw-plse26-brad">}}
+  {{<artifact-listing "nwcpp26">}}
   {{<artifact-listing "lumi2025">}}
   {{<artifact-listing "HiRSE2025">}}
   {{<artifact-listing "kaust25">}}
@@ -35,7 +35,6 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "featured" "Featured Chapel Presentations">}}
-  {{<artifact-listing "nwcpp26">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
   {{<artifact-listing "hips2025-keynote">}}
