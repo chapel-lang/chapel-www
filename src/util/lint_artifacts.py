@@ -20,10 +20,9 @@ required_fields = {
     "authors",          # the author(s) of the resource
     "date",             # some information about when the resource was created
     "description",      # some information about what the resource is
-    "type",             # any types of artifact this resource contains (see valid_types)
 }
 non_link_opt_fields = {
-    "venue",            # where the resource originally appeared (required for some types)
+    "venue",            # where the resource originally appeared
     "extraLinkText",    # a name for the extra link
     "linkListTexts",    # respective text to display for each link
     "linkListLabel",    # a label for what the list of links are
@@ -42,19 +41,6 @@ link_opt_fields = {
 }
 optional_fields = non_link_opt_fields | link_opt_fields
 valid_fields = required_fields | optional_fields
-valid_types = {
-    "paper",
-    "presentation",
-    "poster",
-    "video",
-    "code",
-    "misc"
-}
-types_requiring_venue = {
-    "paper",
-    "presentation",
-    "poster",
-}
 
 
 # BEGIN SCRIPT BODY
@@ -92,15 +78,6 @@ def validate_artifact(artifact: dict) -> None:
     for field, value in artifact.items():
         if field not in valid_fields:
             raise ValueError(f"Unexpected field '{field}'")
-        if field == "type":
-            has_types_requiring_venue = set(value) & types_requiring_venue
-            if "venue" not in fields and has_types_requiring_venue:
-                raise ValueError("Missing venue field for types requiring it: " + str(has_types_requiring_venue))
-            for type_entry in value:
-                if type_entry not in valid_types:
-                    raise ValueError(f"Invalid type '{type_entry}'")
-            if repeated_types := {x for x in value if value.count(x) > 1}:
-                raise ValueError(f"Repeated types '{repeated_types}'")
         elif field == "linkList" or field == "linkListTexts":
             if not isinstance(value, list):
                 raise ValueError(f"Field '{field}' must be a list")
