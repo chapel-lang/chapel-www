@@ -15,17 +15,18 @@ This README covers the following topics:
 
 ## Building and Viewing a Local Version
 
-The website is built using `hugo`. It also uses a python script to gather the content for the "From our Blog" section. 
+The website is built using `hugo`. It also uses a `blog.json` file
+created by `make www` in the `chapel-blog` repository to help populate
+the news feed on the front page and `news/` page.
 
 Installing `hugo` on macOS: 
 ```
 brew install hugo
 ```
 
-Generating the blog content information:
-```
-python3 util/process_rss.py
-```
+News items are generated from the `chapel-blog` repo using `make www`
+from that repository.  This updates `assets/json/blog.json`, which
+will then get merged into the announcements (see below).
 
 To preview the website using a local server, run from the `src` directory:
 ```

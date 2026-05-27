@@ -4,6 +4,7 @@ description = "Slides and videos from Chapel-related presentations"
 +++
 
 {{<publication-list "featured" "Featured Chapel Presentations with Video">}}
+  {{<artifact-listing "nwcpp26">}}
   {{<artifact-listing "lumi2025">}}
   {{<artifact-listing "HiRSE2025">}}
   {{<artifact-listing "kaust25">}}
@@ -12,9 +13,11 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "lightning-talks" "Lightning Talks with Video">}}
-  {{<artifact-listing "hpsfcon2025">}}
+  {{<artifact-listing "pnw-plse26-brad">}}
+  {{<artifact-listing "pnw-plse26-jade">}}
   {{<artifact-listing "pnw-plse24">}}
   {{<artifact-listing "pnw-plse25">}}
+  {{<artifact-listing "hpsfcon2025">}}
   {{<artifact-listing "pnw-plse23">}}
   {{<artifact-listing "slac-lssda2025">}}
 {{</publication-list>}}
@@ -32,8 +35,6 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "featured" "Featured Chapel Presentations">}}
-  {{<artifact-listing "pnw-plse26-brad">}}
-  {{<artifact-listing "pnw-plse26-jade">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
   {{<artifact-listing "hips2025-keynote">}}
