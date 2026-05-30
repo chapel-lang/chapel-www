@@ -21,15 +21,16 @@
         {{- $overlapping_news_items := 1 }}
         {{- $count := 0 }}
         {{- $frontpage := not .Params.unlimited_news_items }}
+        {{- $hid_something := false }}
         {{- range $posts }}
-          {{- if (and .hidden_from_front_page_news $frontpage) }} {{- continue }} {{- end }}
+          {{- if (and .hidden_from_front_page_news $frontpage) }} {{- $hid_something = true }} {{- continue }} {{- end }}
           {{- $anchor := "" | safeHTMLAttr }}
           {{- if $frontpage }}
             {{- if (eq $count $front_page_news_items) }}
               {{- break }}
             {{- end }}
           {{- else }}
-            {{- if (eq $count (sub $front_page_news_items $overlapping_news_items)) }}
+            {{- if (and $hid_something (eq $count (sub $front_page_news_items $overlapping_news_items))) }}
               {{- $anchor = " id=\"the-fold\"" | safeHTMLAttr }}
             {{- end }}
           {{- end }}
@@ -69,8 +70,9 @@
           </div>
         {{- end }}
           {{- if not .Params.unlimited_news_items }}
+        {{- $target := (cond $hid_something "./news/" "./news/#the-fold") }}
           <center>
-            <h4><a href = "{{ relref . "news/#the-fold" }}">Click for more news...</a></h4>
+            <h4><a href = "{{ $target }}">Click for more news...</a></h4>
           </center>
           {{- end }}
       </div>
