@@ -33,5 +33,5 @@ your request.
 {.content-paragraph}
 
 Beyond the channels above, we always appreciate seeing Chapel-related content
-on other community forums such as HackerNews, Lobste.rs, etc.
+on other community forums such as other subreddits, HackerNews, Lobste.rs, etc.
 {.content-paragraph}
