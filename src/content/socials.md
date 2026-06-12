@@ -32,7 +32,6 @@ your request.
 * [**YouTube**](https://www.youtube.com/@ChapelLanguage)
 {.content-paragraph}
 
-Beyond the channels above, we always appreciate seeing Chapel-related
-content on other community forums such as Reddit, HackerNews,
-Lobste.rs, etc.
+Beyond the channels above, we always appreciate seeing Chapel-related content
+on other community forums such as HackerNews, Lobste.rs, etc.
 {.content-paragraph}
