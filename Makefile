@@ -8,7 +8,7 @@ PUBLIC_DIR = $(SRC_DIR)/public
 WEBSITE_DIR = $(CHPL_WWW)/chapel-lang.org
 
 ACTIVATE=$(SRC_DIR)/venv/bin/activate
-SETUP=. $(ACTIVATE)
+SETUP=. ./venv/bin/activate
 
 default: preview
 
