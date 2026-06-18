@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="Highlights from the June 2026 release of Chapel 2.9" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Announcing Chapel 2.9!</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>Announcing Chapel 2.9!</h2>
+<div class="post-subscript">
+<p>Posted on June 18, 2026.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/libraries/">Libraries</a>
+<a class="button" href="../../tags/tools/">Tools</a>
+<a class="button" href="../../tags/language-features/">Language Features</a>
+<a class="button" href="../../tags/mason/">Mason</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/david-longnecker">David Longnecker</a>, <a href="../../authors/daniel-fedorin">Daniel Fedorin</a>, <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/release-announcements/">Release Announcements</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents sticky">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#dynamically-loaded-parallel-libraries">Dynamically Loaded Parallel Libraries</a></li>
+<li><a href="#editor-improvements-due-to-cls">Editor Improvements due to CLS</a>
+<ul>
+<li><a href="#error-improvements">Error Improvements</a></li>
+<li><a href="#generic-instantiation-inlays">Generic Instantiation Inlays</a></li>
+<li><a href="#inferred-returnyield-types">Inferred Return/Yield Types</a></li>
+</ul>
+</li>
+<li><a href="#union-type-improvements">Union Type Improvements</a>
+<ul>
+<li><a href="#union-basics">Union Basics</a></li>
+<li><a href="#active-field-queries">Active Field Queries</a></li>
+<li><a href="#active-field-visitors">Active Field Visitors</a></li>
+<li><a href="#comparison-operators">Comparison Operators</a></li>
+</ul>
+</li>
+<li><a href="#for-more-information">For More Information</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<p>The Chapel developer community is happy to announce the release of
+Chapel 2.9!  This summer release has a particular focus on
+addressing user-requested features and bugs, as well as continuing
+our recent focus on improving Chapel tools.  As always, you can
+<a href="https://chapel-lang.org/download/">download and install</a> the new
+release in a <span class="sidenote"><label class="sidenote-label" for="sidenote-0">variety of formats</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Please note
+that some formats may not yet be available at time of
+publication.<span class="sidenote-delimiter">]</span></span></span>, including Spack, Homebrew, various
+Linux package managers, Docker, and source tarballs.</p>
+<p>This article summarizes some of Chapel 2.9’s highlights, including:</p>
+<ul>
+<li>
+<p>Initial support for <a href="#dynamically-loaded-parallel-libraries">dynamically loading Chapel
+libraries</a> that
+make use of parallelism and distributed-memory features</p>
+</li>
+<li>
+<p>Further improvements to editing Chapel code through <a href="#editor-improvements-due-to-cls">enhancements
+to the Chapel Language Server (CLS)</a></p>
+</li>
+<li>
+<p>Significant improvements to Chapel’s <a href="#union-type-improvements">union
+types</a>, in terms of capabilities
+and ease-of-use</p>
+</li>
+</ul>
+<p>Other notable highlights of Chapel 2.9 that aren’t covered in this
+article include:</p>
+<ul>
+<li>
+<p>Significant ergonomic improvements to Mason, Chapel’s package
+manager, as well as a new <a href="https://chapel-lang.org/packages/">web-based package
+browser</a>—use it to find newly
+released packages since Chapel 2.8: <code>Base64</code>, <code>Crypto</code>, <code>CVL</code>
+(Chpl Vector Library), <code>Dyno</code>, <code>Log</code>, <code>Parquet</code>, <code>Pathlib</code>,
+<code>SciChap</code>, <code>TemplateStrings</code>, and <code>TerminalColors</code></p>
+</li>
+<li>
+<p>Additional enhancements to other tools, such as the
+<a href="https://chapel-lang.org/docs/2.9/tools/chplcheck/chplcheck.html"><code>chplcheck</code></a>
+linter,
+<a href="https://chapel-lang.org/docs/2.9/tools/chpldoc/chpldoc.html"><code>chpldoc</code></a>
+documentation generator,
+<a href="https://chapel-lang.org/docs/2.9/tools/chapel-py/chapel-py.html"><code>chapel-py</code></a>
+compiler library, and
+<a href="https://chapel-lang.org/docs/2.9/tools/c2chapel/c2chapel.html"><code>c2chapel</code></a>
+tool for interoperating with C</p>
+</li>
+<li>
+<p>A parallel implementation of
+<a href="https://chapel-lang.org/docs/2.9/language/spec/data-parallelism.html#scan-expressions"><code>scan</code></a>
+expressions for array-like expressions such as<br/> <code>myArray: int</code>,
+<code>sin(myArray)</code>, or <code>[i in 1..n] i</code></p>
+</li>
+<li>
+<p>Support for LLVM 22 as the default compiler back-end, LLDB 22 for
+debugging, and CUDA 13 for NVIDIA GPUs</p>
+</li>
+<li>
+<p>Newly released Red Hat Enterprise Linux (RHEL) RPMs <a href="https://chapel-lang.org/download/#hpe">on HPE Cray
+EX systems</a></p>
+</li>
+<li>
+<p>The resolution of 26 user issues, including all 11 that were
+opened since Chapel 2.8</p>
+</li>
+</ul>
+<p>For a far more complete list of improvements in Chapel 2.9, see the
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.9/CHANGES.md">CHANGES.md</a>
+file.  And a big thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/2.9/CONTRIBUTORS.md">everyone who
+contributed</a>
+to Chapel 2.9!</p>
+<h3 id="dynamically-loaded-parallel-libraries">
+<a href="#dynamically-loaded-parallel-libraries">Dynamically Loaded Parallel Libraries</a>
+</h3>
+<p>Chapel 2.5 and 2.6 <a href="https://chapel-lang.org/blog/posts/announcing-chapel-2.6/#dynamic-loading-support">introduced a new <code>DynamicLoading</code>
+module</a>
+that supports loading and calling into dynamic libraries from
+Chapel.  Up until now, this feature could only handle libraries that
+were written in C or that were sufficiently C-like.  Notably,
+dynamically loaded Chapel libraries were not able to use the
+language’s features for parallelism or distributed memory
+programming.</p>
+<p>Chapel 2.9 removes this limitation by adding prototypical support
+for dynamically loading Chapel libraries that use parallelism and/or
+multiple locales.  This capability is enabled in part by a new
+compiler flag, <code>--no-builtin-runtime</code>.  It permits distinct binaries
+to share a single, dynamically loaded copy of the Chapel runtime,
+which implements communication, parallelism, and memory management
+for Chapel programs.  Previously, each Chapel binary would bundle
+its own copy of the runtime, which led to resource contention and a
+lack of coordination between programs.</p>
+<p>As a simple example, the following Chapel program exports a
+procedure named <code>test1</code> that uses a task-parallel <code>coforall</code> loop
+with an <code>on</code>-clause to spin up a task per locale:</p>
+<div class="file" data-code-path="code/Library.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="Library.chpl" href="code/Library.chpl">Library.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">export</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">test1</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">coforall</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">Locales</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="nx">loc</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">here</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"Hello from locale "</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>By compiling the program with the following command-line, we
+instruct the <code>chpl</code> compiler to create a dynamic library from it:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl Library.chpl --library --dynamic --no-builtin-runtime
+</span></span></code></pre></div><details>
+<summary><strong>(Trying this at home?  Be sure to read this first.</strong>)</summary>
+<div style="padding-left: 2vw; padding-right: 2vw; padding-bottom: 2ch;">
+        At present, distributed Chapel libraries like the one demonstrated
+here aren’t supported for <code>CHPL_COMM=ofi</code>, only <code>gasnet</code> and
+<code>none</code>.  This feature also requires the runtime to be built using
+position-independent code (PIC), so be sure you’ve built your
+runtime with <code>CHPL_LIB_PIC=pic</code> set, and to also use it when
+compiling your programs (or, equivalently, use <code>--lib-pic=pic</code>).
+Examples like the one shown here won’t work correctly otherwise.
+    </div>
+</details>
+<p>Having created the library, we can then write a separate program
+that loads it and calls <code>test1</code>:</p>
+<div class="file" data-code-path="code/Executable.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="Executable.chpl" href="code/Executable.chpl">Executable.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">DynamicLoading</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// specify the dynamic library's name and load it:
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">libName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"./lib/libLibrary."</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">chapelLibraryExtension</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">lib</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">binary</span><span class="p">.</span><span class="nx">load</span><span class="p">(</span><span class="nx">libName</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// capture the type signature of the procedure we want to call
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">type</span><span class="w"> </span><span class="nx">testType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">proc</span><span class="p">():</span><span class="w"> </span><span class="kt">void</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// load a procedure named "test1" with the specified signature...
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">testProc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">try</span><span class="o">!</span><span class="w"> </span><span class="nx">lib</span><span class="p">.</span><span class="nx">retrieve</span><span class="p">(</span><span class="s">"test1"</span><span class="p">,</span><span class="w"> </span><span class="nx">testType</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// ...and call it
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">testProc</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Based on the platform, compute the appropriate file extension to use.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// (e.g., '.dylib' or '.so')
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="k">inline</span><span class="w"> </span><span class="k">proc</span><span class="w"> </span><span class="nf">chapelLibraryExtension</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">ChplConfig</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">CHPL_TARGET_PLATFORM</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">'darwin'</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="s">'dylib'</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s">'so'</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>We then compile the program, once again saying not to bundle the runtime:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="gp">$</span> chpl Executable.chpl --no-builtin-runtime
+</span></span></code></pre></div><p>When executed on multiple locales (e.g., <code>-nl 4</code>), the main
+program starts by loading a shared copy of the runtime when
+execution begins.  Next, it loads the user’s dynamic library, which
+will share the same copy of the runtime.  It then retrieves the
+<code>test1</code> procedure from the library and calls into it, causing our
+greeting message to be printed once per locale, in an arbitrary
+order due to the parallelism:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">Hello from locale 1
+</span></span></span><span class="line"><span class="cl"><span class="go">Hello from locale 0
+</span></span></span><span class="line"><span class="cl"><span class="go">Hello from locale 3
+</span></span></span><span class="line"><span class="cl"><span class="go">Hello from locale 2
+</span></span></span></code></pre></div><p>This feature is still in its early days, so you may encounter bugs
+that break the loaded program or prevent you from running it.  If
+you do, please file any bugs you encounter as <a href="https://github.com/chapel-lang/chapel/issues/new/choose">issues on the Chapel
+GitHub
+repo</a>.  In
+the meantime, we will be working to address known limitations,
+harden the implementation, and eventually port it to support OFI
+communication.</p>
+<h3 id="editor-improvements-due-to-cls">
+<a href="#editor-improvements-due-to-cls">Editor Improvements due to CLS</a>
+</h3>
+<p><a href="../../posts/announcing-chapel-2.0/#rich-tooling-support">Since our 2.0 release</a>, Chapel has
+provided two key tools that enable users to write code more
+productively: the <a href="https://chapel-lang.org/docs/2.9/tools/chpl-language-server/chpl-language-server.html">Chapel Language Server
+(CLS)</a>
+and the <a href="https://chapel-lang.org/docs/2.9/tools/chplcheck/chplcheck.html"><code>chplcheck</code></a> linter.
+This 2.9 release includes several improvements to both these
+tools, where we’ll focus on CLS here.
+As in Chapel 2.8, the biggest improvements to the language server
+have been made in the experimental <a href="https://chapel-lang.org/docs/2.9/tools/chpl-language-server/chpl-language-server.html#experimental-resolver-features">resolution-based
+features</a>.</p>
+<h4 id="error-improvements">
+<a href="#error-improvements">Error Improvements</a>
+</h4>
+<p>The first case we’ll cover improves the quality of compiler errors
+within the editor.  This is the result of exposing more information
+about errors to the language server, permitting it to better
+interpret several common error messages and display them to the user
+in a more helpful way. For example, consider the following file, in
+which the user has made several mistakes, as noted in the comments:</p>
+<div class="file" data-code-path="code/bad-calls.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="bad-calls.chpl" href="code/bad-calls.chpl">bad-calls.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="w"> </span><span class="k">except</span><span class="w"> </span><span class="nx">ioMode</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nx">iomode</span><span class="p">;</span><span class="w">                   </span><span class="c1">// can't rename 'except's
+</span></span></span><span class="line"><span class="cl"><span class="k">import</span><span class="w"> </span><span class="nx">IO</span><span class="p">.</span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">z</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nx">foo</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">                                   </span><span class="c1">// can't pass '1.0' to 'y: int'
+</span></span></span><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">tup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nx">foo</span><span class="w"> </span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="o">..</span><span class="p">.</span><span class="nx">tup</span><span class="p">));</span><span class="w">                               </span><span class="c1">// can't pass a de-tuple to 'x'
+</span></span></span><span class="line"><span class="cl"><span class="kd">var</span><span class="w"> </span><span class="nx">nontup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nx">foo</span><span class="p">((</span><span class="o">..</span><span class="p">.</span><span class="nx">nontup</span><span class="p">));</span><span class="w">                                 </span><span class="c1">// can't de-tuple a non-tuple
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<p>Prior to Chapel 2.9, the editor would highlight the entire
+problematic context for such errors, often spanning the complete line:</p>
+<figure><img alt="Error message before; entire lines of code are highlighted" src="../../posts/announcing-chapel-2.9/error-info-before.png"/>
+</figure>
+<p>Now, the error is highlighted much more precisely.  In the <code>use</code>
+statement, the problematic fragment that attempted to rename an
+identifier in an <code>except</code> clause is specifically highlighted.
+Similarly, the editor highlights the specific arguments that caused
+the resolution failures for the calls to <code>foo()</code>.</p>
+<figure><img alt="Error message before; highlighted info is more precise" src="../../posts/announcing-chapel-2.9/error-info-after.png"/>
+</figure>
+<p>Having pinpointed the source of the error, users can then use their
+editors’ standard features for viewing the error messages (e.g.,
+hovering over the error) to see additional information about the
+cause of the errors.  In addition to the highlighting improvements
+described here, many error messages have also improved in clarity
+and detail since Chapel 2.8.</p>
+<h4 id="generic-instantiation-inlays">
+<a href="#generic-instantiation-inlays">Generic Instantiation Inlays</a>
+</h4>
+<p>In Chapel 2.9, the rendering of generic procedures has also been
+improved in CLS.  For example, it can now display generic
+instantiations collected across the multiple files that make up a
+project.  In the following program, the generic procedure <code>foo()</code>
+defined in module <code>A</code> displays instantiations stemming from calls
+made in a separate file and module, <code>B</code>:</p>
+<p>
+<div class="file" data-code-path="code/A.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="A.chpl" href="code/A.chpl">A.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">module</span><span class="w"> </span><span class="nc">A</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">record</span><span class="w"> </span><span class="nc">R</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kd">type</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">(</span><span class="kd">type</span><span class="w"> </span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="kd">param</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">lhs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">rhs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">lhs</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">rhs</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<div class="file" data-code-path="code/B.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="B.chpl" href="code/B.chpl">B.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">module</span><span class="w"> </span><span class="nc">B</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">A</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">foo</span><span class="p">(</span><span class="nx">R</span><span class="p">(</span><span class="kt">real</span><span class="p">),</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">foo</span><span class="p">(</span><span class="nx">R</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">foo</span><span class="p">(</span><span class="nx">R</span><span class="p">(?));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">foo</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">p</span><span class="o">=</span><span class="mi">3</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+</p>
+<figure class="fullwide"><img alt="Instantiations (on the left) shown from calls in a different module (on the right)" src="../../posts/announcing-chapel-2.9/across-files.png"/>
+</figure>
+<p>In addition, CLS now displays inlays for declarations within generic
+procedures whose types are independent of the instantiating context.
+For example, in <code>foo()</code> above, note that even in this generic view,
+<code>lhs</code> and <code>rhs</code> are annotated as having type <code>bool</code> since they will
+have those types regardless of the type <code>t</code> and value <code>p</code> that the
+procedure is instantiated with.  Note that the return type is
+similarly inferred, which leads to our final CLS highlight:</p>
+<h4 id="inferred-returnyield-types">
+<a href="#inferred-returnyield-types">Inferred Return/Yield Types</a>
+</h4>
+<p>Another long-awaited editor improvement is the ability to infer and
+display return types for procedures (as well as yield types for
+iterators). In the following program, CLS is shown inferring the
+return type of a concrete procedure (<code>foo</code>), the <span class="sidenote"><label class="sidenote-label" for="sidenote-1">instantiation-independent return type</label><input class="sidenote-checkbox" id="sidenote-1" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>The previous section’s
+example demonstrated this as well, by inferring that <code>foo()</code> returns
+a <code>bool</code> regardless of arguments <code>t</code> and <code>p</code>).<span class="sidenote-delimiter">]</span></span></span> of a
+generic procedure (<code>bar</code>), and an instantiation-specific return type
+for a second generic procedure (<code>baz</code>):</p>
+<div class="file" data-code-path="code/return.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="return.chpl" href="code/return.chpl">return.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">bar</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nx">bar</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"42"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nx">bar</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">42.0</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">baz</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nx">baz</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"lol"</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<figure><img src="../../posts/announcing-chapel-2.9/return-type-inlays.png"/>
+</figure>
+<p>That wraps up some highlights for CLS in Chapel 2.9, but see the
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.9/CHANGES.md#chpl-language-server-cls--vscode--editor-improvements">CHANGES.md</a>
+file for additional improvements.</p>
+<h3 id="union-type-improvements">
+<a href="#union-type-improvements">Union Type Improvements</a>
+</h3>
+<p>Though Chapel has long supported union types, they have
+unfortunately been stuck in a half-baked state for years.  Motivated
+by a recent user request, they took a big leap forward in
+Chapel 2.9.</p>
+<h4 id="union-basics">
+<a href="#union-basics">Union Basics</a>
+</h4>
+<p>To introduce some of the new features added in this release, let’s
+start with a review of the basics.  The following union declaration
+in Chapel declares a type with three fields, <code>x</code>, <code>y</code>, and <code>z</code>,
+where the former two are integers and the third is a <code>real</code> floating
+point value.</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="1"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">union</span><span class="w"> </span><span class="nc">u</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">z</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>At any given time, only one of these fields can be actively storing
+a value.  This is known as the union’s <em>active field</em>, and Chapel
+ensures that when a value is stored in a given field, only that
+field may be read until some other field is written and becomes the
+new active field.  For example, if we store into <code>y</code>, we can read
+from <code>y</code>, but not from <code>x</code> or <code>z</code>:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="7"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">config</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">testErrors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">myU</span><span class="p">,</span><span class="w"> </span><span class="nx">myU2</span><span class="p">:</span><span class="w"> </span><span class="nx">u</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">myU</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">45</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="p">.</span><span class="nx">y</span><span class="p">);</span><span class="w">    </span><span class="c1">// prints '45'
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">testErrors</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="p">.</span><span class="nx">x</span><span class="p">);</span><span class="w">  </span><span class="c1">// error: halt reached - illegal union access: attempted
+</span></span></span><span class="line"><span class="cl"><span class="w">                     </span><span class="c1">// to access field 'x' but 'y' is currently active
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="p">.</span><span class="nx">z</span><span class="p">);</span><span class="w">  </span><span class="c1">// error: halt reached - illegal union access: attempted
+</span></span></span><span class="line"><span class="cl"><span class="w">                     </span><span class="c1">// to access field 'z' but 'y' is currently active
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Similarly, if the union is written out, the active field is
+displayed.  For example,</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="19"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"myU is: "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>produces:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">myU is: (y = 45)
+</span></span></span></code></pre></div><p>And that’s about where Chapel’s support for unions has stood for
+many years.  It was a classic chicken-and-egg problem in which
+Chapel users weren’t using unions because they weren’t very capable,
+and we had trouble prioritizing them because nobody <span class="sidenote"><label class="sidenote-label" for="sidenote-2">was using them</label><input class="sidenote-checkbox" id="sidenote-2" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>In addition, we were probably
+letting the quest for the perfect design be the enemy of one that
+might have been good enough.<span class="sidenote-delimiter">]</span></span></span></p>
+<h4 id="active-field-queries">
+<a href="#active-field-queries">Active Field Queries</a>
+</h4>
+<p>In Chapel 2.9, we broke this vicious cycle, where a key element was
+introducing the ability to query which field is active in a given
+union, using 0-based numbering of its fields.  For example, if we
+were to write:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="21"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"The active field is #"</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">.</span><span class="nx">getActiveIndex</span><span class="p">());</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>we’d see:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">The active field is #1
+</span></span></span></code></pre></div><p>From there, safe code can be written to choose between the active
+fields.  For example, consider the following conditional:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="23"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">fieldIdx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">myU</span><span class="p">.</span><span class="nx">getActiveIndex</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w">  </span><span class="nx">fieldIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"x is active: "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">.</span><span class="nx">x</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">fieldIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"y is active: "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">.</span><span class="nx">y</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">fieldIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"z is active: "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">.</span><span class="nx">z</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">else</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">halt</span><span class="p">(</span><span class="s">"got an unexpected index"</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Chapel 2.9 also introduces a stylized way of performing a <code>select</code>
+directly on a <code>union</code> expression to determine its active field.  You
+can read about this feature in the <a href="https://chapel-lang.org/docs/2.9/language/spec/unions.html#union-pattern-matching">language
+specification</a>,
+but please note that the current syntax is subject to change and an
+active area of discussion at the time of this release.</p>
+<h4 id="active-field-visitors">
+<a href="#active-field-visitors">Active Field Visitors</a>
+</h4>
+<p>Another way of identifying active fields is to use a visitor pattern
+in which a procedure is supplied for each field, taking that field’s
+name and type as its argument,  For example, the following call:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="33"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">myU</span><span class="p">.</span><span class="nx">visit</span><span class="p">(</span><span class="nx">proc</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"x is "</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w"> </span><span class="p">},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">proc</span><span class="p">(</span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"y is "</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">);</span><span class="w"> </span><span class="p">},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">proc</span><span class="p">(</span><span class="nx">z</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"z is "</span><span class="p">,</span><span class="w"> </span><span class="nx">z</span><span class="p">);</span><span class="w"> </span><span class="p">});</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>results in:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go"> y is 45
+</span></span></span></code></pre></div><p>Note that while anonymous procedures are used above, traditional
+declared procedures can be used as well.  For example:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="37"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">myU</span><span class="p">.</span><span class="nx">visit</span><span class="p">(</span><span class="nx">foo</span><span class="p">,</span><span class="w"> </span><span class="nx">bar</span><span class="p">,</span><span class="w"> </span><span class="nx">baz</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">foo</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"In foo, x is: "</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">bar</span><span class="p">(</span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"In bar, y is: "</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">baz</span><span class="p">(</span><span class="nx">z</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"In baz, z is: "</span><span class="p">,</span><span class="w"> </span><span class="nx">z</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>would generate:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">In bar, y is: 45
+</span></span></span></code></pre></div><h4 id="comparison-operators">
+<a href="#comparison-operators">Comparison Operators</a>
+</h4>
+<p>Chapel also now provides default comparison operators between
+unions of the same type.  Two unions are considered to be equal if
+they both have the same active field and the values stored in those
+fields are equal.  As an example:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="43"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">myU2</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">78</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">myU2</span><span class="p">);</span><span class="w">  </span><span class="c1">// false, since the active fields aren't equal
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">myU2</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">45</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">myU2</span><span class="p">);</span><span class="w">  </span><span class="c1">// true, since the same fields are active and equal
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">myU2</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">45</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">myU2</span><span class="p">);</span><span class="w">  </span><span class="c1">// false, since different fields are active
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">myU</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">myU2</span><span class="p">);</span><span class="w">  </span><span class="c1">// true, since different fields are active
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>As with default comparison operators on records, these defaults can
+be overridden by a user.  For example, the following overloads
+consider two of our union values to be equal if <code>x</code> is active in
+one, <code>y</code> is active in the other, and their values match:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.9.chpl" data-code-section="middle" data-code-type="main" data-start-line="51"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="c1">// open a new scope to limit these overloads to the code within
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">operator</span><span class="w"> </span><span class="nf">u.</span><span class="o">==</span><span class="p">(</span><span class="nx">a</span><span class="p">:</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="nx">u</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">aIdx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">a</span><span class="p">.</span><span class="nx">getActiveIndex</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">bIdx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">getActiveIndex</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="nx">aIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">bIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">y</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nx">aIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">bIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">x</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">operator</span><span class="w"> </span><span class="nf">u.</span><span class="o">!=</span><span class="p">(</span><span class="nx">a</span><span class="p">:</span><span class="w"> </span><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">:</span><span class="w"> </span><span class="nx">u</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="o">!</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">b</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"Using my overload, "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">,</span><span class="w"> </span><span class="s">" == "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU2</span><span class="p">,</span><span class="w"> </span><span class="s">" =&gt; "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">myU2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"Using my overload, "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="p">,</span><span class="w"> </span><span class="s">" != "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU2</span><span class="p">,</span><span class="w"> </span><span class="s">" =&gt; "</span><span class="p">,</span><span class="w"> </span><span class="nx">myU</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">myU2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Since our records meet the custom definition of equality, running
+this example generates:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">Using my overload, (y = 45) == (x = 45) =&gt; true
+</span></span></span><span class="line"><span class="cl"><span class="go">Using my overload, (y = 45) != (x = 45) =&gt; false
+</span></span></span></code></pre></div><p>To read more about unions in Chapel, please see their <a href="https://chapel-lang.org/docs/2.9/language/spec/unions.html">chapter in
+the language
+specification</a>,
+and be sure to share your feedback with us!</p>
+<h3 id="for-more-information">
+<a href="#for-more-information">For More Information</a>
+</h3>
+<p>If you have questions about Chapel 2.9 or any of its new features,
+please reach out on Chapel’s <a href="https://join.slack.com/t/chapelnetwork/shared_invite/zt-3p459bjlh-0TQRloaBPqkZUe_dWz~C~Q">Slack
+workspace</a>,
+<a href="https://discord.gg/xu2xg45yqH">Discord channel</a>, <a href="https://chapel.discourse.group/">Discourse
+group</a>, or one of our other
+<a href="https://chapel-lang.org/forums/">community forums</a>.  We’re always
+interested in hearing more about how we can make the Chapel
+language, libraries, implementation, and tools more useful to you.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.9%21%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.9%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Announcing+Chapel+2.9%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.9%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.9%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.9%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=Announcing+Chapel+2.9%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.9%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.9%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.9%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/announcing-chapel-2.8/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Announcing Chapel 2.8!
+
+
+                    </span>
+</span>
+</a>
+</div>
+</nav>
+</body>
+</html>
