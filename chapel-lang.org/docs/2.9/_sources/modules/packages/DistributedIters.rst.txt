@@ -1,0 +1,143 @@
+.. default-domain:: chpl
+
+.. module:: DistributedIters
+   :synopsis: Support for dynamic iterators distributed across multiple locales.
+
+DistributedIters
+================
+**Usage**
+
+.. code-block:: chapel
+
+   use DistributedIters;
+
+
+or
+
+.. code-block:: chapel
+
+   import DistributedIters;
+
+Support for dynamic iterators distributed across multiple locales.
+
+This module contains iterators that can be used to distribute a `forall`
+loop for a range or domain by dynamically splitting iterations between
+locales.
+
+..
+  Part of a 2017 Cray summer intern project by Sean I. Geronimo Anderson
+  (github.com/s-geronimoanderson) as mentored by Ben Harshbarger
+  (github.com/benharsh).
+
+.. data:: config param debugDistributedIters: bool = false
+
+   
+   Toggle debugging output.
+
+.. data:: config param timeDistributedIters: bool = false
+
+   
+   Toggle per-locale performance timing and output.
+
+.. data:: config const infoDistributedIters: bool = false
+
+   
+   Toggle invocation information output.
+
+.. iterfunction:: iter distributedDynamic(c, chunkSize: int = 1, numTasks: int = 0, parDim: int = 0, localeChunkSize: int = 0, coordinated: bool = false, workerLocales = Locales)
+
+   
+   :arg c: The range (or domain) to iterate over. The range (domain) size must
+     be positive.
+   :type c: `range(?)` or `domain`
+   
+   :arg chunkSize: The chunk size to yield to each task. Must be positive.
+     Defaults to 1.
+   :type chunkSize: `int`
+   
+   :arg numTasks: The number of tasks to use. Must be nonnegative. If this
+     argument has value 0, the iterator will use the value indicated by
+     ``dataParTasksPerLocale``.
+   :type numTasks: int
+   
+   :arg parDim: If ``c`` is a domain, then this specifies the dimension index
+     to parallelize across. Must be non-negative and less than the rank of
+     the domain ``c``. Defaults to 0.
+   :type parDim: int
+   
+   :arg localeChunkSize: Chunk size to yield to each locale. Must be
+     nonnegative. If this argument has value 0, the iterator will use
+     an undefined heuristic in an attempt to choose a value that will
+     perform well.
+   :type localeChunkSize: `int`
+   
+   :arg coordinated: If true (and multi-locale), then have the locale invoking
+     the iterator coordinate task distribution only; that is, disallow it from
+     receiving work.
+   :type coordinated: bool
+   
+   :arg workerLocales: An array of locales over which to distribute the work.
+     Defaults to ``Locales`` (all available locales).
+   :type workerLocales: [] locale
+   
+   :yields: Indices in the range ``c``.
+   
+   This iterator is equivalent to a distributed version of the dynamic policy of
+   OpenMP.
+   
+   Given an input range (or domain) ``c``, each locale (except the calling
+   locale, if coordinated is true) receives chunks of size ``localeChunkSize``
+   from ``c`` (or the remaining iterations if there are fewer than
+   ``localeChunkSize``). Each locale then distributes sub-chunks of size
+   ``chunkSize`` as tasks, using the ``dynamic`` iterator from the
+   ``DynamicIters`` module.
+   
+   Available for serial and zippered contexts.
+
+.. iterfunction:: iter distributedGuided(c, numTasks: int = 0, parDim: int = 0, minChunkSize: int = 1, coordinated: bool = false, workerLocales = Locales)
+
+   
+   :arg c: The range (or domain) to iterate over. The range (domain) size must
+     be positive.
+   :type c: `range(?)` or `domain`
+   
+   :arg numTasks: The number of tasks to use. Must be nonnegative. If this
+     argument has value 0, the iterator will use the value indicated by
+     ``dataParTasksPerLocale``.
+   :type numTasks: int
+   
+   :arg parDim: If ``c`` is a domain, then this specifies the dimension index
+     to parallelize across. Must be non-negative and less than the rank of
+     the domain ``c``. Defaults to 0.
+   :type parDim: int
+   
+   :arg minChunkSize: The smallest allowable chunk size. Must be positive.
+     Defaults to 1.
+   :type minChunkSize: int
+   
+   :arg coordinated: If true (and multi-locale), then have the locale invoking
+     the iterator coordinate task distribution only; that is, disallow it from
+     receiving work.
+   :type coordinated: bool
+   
+   :arg workerLocales: An array of locales over which to distribute the work.
+     Defaults to ``Locales`` (all available locales).
+   :type workerLocales: [] locale
+   
+   :yields: Indices in the range ``c``.
+   
+   This iterator is equivalent to a distributed version of the guided policy of
+   OpenMP.
+   
+   Given an input range (or domain) ``c``, each locale (except the calling
+   locale, if coordinated is true) receives chunks of approximately
+   exponentially decreasing size, until the remaining iterations reaches a
+   minimum value, ``minChunkSize``, or there are no remaining iterations in
+   ``c``. The chunk size is the number of unassigned iterations divided by the
+   number of locales. Each locale then distributes sub-chunks as tasks, where
+   each sub-chunk size is the number of unassigned local iterations divided by
+   the number of tasks, ``numTasks``, and decreases approximately exponentially
+   to 1. The splitting strategy is therefore adaptive.
+   
+   Available for serial and zippered contexts.
+

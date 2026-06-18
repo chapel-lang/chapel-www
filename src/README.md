@@ -1,7 +1,6 @@
 # Hugo source code for the new Chapel website
 
 This README covers the following topics:
-- Building a local version of the website
 - Using the custom shortcodes that generate the various grids and carousels throughout the website
 - Updating the homepage content, including the
   - Code examples
@@ -12,36 +11,6 @@ This README covers the following topics:
 - Updating the attribute pages
 - Adding new elements to the resources page
 
-
-## Building and Viewing a Local Version
-
-The website is built using `hugo`. It also uses a `blog.json` file
-created by `make www` in the `chapel-blog` repository to help populate
-the news feed on the front page and `news/` page.
-
-Installing `hugo` on macOS: 
-```
-brew install hugo
-```
-
-News items are generated from the `chapel-blog` repo using `make www`
-from that repository.  This updates `assets/json/blog.json`, which
-will then get merged into the announcements (see below).
-
-To preview the website using a local server, run from the `src` directory:
-```
-make preview
-```
-
-then navigate to https://localhost:1313/ (or whatever hugo says at the
-end of its log) to view the local version.
-
-To build the website's html and overlay it on the static website content
-at ../chapel-lang.org/, use:
-
-```
-make www
-```
 
 ## Homepage Content
 
