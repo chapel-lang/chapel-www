@@ -1,0 +1,49 @@
+name: lint workflows
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+    contents: read
+
+defaults:
+  run:
+    shell: bash -exuo pipefail {0}
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-slim
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: .github
+        persist-credentials: false
+    - name: Download actionlint
+      id: get_actionlint
+      run: |
+        wget https://raw.githubusercontent.com/rhysd/actionlint/main/.github/actionlint-matcher.json
+        echo "::add-matcher::./actionlint-matcher.json"
+        bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+      shell: bash
+    - name: Check workflow files
+      run: |
+        ${STEPS_GET_ACTIONLINT_OUTPUTS_EXECUTABLE} -color
+      shell: bash
+      env:
+        STEPS_GET_ACTIONLINT_OUTPUTS_EXECUTABLE: ${{ steps.get_actionlint.outputs.executable }}
+
+  zizmor:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: .github
+        persist-credentials: false
+    - name: Run zizmor
+      uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0
+      with:
+        advanced-security: false
+        inputs: |
+          .github/workflows
