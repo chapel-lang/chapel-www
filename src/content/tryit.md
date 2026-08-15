@@ -10,7 +10,7 @@ description = "How to try Chapel without installing it"
 [[options]]
   name="GitHub Codespace"
   description="Write, compile, and run Chapel programs in a hosted VSCode-based GitHub codespace, with full access to syntax highlighting, editor tools, etc.<br><br>**Note:** May take some time to load"
-  url="https://codespaces.new/chapel-lang/chapel-hello-world"
+  url="https://codespaces.new/chapel-lang/chapel-codespaces"
 
 [[options]]
   name="Download Chapel"
