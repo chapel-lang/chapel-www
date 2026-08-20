@@ -26,6 +26,8 @@ us know.
 
 <!-- Aug 2026 -->
 
+{{<artifact-listing "csur2026">}}
+
 <!-- Jul 2026 -->
 
 <!-- Jun 2026 -->
@@ -625,7 +627,7 @@ us know.
 
 <!-- Aug 2007 -->
 
-{{<artifact-listing "hpca07">}}
+{{<artifact-listing "ijhpca07">}}
 
 <!-- Jul 2007 -->
 
