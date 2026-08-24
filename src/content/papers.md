@@ -5,7 +5,14 @@ description = "Papers and publications related to the Chapel language"
     primaryArtifactType = "paper"
 +++
 
+{{<publication-list "recent" "Recent Papers">}}
+  {{<artifact-listing "riscv2026">}}
+  {{<artifact-listing "csur2026">}}
+  {{<artifact-listing "cug2026">}}
+{{</publication-list>}}
+
 {{<publication-list "benchmark" "Benchmarking and Language Comparisons">}}
+  {{<artifact-listing "riscv2026">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
   {{<artifact-listing "hcw2024">}}
@@ -49,7 +56,7 @@ description = "Papers and publications related to the Chapel language"
   {{<artifact-listing "pmfpc15">}}
   {{<artifact-listing "cug18">}}
   {{<artifact-listing "cug13">}}
-  {{<artifact-listing "hpca07">}}
+  {{<artifact-listing "ijhpca07">}}
   {{<artifact-listing "hips04">}}
 {{</publication-list>}}
 
