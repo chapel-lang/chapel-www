@@ -1,5 +1,5 @@
 +++
-title = "Resources"
+title = "Talks & Papers"
 description = "Highlighted Chapel papers and presentations with links to more complete lists"
 keywords = ["TODO"]
 +++
