@@ -35,9 +35,9 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "featured" "Featured Chapel Presentations">}}
+  {{<artifact-listing "vatech2026">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
-  {{<artifact-listing "hips2025-keynote">}}
   {{<artifact-listing "radboud2025">}}
   {{<artifact-listing "hpsf-perf2025">}}
   {{<artifact-listing "lanl2025">}}
@@ -116,6 +116,7 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "design" "Chapel Design, Philosophy, and Editorials">}}
+  {{<artifact-listing "hips2025-keynote">}}
   {{<artifact-listing "doe-psrf22">}}
   {{<artifact-listing "dagstuhl17">}}
   {{<artifact-listing "embrace17">}}
