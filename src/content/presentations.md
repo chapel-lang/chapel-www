@@ -8,6 +8,7 @@ description = "Slides and videos from Chapel-related presentations"
   {{<artifact-listing "lumi2025">}}
   {{<artifact-listing "HiRSE2025">}}
   {{<artifact-listing "kaust25">}}
+  {{<artifact-listing "sathre-keynote-chapelcon24">}}
   {{<artifact-listing "hpeDevMeetup23">}}
   {{<artifact-listing "jhu-apl">}}
 {{</publication-list>}}
@@ -16,10 +17,10 @@ description = "Slides and videos from Chapel-related presentations"
   {{<artifact-listing "pnw-plse26-brad">}}
   {{<artifact-listing "pnw-plse26-jade">}}
   {{<artifact-listing "pnw-plse24">}}
+  {{<artifact-listing "slac-lssda2025">}}
   {{<artifact-listing "pnw-plse25">}}
   {{<artifact-listing "hpsfcon2025">}}
   {{<artifact-listing "pnw-plse23">}}
-  {{<artifact-listing "slac-lssda2025">}}
 {{</publication-list>}}
 
 {{<publication-list "hpsfcon2026" "HPSFCon 2026 Chapel Talks">}}
@@ -35,11 +36,9 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "featured" "Featured Chapel Presentations">}}
-  {{<artifact-listing "vatech2026">}}
+  {{<artifact-listing "nvidia2026">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
-  {{<artifact-listing "radboud2025">}}
-  {{<artifact-listing "hpsf-perf2025">}}
   {{<artifact-listing "lanl2025">}}
   {{<artifact-listing "innerSourcing2">}}
 {{</publication-list>}}
@@ -62,11 +61,9 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "recent" "Other Recent Chapel Presentations">}}
+  {{<artifact-listing "vatech2026">}}
   {{<artifact-listing "uw-ssec26">}}
   {{<artifact-listing "fosdem26">}}
-  {{<artifact-listing "seagl2025">}}
-  {{<artifact-listing "galois2025">}}
-  {{<artifact-listing "runtime-overview">}}
   {{<artifact-listing "hpsfapp">}}
 {{</publication-list>}}
 
@@ -108,6 +105,8 @@ description = "Slides and videos from Chapel-related presentations"
 {{</publication-list>}}
 
 {{<publication-list "implementation" "Implementing and Optimizing Chapel">}}
+  {{<artifact-listing "hpsf-perf2025">}}
+  {{<artifact-listing "runtime-overview">}}
   {{<artifact-listing "pact20">}}
   {{<artifact-listing "openSHMEM21">}}
   {{<artifact-listing "amte22">}}

@@ -23,6 +23,7 @@ please let us know.
 
 <!-- Sep 2026 -->
 
+{{<artifact-listing "nvidia2026">}}
 {{<artifact-listing "vatech2026">}}
 
 <!-- Aug 2026 -->
