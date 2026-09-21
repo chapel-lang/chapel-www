@@ -1,0 +1,711 @@
+.. default-domain:: chpl
+
+.. module:: Time
+   :synopsis: Support for routines related to measuring the passing of time.
+
+Time
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use Time;
+
+
+or
+
+.. code-block:: chapel
+
+   import Time;
+
+Support for routines related to measuring the passing of time.
+
+This module provides support for querying local wall time or UTC time,
+and structures for manipulating dates and times. Note that timezone-naive
+local and UTC time querying methods will produce different results if the
+local time is not UTC, including potentially different calendar dates.
+
+It also implements a record :record:`~stopwatch` that can measure the
+execution time of sections of a program. The stopwatch has the potential for
+microsecond resolution and is intended to be useful for performance testing.
+
+
+.. enum:: enum dayOfWeek { Monday = 1, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday }
+
+   
+   Days in the week, starting with Monday.
+   Monday is represented as 1.
+   
+
+   .. enumconstant:: enum constant Monday = 1
+
+   .. enumconstant:: enum constant Tuesday
+
+   .. enumconstant:: enum constant Wednesday
+
+   .. enumconstant:: enum constant Thursday
+
+   .. enumconstant:: enum constant Friday
+
+   .. enumconstant:: enum constant Saturday
+
+   .. enumconstant:: enum constant Sunday
+
+.. data:: const unixEpoch = new dateTime(1970, 1, 1)
+
+   The Unix Epoch date and time 
+
+.. function:: proc timeSinceEpoch(): timeDelta
+
+   Get the `time` since Unix Epoch in seconds
+     
+
+.. function:: proc isLeapYear(year: int): bool
+
+   Return true if `year` is a leap year 
+
+.. function:: proc daysInMonth(year: int, month: int): int throws
+
+   Return the number of days in month `month` during the year `year`.
+   The number for a month can change from year to year due to leap years.
+   
+   :throws IllegalArgumentError: If `month` is out of range.
+
+.. record:: date : serializable
+
+   A record representing a date 
+
+   .. method:: proc year: int
+
+      The year represented by this `date` value 
+
+   .. method:: proc month: int
+
+      The month represented by this `date` value 
+
+   .. method:: proc day: int
+
+      The day represented by this `date` value 
+
+   .. method:: proc type min: date
+
+      The minimum representable `date` 
+
+   .. method:: proc type max: date
+
+      The maximum representable `date` 
+
+   .. method:: proc type resolution: timeDelta
+
+      The minimum non-zero difference between two dates 
+
+.. method:: proc date.init(year: int, month: int, day: int)
+
+   Initialize a new `date` value from a `year`, `month`, and `day`. All
+   three arguments are required and must be in valid ranges.  The
+   valid ranges are:
+   
+   1 <= `year` <= 9999
+   
+   1 <= `month` <= 12
+   
+   1 <= `day` <= the number of days in the given month and year
+   
+
+.. method:: proc type date.today(): date
+
+   A `date` object representing the current day, using naive local time 
+
+.. method:: proc type date.utcToday(): date
+
+   A `date` object representing the current day, using naive UTC time 
+
+.. method:: proc type date.createFromOrdinal(ordinal: int): date
+
+   The `date` that is `ordinal` days from 1-1-0001 
+
+.. method:: proc date.replace(year = -1, month = -1, day = -1): date
+
+   Get a new `date` based on this one, optionally with the `year`, `month`
+   and/or `day` replaced.
+   
+
+.. method:: proc date.timetuple(): tm
+
+   .. warning::
+
+      'date.timetuple' is unstable
+
+   Return a filled record matching the C `struct tm` type for the given date 
+
+.. method:: proc date.toOrdinal(): int
+
+   Return the number of days since 1-1-0001 this `date` represents 
+
+.. method:: proc date.weekday(): dayOfWeek
+
+   Return the day of the week.
+      
+
+.. method:: proc date.isoWeekDate(): (int, int, int)
+
+   Return the ISO week date as a tuple containing the ISO week-numbering year,
+   ISO week number, and ISO weekday number.
+   
+
+.. method:: operator date.:(x: date, type t: string)
+
+   Get a `string` representation of this `date` in ISO format
+   ``YYYY-MM-DD``.
+   
+
+.. method:: proc date.ctime(): string
+
+   .. warning::
+
+      'date.ctime' is unstable
+
+   Return a `string` representing the date 
+
+.. method:: proc date.strftime(fmt: string): string
+
+   .. warning::
+
+      'date.strftime' is unstable
+
+   Return a formatted `string` matching the `format` argument and the date 
+
+.. method:: proc date.serialize(writer, ref serializer) throws
+
+   Writes this `date` formatted as ``YYYY-MM-DD`` 
+
+.. method:: proc ref date.deserialize(reader, ref deserializer) throws
+
+   Reads this `date` with the same format used by :proc:`date.serialize` 
+
+.. record:: time : serializable
+
+   A record representing a time 
+
+   .. method:: proc hour: int
+
+      The hour represented by this `time` value 
+
+   .. method:: proc minute: int
+
+      The minute represented by this `time` value 
+
+   .. method:: proc second: int
+
+      The second represented by this `time` value 
+
+   .. method:: proc microsecond: int
+
+      The microsecond represented by this `time` value 
+
+   .. method:: proc timezone: shared Timezone?
+
+      .. warning::
+
+         timezone is unstable
+
+      The timezone represented by this `time` value 
+
+   .. method:: proc type min: time
+
+      The minimum representable `time` 
+
+   .. method:: proc type max: time
+
+      The maximum representable `time` 
+
+   .. method:: proc type resolution: timeDelta
+
+      The minimum non-zero difference between two times 
+
+.. method:: proc time.init(hour: int = 0, minute: int = 0, second: int = 0, microsecond: int = 0, in tz: shared Timezone?)
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Initialize a new `time` value from the given `hour`, `minute`, `second`,
+   `microsecond`, and `timezone`.  All arguments are optional
+   
+
+.. method:: proc time.init(hour: int = 0, minute: int = 0, second: int = 0, microsecond: int = 0)
+
+   Initialize a new `time` value from the given `hour`, `minute`, `second`,
+   `microsecond`.  All arguments are optional
+   
+
+.. method:: proc time.replace(hour = -1, minute = -1, second = -1, microsecond = -1): time
+
+   Get a new `time` based on this one, optionally with the `hour` `minute`,
+   `second`, and/or `microsecond` replaced.
+   
+
+.. method:: proc time.replace(hour = -1, minute = -1, second = -1, microsecond = -1, in tz): time
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Get a new `time` based on this one, optionally with the `hour` `minute`,
+   `second`, `microsecond` and/or `tz` replaced.
+   
+
+.. method:: operator time.:(x: time, type t: string)
+
+   Get a `string` representation of this `time` in ISO format
+   ``hh:mm:ss.ssssss``, followed by ``±hh:mm`` if a timezone is specified.
+   
+
+.. method:: proc time.utcOffset(): timeDelta
+
+   .. warning::
+
+      'utcOffset' is unstable
+
+   Return the offset from UTC 
+
+.. method:: proc time.dst(): timeDelta
+
+   .. warning::
+
+      'dst' is unstable
+
+   Return the daylight saving time offset 
+
+.. method:: proc time.tzname(): string
+
+   .. warning::
+
+      'tzname' is unstable
+
+   Return the name of the timezone for this `time` value 
+
+.. method:: proc time.strftime(fmt: string): string
+
+   .. warning::
+
+      'time.strftime' is unstable
+
+   Return a `string` matching the `format` argument for this `time` 
+
+.. method:: proc time.serialize(writer, ref serializer) throws
+
+   Writes this `time` formatted as  ``hh:mm:ss.ssssss``,
+   followed by ``±hh:mm`` if a timezone is specified
+   
+
+.. method:: proc ref time.deserialize(reader, ref deserializer) throws
+
+   Reads this `time` with the same format used by :proc:`time.serialize` 
+
+.. record:: dateTime : serializable
+
+   A record representing a combined `date` and `time` 
+
+   .. method:: proc type min: dateTime
+
+      The minimum representable `date` and `time` 
+
+   .. method:: proc type max: dateTime
+
+      The maximum representable `date` and `time` 
+
+   .. method:: proc type resolution: timeDelta
+
+      The minimum non-zero difference between two dateTimes 
+
+   .. method:: proc year: int
+
+      The year represented by this `dateTime` value 
+
+   .. method:: proc month: int
+
+      The month represented by this `dateTime` value 
+
+   .. method:: proc day: int
+
+      The day represented by this `dateTime` value 
+
+   .. method:: proc hour: int
+
+      The hour represented by this `dateTime` value 
+
+   .. method:: proc minute: int
+
+      The minute represented by this `dateTime` value 
+
+   .. method:: proc second: int
+
+      The second represented by this `dateTime` value 
+
+   .. method:: proc microsecond: int
+
+      The microsecond represented by this `dateTime` value 
+
+   .. method:: proc timezone: shared Timezone?
+
+      .. warning::
+
+         timezone is unstable
+
+      The timezone represented by this `dateTime` value 
+
+.. method:: proc dateTime.init(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0, microsecond: int = 0, in tz)
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Initialize a new `dateTime` value from the given `year`, `month`, `day`,
+   `hour`, `minute`, `second`, `microsecond` and timezone.  The `year`,
+   `month`, and `day` arguments are required, the rest are optional.
+   
+
+.. method:: proc dateTime.init(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0, microsecond: int = 0)
+
+   Initialize a new `dateTime` value from the given `year`, `month`, `day`,
+   `hour`, `minute`, `second`, and `microsecond`.  The `year`,
+   `month`, and `day` arguments are required, the rest are optional.
+   
+
+.. method:: proc dateTime.init(d: date, t: time = new time())
+
+   Initialize a new `dateTime` value from the given `date` and `time` 
+
+.. method:: proc type dateTime.now(): dateTime
+
+   Return a `dateTime` value representing the current time and date,
+   in naive local time.
+   
+
+.. method:: proc type dateTime.now(in tz: shared Timezone?): dateTime
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Return a `dateTime` value representing the current time and date 
+
+.. method:: proc type dateTime.utcNow(): dateTime
+
+   Return a `dateTime` value representing the current time and date in UTC 
+
+.. method:: proc type dateTime.createFromTimestamp(timestamp: real): dateTime
+
+   The `dateTime` that is `timestamp` seconds from the epoch,
+   in naive local time.
+   
+
+.. method:: proc type dateTime.createFromTimestamp(timestamp: real, in tz: shared Timezone?): dateTime
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   The `dateTime` that is `timestamp` seconds from the epoch 
+
+.. method:: proc type dateTime.createUtcFromTimestamp(timestamp): dateTime
+
+   The `dateTime` that is `timestamp` seconds from the epoch in UTC 
+
+.. method:: proc dateTime.getDate(): date
+
+   Get the `date` portion of the `dateTime` value 
+
+.. method:: proc dateTime.getTime(): time
+
+   Get the `time` portion of the `dateTime` value, with `tz` = nil 
+
+.. method:: proc dateTime.timetz(): time
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Get the `time` portion of the `dateTime` value including the
+   `tz` field
+   
+
+.. method:: proc dateTime.replace(year = -1, month = -1, day = -1, hour = -1, minute = -1, second = -1, microsecond = -1): dateTime
+
+   Get a new `time` based on this one, optionally with the `year`, `month`,
+   `day`, `hour` `minute`, `second`, and/or `microsecond` replaced.
+   
+
+.. method:: proc dateTime.replace(year = -1, month = -1, day = -1, hour = -1, minute = -1, second = -1, microsecond = -1, in tz = this.timezone): dateTime
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Get a new `time` based on this one, optionally with the `year`, `month`,
+   `day`, `hour` `minute`, `second`, `microsecond` and/or `tz` replaced.
+   
+
+.. method:: proc dateTime.astimezone(in tz: shared Timezone): dateTime
+
+   .. warning::
+
+      tz is unstable; its type may change in the future
+
+   Return the date and time converted into the timezone in the argument 
+
+.. method:: proc dateTime.utcOffset(): timeDelta
+
+   .. warning::
+
+      'utcOffset' is unstable
+
+   Return the offset from UTC 
+
+.. method:: proc dateTime.dst(): timeDelta
+
+   .. warning::
+
+      'dst' is unstable
+
+   Return the daylight saving time offset 
+
+.. method:: proc dateTime.tzname(): string
+
+   .. warning::
+
+      'tzname' is unstable
+
+   Return the name of the timezone for this `dateTime` value 
+
+.. method:: proc dateTime.timetuple(): tm
+
+   .. warning::
+
+      'dateTime.timetuple' is unstable
+
+   Return a filled record matching the C `struct tm` type for the given
+   `dateTime` 
+
+.. method:: proc dateTime.utctimetuple(): tm
+
+   .. warning::
+
+      'dateTime.utctimetuple' is unstable
+
+   Return a filled record matching the C `struct tm` type for the given
+   `dateTime` in UTC
+   
+
+.. method:: operator dateTime.:(x: dateTime, type t: string)
+
+   Get a `string` representation of this `dateTime` in ISO format
+   ``YYYY-MM-DDThh:mm:ss.ssssss``, followed by ``±hh:mm`` if a timezone is
+   specified
+   
+
+.. method:: proc type dateTime.strptime(date_string: string, format: string): dateTime
+
+   .. warning::
+
+      'dateTime.strptime' is unstable
+
+   Create a `dateTime` as described by the `date_string` and
+   `format` string.  Note that this routine currently only supports
+   the format strings of C's strptime().
+   
+
+.. method:: proc dateTime.strftime(fmt: string): string
+
+   .. warning::
+
+      'dateTime.strftime' is unstable
+
+   Create a `string` from a `dateTime` matching the `format` string 
+
+.. method:: proc dateTime.ctime(): string
+
+   .. warning::
+
+      'dateTime.ctime' is unstable
+
+   Return a `string` from a `dateTime` in the form:
+   Wed Dec  4 20:30:40 2002
+   
+
+.. method:: proc dateTime.serialize(writer, ref serializer) throws
+
+   Writes this `dateTime` formatted as ``YYYY-MM-DDThh:mm:ss.ssssss``,
+   followed by ``±hh:mm`` if a timezone is specified
+   
+
+.. method:: proc ref dateTime.deserialize(reader, ref deserializer) throws
+
+   Reads this `dateTime` with the same format used by
+   :proc:`dateTime.serialize`
+   
+
+.. record:: timeDelta
+
+   A record representing an amount of time.  A `timeDelta` has fields
+   representing days, seconds, and microseconds.  These fields are always
+   kept within the following ranges:
+   
+   0 <= `microseconds` < 1000000
+   
+   0 <= `seconds` < 60*60*24
+   
+   -999999999 <= `days` <= 999999999
+   
+   It is an overflow error if `days` is outside the given range.
+   
+
+   .. method:: proc days: int
+
+      The number of days this `timeDelta` represents 
+
+   .. method:: proc seconds: int
+
+      The number of seconds this `timeDelta` represents 
+
+   .. method:: proc microseconds: int
+
+      The number of microseconds this `timeDelta` represents 
+
+   .. method:: proc type min: timeDelta
+
+      Return the minimum representable `timeDelta` object. 
+
+   .. method:: proc type max: timeDelta
+
+      Return the maximum representable `timeDelta` object. 
+
+   .. method:: proc type resolution: timeDelta
+
+      Return the smallest positive value representable by a `timeDelta`
+      object.
+      
+
+.. method:: proc timeDelta.init(days: int = 0, seconds: int = 0, microseconds: int = 0, milliseconds: int = 0, minutes: int = 0, hours: int = 0, weeks: int = 0)
+
+   Initialize a `timeDelta` object.  All arguments are optional and
+   default to 0. Since only `days`, `seconds` and `microseconds` are
+   stored, the other arguments are converted to days, seconds
+   and microseconds. 
+
+.. method:: proc timeDelta.init(timestamp: real)
+
+   Create a `timeDelta` from a given number of seconds 
+
+.. method:: proc timeDelta.totalSeconds(): real
+
+   Return the total number of seconds represented by this object 
+
+.. method:: proc timeDelta.totalMilliseconds(): real
+
+   .. warning::
+
+      'timeDelta.totalMilliseconds()' is unstable because it is new
+
+   Return the total number of milliseconds represented by this object 
+
+.. method:: proc timeDelta.totalMicroseconds(): int
+
+   .. warning::
+
+      'timeDelta.totalMicroseconds()' is unstable because it is new
+
+   Return the total number of microseconds represented by this object 
+
+.. method:: proc timeDelta.abs(): timeDelta
+
+   Return the absolute value of this `timeDelta`. If is negative, then returns
+   its negation, else returns it as-is.
+   
+
+.. class:: Timezone
+
+   .. warning::
+
+      Timezone functionality is unstable and may change in the future
+
+   Abstract base class for time zones. This class should not be used
+   directly, but concrete implementations of time zones should be
+   derived from it. 
+
+   .. method:: proc utcOffset(dt: dateTime): timeDelta
+
+      The offset from UTC this class represents 
+
+   .. method:: proc dst(dt: dateTime): timeDelta
+
+      The `timeDelta` for daylight saving time 
+
+   .. method:: proc tzname(dt: dateTime): string
+
+      .. warning::
+
+         'tzname' is unstable
+
+      The name of this time zone 
+
+   .. method:: proc fromUtc(dt: dateTime): dateTime
+
+      Convert a `time` in UTC to this time zone 
+
+.. function:: proc sleep(t: real): void
+
+   
+   Delay a task for a duration specified in seconds. This function
+   will return without sleeping and emit a warning if the duration is
+   negative.
+   
+   :arg  t: The duration for the time to sleep
+   :type t: `real`
+
+.. record:: stopwatch
+
+   
+   Implements basic stopwatch behavior with a potential resolution of
+   microseconds if supported by the runtime platform.
+   
+   The :record:`!stopwatch` can be started, stopped, and cleared.
+   A :record:`!stopwatch` is either running or stopped.
+
+   .. method:: proc ref clear(): void
+
+      
+      Clears the elapsed time. If the timer is running then it is restarted
+      otherwise it remains in the stopped state.
+      
+
+   .. method:: proc ref start(): void
+
+      Starts the timer. A warning is emitted if the timer is already running. 
+
+   .. method:: proc ref stop(): void
+
+      Stops the timer. A warning is emitted if the timer is not running. 
+
+   .. method:: proc ref reset(): void
+
+      Clear the elapsed time and ensure the stopwatch is stopped 
+
+   .. method:: proc ref restart(): void
+
+      Clear the elapsed time and ensure the stopwatch is running 
+
+   .. method:: proc elapsed(): real
+
+      
+      Returns the cumulative elapsed time, in seconds, between
+      all pairs of calls to :proc:`start` and :proc:`stop`
+      since the timer was created or the last call to :proc:`clear`.
+      If the timer is running, the elapsed time since the last call to
+      :proc:`start` is added to the return value.
+      
+      :returns: The elapsed time in seconds
+      :rtype:   `real(64)`
+      
+
