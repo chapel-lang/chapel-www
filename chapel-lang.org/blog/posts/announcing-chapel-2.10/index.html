@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+
+<html data-theme="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#00cbff" name="theme-color"/>
+<meta content="Highlights from the September 2026 release of Chapel 2.10" name="description"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" media="screen,print" rel="stylesheet"/>
+<style>.sidenote-checkbox { display: none; }</style>
+<style>.feather { width: 1rem; height: 1rem; }</style>
+<link href="../../scss/style.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/sidenotes.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../css/syntax.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/syntax-terminal.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../scss/code.min.css" media="screen,print" rel="stylesheet"/>
+<link href="../../img/favicon.ico" rel="icon" type="image/png"/>
+<script defer="" src="../../js/dropdown-menu.js"></script>
+<script defer="" src="../../js/toc.js"></script>
+<noscript><style>.table-of-contents.sticky div.wrapper { position: relative; top: auto; }</style></noscript>
+<title>Announcing Chapel 2.10!</title>
+</head>
+<body>
+<header>
+<div class="container">
+<a class="site-title" href="../../">
+<img alt="Chapel logo" height="50" src="../../img/logo.png" width="50"/>
+<h1>Chapel Language Blog</h1>
+</a>
+</div>
+<nav id="Header">
+<div class="container">
+<a href="../../about">About</a>
+<a href="https://chapel-lang.org">Chapel Website</a>
+<a href="../../featured">Featured</a>
+<a href="../../series">Series</a>
+<a href="../../tags">Tags</a>
+<a href="../../authors">Authors</a>
+<a href="../../posts">All Posts</a>
+</div>
+</nav>
+</header>
+<main class="container">
+<h2>Announcing Chapel 2.10!</h2>
+<div class="post-subscript">
+<p>Posted on September 24, 2026.</p>
+<p>
+        Tags:
+        
+        <a class="button" href="../../tags/language-features/">Language Features</a>
+<a class="button" href="../../tags/devops/">DevOps</a>
+</p>
+<p>
+    By:
+    <a href="../../authors/jade-abraham">Jade Abraham</a>, <a href="../../authors/anna-rift">Anna Rift</a>, <a href="../../authors/brad-chamberlain">Brad Chamberlain</a>
+</p>
+<p>
+        Part of a series: <a href="../../series/release-announcements/">Release Announcements</a>
+</p>
+</div>
+<div class="post-content">
+<div class="table-of-contents sticky">
+<div class="wrapper">
+<span class="header">Table of Contents</span>
+<nav id="TableOfContents">
+<ul>
+<li><a href="#union-type-improvements">Union Type Improvements</a>
+<ul>
+<li><a href="#union-initializers">Union Initializers</a></li>
+<li><a href="#active-field-pattern-matching">Active Field Pattern Matching</a></li>
+</ul>
+</li>
+<li><a href="#call-stacks-for-thrown-errors">Call Stacks for Thrown Errors</a></li>
+<li><a href="#expanded-github-actions-testing">Expanded GitHub Actions Testing</a></li>
+<li><a href="#for-more-information">For More Information</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<p>The Chapel developer community is pleased to announce the release of
+Chapel 2.10!  This fall’s release focuses on improvements to
+language features as well as moving a lot of Chapel testing into the
+public in support of open-source community developers.  As always,
+you can <a href="https://chapel-lang.org/download/">download and install</a>
+the new release in a <span class="sidenote"><label class="sidenote-label" for="sidenote-0">variety of formats</label><input class="sidenote-checkbox" id="sidenote-0" type="checkbox"/><span class="sidenote-content sidenote-right"><span class="sidenote-delimiter">[note:</span>Please
+note that some release formats may not yet be available at time of
+publication.<span class="sidenote-delimiter">]</span></span></span>, including Spack, Homebrew, various
+Linux package managers, Docker, and source tarballs.</p>
+<p>This article summarizes some of Chapel 2.10’s highlights, including:</p>
+<ul>
+<li>
+<p>Improvements to Chapel’s <a href="#union-type-improvements">union types</a>,
+bringing them to a complete and usable state</p>
+</li>
+<li>
+<p>New support for inspecting the stack traces of <a href="#call-stacks-for-thrown-errors">thrown
+errors</a>, whether caught or not</p>
+</li>
+<li>
+<p>Conversion of <a href="#expanded-github-actions-testing">Chapel testing</a>
+from using HPE-internal resources to GitHub Actions, providing
+better access and visibility for community developers</p>
+</li>
+</ul>
+<p>Other notable highlights of Chapel 2.10 that aren’t covered in this
+article include:</p>
+<ul>
+<li>
+<p>The closing of many loopholes in which the Chapel compiler or its
+generated executables were relying on undefined behaviors in
+C/C++</p>
+</li>
+<li>
+<p>Ergonomic improvements and bug fixes when using the
+<code>DynamicLoading</code> module and dynamically loaded versions of the
+runtime</p>
+</li>
+<li>
+<p>Improvements to the inlays displayed by <code>chpl-language-server</code>
+(CLS) in VSCode and other editors</p>
+</li>
+<li>
+<p>The addition of missing operators and queries on <code>imag</code> and
+<code>complex</code> values</p>
+</li>
+<li>
+<p>The resolution of 7 user issues, including both that were opened
+over the summer since the release of Chapel 2.9</p>
+</li>
+</ul>
+<p>For a far more complete list of improvements in Chapel 2.10, see its
+<a href="https://github.com/chapel-lang/chapel/blob/release/2.10/CHANGES.md">CHANGES.md</a>
+file.  And a big thanks to <a href="https://github.com/chapel-lang/chapel/blob/release/2.10/CONTRIBUTORS.md">everyone who
+contributed</a>
+to version 2.10!</p>
+<h3 id="union-type-improvements">
+<a href="#union-type-improvements">Union Type Improvements</a>
+</h3>
+<p>Chapel 2.10 continues the improvements to union types that we began
+in Chapel 2.9, bringing unions to a state where we consider them to
+be complete and productive.  As mentioned in the <a href="../../posts/announcing-chapel-2.9/#union-type-improvements">2.9 release
+announcement</a>, this work was motivated by recent user comments and
+requests.</p>
+<h4 id="union-initializers">
+<a href="#union-initializers">Union Initializers</a>
+</h4>
+<p>One of the most practical, but least flashy, improvements to unions
+in Chapel 2.10 is vastly improved support for initializers.  In
+earlier versions of Chapel, unions only supported 0-argument
+initializers by default and user initializers were neither
+particularly full-featured nor safe.  Chapel 2.10 brings support for
+union initializers on par with records for both compiler- and
+user-defined cases.</p>
+<p>As an example, consider the following union type declaration:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.10.chpl" data-code-section="middle" data-code-type="main" data-start-line="1"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">union</span><span class="w"> </span><span class="nc">u</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">z</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Previously, the compiler would only generate a 0-argument
+initializer for such a union type, providing the ability to create
+<code>u</code> values in an inactive state.  This required a distinct assignment
+statement to populate the union with a value.</p>
+<p>As of Chapel 2.10, the compiler also generates a 1-argument
+initializer per field that can be used to initialize the
+corresponding field, making it active.  As an example, the
+compiler-generated initializers for <code>u</code> above would effectively look
+like this:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">u.init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">u.init</span><span class="p">(</span><span class="nx">w</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">w</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">u.init</span><span class="p">(</span><span class="nx">x</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">x</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">u.init</span><span class="p">(</span><span class="nx">y</span><span class="p">:</span><span class="w"> </span><span class="kt">real</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">y</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">u.init</span><span class="p">(</span><span class="nx">z</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">this</span><span class="p">.</span><span class="nx">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Given these compiler-generated initializers, users can create union
+values with any active field (including no active field), as
+follows:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.10.chpl" data-code-section="middle" data-code-type="main" data-start-line="8"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">u0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">uw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(</span><span class="nx">w</span><span class="o">=</span><span class="mi">78</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">ux</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(</span><span class="nx">x</span><span class="o">=</span><span class="mi">45</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">uy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(</span><span class="nx">y</span><span class="o">=</span><span class="mf">33.3</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">uz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(</span><span class="nx">z</span><span class="o">=</span><span class="s">"hi"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">((</span><span class="nx">u0</span><span class="p">,</span><span class="w"> </span><span class="nx">uw</span><span class="p">,</span><span class="w"> </span><span class="nx">ux</span><span class="p">,</span><span class="w"> </span><span class="nx">uy</span><span class="p">,</span><span class="w"> </span><span class="nx">uz</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>In addition, as you’d expect, for field types that are unambiguous,
+a value may be passed into the initializer without using Chapel’s
+argument-matching syntax:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.10.chpl" data-code-section="middle" data-code-type="main" data-start-line="16"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">ureal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(</span><span class="mf">33.3333</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">ustring</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">u</span><span class="p">(</span><span class="s">"hello"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">((</span><span class="nx">ureal</span><span class="p">,</span><span class="w"> </span><span class="nx">ustring</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>User-defined initializers for unions have also been significantly
+improved in Chapel 2.10, primarily by resolving longstanding memory
+safety bugs and overzealous compiler optimizations in earlier
+versions of Chapel.  As with records, user-defined union
+initializers can now initialize and assign fields, invoke sibling
+initializers using <code>[this.]init(...);</code>, and signal object completion
+with <code>init this;</code>.  Union types also now correctly support
+<code>postinit()</code> calls.  As a result of these improvements, union value
+construction is now considered full-featured in Chapel.</p>
+<h4 id="active-field-pattern-matching">
+<a href="#active-field-pattern-matching">Active Field Pattern Matching</a>
+</h4>
+<p>One of the most attractive features for unions in 2.10 is a new
+<code>union select</code> statement that supports taking actions on a union
+expression based on which field is currently active.  This new
+feature can be considered a baby step toward more general
+pattern-matching support that we’d like to explore adding to future
+versions of Chapel.</p>
+<p>As an example, consider the following union method, written to
+double (by some definition) a union’s active field:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.10.chpl" data-code-section="middle" data-code-type="main" data-start-line="21"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">ref</span><span class="w"> </span><span class="nx">u</span><span class="p">.</span><span class="nx">double</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">union</span><span class="w"> </span><span class="nc">select</span><span class="w"> </span><span class="k">this</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">y</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">z</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">otherwise</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">fieldID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">getActiveIndex</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">fieldID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nx">halt</span><span class="p">(</span><span class="s">"unexpected active field in 'u.double()': "</span><span class="p">,</span><span class="w"> </span><span class="nx">fieldID</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Each <code>when</code> clause of a <code>union select</code> statement like the one above
+checks to see whether the named field is active.  If it is, the
+field’s name serves as a reference to the field for the remainder of
+the clause.  This identifier serves as a <code>const ref</code> to the field
+for union expressions that are immutable and a <code>ref</code> for those that
+can be modified.</p>
+<p>Note that the <code>otherwise</code> clause may be matched by unions without an
+active field, such as default-initialized union values like <code>u0</code> in
+the code above.  In this <code>union select</code> example, the <code>otherwise</code>
+clause was written defensively, to also guard against the possibility
+that new fields are added to the union type in the future without
+adding support for them in this method.</p>
+<p>The following demonstrates calls to this method and the resulting
+effects on the union values:</p>
+<div class="highlight" data-code-path="code/announcing-chapel-2.10.chpl" data-code-section="middle" data-code-type="main" data-start-line="35"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-Chapel" data-lang="Chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="nx">u0</span><span class="p">.</span><span class="nx">double</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">uw</span><span class="p">.</span><span class="nx">double</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">ux</span><span class="p">.</span><span class="nx">double</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">uy</span><span class="p">.</span><span class="nx">double</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">uz</span><span class="p">.</span><span class="nx">double</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">writeln</span><span class="p">((</span><span class="nx">u0</span><span class="p">,</span><span class="w"> </span><span class="nx">uw</span><span class="p">,</span><span class="w"> </span><span class="nx">ux</span><span class="p">,</span><span class="w"> </span><span class="nx">uy</span><span class="p">,</span><span class="w"> </span><span class="nx">uz</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The output of the code segments above that initialize and double
+union values is as follows:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">((), (w = 78), (x = 45), (y = 33.3), (z = hi))
+</span></span></span><span class="line"><span class="cl"><span class="go">((y = 33.3333), (z = hello))
+</span></span></span><span class="line"><span class="cl"><span class="go">((), (w = 156), (x = 90), (y = 66.6), (z = hihi))
+</span></span></span></code></pre></div>
+<p>Chapel 2.10 also adds support for traditional equality-based
+<code>select</code> statements on union expressions, leveraging the support for
+equality between union values added in Chapel 2.9.</p>
+<p>As a result of all the improvements to unions in this release and
+2.9, we now consider unions to be feature-complete in Chapel 2.10.
+That said, we do not yet consider unions to be a stable language
+feature, so hope to receive feedback from users to hear how they
+work in your programs and what additional improvements or features
+might further improve productivity in your code bases.</p>
+<h3 id="call-stacks-for-thrown-errors">
+<a href="#call-stacks-for-thrown-errors">Call Stacks for Thrown Errors</a>
+</h3>
+<p>Chapel 2.10 has some nice quality of life improvements for error
+handling.  Error classes now track the call stack leading to the
+error, permitting a thrown <code>Error</code> object to report rich diagnostic
+information.  Consider the following example of using a <code>Parser</code>
+helper module to parse a file:</p>
+<div class="file" data-code-path="code/Parser.chpl" data-code-type="main" data-start-line="1">
+<details>
+<summary class="file-header">
+<a download="Parser.chpl" href="code/Parser.chpl">Parser.chpl</a>
+</summary>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="k">use</span><span class="w"> </span><span class="nx">IO</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">myObject</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">id</span><span class="p">:</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">class</span><span class="w"> </span><span class="nc">ParseError</span><span class="p">:</span><span class="w"> </span><span class="nx">Error</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="nx">msg</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">super</span><span class="p">.</span><span class="k">init</span><span class="p">(</span><span class="nx">msg</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">record</span><span class="w"> </span><span class="nc">parser</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">reader</span><span class="p">:</span><span class="w"> </span><span class="nx">fileReader</span><span class="p">(?);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="nx">filename</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">openReader</span><span class="p">(</span><span class="nx">filename</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">deinit</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">reader</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">hasMore</span><span class="p">()</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">reader</span><span class="p">.</span><span class="nx">mark</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">revert</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">reader</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span><span class="kt">string</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="nx">e</span><span class="p">:</span><span class="w"> </span><span class="nx">EofError</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">proc</span><span class="w"> </span><span class="nf">next</span><span class="p">()</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reader</span><span class="p">.</span><span class="nx">readLine</span><span class="p">(</span><span class="nx">stripNewline</span><span class="o">=</span><span class="kc">true</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">parseLine</span><span class="p">(</span><span class="nx">line</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">checkParts</span><span class="p">(</span><span class="nx">parts</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nx">parts</span><span class="p">.</span><span class="nx">size</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">ParseError</span><span class="p">(</span><span class="s">"Invalid line format: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">" "</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="nx">parts</span><span class="p">));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">parseInt</span><span class="p">(</span><span class="nx">s</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">s</span><span class="p">:</span><span class="kt">int</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">ParseError</span><span class="p">(</span><span class="s">"Invalid ID format: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">s</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">proc</span><span class="w"> </span><span class="nf">parseLine</span><span class="p">(</span><span class="nx">line</span><span class="p">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="k">throws</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">parts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">line</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s">" "</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nx">checkParts</span><span class="p">(</span><span class="nx">parts</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">myObject</span><span class="p">(</span><span class="nx">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="nx">parseInt</span><span class="p">(</span><span class="nx">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]));</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">obj</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</details>
+</div>
+<div class="file" data-code-path="code/uncaught-error.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="uncaught-error.chpl" href="code/uncaught-error.chpl">uncaught-error.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">Parser</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">parser</span><span class="p">(</span><span class="s">"input.txt"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">hasMore</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">o</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">next</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">o</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"===="</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>This call to <code>p.next()</code> will throw a <code>ParseError</code> if the input
+file’s line format is invalid, as on lines 3 or 7 of the following
+input file:</p>
+<div class="file" data-code-path="code/input.txt" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="input.txt" href="code/input.txt">input.txt</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-text" data-lang="text"><span class="line"><span class="cl">Alfred 10
+</span></span><span class="line"><span class="cl">Bobby 11
+</span></span><span class="line"><span class="cl">Candice12
+</span></span><span class="line"><span class="cl">Danny 13
+</span></span><span class="line"><span class="cl">Enice 14
+</span></span><span class="line"><span class="cl">Frank 15
+</span></span><span class="line"><span class="cl">Gertude "16"
+</span></span><span class="line"><span class="cl">Helly 17
+</span></span><span class="line"><span class="cl">Issac 18
+</span></span><span class="line"><span class="cl">Jessie 19
+</span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>Because this error is not caught by the code, it causes the program
+to halt.  Prior to Chapel 2.10, the resulting error message would
+say where the error was thrown and where it was uncaught.  However,
+all information about the call stack between those endpoints was
+lost:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">(name = Alfred, id = 10)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Bobby, id = 11)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">uncaught ParseError: Invalid line format: Candice12
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:36: thrown here
+</span></span></span><span class="line"><span class="cl"><span class="go">  uncaught-error.chpl:5: uncaught here
+</span></span></span></code></pre></div><p>As of Chapel 2.10, uncaught errors now print a complete stack trace
+by default, showing the calls that led to the error:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">(name = Alfred, id = 10)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Bobby, id = 11)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">uncaught ParseError: Invalid line format: Candice12
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:44: thrown here
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:59: called from here
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:38: called from here
+</span></span></span><span class="line"><span class="cl"><span class="go">  uncaught-error.chpl:5: uncaught here
+</span></span></span></code></pre></div>
+<p>This allows users to trace through the complete sequence of calls
+that led to the problem in their code.</p>
+<p>Furthermore, prior to Chapel 2.10, if a user tried to catch an error
+in order to print a custom error message, they lost access to the
+line information that Chapel would have printed by default.  Chapel
+2.10 addresses this by adding the ability to manually inspect the
+stack trace. As a result, code can catch errors to handle them
+gracefully, without losing access to call stack information.</p>
+<p>This is done using a new <code>.stacktrace()</code> iterator supported on
+<code>Error</code> classes that yields a sequence of <code>(file, linenum)</code> tuples
+representing the call stack leading up to the error, starting from
+the point where it was thrown. The following example rewrites the
+previous one to catch the error, print a custom error message
+including the stack trace, and then continue to read the remaining
+lines rather than halting:</p>
+<div class="file" data-code-path="code/caught-error.chpl" data-code-type="main" data-start-line="1">
+<div class="file-header">
+<a download="caught-error.chpl" href="code/caught-error.chpl">caught-error.chpl</a>
+</div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma" tabindex="0"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma" tabindex="0"><code class="language-chapel" data-lang="chapel"><span class="line"><span class="cl"><span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nx">Parser</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nx">parser</span><span class="p">(</span><span class="s">"input.txt"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">hasMore</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">try</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="kd">var</span><span class="w"> </span><span class="nx">o</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">p</span><span class="p">.</span><span class="nx">next</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="nx">o</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="nx">pe</span><span class="p">:</span><span class="w"> </span><span class="nx">ParseError</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"Parse error: "</span><span class="p">,</span><span class="w"> </span><span class="nx">pe</span><span class="p">.</span><span class="nx">message</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"Stacktrace"</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nx">file</span><span class="p">,</span><span class="w"> </span><span class="nx">linenum</span><span class="p">)</span><span class="w"> </span><span class="kd">in</span><span class="w"> </span><span class="nx">pe</span><span class="p">.</span><span class="nx">stacktrace</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"  "</span><span class="p">,</span><span class="w"> </span><span class="nx">file</span><span class="p">,</span><span class="w"> </span><span class="s">":"</span><span class="p">,</span><span class="w"> </span><span class="nx">linenum</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">writeln</span><span class="p">(</span><span class="s">"===="</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div>
+</div>
+<p>Here is the output generated when running this version on the
+<code>input.txt</code> file above.  Note the custom error messages, full stack
+traces, and continuation of execution to handle subsequent lines,
+both correct and incorrect:</p>
+<div class="highlight"><pre class="chroma" tabindex="0"><code class="language-console" data-lang="console"><span class="line"><span class="cl"><span class="go">(name = Alfred, id = 10)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Bobby, id = 11)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">Parse error: Invalid line format: Candice12
+</span></span></span><span class="line"><span class="cl"><span class="go">Stacktrace
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:44
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:59
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:38
+</span></span></span><span class="line"><span class="cl"><span class="go">  caught-error.chpl:6
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Danny, id = 13)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Enice, id = 14)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Frank, id = 15)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">Parse error: Invalid ID format: "16"
+</span></span></span><span class="line"><span class="cl"><span class="go">Stacktrace
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:52
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:60
+</span></span></span><span class="line"><span class="cl"><span class="go">  Parser.chpl:38
+</span></span></span><span class="line"><span class="cl"><span class="go">  caught-error.chpl:6
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Helly, id = 17)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Issac, id = 18)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span><span class="line"><span class="cl"><span class="go">(name = Jessie, id = 19)
+</span></span></span><span class="line"><span class="cl"><span class="go">====
+</span></span></span></code></pre></div>
+<p>This new capability gives users better error information when
+writing and debugging Chapel programs.</p>
+<h3 id="expanded-github-actions-testing">
+<a href="#expanded-github-actions-testing">Expanded GitHub Actions Testing</a>
+</h3>
+<p>For most of the Chapel project’s history, its build, test, and
+release processes have primarily been run on internal company
+resources, first at Cray Inc. and then more recently at HPE.  Since
+Chapel 2.10 will be the last release <a href="../../posts/cff/">in the foreseeable future</a> where most developers work on Chapel as their
+full-time role at HPE, we wanted to reduce our reliance on these
+corporate resources going forward.  Beyond supporting project
+continuity, moving these build processes and configurations outside
+the corporate firewall also has the benefit of opening them up to
+inspection by, or contributions from, the broader open-source
+community.  This effectively gives Chapel community developers
+access to testing results that they previously had to rely on HPE
+developers to provide manually.</p>
+<p>For these reasons, in the lead-up to Chapel 2.10 we’ve undertaken an
+effort to move as much of our CI as possible into GitHub Actions (GA),
+running against the public
+<a href="https://github.com/chapel-lang/chapel"><code>chapel-lang/chapel</code></a>
+repository.  Configuration files live in the
+<a href="https://github.com/chapel-lang/chapel/tree/main/.github/workflows"><code>.github/workflows</code></a>
+folder, and are tracked in git like any other file in the
+project. We’ve long had some basic, quick checks in GA, but it is
+now responsible for more of our test coverage including
+longer-running processes. These include, but are not limited to:</p>
+<ul>
+<li>Parallel runs of the full test suite on a few core configurations</li>
+<li>Docker image and Linux package builds</li>
+<li>Documentation builds and pushes</li>
+<li>Several linting and formatting checks</li>
+<li>Tarball builds and testing</li>
+</ul>
+<p>Some of these checks run on each commit pushed to a pull request or
+PR (‘Core’), some when a PR is merged (‘Extended’), and some nightly
+on the main development branch (‘Nightly’). The idea is to have the
+shortest-running checks in the fastest feedback loop to catch issues
+as quickly as possible, then longer-running checks providing more
+coverage running less frequently to avoid exhausting resources. The
+‘Extended’ checks run in the merge queue, a GitHub feature that
+we’ve recently enabled, which causes merged PRs to be held in a
+queue and tested before automatically proceeding with the merge.  In
+the case of a failure, such PRs are kicked back into the user’s
+court.  ‘Nightly’ checks report their results to a new, public
+<a href="https://chapel.discourse.group/t/about-the-nightly-testing-category/51764">Nightly
+Testing</a>
+category in Chapel’s Discourse community, where failures can be
+discussed and addressed by developers.</p>
+<p>These changes are very new, and shift a lot of work previously done
+in our internal daily “triage” of the previous night’s testing to an
+earlier stage of the development process. They are intended to
+improve developer productivity and the long-term maintainability of
+the project, but may be an impediment in some cases as we work out
+the kinks. Anyone with commit access to the repo is able to override
+checks, so failures that are false positives won’t necessarily
+prevent merging.  Furthermore, users are welcome to file issues
+against the CI, as well as PRs against workflow configurations. For
+more information, see the new <a href="https://chapel-lang.org/docs/2.10/developer/bestPractices/ContributorInfo.html#get-github-actions-tests-passing">GitHub
+Actions</a>
+section of the ‘Contributor Info’ documentation.</p>
+<h3 id="for-more-information">
+<a href="#for-more-information">For More Information</a>
+</h3>
+<p>If you have questions about Chapel 2.10 or any of its new features,
+please reach out on Chapel’s <a href="https://join.slack.com/t/chapelnetwork/shared_invite/zt-3p459bjlh-0TQRloaBPqkZUe_dWz~C~Q">Slack
+workspace</a>,
+<a href="https://chapel.discourse.group/">Discourse group</a>, <a href="https://discord.gg/xu2xg45yqH">Discord
+channel</a>, or one of our other
+<a href="https://chapel-lang.org/forums/">community forums</a>.  We’re always
+interested in hearing more about how we can make the Chapel
+language, libraries, implementation, and tools more useful to you.</p>
+</div>
+</main>
+<div class="container">
+<div class="share-view">
+<h3>Share this article:</h3>
+<div class="share-buttons">
+<a class="button share-button" href="https://bsky.app/intent/compose?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.10%21%22+on+the+Chapel+Programming+Language+blog%3A+https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.10%2F" rel="noopener noreferrer" style="--button-color: #6cb0f9; --button-color-light: white;" target="_blank">
+<img alt="Share on BlueSky" height="30" src="../../img/bluesky-logo.jpg" width="30"/>
+</a>
+<a class="button share-button" href="https://www.facebook.com/sharer/sharer.php?description=Check+out+this+post+entitled+%22Announcing+Chapel+2.10%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;u=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.10%2F" rel="noopener noreferrer" style="--button-color: #3a559f; --button-color-light: white;" target="_blank">
+<img alt="Share on Facebook" height="30" src="../../img/facebook-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://linkedin.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.10%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.10%2F" rel="noopener noreferrer" style="--button-color: #2867b2; --button-color-light: white;" target="_blank">
+<img alt="Share on LinkedIn" height="30" src="../../img/linkedin-logo.png" width="30"/>
+</a>
+<a class="button share-button" href="https://new.reddit.com/submit?title=Announcing+Chapel+2.10%21&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.10%2F" rel="noopener noreferrer" style="--button-color: #ff4500; --button-color-light: white;" target="_blank">
+<img alt="Share on Reddit" height="30" src="../../img/reddit-logo.svg" width="30"/>
+</a>
+<a class="button share-button" href="http://x.com/share?text=Check+out+this+post+entitled+%22Announcing+Chapel+2.10%21%22+on+the+Chapel+Programming+Language+blog%3A&amp;url=https%3A%2F%2Fchapel-lang.org%2Fblog%2Fposts%2Fannouncing-chapel-2.10%2F" rel="noopener noreferrer" style="--button-color: #000000; --button-color-light: #7a7a7a;" target="_blank">
+<img alt="Share on X" height="30" src="../../img/x-logo.svg" width="30"/>
+</a>
+</div>
+</div>
+</div>
+<nav class="container series-navigation">
+<div class="series-button-wrapper prev">
+<a class="button" href="../../posts/announcing-chapel-2.9/">
+<svg class="feather">
+<use xlink:href="../../feather-sprite.svg#chevrons-left"></use>
+</svg>
+<span>
+                    Previous in series
+                    <span class="series-button-name">
+                        
+Announcing Chapel 2.9!
+
+
+                    </span>
+</span>
+</a>
+</div>
+</nav>
+</body>
+</html>
