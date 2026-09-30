@@ -6,8 +6,8 @@ description = "Papers and publications related to the Chapel language"
 +++
 
 {{<publication-list "recent" "Recent Papers">}}
-  {{<artifact-listing "riscv2026">}}
   {{<artifact-listing "csur2026">}}
+  {{<artifact-listing "riscv2026">}}
   {{<artifact-listing "cug2026">}}
 {{</publication-list>}}
 

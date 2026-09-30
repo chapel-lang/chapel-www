@@ -18,6 +18,8 @@ us know.
 
 <!-- Dec 2026 -->
 
+{{<artifact-listing "csur2026">}}
+
 <!-- Nov 2026 -->
 
 <!-- Oct 2026 -->
@@ -27,7 +29,6 @@ us know.
 <!-- Aug 2026 -->
 
 {{<artifact-listing "riscv2026">}}
-{{<artifact-listing "csur2026">}}
 
 <!-- Jul 2026 -->
 
