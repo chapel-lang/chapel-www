@@ -54,7 +54,7 @@ Users of HPE Cray EX systems can use Chapel as follows:
 1. Load the Chapel module: `module load chapel`
 2. Read [$CHPL_HOME/doc/rst/platforms/cray.rst](https://chapel-lang.org/docs/platforms/cray.html) for quick-start instructions and more detailed notes.
 
-If these steps don't work, be sure that the latest version of Chapel (2.10) is installed on your system and ask your system administrator to [install it](https://myenterpriselicense.hpe.com/cwp-ui/software/Search?productCategory=Open%20Source&productInfo=Chapel_EX-OSP) if not.  Alternatively, you can build from source using the instructions just below. If the latest version doesn't work for you, send us a [bug report](https://chapel-lang.org/docs/usingchapel/bugs.html).
+If these steps don't work, be sure that the latest version of Chapel (2.10) is installed on your system and ask your system administrator to [install it](https://myenterpriselicense.hpe.com/cwp-ui/software/Search?productCategory=Open%20Source&productInfo=Chapel) if not.  Alternatively, you can build from source using the instructions just below. If the latest version doesn't work for you, send us a [bug report](https://chapel-lang.org/docs/usingchapel/bugs.html).
 
 #### Installing Chapel on HPE Apollo, HPE Cray XD, Cray XC, and Cray CS systems
 Users of other HPE or Cray systems should download Chapel and build from source, referring to [$CHPL_HOME/doc/rst/platforms/cray.rst](https://chapel-lang.org/docs/platforms/cray.html#building-chapel-for-an-hpe-cray-system-from-source) for details.
