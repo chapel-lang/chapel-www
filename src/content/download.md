@@ -7,7 +7,7 @@ keywords = ["TODO"]
 title="From Source"
 id="source"
 description="""
-To download and install Chapel from source, download **[chapel-2.10.0.tar.gz](https://github.com/chapel-lang/chapel/releases/download/2.10.0/chapel-2.10.0.tar.gz)** from [GitHub](https://github.com/chapel-lang/chapel/releases/tag/2.10.0), then unpack and build it as described in the [Quickstart instructions](https://chapel-lang.org/docs/usingchapel/QUICKSTART.html).
+To install Chapel from source, download **[chapel-2.10.0.tar.gz](https://github.com/chapel-lang/chapel/releases/download/2.10.0/chapel-2.10.0.tar.gz)** from [GitHub](https://github.com/chapel-lang/chapel/releases/tag/2.10.0), then unpack and build it as described in the [Quickstart instructions](https://chapel-lang.org/docs/usingchapel/QUICKSTART.html#building-from-source).
 """
 
 [[configurations]]
@@ -41,7 +41,7 @@ description="""
 1. Make sure your brew is up-to-date: `brew update`
 2. Install the Chapel formula: `brew install chapel`
 3. Note that for a homebrew install, `$CHPL_HOME` can be determined by running `chpl --print-chpl-home`.
-4. If you're not already familiar with Chapel, jump to the "Compile an example program step in the [Quickstart Instructions](https://chapel-lang.org/docs/usingchapel/QUICKSTART.html).
+4. If you're not already familiar with Chapel, jump to the "Compile an example program step in the [Quickstart Instructions](https://chapel-lang.org/docs/usingchapel/QUICKSTART.html#building-from-source).
 """
 
 [[configurations]]
@@ -54,7 +54,7 @@ Users of HPE Cray EX systems can use Chapel as follows:
 1. Load the Chapel module: `module load chapel`
 2. Read [$CHPL_HOME/doc/rst/platforms/cray.rst](https://chapel-lang.org/docs/platforms/cray.html) for quick-start instructions and more detailed notes.
 
-If these steps don't work, be sure that the latest version of Chapel (2.10) is installed on your system and ask your system administrator to [install it](https://myenterpriselicense.hpe.com/cwp-ui/software/Search?productCategory=Open%20Source&productInfo=Chapel) if not.  Alternatively, you can build from source using the instructions just below. If the latest version doesn't work for you, send us a [bug report](https://chapel-lang.org/docs/usingchapel/bugs.html).
+If these steps don't work, be sure that the latest version of Chapel (2.10) is installed on your system.  If it isn't, ask your system administrator to install its RPM ([x86](https://myenterpriselicense.hpe.com/cwp-ui/product-details/CHAPEL_EX-OSP/Multiple/sw_osp), [aarch64](https://myenterpriselicense.hpe.com/cwp-ui/product-details/CHAPEL_AARCH64-OSP/Multiple/sw_osp)).  Alternatively, you can build from source using the [instructions above](#source). If the latest version doesn't work for you, send us a [bug report](https://chapel-lang.org/docs/usingchapel/bugs.html).
 
 #### Installing Chapel on HPE Apollo, HPE Cray XD, Cray XC, and Cray CS systems
 Users of other HPE or Cray systems should download Chapel and build from source, referring to [$CHPL_HOME/doc/rst/platforms/cray.rst](https://chapel-lang.org/docs/platforms/cray.html#building-chapel-for-an-hpe-cray-system-from-source) for details.
