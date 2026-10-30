@@ -8,10 +8,14 @@ description = "Papers and publications related to the Chapel language"
 {{<publication-list "recent" "Recent Papers">}}
   {{<artifact-listing "csur2026">}}
   {{<artifact-listing "riscv2026">}}
+  {{<artifact-listing "icpp26">}}
+  {{<artifact-listing "spin-nvsc-2026">}}
+  {{<artifact-listing "hpec2026-chai">}}
   {{<artifact-listing "cug2026">}}
 {{</publication-list>}}
 
 {{<publication-list "benchmark" "Benchmarking and Language Comparisons">}}
+  {{<artifact-listing "icpp26">}}
   {{<artifact-listing "riscv2026">}}
   {{<artifact-listing "cug2026">}}
   {{<artifact-listing "paw-atm2025">}}
