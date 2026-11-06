@@ -22,13 +22,18 @@ us know.
 
 <!-- Nov 2026 -->
 
+{{<artifact-listing "riscv2026">}}
+
 <!-- Oct 2026 -->
+
+{{<artifact-listing "icpp26">}}
 
 <!-- Sep 2026 -->
 
-<!-- Aug 2026 -->
+{{<artifact-listing "spin-nvsc-2026">}}
+{{<artifact-listing "hpec2026-chai">}}
 
-{{<artifact-listing "riscv2026">}}
+<!-- Aug 2026 -->
 
 <!-- Jul 2026 -->
 
