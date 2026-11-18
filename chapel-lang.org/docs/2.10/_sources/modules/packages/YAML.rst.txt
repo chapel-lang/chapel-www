@@ -1,0 +1,420 @@
+.. default-domain:: chpl
+
+.. module:: YAML
+   :synopsis: Support for parsing and writing YAML files.
+
+YAML
+====
+**Usage**
+
+.. code-block:: chapel
+
+   use YAML;
+
+
+or
+
+.. code-block:: chapel
+
+   import YAML;
+
+**Submodules**
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   YAML/*
+
+.. warning::
+
+   The YAML module is considered unstable pending various name and design changes.
+
+
+
+Support for parsing and writing YAML files.
+
+Includes a Yaml Serializer/Deserializer as well as an abstract class
+representation of a YAML file.
+
+The Yaml Serializer/Deserializer is intended to be used with the standard
+IO module's serialization/deserialization API. For example:
+
+.. code-block:: chpl
+
+  use Yaml;
+
+  record R {
+    var a: int;
+    var b: string;
+  }
+
+  var writer = openWriter("r.yaml", serializer = new yamlSerializer()),
+      r1 = new R(1, "hello");
+
+  writer.write(r1);
+
+  /* r.yaml:
+    --- R!
+    a: 1
+    b: hello
+    ...
+  */
+
+  var r2 = myFile.reader(locking=false).withDeserializer(new yamlDeserializer()).read(R);
+  assert(r1 == r2);
+
+Yaml files can also be written and parsed directly using the :type:`YamlValue`
+class with the :proc:`writeYamlFile` and :proc:`parseYamlFile` procedures.
+
+
+Dependencies
+------------
+
+This module depends on the ``libyaml`` library. Installation instructions
+can be found `here <https://github.com/yaml/libyaml>`_. The module was developed
+and tested with version 0.2.5 of ``libyaml``.
+
+To compile a program that uses the Yaml module, you will either need to set the
+``CHPL_INCLUDE_PATH`` and ``CHPL_LIB_PATH`` environment variables with
+``libyaml``s installation location, or use the ``-l`` and ``-L`` compiler
+flags to specify the location of the library.
+
+
+.. type:: type yamlWriter = fileWriter(serializerType = yamlSerializer, ?)
+
+   Type Alias for a :record:`~IO.fileWriter` that uses a yamlSerializer 
+
+.. type:: type yamlReader = fileReader(deserializerType = yamlDeserializer, ?)
+
+   Type Alias for a :record:`~IO.fileReader` that uses a yamlDeserializer 
+
+.. record:: yamlSerializer
+
+   
+   A YAML-format serializer for emitting Chapel values in Yaml format
+   via the IO module's :record:`~IO.fileWriter` interface
+
+   .. method:: proc init(seqStyle = YamlSequenceStyle.Any, mapStyle = YamlMappingStyle.Any, scalarStyle = YamlScalarStyle.Any, documentStyle = YamlDocumentStyle.Implicit)
+
+      
+      Create a new ``yamlSerializer``
+      
+      :arg seqStyle: The style to use for sequences. See :record:`YamlSequenceStyle`.
+      :arg mapStyle: The style to use for mappings. See :record:`YamlMappingStyle`.
+      :arg scalarStyle: The style to use for scalar values. See :record:`YamlScalarStyle`.
+      :arg documentStyle: Whether to print document headers by default.
+      
+
+   .. method:: proc ref serializeValue(writer: yamlWriter, const val: ?t) throws
+
+      called by a ``fileWriter`` to emit a value 
+
+.. record:: yamlDeserializer
+
+   
+   A YAML-format deserializer for parsing Yaml files into Chapel values
+   via the IO module's :record:`~IO.fileReader` interface
+   
+
+   .. method:: proc init(strictTypeChecking: bool = false)
+
+      Create a new ``yamlDeserializer``
+      
+      With ``strictTypeChecking`` set to ``true``, the deserializer will
+      throw an error if a Yaml value has a type annotation which does
+      not match the type requested by the caller. With
+      ``strictTypeChecking`` set to ``false``, the deserializer will
+      essentially ignore scalar type annotations in the Yaml file.
+      
+
+   .. method:: proc ref deserializeValue(reader: yamlReader, ref val: ?t) throws
+
+      called by a ``fileReader`` to parse into an existing Chapel value 
+
+   .. method:: proc ref deserializeType(reader: yamlReader, type t): t throws
+
+      called by a ``fileReader`` to parse into a new Chapel value 
+
+.. record:: YamlMapSerializer
+
+   .. attribute:: var writer
+
+   .. attribute:: var emitter: shared LibYamlEmitter
+
+   .. attribute:: var context: shared ContextCounter
+
+.. record:: YamlSeqSerializer
+
+   .. attribute:: var writer
+
+   .. attribute:: var emitter: shared LibYamlEmitter
+
+   .. attribute:: var context: shared ContextCounter
+
+.. record:: YamlMapDeserializer
+
+   .. method:: proc hasMore(): bool throws
+
+.. record:: YamlSeqDeserializer
+
+   .. method:: proc hasMore(): bool throws
+
+.. enum:: enum YamlSequenceStyle { Default, Any, Block, Flow }
+
+   
+   The style of a YAML sequence.
+   
+
+   .. enumconstant:: enum constant Default
+
+      
+      Let the emitter choose the style.
+      
+
+   .. enumconstant:: enum constant Any
+
+      
+      Let the ``libyaml`` implementation choose the style.
+      
+
+   .. enumconstant:: enum constant Block
+
+      
+      Use the block sequence style. I.e., line breaks and indentation.
+      
+
+   .. enumconstant:: enum constant Flow
+
+      
+      Use the flow sequence style. I.e., comma separated values and square brackets.
+      
+
+.. enum:: enum YamlMappingStyle { Default, Any, Block, Flow }
+
+   
+   The style of a YAML mapping.
+   
+
+   .. enumconstant:: enum constant Default
+
+      
+      Let the emitter choose the style.
+      
+
+   .. enumconstant:: enum constant Any
+
+      
+      Let the ``libyaml`` implementation choose the style.
+      
+
+   .. enumconstant:: enum constant Block
+
+      
+      Use the block mapping style. I.e., line breaks and indentation.
+      
+
+   .. enumconstant:: enum constant Flow
+
+      
+      Use the flow mapping style. I.e., comma separated ``key: value`` pairs and curly braces.
+      
+
+.. enum:: enum YamlScalarStyle { Default, Any, Plain, SingleQuoted, DoubleQuoted, Literal, Folded }
+
+   
+   The style of a YAML scalar.
+   
+
+   .. enumconstant:: enum constant Default
+
+      
+      Let the emitter choose the style.
+      
+
+   .. enumconstant:: enum constant Any
+
+      
+      Let the ``libyaml`` implementation choose the style.
+      
+
+   .. enumconstant:: enum constant Plain
+
+      
+      No quotes around scalars
+      
+
+   .. enumconstant:: enum constant SingleQuoted
+
+      
+      Single quotes around scalars
+      
+
+   .. enumconstant:: enum constant DoubleQuoted
+
+      
+      Double quotes around scalars
+      
+
+   .. enumconstant:: enum constant Literal
+
+      
+      Literal style - maintain newlines
+      
+
+   .. enumconstant:: enum constant Folded
+
+      
+      Folded style - newlines are removed and replaced with spaces when parsed
+      
+
+.. enum:: enum YamlDocumentStyle { Default, Implicit, Explicit }
+
+   
+   The style of a YAML document.
+   
+
+   .. enumconstant:: enum constant Default
+
+      
+      Let the emitter choose the style.
+      
+
+   .. enumconstant:: enum constant Implicit
+
+      
+      The document is implicitly started. I.e., header and footer are omitted.
+      
+
+   .. enumconstant:: enum constant Explicit
+
+      
+      The document is explicitly started. I.e., header and footer are included.
+      
+
+.. class:: YamlEmitterError : Error
+
+   .. method:: proc init(msg: string)
+
+.. class:: YamlParserError : Error
+
+   .. method:: proc init(msg: string)
+
+.. class:: YamlUnexpectedEventError : YamlParserError
+
+   .. method:: proc init(expected: string, actual: string)
+
+.. class:: YamlValue : writeSerializable
+
+   .. method:: proc this(key: shared YamlValue) ref: shared YamlValue throws
+
+      index into a YAML mapping by YAML value 
+
+   .. method:: proc this(idx: int): borrowed YamlValue throws
+
+      index into a YAML sequence 
+
+   .. method:: proc size(): int
+
+      get the size of a YAML sequence or mapping 
+
+   .. method:: proc tag: string
+
+      get the tag associated with a YAML value 
+
+   .. method:: proc valueType(): YamlValueType
+
+   .. method:: proc asString(strict: bool = false): string throws
+
+   .. method:: proc asBytes(strict: bool = false): bytes throws
+
+   .. method:: proc asReal(strict: bool = false): real throws
+
+   .. method:: proc asInt(strict: bool = false): int throws
+
+   .. method:: proc asBool(strict: bool = false): bool throws
+
+   .. method:: proc asMapOf(type valType): map(string, valType) throws
+
+   .. method:: proc asListOf(type t): list(t) throws
+
+.. class:: YamlMapping : YamlValue, writeSerializable
+
+   .. method:: proc init()
+
+   .. method:: override proc this(key: string): shared YamlValue throws
+
+      index into a YAML mapping by string 
+
+   .. method:: override proc this(key: shared YamlValue) ref: shared YamlValue throws
+
+      index into a YAML mapping by YAML value 
+
+   .. method:: override proc size(): int
+
+   .. method:: override proc valueType(): YamlValueType
+
+   .. itermethod:: iter these() const ref
+
+   .. method:: proc asMapOf(type kt, type vt): map(kt, vt) throws
+
+.. class:: YamlSequence : YamlValue, writeSerializable
+
+   .. method:: proc init()
+
+   .. method:: override proc this(idx: int): shared YamlValue throws
+
+      index into a YAML sequence 
+
+   .. method:: override proc size(): int
+
+   .. method:: override proc valueType(): YamlValueType
+
+   .. itermethod:: iter these(): YamlValue
+
+   .. method:: proc asListOf(type t): list(t) throws
+
+.. class:: YamlScalar : YamlValue, writeSerializable
+
+   .. method:: proc init(rawValue: string)
+
+   .. method:: override proc valueType(): YamlValueType
+
+   .. method:: override proc asString(strict: bool = false): string throws
+
+   .. method:: override proc asBytes(strict: bool = false): bytes throws
+
+   .. method:: override proc asReal(strict: bool = false): real throws
+
+   .. method:: override proc asInt(strict: bool = false): int throws
+
+   .. method:: override proc asBool(strict: bool = false): bool throws
+
+   .. method:: override proc tag: string
+
+.. class:: YamlAlias : YamlValue, writeSerializable
+
+   .. method:: proc init(alias: string)
+
+   .. method:: override proc valueType(): YamlValueType
+
+   .. method:: override proc asString(strict: bool = false): string throws
+
+   .. method:: override proc asBytes(strict: bool = false): bytes throws
+
+.. function:: proc writeYamlFile(path: string, value: borrowed YamlValue) throws
+
+   write a yaml file to the give path 
+
+.. function:: proc parseYamlFile(path: string): [] shared YamlValue throws
+
+   parse a yaml file at the given path and return an array of documents 
+
+.. class:: YamlIndexError : Error
+
+   .. method:: proc init(msg: string)
+
+.. class:: YamlTypeError : Error
+
+   .. method:: proc init(msg: string)
+

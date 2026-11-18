@@ -15,6 +15,25 @@ please let us know.
 
 ### 2026
 
+<!-- Dec 2026 -->
+
+<!-- Nov 2026 -->
+
+<!-- Oct 2026 -->
+
+<!-- Sep 2026 -->
+
+{{<artifact-listing "nvidia2026">}}
+{{<artifact-listing "vatech2026">}}
+
+<!-- Aug 2026 -->
+
+{{<artifact-listing "uw-ssec26">}}
+
+<!-- Jul 2026 -->
+
+<!-- Jun 2026 -->
+
 <!-- May 2026 -->
 
 {{<artifact-listing "nwcpp26">}}

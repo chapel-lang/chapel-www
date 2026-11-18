@@ -18,11 +18,20 @@ us know.
 
 <!-- Dec 2026 -->
 
+{{<artifact-listing "csur2026">}}
+
 <!-- Nov 2026 -->
+
+{{<artifact-listing "riscv2026">}}
 
 <!-- Oct 2026 -->
 
+{{<artifact-listing "icpp26">}}
+
 <!-- Sep 2026 -->
+
+{{<artifact-listing "spin-nvsc-2026">}}
+{{<artifact-listing "hpec2026-chai">}}
 
 <!-- Aug 2026 -->
 
@@ -625,7 +634,7 @@ us know.
 
 <!-- Aug 2007 -->
 
-{{<artifact-listing "hpca07">}}
+{{<artifact-listing "ijhpca07">}}
 
 <!-- Jul 2007 -->
 
